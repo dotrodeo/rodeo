@@ -1,2 +1,22 @@
+# --- OS ---
 .DS_Store
-.history
+
+# --- Local history (VS Code Local History / embedded repo) ---
+.history/
+
+# --- KiCad backups & autosave ---
+*.bak
+*-bak
+*.kicad_pcb-bak
+*.kicad_sch-bak
+*-backups/
+_autosave-*
+*.000
+
+# --- KiCad lock & cache files ---
+*.lck
+~*.lck
+fp-info-cache
+
+# --- KiCad temporary DRC/ERC report files ---
+tmp*.rpt
