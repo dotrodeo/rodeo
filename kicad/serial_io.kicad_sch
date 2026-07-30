@@ -756,6 +756,16 @@
 	)
 	(wire
 		(pts
+			(xy 120.65 88.9) (xy 120.65 87.63)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "396c7db9-f6ad-4984-83ce-e51effd9848a")
+	)
+	(wire
+		(pts
 			(xy 144.78 90.17) (xy 144.78 87.63)
 		)
 		(stroke
@@ -776,7 +786,7 @@
 	)
 	(wire
 		(pts
-			(xy 123.19 90.17) (xy 123.19 87.63)
+			(xy 123.19 87.63) (xy 123.19 91.44)
 		)
 		(stroke
 			(width 0)
@@ -953,6 +963,85 @@
 		)
 	)
 	(symbol
+		(lib_id "power:GND")
+		(at 120.65 88.9 270)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "2f3ca2d7-a01d-4e6b-854a-c6816a4cba90")
+		(property "Reference" "#PWR0115"
+			(at 114.3 88.9 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 116.84 88.8999 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" ""
+			(at 120.65 88.9 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 120.65 88.9 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 120.65 88.9 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "b4aadca0-a81a-467e-a775-2f8e5dd4d81f")
+		)
+		(instances
+			(project "rodeo-001"
+				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/e28741d5-6706-4936-ab3a-13b512f96b42"
+					(reference "#PWR0115")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:+3V3")
 		(at 168.91 87.63 90)
 		(unit 1)
@@ -964,7 +1053,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "30d8d57e-4c39-46f6-9cef-b229d1a9bc11")
-		(property "Reference" "#PWR096"
+		(property "Reference" "#PWR0118"
 			(at 172.72 87.63 0)
 			(hide yes)
 			(show_name no)
@@ -1024,8 +1113,8 @@
 		)
 		(instances
 			(project "rodeo-001"
-				(path "/e28741d5-6706-4936-ab3a-13b512f96b42"
-					(reference "#PWR096")
+				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/e28741d5-6706-4936-ab3a-13b512f96b42"
+					(reference "#PWR0118")
 					(unit 1)
 				)
 			)
@@ -1043,7 +1132,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "46d6dcac-91c2-4bd1-a891-3a6c03502933")
-		(property "Reference" "J44"
+		(property "Reference" "J43"
 			(at 148.59 76.2 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1116,8 +1205,8 @@
 		)
 		(instances
 			(project "rodeo-001"
-				(path "/e28741d5-6706-4936-ab3a-13b512f96b42"
-					(reference "J44")
+				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/e28741d5-6706-4936-ab3a-13b512f96b42"
+					(reference "J43")
 					(unit 1)
 				)
 			)
@@ -1135,7 +1224,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "58c8ee41-02a4-4530-9bef-c3faa023812f")
-		(property "Reference" "#PWR095"
+		(property "Reference" "#PWR0117"
 			(at 138.43 90.17 0)
 			(hide yes)
 			(show_name no)
@@ -1195,87 +1284,8 @@
 		)
 		(instances
 			(project "rodeo-001"
-				(path "/e28741d5-6706-4936-ab3a-13b512f96b42"
-					(reference "#PWR095")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+3V3")
-		(at 120.65 87.63 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "7300e19e-5a92-4efd-80a0-e0aff51ad4c9")
-		(property "Reference" "#PWR092"
-			(at 124.46 87.63 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 116.84 87.6299 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" ""
-			(at 120.65 87.63 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 120.65 87.63 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"+3V3\""
-			(at 120.65 87.63 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "41d84800-355d-4061-aa06-15cb3c63163f")
-		)
-		(instances
-			(project "rodeo-001"
-				(path "/e28741d5-6706-4936-ab3a-13b512f96b42"
-					(reference "#PWR092")
+				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/e28741d5-6706-4936-ab3a-13b512f96b42"
+					(reference "#PWR0117")
 					(unit 1)
 				)
 			)
@@ -1293,7 +1303,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "762b10c4-3391-41ae-aa9c-45b01bd5869b")
-		(property "Reference" "#PWR094"
+		(property "Reference" "#PWR0116"
 			(at 146.05 87.63 0)
 			(hide yes)
 			(show_name no)
@@ -1353,8 +1363,8 @@
 		)
 		(instances
 			(project "rodeo-001"
-				(path "/e28741d5-6706-4936-ab3a-13b512f96b42"
-					(reference "#PWR094")
+				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/e28741d5-6706-4936-ab3a-13b512f96b42"
+					(reference "#PWR0116")
 					(unit 1)
 				)
 			)
@@ -1372,7 +1382,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "8989b13c-6aaf-4f26-aadd-cbd960adbbff")
-		(property "Reference" "J45"
+		(property "Reference" "J44"
 			(at 172.72 76.2 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1439,87 +1449,8 @@
 		)
 		(instances
 			(project "rodeo-001"
-				(path "/e28741d5-6706-4936-ab3a-13b512f96b42"
-					(reference "J45")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 123.19 90.17 270)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "c366c57b-d7c2-43fe-b4b5-c8f7a77420d2")
-		(property "Reference" "#PWR093"
-			(at 116.84 90.17 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 119.38 90.1699 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" ""
-			(at 123.19 90.17 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 123.19 90.17 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 123.19 90.17 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "0ce45e34-5a4a-44fc-bd8c-3816aca360d2")
-		)
-		(instances
-			(project "rodeo-001"
-				(path "/e28741d5-6706-4936-ab3a-13b512f96b42"
-					(reference "#PWR093")
+				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/e28741d5-6706-4936-ab3a-13b512f96b42"
+					(reference "J44")
 					(unit 1)
 				)
 			)
@@ -1537,7 +1468,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "cbae02e8-0eb0-47c5-a7d4-98b3d4167e31")
-		(property "Reference" "#PWR097"
+		(property "Reference" "#PWR0119"
 			(at 165.1 90.17 0)
 			(hide yes)
 			(show_name no)
@@ -1597,8 +1528,8 @@
 		)
 		(instances
 			(project "rodeo-001"
-				(path "/e28741d5-6706-4936-ab3a-13b512f96b42"
-					(reference "#PWR097")
+				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/e28741d5-6706-4936-ab3a-13b512f96b42"
+					(reference "#PWR0119")
 					(unit 1)
 				)
 			)
@@ -1616,7 +1547,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "d6ff5588-7c6a-45ba-8913-d34c95062ee5")
-		(property "Reference" "J43"
+		(property "Reference" "J42"
 			(at 124.46 76.2 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1683,8 +1614,87 @@
 		)
 		(instances
 			(project "rodeo-001"
-				(path "/e28741d5-6706-4936-ab3a-13b512f96b42"
-					(reference "J43")
+				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/e28741d5-6706-4936-ab3a-13b512f96b42"
+					(reference "J42")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+3V3")
+		(at 123.19 91.44 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "f9449108-673e-4a55-9565-4ac3e70717b2")
+		(property "Reference" "#PWR0114"
+			(at 127 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 119.38 91.4399 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 123.19 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 123.19 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 123.19 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "9ed0eaea-85ed-4242-8d36-0b642daf77ef")
+		)
+		(instances
+			(project "rodeo-001"
+				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/e28741d5-6706-4936-ab3a-13b512f96b42"
+					(reference "#PWR0114")
 					(unit 1)
 				)
 			)
