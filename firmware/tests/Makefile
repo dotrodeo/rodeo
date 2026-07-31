@@ -2,15 +2,16 @@
 CXX      ?= c++
 CXXFLAGS := -std=c++17 -I../src -Wall -Wextra -O0 -g
 
-TESTS := test_bringup
+TESTS := test_bringup test_note_stack test_spsc
 
 all: run
 
-test_bringup: test_bringup.cpp
+%: %.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
 run: $(TESTS)
-	@./test_bringup && echo "ALL HOST TESTS PASSED"
+	@for t in $(TESTS); do ./$$t || exit 1; done; \
+	  echo "ALL HOST TESTS PASSED"
 
 clean:
 	rm -f $(TESTS)

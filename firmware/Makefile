@@ -16,7 +16,10 @@ TARGET = rodeo-001
 
 CPP_SOURCES = \
 src/main.cpp \
-src/platform/system.cpp
+src/platform/system.cpp \
+src/engine/voice.cpp \
+src/engine/synth.cpp \
+src/midi/midi_engine.cpp
 
 # Make our own headers ("platform/board.h", ...) visible to the compiler.
 C_INCLUDES += -Isrc

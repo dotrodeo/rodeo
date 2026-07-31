@@ -3,7 +3,8 @@ config.mk
 
 # Firmware build artifacts
 build/
-tests/test_bringup
+tests/test_*
+!tests/test_*.cpp
 *.o
 *.d
 *.elf

@@ -1,38 +1,34 @@
-// Rodeo 001 — M0 bring-up: boots and produces audio.
+// Rodeo 001 — M1: one MIDI voice.
 //
-// Scope (per the firmware plan, milestone M0):
-//   * init the Daisy Seed, 48 kHz, block size 32
-//   * enable FPU flush-to-zero
-//   * emit a fixed sine tone to both output channels (J5)
-//   * blink the onboard + carrier status LEDs to prove the main loop is alive
+// MIDI IN (USART1) -> note-event queue -> a single Osc1+Osc2 -> filter -> amp
+// voice with per-voice amp + filter envelopes, played monophonically
+// (last-note priority). Parameters are fixed placeholder defaults until the
+// external-ADC control surface arrives in M4.
 //
-// No MIDI, no ADC/SPI, no control surface yet — those arrive in M1+.
+//   control plane (main loop): MidiEngine parses UART, pushes note events
+//   audio plane   (callback):  Synth drains the queue and renders the voice
 
 #include "daisy_seed.h"
-#include "daisysp.h"
 #include "platform/board.h"
 #include "platform/system.h"
+#include "engine/synth.h"
+#include "midi/midi_engine.h"
 
 using namespace daisy;
-using namespace daisysp;
 
 namespace
 {
 DaisySeed  hw;
-Oscillator osc;
+Synth      synth;
+MidiEngine midi;
 GPIO       status_led; // carrier LED D5 (Daisy pin 28 / seed::D21)
 
 void AudioCallback(AudioHandle::InputBuffer  in,
                    AudioHandle::OutputBuffer out,
                    size_t                    size)
 {
-    (void)in; // no input processing in M0
-    for(size_t i = 0; i < size; ++i)
-    {
-        const float sig = osc.Process();
-        out[0][i]       = sig; // left  -> J5 tip
-        out[1][i]       = sig; // right -> J5 ring
-    }
+    (void)in;
+    synth.Process(out, size);
 }
 } // namespace
 
@@ -43,14 +39,10 @@ int main(void)
     hw.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
 
     platform::EnableFlushToZero();
-
     status_led.Init(seed::D21, GPIO::Mode::OUTPUT);
 
-    const float sample_rate = hw.AudioSampleRate();
-    osc.Init(sample_rate);
-    osc.SetWaveform(Oscillator::WAVE_SIN);
-    osc.SetFreq(220.0f);
-    osc.SetAmp(0.2f); // conservative level; leave headroom
+    synth.Init(hw.AudioSampleRate());
+    midi.Init();
 
     hw.StartAudio(AudioCallback);
 
@@ -58,13 +50,15 @@ int main(void)
     bool     led_state   = false;
     for(;;)
     {
+        midi.Process(synth); // parse MIDI -> note-event queue (never blocks audio)
+
         const uint32_t now = System::GetNow();
         if(now - last_toggle >= 500u)
         {
             last_toggle = now;
             led_state   = !led_state;
-            hw.SetLed(led_state);        // Daisy onboard user LED
-            status_led.Write(led_state); // carrier status LED (D5)
+            hw.SetLed(led_state);
+            status_led.Write(led_state);
         }
     }
 }
