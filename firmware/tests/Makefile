@@ -2,7 +2,7 @@
 CXX      ?= c++
 CXXFLAGS := -std=c++17 -I../src -Wall -Wextra -O0 -g
 
-TESTS := test_bringup test_note_stack test_spsc
+TESTS := test_bringup test_note_stack test_spsc test_voice_alloc
 
 all: run
 

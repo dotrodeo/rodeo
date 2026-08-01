@@ -18,6 +18,7 @@ CPP_SOURCES = \
 src/main.cpp \
 src/platform/system.cpp \
 src/engine/voice.cpp \
+src/engine/voice_manager.cpp \
 src/engine/synth.cpp \
 src/midi/midi_engine.cpp
 

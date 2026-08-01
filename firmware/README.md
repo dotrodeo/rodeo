@@ -4,8 +4,12 @@
 Architecture and roadmap: see the approved firmware plan (control-plane / audio-plane
 split, external-ADC control surface, per-voice filter). This README covers building.
 
-**Current milestone: M0 — boots & produces audio.** Emits a fixed 220 Hz sine to the
-line out (J5) and blinks the onboard + carrier status LEDs. No MIDI / ADC yet.
+**Current milestone: M2 — 12-voice polyphony.** MIDI IN (J2) plays a 12-voice poly
+synth (2 osc → per-voice resonant filter → amp, with per-voice amp + filter
+envelopes; FIFO voice allocation + stealing). Parameters are fixed placeholder
+defaults until the external-ADC control surface (M4). Omni MIDI. No panel/ADC yet.
+
+Done: **M0** (boots, tone on J5, LEDs) · **M1** (one MIDI voice, mono) · **M2** (12-voice poly).
 
 ## Toolchain
 
@@ -40,7 +44,9 @@ Put the Daisy in DFU (hold BOOT, tap RESET) over its **onboard micro-USB**
 make program-dfu
 ```
 
-Expected after flash: 220 Hz tone on J5 (LINE OUT), LEDs blinking at ~1 Hz.
+Expected after flash: LEDs blinking at ~1 Hz; a MIDI keyboard on J2 (MIDI IN)
+plays up to 12 notes. CPU load + active-voice count print over the onboard USB
+serial — open a serial monitor (115200) to watch the audio-callback budget.
 
 ## Layout
 

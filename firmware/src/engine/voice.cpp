@@ -61,8 +61,9 @@ float Voice::Process(const Patch& patch)
                       + osc2_.Process() * patch.osc2_level;
 
     // Envelope-swept cutoff, exponential (in octaves) about the base.
+    // exp2f is cheaper than powf(2,x) and this runs per sample per voice.
     const float cutoff = fclamp(
-        patch.filt_cutoff * powf(2.0f, patch.filt_env_amount * filt_e),
+        patch.filt_cutoff * exp2f(patch.filt_env_amount * filt_e),
         20.0f,
         18000.0f);
     filter_.SetFreq(cutoff);
