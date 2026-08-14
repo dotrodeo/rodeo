@@ -1,58 +1,72 @@
-# Rodeo 001 — Firmware
+# Rodeo Motherboard — Firmware
 
-12-voice digital subtractive synth on the Electrosmith Daisy Seed 3.
-Architecture and roadmap: see the approved firmware plan (control-plane / audio-plane
-split, external-ADC control surface, per-voice filter). This README covers building.
+Boilerplate and PCB bring-up examples for the Rodeo motherboard (Electrosmith
+Daisy Seed on the rodeo-001 board). This tree is a **starting point for Rodeo
+firmware** plus **small standalone programs that validate each subsystem** of a
+freshly assembled board — flash one, confirm the hardware, move on.
 
-**Current milestone: M2 — 12-voice polyphony.** MIDI IN (J2) plays a 12-voice poly
-synth (2 osc → per-voice resonant filter → amp, with per-voice amp + filter
-envelopes; FIFO voice allocation + stealing). Parameters are fixed placeholder
-defaults until the external-ADC control surface (M4). Omni MIDI. No panel/ADC yet.
-
-Done: **M0** (boots, tone on J5, LEDs) · **M1** (one MIDI voice, mono) · **M2** (12-voice poly).
-
-## Toolchain
-
-- **ARM GNU Toolchain** (`arm-none-eabi-gcc`) **with newlib.**
-  On macOS the Homebrew `arm-none-eabi-gcc` ships *without* newlib and will fail with
-  `stdint.h: No such file or directory`. Install the official
-  [Arm GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads)
-  and either put it on `PATH` ahead of Homebrew, or set `GCC_PATH` in `firmware/config.mk`:
-  ```make
-  GCC_PATH := /Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin
-  ```
-  `config.mk` is gitignored (machine-specific). It is auto-included by the Makefile.
-- `dfu-util` for flashing; a host C++17 compiler for the unit tests.
-- Submodules: `git submodule update --init --recursive`.
-
-## Build
-
-```sh
-cd firmware
-make deps        # build libDaisy + DaisySP static libs (first time / after submodule bump)
-make             # -> build/rodeo-001.{elf,bin,hex}
-make host-test   # native unit tests
-make clean
-```
-
-## Flash
-
-Put the Daisy in DFU (hold BOOT, tap RESET) over its **onboard micro-USB**
-(the panel USB-C is power-only), then:
-
-```sh
-make program-dfu
-```
-
-Expected after flash: LEDs blinking at ~1 Hz; a MIDI keyboard on J2 (MIDI IN)
-plays up to 12 notes. CPU load + active-voice count print over the onboard USB
-serial — open a serial monitor (115200) to watch the audio-callback budget.
+> The previous contents (a 12-voice subtractive synth) are preserved on the git
+> tag `archive/synth-m2`. Restore with `git checkout archive/synth-m2 -- firmware/src`.
 
 ## Layout
 
 ```
-src/platform/  board pin map (host-safe) + MCU setup (FTZ)
-src/main.cpp   M0 audio bring-up
-tests/         host-native unit tests
-libDaisy/ DaisySP/   submodules
+firmware/
+  common/
+    board.h          # Rodeo pin map — the single source of truth (host-safe)
+    rodeo.mk         # shared build rules; every app/example includes this
+  template/          # copy-to-start skeleton for a new Rodeo app (blinks LEDs)
+  examples/
+    01_blink/        # onboard + carrier LED — boots-and-alive smoke test
+    02_audio_tone/   # 440 Hz sine on the output jacks — codec / SAI path
+    03_midi_mono_sine/ # MIDI IN -> monophonic sine voice with a short ADSR
+    04_adc_1ch/      # one channel of the external ADS114S08 SPI ADC -> serial
+  libDaisy/  DaisySP/ # vendored submodules (static libs live in their build/)
+  Makefile           # top-level helpers: `make deps`, `make all`, `make clean`
 ```
+
+Each app/example is a self-contained folder: its own `src/main.cpp` and a tiny
+`Makefile` that just sets `TARGET` + `CPP_SOURCES` and includes
+`common/rodeo.mk`. `cd` into one and run `make`.
+
+## Toolchain
+
+- **ARM GNU Toolchain** (`arm-none-eabi-gcc`) **with newlib.** On macOS the
+  Homebrew `arm-none-eabi-gcc` ships *without* newlib and fails with
+  `stdint.h: No such file or directory`. Install the official
+  [Arm GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads)
+  and set `GCC_PATH` in `firmware/config.mk` (gitignored, machine-specific;
+  auto-included by every build):
+  ```make
+  GCC_PATH := /Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin
+  ```
+- `dfu-util` for flashing; submodules: `git submodule update --init --recursive`.
+
+## Build & flash
+
+```sh
+cd firmware
+make deps                      # build libDaisy + DaisySP static libs (first time)
+
+cd examples/01_blink
+make                           # -> build/blink.{elf,bin,hex}
+make program-dfu               # flash: hold BOOT, tap RESET on the Daisy first
+```
+
+`make all` from `firmware/` builds every example.
+
+## Adding a new app or bring-up example
+
+1. Copy `template/` to `examples/<NN_name>/` (two levels below `firmware/`, so
+   the default `RODEO_ROOT = ../..` resolves — delete the `RODEO_ROOT` line the
+   template carries for its own shallower location).
+2. Edit `TARGET` and `CPP_SOURCES` in its `Makefile`.
+3. `#include "board.h"` for the pin map; write `src/main.cpp`.
+
+## Notes
+
+- `board.h` is the pin/topology contract for the whole board (SPI/ADC, MIDI,
+  audio, LED, 24-channel ADC surface). Keep it in sync with the KiCad source.
+- `04_adc_1ch` is a first bring-up draft for the external ADCs — the one
+  subsystem not yet hardware-verified. Its reference configuration may need to
+  match the board's actual REF wiring; see the header comment in its `main.cpp`.

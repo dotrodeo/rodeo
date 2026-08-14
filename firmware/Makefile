@@ -1,42 +1,31 @@
-# Rodeo 001 firmware — target build (Daisy Seed / STM32H750, arm-none-eabi)
+# Rodeo motherboard firmware — top-level helpers.
 #
-# Usage:
-#   make deps        # build libDaisy + DaisySP static libs (first time / after update)
-#   make             # build firmware -> build/rodeo-001.{elf,bin}
-#   make program-dfu # flash over the Daisy's onboard micro-USB (hold BOOT, tap RESET)
-#   make host-test   # run native host unit tests
-#   make clean
+# The real builds live in template/ and examples/<name>/. cd into one and run
+# `make` (then `make program-dfu` to flash). This top-level file just builds the
+# vendored libraries once, and offers a convenience sweep build of all examples.
+#
+#   make deps   # build libDaisy + DaisySP static libs (first time / after bump)
+#   make all    # build every example
+#   make clean  # clean every example + template
 
-TARGET = rodeo-001
-
-# Optional local toolchain config (gitignored). On macOS the Homebrew
-# arm-none-eabi-gcc ships without newlib; point GCC_PATH at the ARM GNU
-# Toolchain in config.mk (see README) so plain `make` works.
 -include config.mk
-
-CPP_SOURCES = \
-src/main.cpp \
-src/platform/system.cpp \
-src/engine/voice.cpp \
-src/engine/voice_manager.cpp \
-src/engine/synth.cpp \
-src/midi/midi_engine.cpp
-
-# Make our own headers ("platform/board.h", ...) visible to the compiler.
-C_INCLUDES += -Isrc
 
 LIBDAISY_DIR = libDaisy
 DAISYSP_DIR  = DaisySP
+GCC := $(if $(GCC_PATH),GCC_PATH=$(GCC_PATH))
 
-SYSTEM_FILES_DIR = $(LIBDAISY_DIR)/core
-include $(SYSTEM_FILES_DIR)/Makefile
+EXAMPLES := $(sort $(dir $(wildcard examples/*/)))
 
-# --- convenience targets (added after the core include) --------------------
+.PHONY: deps all clean $(EXAMPLES)
+
 deps:
-	$(MAKE) -C $(LIBDAISY_DIR) $(if $(GCC_PATH),GCC_PATH=$(GCC_PATH))
-	$(MAKE) -C $(DAISYSP_DIR) $(if $(GCC_PATH),GCC_PATH=$(GCC_PATH))
+	$(MAKE) -C $(LIBDAISY_DIR) $(GCC)
+	$(MAKE) -C $(DAISYSP_DIR) $(GCC)
 
-host-test:
-	$(MAKE) -C tests
+all: $(EXAMPLES)
 
-.PHONY: deps host-test
+$(EXAMPLES):
+	$(MAKE) -C $@
+
+clean:
+	@for d in $(EXAMPLES) template; do $(MAKE) -C $$d clean; done
