@@ -9,11 +9,13 @@
 //         prints ~10x/sec and tracks the input.
 //
 // ---------------------------------------------------------------------------
-// FIRST BRING-UP DRAFT — the external ADCs are the one subsystem not yet
-// hardware-verified. Two things to confirm on the bench before trusting it:
-//   1. Reference: this configures the ADS114S08 INTERNAL 2.5 V reference. If the
-//      board provides an external reference on REFP0/REFN0, change REG_REF below
-//      (and the 2.5f volts scale) to match. Coordinate with hardware.
+// BRING-UP — SPI path bench-verified 2026-08-14 (MOSI/MISO orientation correct,
+// steady non-railed stream). Notes:
+//   1. Reference: RESOLVED 2026-08-14 (w/ Bumble) — the board drives an EXTERNAL
+//      reference, REFP0=+3V3 / REFN0=GND, i.e. a 3.3V ratiometric span shared
+//      with the pot supply. REG_REF selects that external ref and kVref=3.3f, so
+//      full-scale code = 3.3V input. (Earlier draft used the internal 2.5V ref,
+//      which capped range at 2.5V and read absolute mV ~32% low.)
 //   2. DRDY# is not wired to the MCU, so we poll RDATA on a fixed cadence rather
 //      than waiting on data-ready. Fine for a slow single-channel test.
 // SPI pins (SCK D8 / MISO D9 / MOSI D10) and the U3 chip-select (D25) are from
@@ -42,10 +44,14 @@ static constexpr uint8_t REG_REF    = 0x05; // reference control
 // --- register values ---
 // INPMUX: MUXP = AIN0 (0x0), MUXN = AINCOM (0xC) -> single-ended AIN0.
 static constexpr uint8_t INPMUX_AIN0 = 0x0C;
-// REF: internal 2.5 V reference, always on, both ref buffers enabled.
-//   bits[1:0] REFSEL=10 (internal 2.5V), bits[3:2] REFCON=10 (always on).
-static constexpr uint8_t REF_INTERNAL_2V5 = 0x0A;
-static constexpr float   kVref            = 2.5f;
+// REF: external reference on REFP0/REFN0 (board drives REFP0=+3V3, REFN0=GND;
+//   3.3V ratiometric span, confirmed w/ Bumble 2026-08-14). Internal ref off.
+//   Both ref buffers are BYPASSED because REFP0 sits at AVDD and REFN0 at AVSS —
+//   at the supply rails, outside the reference buffers' input range.
+//   bit5 nREFP_BUF=1, bit4 nREFN_BUF=1 (buffers disabled), bits[3:2] REFSEL=00
+//   (external REFP0/REFN0), bits[1:0] REFCON=00 (internal ref off) -> 0x30.
+static constexpr uint8_t REF_EXTERNAL_3V3 = 0x30;
+static constexpr float   kVref            = 3.3f;
 
 static inline void CsLow() { adc_cs.Write(false); }
 static inline void CsHigh() { adc_cs.Write(true); }
@@ -98,11 +104,11 @@ int main(void)
     adc_cs.Init(seed::D25, GPIO::Mode::OUTPUT); // U3 CS
     CsHigh();
 
-    System::Delay(10); // power-up / internal reference settle
+    System::Delay(10); // power-up settle
     SendCmd(CMD_RESET);
     System::Delay(5);
 
-    WriteReg(REG_REF, REF_INTERNAL_2V5);
+    WriteReg(REG_REF, REF_EXTERNAL_3V3);
     WriteReg(REG_INPMUX, INPMUX_AIN0);
     // DATARATE left at reset default (0x14 -> 20 SPS, normal mode).
 
