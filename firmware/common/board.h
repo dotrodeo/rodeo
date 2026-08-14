@@ -39,6 +39,21 @@ constexpr int kStatusLed = 28; // seed::D21 (PC4)
 // --- Control-surface topology --------------------------------------------
 // All analog controls (pots AND resistor-ladder rotary selectors) are read
 // through the two external ADS114S08 SPI ADCs — never the Daisy's onboard ADC.
+//
+// Physical channel index convention (contract — keep in lockstep with
+// RODEO_CONTROL_MAP.md, the source of truth for channel -> connector -> function):
+//     ch = chip*12 + AINindex
+//     ch  0..11  -> chip A = U3 (kAdc1Cs, seed::D25) AIN0..AIN11 -> J6..J17
+//     ch 12..23  -> chip B = U4 (kAdc2Cs, seed::D26) AIN0..AIN11 -> J18..J29
+// Every connector is monotonic (ch0->J6 … ch23->J29), verified against KiCad.
+//
+// Single-ended reads use MUXN = AINCOM, which is board-tied to GND on both
+// chips (verified in KiCad) — that is what gives the full 0..3.3 V span.
+//
+// Pin-alias guard: AIN6/AIN7 also alias REFP1/REFN1, and AIN8..AIN11 alias
+// GPIO0..GPIO3. We use REFP0/REFN0 and no GPIO, so all 12 inputs/chip are free —
+// but NEVER set REFSEL=01 or configure those pins as GPIO, or channels 6..11
+// silently disappear.
 constexpr int kNumAdcChannels = 24; // 2 chips x 12 single-ended channels
 constexpr int kNumAdcPerChip  = 12;
 constexpr int kNumChips       = 2;

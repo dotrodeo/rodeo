@@ -40,6 +40,20 @@
 
 - **24 channels** = 2 chips × 12 single-ended (AINx vs AINCOM). `kNumAdcChannels
   = 24`, `kNumAdcPerChip = 12`.
+- **Physical channel-index convention (contract — `RODEO_CONTROL_MAP.md` is the
+  source of truth):**
+  ```
+  ch = chip*12 + AINindex
+    ch  0..11 → chip A = U3 (CS D25) AIN0..AIN11 → J6..J17
+    ch 12..23 → chip B = U4 (CS D26) AIN0..AIN11 → J18..J29   (monotonic, KiCad-verified)
+  ```
+  `board.h` and `RodeoAdc` adopt exactly this so a logical control always lands
+  on the connector the map names. Locked *before* the app is written against it.
+- **AINCOM is board-tied to GND** on both chips (KiCad-verified) — that's what
+  makes `MUXN=AINCOM` a full 0–3.3 V single-ended read, not a mid-supply ref.
+- **Pin-alias guard:** AIN6/AIN7 alias REFP1/REFN1 and AIN8–11 alias GPIO0–3.
+  We're clear (we use REFP0/REFN0, no GPIO), but the driver must **never** set
+  `REFSEL=01` or configure those pins as GPIO, or channels 6–11 silently vanish.
 - **Reference:** external, REFP0 = +3V3 / REFN0 = GND → 3.3 V **ratiometric**
   span shared with the pot supply. `REG_REF = 0x30` (external ref, both ref
   buffers bypassed — they sit at the rails, outside buffer CM range). Confirmed
@@ -82,12 +96,24 @@ The surface the app actually calls.
 class RodeoAdc {
   void Init(SpiHandle& spi);            // constructs both Ads114s08, applies scan config
   void Update();                        // pump from the main loop; advances the pipelined scan
-  uint16_t GetCode(uint8_t ch) const;   // latest raw code, 0..N channels
+  uint16_t GetCode(uint8_t ch) const;   // latest code, clamped to [0, 32767] (see below)
   float    GetVolts(uint8_t ch) const;  // calibrated volts (ratiometric, 0..3.3 V)
   float    GetNorm(uint8_t ch) const;   // normalized 0..1 for control use
   bool     ChannelPopulated(uint8_t ch) const;
 };
 ```
+
+**Value pipeline — signedness clamp at pot-zero (must-fix, not optional):**
+`Ads114s08::ReadData()` returns **`int16_t`** (the ADC is inherently signed).
+Our single-ended pots are unipolar (AINx ≥ AINCOM = GND), so the ideal code is
+`0..+32767` — **but at the fully-off position (~0 V), ADC offset + noise +
+leakage routinely dip the reading a few codes negative.** If a raw `int16_t(-3)`
+is cast straight to `uint16_t` it becomes `65533`, and `GetNorm ≈ 1.0` — i.e.
+**the control reads FULL when the knob is OFF**, at the most common control
+position. The cache therefore stores the **signed** result and every accessor
+clamps the negative tail to zero:
+`code_u = (raw < 0) ? 0 : uint16_t(raw)`, `norm = clamp(raw/32767, 0, 1)`.
+Never cast a raw reading to unsigned without the clamp.
 
 ### Layer 3 — mapping (NOT in this library)
 `channel index → logical control` lives with the control map. The app owns it.
@@ -290,5 +316,7 @@ reference filtering/buffering when CV/jack inputs are added. Not a V1 concern.
 - **SBAS815A** — ADS114S08/06 datasheet. Filter/settling: §9.3.6, Tables 11–13,
   15, Fig 72. Registers: §9.6 (INPMUX 02h, PGA 03h, DATARATE 04h, REF 05h).
   Scan/WREG restart: §9.5.3.12, §9.5.4.3, Fig 92. No-DRDY polling: §9.5.5.
-- `firmware/common/board.h` — pin + channel-count source of truth.
+- `firmware/common/board.h` — pin + channel-count + channel-index convention.
+- `RODEO_CONTROL_MAP.md` (Bumble) — source of truth for channel → connector →
+  logical control, AINCOM=GND, and the AIN6/7/8–11 pin-alias notes.
 - `firmware/examples/04_adc_1ch` — verified single-channel bring-up / proof harness.
