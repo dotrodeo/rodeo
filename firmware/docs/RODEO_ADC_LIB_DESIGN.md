@@ -62,6 +62,40 @@
   first-settled-conversion latency for the active rate (§4).
 - **SPI mode 1** (CPOL=0, CPHA=1), the ADS114S08 requirement.
 
+### 2.1 Coexisting with other external SPI devices (e.g. an SPI OLED)
+
+The lib is deliberately bus-share-friendly: `Ads114s08::Init` borrows an
+*already-initialized* `SpiHandle*` and drives only its own soft-NSS GPIO CS
+(idle-high, guarded by `InitCsIdle`). It never owns the peripheral exclusively.
+That said, the **recommended** integration for any other SPI device (an SSD1309
+OLED being the live example, DD-001) is a **dedicated, separate SPI peripheral** —
+then the two are fully independent (separate handle, separate CS, no arbitration,
+no scan-timing coupling) and this library needs *nothing*.
+
+**Board reality (Bumble, 2026-08-15):** the current fabbed motherboard breaks
+out **only SPI1** — the ADC bus, on header J43. No second SPI peripheral is
+routed, and the Seed's NC pins do not land on any header. So a dedicated 2nd SPI
+bus for the OLED is a **Rev-B action**, not a current-board option. Today's
+choices:
+
+- **A — OLED on I2C** (J42 Qwiic, 0x3C). Feedback-only display needs no SPI
+  framerate; zero board change, zero ADC-lib change, SPI-contention question
+  evaporates. *Bumble's recommendation, and mine from the firmware side.*
+- **B — dedicated 2nd SPI header in Rev-B.** Gives the fully independent bus
+  above. Bumble owns peripheral + pin selection (verify AFs vs Seed pinout /
+  libDaisy before the respin).
+- **C — bit-bang an SPI OLED on spare digital jacks** (current board, no
+  respin). Keeps ADC SPI1 untouched but costs 5 of 6 digital spares + a
+  software-speed refresh. Only if SPI is wanted before Rev-B.
+
+**Avoid — sharing SPI1 (the ADC bus).** Technically possible (each device has
+its own CS + idle-high discipline), but a single `SpiHandle` holds *one* Config,
+so a mode-1 ADC (CPOL0/CPHA1) sharing with a typical mode-0/3 OLED forces a
+peripheral re-`Init` (mode + baud) on every device hand-off, and the OLED's
+bursty ~1 KB full-frame writes jitter the cadenced round-robin scan (§4). Since
+J43 is the *only* SPI header today, reusing it means eating exactly that pain —
+another reason A or B wins.
+
 ---
 
 ## 3. Architecture — two layers
