@@ -59,6 +59,55 @@ constexpr int kNumAdcPerChip  = 12;
 constexpr int kNumChips       = 2;
 constexpr int kNumDigitalIo   = 12; // DIG_1..12 (free for buttons/gates)
 
+// --- Frozen ADC channel -> control binding (Path B) ----------------------
+// FROZEN 2026-08-15 with Honey (panel L->R order) + Bumble (J6..J29 map).
+// Source of truth: RODEO_CONTROL_MAP.md. Physical left-to-right panel order
+// IS the channel order, 1:1 — do not renumber without re-freezing there.
+//
+// All 24 are read as single-ended pots EXCEPT ch0/ch3, which are 4-position
+// resistor-ladder rotary switches (rodeo-rotary-switch): same ADC read, but
+// quantize GetNorm() into 4 bands rather than treating as continuous.
+//
+// U3 = chip A (kAdc1Cs, seed::D25) -> J6..J17:
+enum AdcCtrl
+{
+    // -- U3 / ch0..11 / J6..J17 --
+    kOsc1Wave    = 0,  // J6  rotary (4-pos ladder)
+    kOsc1Shape   = 1,  // J7  pot (Shape/PW)
+    kOsc1Spread  = 2,  // J8  pot (supersaw spread)
+    kOsc2Wave    = 3,  // J9  rotary (4-pos ladder)
+    kOsc2Shape   = 4,  // J10 pot (Shape/PW)
+    kOsc2Spread  = 5,  // J11 pot
+    kMixOsc1     = 6,  // J12 pot (osc1 level)
+    kMixOsc2     = 7,  // J13 pot (osc2 level)
+    kMixNoise    = 8,  // J14 pot (noise level)
+    kFilterCutoff    = 9,   // J15 pot
+    kFilterReso      = 10,  // J16 pot
+    kFilterEnvAmt    = 11,  // J17 pot
+    // -- U4 / ch12..23 / J18..J29 -- (U3|U4 boundary lands here, no penalty)
+    kFilterVowel = 12, // J18 pot (formant morph)
+    kFiltEnvA    = 13, // J19 pot
+    kFiltEnvD    = 14, // J20 pot
+    kFiltEnvS    = 15, // J21 pot
+    kFiltEnvR    = 16, // J22 pot
+    kAmpEnvA     = 17, // J23 pot
+    kAmpEnvD     = 18, // J24 pot
+    kAmpEnvS     = 19, // J25 pot
+    kAmpEnvR     = 20, // J26 pot
+    kLfoRate     = 21, // J27 pot
+    kLfoAmt      = 22, // J28 pot
+    kMasterVolume = 23, // J29 pot
+};
+// The 2 Wave rotaries sit on ch0 (J6) and ch3 (J9), both on U3. Enum values
+// ARE the channel index -> pass directly to RodeoAdc::GetCode/GetVolts/GetNorm.
+//
+// NOT on the ADC (handled elsewhere — do not look for these channels here):
+//   Enum selectors  -> digital GPIO cycle-buttons: Filter Type, Keytrack,
+//                      LFO Shape, LFO Dest, Voice Mode, + hard-sync toggle.
+//   Fine trims/oct  -> I2C encoder-banks: 0x30 {OSC2 detune, unison detune,
+//                      glide, master tune}, 0x31 {OSC1 octave, OSC2 octave}.
+//   Pitch/mod       -> MIDI (desktop synth, no wheels on panel).
+
 // --- Audio configuration --------------------------------------------------
 constexpr int   kBlockSize  = 32;      // 0.67 ms @ 48 kHz; tune toward 16 later
 constexpr float kSampleRate = 48000.0f;
