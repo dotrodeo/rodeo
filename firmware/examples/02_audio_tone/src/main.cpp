@@ -8,12 +8,17 @@
 #include "daisy_seed.h"
 #include "daisysp.h"
 #include "board.h"
+#include "status_led.h"
 
 using namespace daisy;
 using namespace daisysp;
 
-DaisySeed  hw;
-Oscillator osc;
+DaisySeed        hw;
+Oscillator       osc;
+rodeo::StatusLed status;
+
+static constexpr float kToneHz = 440.0f;
+static constexpr float kAmp    = 0.25f;
 
 void AudioCallback(AudioHandle::InputBuffer  in,
                    AudioHandle::OutputBuffer out,
@@ -36,9 +41,29 @@ int main(void)
 
     osc.Init(hw.AudioSampleRate());
     osc.SetWaveform(Oscillator::WAVE_SIN);
-    osc.SetFreq(440.0f);
-    osc.SetAmp(0.25f);
+    osc.SetFreq(kToneHz);
+    osc.SetAmp(kAmp);
+
+    hw.StartLog(false);
+    status.Init();
 
     hw.StartAudio(AudioCallback);
-    for(;;) {}
+
+    hw.PrintLine("=== Rodeo 02_audio_tone ===");
+    hw.PrintLine("%d Hz sine on OUT L/R, amp %d%% — audio running",
+                 static_cast<int>(kToneHz),
+                 static_cast<int>(kAmp * 100.0f));
+
+    // Audio runs in the callback; the main loop just heartbeats the status LED
+    // (proof the firmware is alive) and prints an uptime tick.
+    uint32_t secs = 0;
+    for(;;)
+    {
+        status.Heartbeat(500); // ~1 Hz blink
+        if(System::GetNow() - secs * 1000 >= 1000)
+        {
+            secs++;
+            hw.PrintLine("audio alive — uptime %lus", secs);
+        }
+    }
 }

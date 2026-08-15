@@ -17,23 +17,28 @@
 #include "daisy_seed.h"
 #include "board.h"
 #include "ads114s08.h"
+#include "status_led.h"
 
 using namespace daisy;
 
 DaisySeed        hw;
 SpiHandle        spi;
 rodeo::Ads114s08 adc; // U3
+rodeo::StatusLed status;
 
 int main(void)
 {
     hw.Init();
     hw.StartLog(false); // telemetry over onboard USB once a monitor connects
+    status.Init();
 
     // One shared SPI1 handle (Layer 2 will share it across both chips); here we
     // bring up just U3 (chip-select seed::D25).
     spi.Init(rodeo::Ads114s08::DefaultSpiConfig());
-    if(!adc.Init(&spi, seed::D25))
-        hw.PrintLine("ADS114S08 U3 presence check FAILED (dead / mis-wired?)");
+    bool present = adc.Init(&spi, seed::D25);
+
+    hw.PrintLine("=== Rodeo 04_adc_1ch (U3 AIN0) ===");
+    hw.PrintLine("U3 presence: %s", present ? "OK" : "FAILED (dead / mis-wired?)");
 
     adc.SelectChannel(0); // AIN0 vs AINCOM
 
@@ -41,15 +46,19 @@ int main(void)
     {
         // Unipolar single-ended: clamp the negative offset/noise tail to 0 so a
         // fully-off pot reads ~0, not full-scale (see design doc value pipeline).
-        int32_t code  = adc.ReadData();
+        int32_t code = adc.ReadData();
         if(code < 0)
             code = 0;
         float volts = (static_cast<float>(code) / 32767.0f) * rodeo::Ads114s08::kVref;
 
-        // Daisy's logger has no %f; print millivolts as an integer.
+        // Daisy's logger has no %f; split millivolts into whole.fraction.
         int mv = static_cast<int>(volts * 1000.0f);
-        hw.PrintLine("AIN0 code=%d  mV=%d", static_cast<int>(code), mv);
+        hw.PrintLine("U3 AIN0: code=%5d  volts=%d.%03d V",
+                     static_cast<int>(code),
+                     mv / 1000,
+                     mv % 1000);
 
+        status.Heartbeat(200); // visible "sampling" blink
         System::Delay(100);
     }
 }

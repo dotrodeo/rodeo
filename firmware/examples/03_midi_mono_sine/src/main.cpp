@@ -13,15 +13,37 @@
 #include "daisy_seed.h"
 #include "daisysp.h"
 #include "board.h"
+#include "status_led.h"
 
 using namespace daisy;
 using namespace daisysp;
 
-DaisySeed       hw;
-MidiUartHandler midi;
-Oscillator      osc;
-Adsr            env;
-bool            gate = false;
+DaisySeed        hw;
+MidiUartHandler  midi;
+Oscillator       osc;
+Adsr             env;
+rodeo::StatusLed status;
+bool             gate = false;
+
+// MIDI note number -> "C4"-style name (note 60 = middle C = C4).
+static const char* NoteName(uint8_t note)
+{
+    static const char* const kNames[12]
+        = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+    static char buf[5];
+    int octave = static_cast<int>(note) / 12 - 1;
+    const char* n = kNames[note % 12];
+    // e.g. "C#4" — small manual format (Daisy logger, no std::string).
+    int i = 0;
+    buf[i++] = n[0];
+    if(n[1])
+        buf[i++] = n[1];
+    if(octave < 0)
+        buf[i++] = '-';
+    buf[i++] = static_cast<char>('0' + (octave < 0 ? -octave : octave));
+    buf[i]   = '\0';
+    return buf;
+}
 
 void AudioCallback(AudioHandle::InputBuffer  in,
                    AudioHandle::OutputBuffer out,
@@ -42,10 +64,19 @@ void HandleNoteOn(const NoteOnEvent& n)
     if(n.velocity == 0) // running-status note-off
     {
         gate = false;
+        hw.PrintLine("NoteOff note=%d %s (running-status)",
+                     n.note,
+                     NoteName(n.note));
         return;
     }
-    osc.SetFreq(mtof(n.note));
+    float freq = mtof(n.note);
+    osc.SetFreq(freq);
     gate = true;
+    hw.PrintLine("NoteOn  note=%d %-3s vel=%d  freq=%d Hz",
+                 n.note,
+                 NoteName(n.note),
+                 n.velocity,
+                 static_cast<int>(freq));
 }
 
 int main(void)
@@ -69,7 +100,14 @@ int main(void)
     midi.Init(midi_cfg);
     midi.StartReceive();
 
+    hw.StartLog(false);
+    status.Init();
+
     hw.StartAudio(AudioCallback);
+
+    hw.PrintLine("=== Rodeo 03_midi_mono_sine ===");
+    hw.PrintLine("MIDI IN on USART1 — play a keyboard; status LED lights while a "
+                 "note sounds");
 
     for(;;)
     {
@@ -80,9 +118,17 @@ int main(void)
             switch(e.type)
             {
                 case NoteOn: HandleNoteOn(e.AsNoteOn()); break;
-                case NoteOff: gate = false; break;
+                case NoteOff:
+                {
+                    gate       = false;
+                    uint8_t nn = e.AsNoteOff().note;
+                    hw.PrintLine("NoteOff note=%d %s", nn, NoteName(nn));
+                    break;
+                }
                 default: break;
             }
         }
+        // Status LED mirrors the voice gate: lit while a note is held.
+        status.Set(gate);
     }
 }
