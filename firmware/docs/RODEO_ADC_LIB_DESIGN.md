@@ -64,6 +64,11 @@
 
 ### 2.1 Coexisting with other external SPI devices (e.g. an SPI OLED)
 
+> **DECISION 2026-08-15 (Derek): path A — OLED stays on I2C.** No SPI OLED on
+> the current board; the ADC keeps SPI1 to itself and this library is unaffected.
+> The A/B/C analysis below is retained as rationale + for any future Rev-B SPI
+> display. Bumble to lock the Display row in `RODEO_CONTROL_MAP.md` (SSD1309, I2C).
+
 The lib is deliberately bus-share-friendly: `Ads114s08::Init` borrows an
 *already-initialized* `SpiHandle*` and drives only its own soft-NSS GPIO CS
 (idle-high, guarded by `InitCsIdle`). It never owns the peripheral exclusively.
