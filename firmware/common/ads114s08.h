@@ -54,6 +54,14 @@ class Ads114s08
     // Pins per board.h: SCK seed::D8, MISO seed::D9 (<-DOUT), MOSI seed::D10 (->DIN).
     static daisy::SpiHandle::Config DefaultSpiConfig();
 
+    // Configure this chip's CS as an idle-HIGH output with NO bus traffic.
+    // MUST be called on every chip on a shared bus BEFORE any chip is probed:
+    // the CS nets have no pull-ups, so a not-yet-initialized sibling's CS
+    // floats — if it drifts low it selects that chip and both drive the shared
+    // MISO during the first chip's presence read (contention -> the first chip
+    // spuriously "fails"). Parking all CS high first makes probing order-safe.
+    void InitCsIdle(daisy::Pin cs_pin);
+
     // spi: already-initialized shared handle. cs_pin: this chip's chip-select
     // (seed::D25 for U3, seed::D26 for U4). Resets the chip, applies the board
     // defaults, and verifies presence via a register write+readback.

@@ -22,11 +22,16 @@ SpiHandle::Config Ads114s08::DefaultSpiConfig()
     return cfg;
 }
 
+void Ads114s08::InitCsIdle(Pin cs_pin)
+{
+    cs_.Init(cs_pin, GPIO::Mode::OUTPUT);
+    CsHigh(); // deselected — no chip can be probed while a sibling's CS floats
+}
+
 bool Ads114s08::Init(SpiHandle *spi, Pin cs_pin)
 {
     spi_ = spi;
-    cs_.Init(cs_pin, GPIO::Mode::OUTPUT);
-    CsHigh();
+    InitCsIdle(cs_pin); // idempotent if RodeoAdc already parked it
 
     System::Delay(10); // power-up settle
     Reset();

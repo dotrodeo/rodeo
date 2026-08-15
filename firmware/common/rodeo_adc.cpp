@@ -39,6 +39,14 @@ bool RodeoAdc::Init(const Config &cfg)
 
     spi_.Init(Ads114s08::DefaultSpiConfig());
 
+    // Park EVERY chip's CS idle-high before probing ANY of them. The CS nets
+    // have no pull-ups, so a not-yet-initialized sibling's CS floats; if it
+    // drifts low it selects that chip and both drive the shared MISO during the
+    // first chip's presence read -> contention -> the first-initialized chip
+    // spuriously fails presence. This pre-pass makes the probe order-safe.
+    for(uint8_t c = 0; c < kNumChips; ++c)
+        adc_[c].InitCsIdle(ChipCsPin(c));
+
     for(uint8_t c = 0; c < kNumChips; ++c)
     {
         present_[c] = adc_[c].Init(&spi_, ChipCsPin(c));
