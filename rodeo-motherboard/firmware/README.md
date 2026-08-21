@@ -13,14 +13,25 @@ freshly assembled board — flash one, confirm the hardware, move on.
 ```
 firmware/
   common/
-    board.h          # Rodeo pin map — the single source of truth (host-safe)
-    rodeo.mk         # shared build rules; every app/example includes this
+    board.h              # Rodeo pin map — the single source of truth (host-safe)
+    rodeo.mk             # shared build rules; every app/example includes this
+    ads114s08.{h,cpp}    # Layer 1: per-chip ADS114S08 SPI ADC driver
+    rodeo_adc.{h,cpp}    # Layer 2: 24-ch two-chip pipelined ADC scanner
+    encoder_hub.{h,cpp}  # Layer 1: per-hub STM32C0 I2C target driver (master side)
+    rodeo_encoders.{h,cpp} # Layer 2: multi-hub encoder scanner + friendly API
+    status_led.h         # tiny onboard/carrier LED helper
   template/          # copy-to-start skeleton for a new Rodeo app (blinks LEDs)
   examples/
-    01_blink/        # onboard + carrier LED — boots-and-alive smoke test
-    02_audio_tone/   # 440 Hz sine on the output jacks — codec / SAI path
+    01_blink/          # onboard + carrier LED — boots-and-alive smoke test
+    02_audio_tone/     # 440 Hz sine on the output jacks — codec / SAI path
     03_midi_mono_sine/ # MIDI IN -> monophonic sine voice with a short ADSR
-    04_adc_1ch/      # one channel of the external ADS114S08 SPI ADC -> serial
+    04_adc_1ch/        # one channel of the external ADS114S08 SPI ADC -> serial
+    05_adc_scan/       # full 24-ch control-surface scan via rodeo::RodeoAdc
+    06_poly_synth/     # 6-voice poly subtractive synth, 10 live pots (first musical demo)
+    07_encoder_scan/   # rodeo-encoder-hub scan over I2C via rodeo::RodeoEncoders
+    08_oled_i2c/       # SSD1309 128x64 feedback display smoke test (I2C @ 0x3C)
+  docs/
+    RODEO_ADC_LIB_DESIGN.md  # design of the ADS114S08 / RodeoAdc driver stack
   libDaisy/  DaisySP/ # vendored submodules (static libs live in their build/)
   Makefile           # top-level helpers: `make deps`, `make all`, `make clean`
 ```
@@ -67,6 +78,15 @@ make program-dfu               # flash: hold BOOT, tap RESET on the Daisy first
 
 - `board.h` is the pin/topology contract for the whole board (SPI/ADC, MIDI,
   audio, LED, 24-channel ADC surface). Keep it in sync with the KiCad source.
-- `04_adc_1ch` is a first bring-up draft for the external ADCs — the one
-  subsystem not yet hardware-verified. Its reference configuration may need to
-  match the board's actual REF wiring; see the header comment in its `main.cpp`.
+  It holds only *generic* board facts — instance-specific control assignments
+  (which pot is cutoff, which encoder slot is waveform) live in the instrument
+  build and in `rodeo-001/docs/RODEO_CONTROL_MAP.md`, not here.
+- **External ADC (ADS114S08) status:** the SPI orientation and conversion path
+  are bench-confirmed on real hardware (`04_adc_1ch`, 2026-08-14); absolute-voltage
+  accuracy is still unverified pending a jumper/pot test (needs JST connectors).
+  See `docs/RODEO_ADC_LIB_DESIGN.md` for the driver design and scan-timing facts.
+- **Encoder hub:** the master↔hub I²C wire contract is
+  `rodeo-001/docs/RODEO_HUB_I2C_CONTRACT.md` (locked, silicon-verified 2026-08-20).
+- **I²C bus caveat:** the motherboard carries no on-board I²C pull-ups; the
+  encoder hub is the Rev-A bus anchor. A blank OLED with no hub present is a
+  missing-pull-up symptom, not firmware.

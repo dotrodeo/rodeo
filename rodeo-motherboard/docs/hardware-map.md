@@ -1,6 +1,6 @@
-# Rodeo 001 — Verified Hardware Map
+# Rodeo Motherboard — Verified Hardware Map
 
-Derived from `kicad/rodeo-001.kicad_pcb` in the **main checkout** (the maintained,
+Derived from `kicad/rodeo-motherboard.kicad_pcb` in the **main checkout** (the maintained,
 complete artifact — 87 components). The root schematic does not instantiate the
 subsheets, so a schematic netlist only sees the root sheet; trust the PCB.
 
@@ -224,7 +224,7 @@ lists USB as an MCU responsibility, worth a decision: wire J1 D+/D− to Daisy
 
 ### 3. Schematic hierarchy doesn't include the subsheets (pre-existing)
 
-The root `rodeo-001.kicad_sch` instantiates no child sheets, so a schematic-only
+The root `rodeo-motherboard.kicad_sch` instantiates no child sheets, so a schematic-only
 netlist sees just the root (47 parts) while the PCB has all 87. This was already
 true on the original board, so it looks like an established workflow rather than
 a regression — but ERC and "update PCB from schematic" won't behave. Flag only;

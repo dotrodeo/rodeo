@@ -13,7 +13,7 @@ reviewers: [Bumble (hardware — verify against silicon), derek]
 **This is the wire contract** both firmwares code against: the Daisy Seed motherboard
 (I²C **master**) and each `rodeo-encoder-hub` (STM32C031C6, I²C **target**). Change the
 byte layout here and you break both sides — so this doc is the single source of truth for
-the register map, and the [`RODEO_CONTROL_MAP.md`](./RODEO_CONTROL_MAP.md) is the source of
+the register map, and the [`RODEO_CONTROL_MAP.md`](../../rodeo-001/docs/RODEO_CONTROL_MAP.md) is the source of
 truth for which physical control each encoder *slot* means.
 
 - **Firmware (Fizz)** owns this map, the target-side implementation, and the master-side driver.
