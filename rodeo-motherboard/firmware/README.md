@@ -1,7 +1,7 @@
 # Rodeo Motherboard — Firmware
 
-Boilerplate and PCB bring-up examples for the Rodeo motherboard (Electrosmith
-Daisy Seed on the rodeo-001 board). This tree is a **starting point for Rodeo
+Boilerplate and PCB bring-up examples for the Rodeo motherboard (an Electrosmith
+Daisy Seed carrier). This tree is a **starting point for Rodeo
 firmware** plus **small standalone programs that validate each subsystem** of a
 freshly assembled board — flash one, confirm the hardware, move on.
 
@@ -86,7 +86,7 @@ make program-dfu               # flash: hold BOOT, tap RESET on the Daisy first
   accuracy is still unverified pending a jumper/pot test (needs JST connectors).
   See `docs/RODEO_ADC_LIB_DESIGN.md` for the driver design and scan-timing facts.
 - **Encoder hub:** the master↔hub I²C wire contract is
-  `rodeo-001/docs/RODEO_HUB_I2C_CONTRACT.md` (locked, silicon-verified 2026-08-20).
+  `rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md` (locked, silicon-verified 2026-08-20).
 - **I²C bus caveat:** the motherboard carries no on-board I²C pull-ups; the
   encoder hub is the Rev-A bus anchor. A blank OLED with no hub present is a
   missing-pull-up symptom, not firmware.

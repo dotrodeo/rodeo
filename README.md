@@ -1,0 +1,42 @@
+# Rodeo
+
+A modular **synthesizer hardware ecosystem**: one host *motherboard*, a family of
+control-surface *daughterboards*, and *instrument instances* built by combining them.
+This repository is the single home for all of it — board designs (KiCad), firmware,
+and the design docs that tie them together.
+
+## The pieces
+
+| Directory | What it is |
+|---|---|
+| [`rodeo-motherboard/`](rodeo-motherboard/) | **The host board** — an Electrosmith Daisy Seed carrier. Audio I/O + MIDI, a 24-channel external ADC surface (2× ADS114S08 over SPI1), and the I²C control bus. Contains the [`firmware/`](rodeo-motherboard/firmware/) (libDaisy/DaisySP, bring-up examples + driver libs), the [`kicad/`](rodeo-motherboard/kicad/) board, and hardware [`docs/`](rodeo-motherboard/docs/). |
+| [`rodeo-encoder-hub/`](rodeo-encoder-hub/) | **Encoder aggregator** — an STM32C031C6 that reads a bank of encoders and presents them to the motherboard as an I²C target. Has its own bare-metal `firmware/`. Wire contract: [`RODEO_HUB_I2C_CONTRACT.md`](rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md). |
+| [`rodeo-encoder/`](rodeo-encoder/) | Encoder daughterboard (rotary encoders + pushbutton) that feeds a hub. |
+| [`rodeo-button/`](rodeo-button/) | Momentary-button daughterboard. |
+| [`rodeo-potentiometer/`](rodeo-potentiometer/) | Potentiometer daughterboard — analog, into the motherboard's ADC channels. |
+| [`rodeo-rotary-switch/`](rodeo-rotary-switch/) | Rotary-switch daughterboard (resistor-ladder → ADC). |
+| [`rodeo-001/`](rodeo-001/) | **The first instrument instance** — the specific synth built from the boards above. Instance-only material: the [control map](rodeo-001/docs/RODEO_CONTROL_MAP.md), the [enclosure spec](rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md), and its instance KiCad. |
+
+> **Naming, so nobody trips on it again:** `rodeo-motherboard` is the *host board*;
+> `rodeo-001` is the *first instrument built from the ecosystem*. They are different
+> things. The motherboard's KiCad project is named `rodeo-motherboard.*` (an earlier
+> partial rename left it as `rodeo-001` — now corrected).
+
+## Where the source-of-truth docs live
+
+- **Motherboard pin map / topology** → `rodeo-motherboard/firmware/common/board.h` (generic board facts only) and [`rodeo-motherboard/docs/hardware-map.md`](rodeo-motherboard/docs/hardware-map.md) (verified against the PCB).
+- **Encoder-hub ↔ motherboard I²C register contract** → [`rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md`](rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md).
+- **ADC driver-library design** → [`rodeo-motherboard/firmware/docs/RODEO_ADC_LIB_DESIGN.md`](rodeo-motherboard/firmware/docs/RODEO_ADC_LIB_DESIGN.md).
+- **rodeo-001 control map** (which physical control does what) → [`rodeo-001/docs/RODEO_CONTROL_MAP.md`](rodeo-001/docs/RODEO_CONTROL_MAP.md). This is the instance contract shared by firmware, hardware, and the panel layout.
+- **rodeo-001 enclosure / panel** → [`rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md`](rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md).
+
+## Building the firmware
+
+See [`rodeo-motherboard/firmware/README.md`](rodeo-motherboard/firmware/README.md) for
+the toolchain, `make deps`, and the numbered bring-up examples (blink → audio → MIDI →
+ADC → poly synth → encoder scan → OLED).
+
+## Repo notes
+
+- One git repo; `libDaisy` and `DaisySP` are submodules (`git submodule update --init --recursive`).
+- KiCad daughterboards are drag-drop/Qwiic-style parts; each is a self-contained project.
