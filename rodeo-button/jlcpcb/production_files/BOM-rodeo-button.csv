@@ -1,0 +1,5 @@
+Comment,Designator,Footprint,LCSC,Quantity
+SW_Push,SW1,SW_PUSH-12mm,,1
+Conn_01x02,J2,JST_SH_SM02B-SRSS-TB_1x02-1MP_P1.00mm_Horizontal,,1
+R,R1,R_1206_3216Metric,,1
+100n,C1,C_1206_3216Metric,,1

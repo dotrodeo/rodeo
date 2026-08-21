@@ -1,0 +1,5 @@
+Designator,Val,Package,Mid X,Mid Y,Rotation,Layer
+C1,100n,C_1206_3216Metric,126.7,-92.2,180.0,top
+J2,Conn_01x02,JST_SH_SM02B-SRSS-TB_1x02-1MP_P1.00mm_Horizontal,131.825,-94.2,0.0,top
+R1,R,R_1206_3216Metric,136.995,-92.145,180.0,top
+SW1,SW_Push,SW_PUSH-12mm,131.75,-83.575,0.0,top

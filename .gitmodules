@@ -1,6 +1,6 @@
 [submodule "firmware/libDaisy"]
-	path = firmware/libDaisy
+	path = rodeo-motherboard/firmware/libDaisy
 	url = https://github.com/electro-smith/libDaisy
 [submodule "firmware/DaisySP"]
-	path = firmware/DaisySP
+	path = rodeo-motherboard/firmware/DaisySP
 	url = https://github.com/electro-smith/DaisySP

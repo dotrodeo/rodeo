@@ -1,0 +1,5 @@
+Designator,Val,Package,Mid X,Mid Y,Rotation,Layer
+C1,100n,C_0603_1608Metric,136.4,-82.175,-90.0,top
+J1,Conn_01x03,JST_SH_SM03B-SRSS-TB_1x03-1MP_P1.00mm_Horizontal,133.684556,-87.25,0.0,top
+R1,1K,R_0603_1608Metric,134.75,-82.175,-90.0,top
+RV1,R_Potentiometer,Potentiometer_Alps_RK09K_Single_Vertical,133.7,-73.3,90.0,top

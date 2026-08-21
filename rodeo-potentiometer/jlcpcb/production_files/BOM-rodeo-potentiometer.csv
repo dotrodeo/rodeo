@@ -1,0 +1,5 @@
+Comment,Designator,Footprint,LCSC,Quantity
+100n,C1,C_0603_1608Metric,C14663,1
+1K,R1,R_0603_1608Metric,C21190,1
+Conn_01x03,J1,JST_SH_SM03B-SRSS-TB_1x03-1MP_P1.00mm_Horizontal,C160403,1
+R_Potentiometer,RV1,Potentiometer_Alps_RK09K_Single_Vertical,C470448,1

@@ -1,0 +1,3 @@
+Designator,Val,Package,Mid X,Mid Y,Rotation,Layer
+J1,Conn_01x04,JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal,142.15,-100.8,0.0,top
+SW1,RotaryEncoder_Switch,RotaryEncoder_Alps_EC11E-Switch_Vertical_H20mm,142.15,-88.15,90.0,top

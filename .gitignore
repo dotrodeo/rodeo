@@ -1,7 +1,7 @@
 # --- OS ---
 .DS_Store
 
-# --- Local history (VS Code Local History / embedded repo) ---
+# --- VS Code "Local History" extension snapshots ---
 .history/
 
 # --- KiCad backups & autosave ---
@@ -20,3 +20,14 @@ fp-info-cache
 
 # --- KiCad temporary DRC/ERC report files ---
 tmp*.rpt
+
+# --- Firmware build output & local toolchain config ---
+build/
+config.mk
+*.o
+*.d
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
