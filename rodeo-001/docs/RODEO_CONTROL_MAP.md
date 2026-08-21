@@ -139,23 +139,22 @@ those pins as GPIO, or the corresponding channels silently disappear.
 > **⚡ ECOSYSTEM UPDATE (Derek, 2026-08-20/21): rotary switches + LEDs REMOVED.**
 > Locked-available control types are now exactly four: **potentiometers (analog),
 > rotary encoders (I2C), momentary buttons (digital), and the SSD1309 OLED (I2C).**
-> Consequences for the allocation below, being reconciled this pass:
-> - `rodeo-rotary-switch` is **dropped**. The two Wave selectors (ch0 OSC1 Wave,
->   ch3 OSC2 Wave) must rehome/re-spec. Three options on the table (Derek picks on *feel*):
->   **(a) cycle-buttons** — frees ch0+ch3 as spare analog, digital rises to 8 of 12;
->   **(b) encoders** — **now viable** (Derek 2026-08-21: encoder-bank replaced by
->   hub-and-satellite, so encoders are free-placed `rodeo-encoder` singles that group
->   per-OSC): 6→8 encoders fit the single 9-cap hub @0x30, **zero extra I2C bytes/address**,
->   frees ch0/ch3; only cost = 2 hub slots + encoder BOM. Detent = crisp click;
->   **(c) pots thresholded into 4 zones** — ch0/ch3 STAY analog (satellite swaps
->   rotary→pot), **zero channel remap / zero `board.h` change**, digital stays 6, fw adds
->   ~±4% boundary hysteresis; tradeoff = no detent. Ranking revised: **(a) ≈ (b) ≈ (c), all viable — feel call.**
->   **Final feel is Derek's call — not yet rewritten into the frozen table below.**
+> Consequences for the allocation below, reconciled and now LOCKED:
+> - `rodeo-rotary-switch` is **dropped**. **✅ DECIDED (Derek, 2026-08-21): Wave-select = encoders
+>   (option b).** OSC1 Wave + OSC2 Wave become `rodeo-encoder` singles inside their own OSC
+>   boxes, on **hub slots 7 & 8** @0x30 (hub now **8/9**, 1 spare). **ch0/ch3 (J6/J9) are freed
+>   as spare ADS inputs** — reserved for a future CV/mod input. **Channel call (Bumble): leave
+>   the gaps at J6/J9** (do NOT re-pack the 22 pots to the tail) — the 22 pots keep their exact
+>   frozen ch assignments and harness wiring; the only `board.h` delta is ch0/ch3 → SPARE.
+>   Rationale: zero disturbance to the frozen 1:1 physical-order mapping vs. a full 22-channel
+>   renumber + harness rewire for a marginal spare-adjacency gain.
 > - All **LED** hardware (per-encoder rings, pixel strip, indicators) removed from the
 >   panel; the OLED is the **single feedback surface**. Hub LED chain stays on-board but
 >   firmware-stubbed (parked future upgrade). No LED cutouts/lightpipes on the panel.
-> The frozen pot-by-pot table is preserved below as the 2026-08-15 record; ch0/ch3 are
-> annotated PENDING until the rehoming decision lands.
+> Final locked panel tally: **22 pots + 8 encoders + 6 buttons + 1 OLED = 37 controls.**
+> Firmware note (Fizz): encoders are incremental → **persist waveform + encoder state across
+> power cycles**, value shown on the OLED; wave-encoder steps ±1 through the 4 waveforms
+> (wrap), direction per `CONFIG.ENC_DIR_INVERT`.
 
 ### THIS BUILD — Path B allocation (locked 2026-08-15, Derek)
 
@@ -169,15 +168,15 @@ so channel order matches physical left-to-right panel grouping.
 
 | Subsystem | Budget | Gets | Count |
 |---|---|---|---|
-| **24 ADS channels** (J6–J29) | 24 | 22 live-sweep **pots** + 2 **Wave rotary switches** | **24 (0 spare)** |
+| **24 ADS channels** (J6–J29) | 24 | 22 live-sweep **pots** (ch0/ch3 = J6/J9 now **SPARE**) | **22 used, 2 spare** |
 | **Digital GPIO** (J30–J41) | 12 | 5 enum **cycle-buttons** + 1 hard-sync **toggle** | **6 used** (6 spare) |
-| **I2C encoder-hub** (J42) | — | one `rodeo-encoder-hub` @`0x30`, 9-slot: 4 **trims** + 2 **octaves** | **6 encoders → 1 hub (6/9)** |
+| **I2C encoder-hub** (J42) | — | one `rodeo-encoder-hub` @`0x30`, 9-slot: 4 **trims** + 2 **octaves** + 2 **Wave** | **8 encoders → 1 hub (8/9)** |
 
-**The 24 ADS channels** — 22 live-sweep pots + 2 rotary switches:
+**The 24 ADS channels** — 22 live-sweep pots (Wave selectors moved to the encoder-hub):
 OSC1 Shape/PW, OSC1 Spread, OSC2 Shape/PW, OSC2 Spread · OSC1 lvl, OSC2 lvl, Noise lvl ·
 Cutoff, Resonance, Env amount, Vowel · Filt-ENV A/D/S/R, Amp-ENV A/D/S/R · LFO Rate, LFO
-Amount · Master volume  = **22 pots**, plus **OSC1 Wave + OSC2 Wave** as 4-position
-`rodeo-rotary-switch` (resistor ladder, 1 ADC channel each) = **24 exactly, 0 spare.**
+Amount · Master volume  = **22 pots**. **ch0 (J6) and ch3 (J9) are now SPARE** (Wave went to
+encoders) — first free ADS headers, reserved for a future CV/mod input. **22 used, 2 spare.**
 
 **Digital** (2-pin JST-SH, sig/GND):
 - **5 cycle-buttons** (momentary push → firmware cycles enum, OLED shows value): Filter Type,
@@ -187,9 +186,12 @@ Amount · Master volume  = **22 pots**, plus **OSC1 Wave + OSC2 Wave** as 4-posi
 
 **Encoder-hub** (detented, OLED feedback, off the 24/12 budget — hub-and-satellite, one
 9-slot `rodeo-encoder-hub` @`0x30`; see the LOCKED hub section below):
-- **`0x30`, slots 1–6** = OSC2 Detune, Unison detune, Glide, Master tune (4 trims) + OSC1
-  Octave, OSC2 Octave (2 — twist 32′→2′). **6 of 9 slots used, 3 spare** — the 2 Wave
-  selectors fit here as slots 7–8 if Derek picks option (b).
+- **`0x30` index↔param table (LOCKED 2026-08-21):**
+  slot 1 = OSC2 Detune · slot 2 = Unison detune · slot 3 = Glide · slot 4 = Master tune ·
+  slot 5 = OSC1 Octave · slot 6 = OSC2 Octave · **slot 7 = OSC1 Wave** · **slot 8 = OSC2 Wave**
+  (steps ±1 through 4 waveforms, wrap) · slot 9 = spare. **8 of 9 slots used, 1 spare.**
+  Firmware binds these hub indices; physical hub-header↔slot wiring is Honey's harness (I
+  confirm the index↔param map once her v2 harness is drawn — convention: header order = slot order).
 
 **Electrical contract points I own for Path B (new, because we now lean on digital + I2C):**
 - **Cycle-buttons = momentary-to-GND on the 2-pin digital connectors (sig/GND, no 3V3).**
@@ -216,10 +218,10 @@ must bind these `ch` indices to these functions.
 
 | `ch` | Function | Class | Chip | AINx | Connector |
 |---|---|---|---|---|---|
-| 0  | OSC1 Wave ⚠️PENDING (rotary dropped → button/pot/encoder TBD; stays analog if pot) | rotary (4-pos) | U3 | AIN0  | **J6**  |
+| 0  | **SPARE** (was OSC1 Wave; moved to encoder-hub slot 7) — free ADS header, future CV/mod | — | U3 | AIN0  | **J6**  |
 | 1  | OSC1 Shape/PW  | pot | U3 | AIN1  | **J7**  |
 | 2  | OSC1 Spread    | pot | U3 | AIN2  | **J8**  |
-| 3  | OSC2 Wave ⚠️PENDING (rotary dropped → button/pot/encoder TBD; stays analog if pot) | rotary (4-pos) | U3 | AIN3  | **J9**  |
+| 3  | **SPARE** (was OSC2 Wave; moved to encoder-hub slot 8) — free ADS header, future CV/mod | — | U3 | AIN3  | **J9**  |
 | 4  | OSC2 Shape/PW  | pot | U3 | AIN4  | **J10** |
 | 5  | OSC2 Spread    | pot | U3 | AIN5  | **J11** |
 | 6  | OSC1 level     | pot | U3 | AIN6  | **J12** |
@@ -243,8 +245,11 @@ must bind these `ch` indices to these functions.
 
 - **U3 = ch0–11 (J6–J17):** both OSC blocks + MIX + top of FILTER (Cutoff/Reso/EnvAmt).
 - **U4 = ch12–23 (J18–J29):** Vowel + both ADSRs + LFO + Volume.
-- **The two rotary switches (ch0, ch3)** sit on U3 AIN0/AIN3 — resistor-ladder → single ADC
-  channel, firmware thresholds into 4 bins.
+- **ch0/ch3 (U3 AIN0/AIN3, J6/J9) are SPARE** — the Wave selectors moved to encoder-hub
+  slots 7/8 (Derek 2026-08-21). Headers left unpopulated; `board.h` ch0/ch3 = SPARE, all 22
+  pots keep their frozen ch. Firmware may skip them in the populated-channel list; if a defined
+  reading is ever wanted, tie AIN0/AIN3 to GND (rev-B). Reserved for a future CV/mod input
+  (which brings its own buffer + protection per the analog front-end note).
 - **Chip boundary lands mid-FILTER** (ch11 EnvAmt on U3 │ ch12 Vowel on U4). **Kept as-is,
   not rotated:** the two chips convert in parallel and all 24 channels are read every scan,
   so a section spanning the boundary has no coherence or scan-grouping penalty — Honey's
@@ -465,9 +470,10 @@ firmware can't. Not a fab blocker for the current board; fold into the next spin
 - [x] **Momentary-button satellite** (2026-08-15) — `rodeo-switch` is SPDT-latching (covers
       the hard-sync toggle only); Honey adding a **`rodeo-button`** momentary variant for the
       5 cycle-buttons. Same 2-pin sig/GND interface, STM32 internal pull-up.
-- [ ] **Wave-rotary vs headroom** — Honey's proposal (promote OSC1/OSC2 Wave to rotary
-      switches, refilling ADS to 24/0-spare) locked as working allocation; pending Derek's nod
-      vs. keeping the 2 freed channels as headroom. Fallback is a 1-line swap either way.
+- [x] **Wave-select feel** (2026-08-21) — RESOLVED. Rotary switches dropped; **Derek chose
+      encoders (option b)**. OSC1/OSC2 Wave → encoder-hub slots 7/8 @0x30; ch0/ch3 (J6/J9) kept
+      as spare ADS headroom (leave-the-gaps, no re-pack). Firmware persists waveform + encoder
+      state across power cycles, value on OLED.
 - [ ] **SPI swap fix** — Bumble to reroute once Derek closes the KiCad session and approves
       the pre-fab change.
 - [ ] **Pixel data GPIO** — assign with Fizz (Issue 3).
@@ -477,6 +483,13 @@ firmware can't. Not a fab blocker for the current board; fold into the next spin
 
 ## Change log
 
+- 2026-08-21 — **Control set locked to 4 types (pot / encoder / button / OLED); rotary switches
+  + LEDs removed** (Derek). **Wave-select = ENCODERS (option b)** after a 3-way (button/encoder/pot)
+  eval: OSC1/OSC2 Wave → encoder-hub slots 7/8 @0x30 (hub 8/9). **ch0/ch3 (J6/J9) freed as spare
+  ADS** — kept as gaps (no re-pack). Encoder-bank (RP2040 4-gang) struck; superseded by the
+  hub-and-satellite `rodeo-encoder-hub` (STM32C031C6) + `rodeo-encoder` singles. Panel = 37
+  (22 pot + 8 enc + 6 btn + 1 OLED). Fizz to persist waveform + encoder state across power-cycle
+  (encoders are incremental), value on OLED. Supersedes the 2026-08-15 "Wave as rotary switches" entry.
 - 2026-08-15 — **Pot-by-pot table FROZEN** from Honey's Panel Layout v1. Mapped her physical
   L→R ADC sequence 1:1 onto J6–J29 via `ch = chip·12 + AIN`: ch0–11 = U3/J6–J17 (both OSC
   blocks + MIX + Cutoff/Reso/EnvAmt), ch12–23 = U4/J18–J29 (Vowel + both ADSRs + LFO + Volume).
@@ -543,11 +556,12 @@ master. Verified against the KiCad schematic + PCB this session.
   pulls). If revisions are ever mixed, the parallel 2.2 k‖2.2 k ≈ 1.1 kΩ (~3 mA sink, at the
   fast-mode limit) → lift the hub resistors in that case. **Rev-B:** pulls move to the
   motherboard; the respun Rev-B hub drops these two resistors.
-- **Hub count for the current voice:** the Path-B voice needs **6 encoders** (OSC2 Detune,
-  Unison Detune, Glide, Master Tune, OSC1 Octave, OSC2 Octave) → they fit on **ONE hub @
-  0x30**, 6 of 9 slots used, 3 spare. A second hub (0x31…) is only warranted if Honey's panel
-  geometry benefits from splitting the cluster. **Slot↔parameter binding follows the panel
-  wiring — locked with Honey when the panel layout finalizes.**
+- **Hub count for the current voice:** the Path-B voice needs **8 encoders** (OSC2 Detune,
+  Unison Detune, Glide, Master Tune, OSC1 Octave, OSC2 Octave, **OSC1 Wave, OSC2 Wave** —
+  Wave added 2026-08-21) → they fit on **ONE hub @0x30**, **8 of 9 slots used, 1 spare.** A
+  second hub (0x31…) is only warranted if a future voice exceeds 9 encoders. **Slot↔parameter
+  binding LOCKED (see the Path-B "Encoder-hub index↔param table" above): slots 1–8 assigned,
+  slot 9 spare; physical hub-header↔slot wiring confirmed with Honey off her v2 harness.**
 - **LED subsystem (opt-in):** `PB8 = TIM16_CH1` → 330 Ω (R1) → **J13** (JST-SH 3-pin,
   `GND / LED_3V3 / DATA`) drives a WS2812/SK6812 chain out to satellites (LED-IN/OUT chain).
   Power from **J14 (JST-ZH)** motherboard feed; **`LED_3V3` is a rail separate from the MCU

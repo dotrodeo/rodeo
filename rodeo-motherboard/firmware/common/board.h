@@ -34,14 +34,29 @@ constexpr int kAudioOutR = 19;
 
 // Carrier status LED (D5), active high.
 constexpr int kStatusLed = 28; // seed::D21 (PC4)
+
+// I2C1 to the Qwiic/STEMMA-QT header (J42): SSD1309 OLED @ 0x3C + encoder
+// hub(s) @ 0x30. NO on-board pull-ups (Issue 2) — the module/breakout or a
+// harness stuffing must supply them. These match libDaisy's I2C_1 defaults.
+constexpr int kI2cScl = 12; // seed::D11 (PB8)
+constexpr int kI2cSda = 13; // seed::D12 (PB9)
 } // namespace pin
 
+// I2C addresses on the J42 bus.
+namespace i2c
+{
+constexpr int kOledAddr       = 0x3C; // SSD1309 128x64, feedback-only display
+constexpr int kEncoderHubAddr = 0x30; // rodeo-encoder-hub (STM32C031C6)
+} // namespace i2c
+
 // --- Control-surface topology --------------------------------------------
-// All analog controls (pots AND resistor-ladder rotary selectors) are read
-// through the two external ADS114S08 SPI ADCs — never the Daisy's onboard ADC.
+// All analog controls (pots) are read through the two external ADS114S08 SPI
+// ADCs — never the Daisy's onboard ADC.
 //
-// Physical channel index convention (contract — keep in lockstep with
-// RODEO_CONTROL_MAP.md, the source of truth for channel -> connector -> function):
+// Physical channel index convention (fixed motherboard wiring — the ch ->
+// connector map below is a hardware fact of this board. Which *control* lands
+// on each connector is a per-instance decision, defined by the instance build,
+// NOT here — see the note after the ADC constants):
 //     ch = chip*12 + AINindex
 //     ch  0..11  -> chip A = U3 (kAdc1Cs, seed::D25) AIN0..AIN11 -> J6..J17
 //     ch 12..23  -> chip B = U4 (kAdc2Cs, seed::D26) AIN0..AIN11 -> J18..J29
@@ -59,54 +74,16 @@ constexpr int kNumAdcPerChip  = 12;
 constexpr int kNumChips       = 2;
 constexpr int kNumDigitalIo   = 12; // DIG_1..12 (free for buttons/gates)
 
-// --- Frozen ADC channel -> control binding (Path B) ----------------------
-// FROZEN 2026-08-15 with Honey (panel L->R order) + Bumble (J6..J29 map).
-// Source of truth: RODEO_CONTROL_MAP.md. Physical left-to-right panel order
-// IS the channel order, 1:1 — do not renumber without re-freezing there.
+// --- Channel -> control binding is PER-INSTANCE, not here ----------------
+// This header is generic rodeo-motherboard boilerplate: pin map, ADC/I2C
+// topology, connector wiring. It deliberately does NOT assign controls to
+// channels (which pot is "OSC1 cutoff", which encoder slot is "OSC1 wave",
+// etc.) — that is a specific instrument's concern.
 //
-// All 24 are read as single-ended pots EXCEPT ch0/ch3, which are 4-position
-// resistor-ladder rotary switches (rodeo-rotary-switch): same ADC read, but
-// quantize GetNorm() into 4 bands rather than treating as continuous.
-//
-// U3 = chip A (kAdc1Cs, seed::D25) -> J6..J17:
-enum AdcCtrl
-{
-    // -- U3 / ch0..11 / J6..J17 --
-    kOsc1Wave    = 0,  // J6  rotary (4-pos ladder)
-    kOsc1Shape   = 1,  // J7  pot (Shape/PW)
-    kOsc1Spread  = 2,  // J8  pot (supersaw spread)
-    kOsc2Wave    = 3,  // J9  rotary (4-pos ladder)
-    kOsc2Shape   = 4,  // J10 pot (Shape/PW)
-    kOsc2Spread  = 5,  // J11 pot
-    kMixOsc1     = 6,  // J12 pot (osc1 level)
-    kMixOsc2     = 7,  // J13 pot (osc2 level)
-    kMixNoise    = 8,  // J14 pot (noise level)
-    kFilterCutoff    = 9,   // J15 pot
-    kFilterReso      = 10,  // J16 pot
-    kFilterEnvAmt    = 11,  // J17 pot
-    // -- U4 / ch12..23 / J18..J29 -- (U3|U4 boundary lands here, no penalty)
-    kFilterVowel = 12, // J18 pot (formant morph)
-    kFiltEnvA    = 13, // J19 pot
-    kFiltEnvD    = 14, // J20 pot
-    kFiltEnvS    = 15, // J21 pot
-    kFiltEnvR    = 16, // J22 pot
-    kAmpEnvA     = 17, // J23 pot
-    kAmpEnvD     = 18, // J24 pot
-    kAmpEnvS     = 19, // J25 pot
-    kAmpEnvR     = 20, // J26 pot
-    kLfoRate     = 21, // J27 pot
-    kLfoAmt      = 22, // J28 pot
-    kMasterVolume = 23, // J29 pot
-};
-// The 2 Wave rotaries sit on ch0 (J6) and ch3 (J9), both on U3. Enum values
-// ARE the channel index -> pass directly to RodeoAdc::GetCode/GetVolts/GetNorm.
-//
-// NOT on the ADC (handled elsewhere — do not look for these channels here):
-//   Enum selectors  -> digital GPIO cycle-buttons: Filter Type, Keytrack,
-//                      LFO Shape, LFO Dest, Voice Mode, + hard-sync toggle.
-//   Fine trims/oct  -> I2C encoder-banks: 0x30 {OSC2 detune, unison detune,
-//                      glide, master tune}, 0x31 {OSC1 octave, OSC2 octave}.
-//   Pitch/mod       -> MIDI (desktop synth, no wheels on panel).
+// A build like rodeo-001 defines its own channel->function map in its own
+// implementation, with RODEO_CONTROL_MAP.md as the human source of truth.
+// Keep application semantics out of this file so the boilerplate stays reusable
+// across instruments.
 
 // --- Audio configuration --------------------------------------------------
 constexpr int   kBlockSize  = 32;      // 0.67 ms @ 48 kHz; tune toward 16 later

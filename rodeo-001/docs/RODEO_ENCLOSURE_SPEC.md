@@ -255,46 +255,36 @@ Bumble's control-map table.
 detented **rotary switches**, we'd free an ADC channel per switch by promoting that many
 live-sweep pots to encoders — a straight swap, say the word.
 
-### Path B — frozen allocation (Bumble, re-reconciled after ecosystem change 2026-08-21)
+### FROZEN allocation (Wave-select DECIDED — Derek 2026-08-21: encoders)
 
-**Ecosystem change (Derek, 2026-08-21):** locked control set = **potentiometers (analog),
-rotary encoders (I²C), momentary buttons (digital), HiLetgo 2.42″ SSD1309 OLED (I²C)**.
-**Rotary switches and LED indicators REMOVED.** The two OSC Wave selectors (were ch0/ch3 as
-rotary switches) rehome, and the SPDT sync toggle becomes a momentary button. Bumble's
-re-reconciled tally:
+**Ecosystem (Derek, 2026-08-21):** locked control set = **potentiometers (analog), rotary
+encoders (I²C), momentary buttons (digital), HiLetgo 2.42″ SSD1309 OLED (I²C)**. Rotary
+switches and LED indicators REMOVED. **OSC Wave-select = rotary ENCODERS (Derek's pick,
+option b, 2026-08-21)** — detented click, sits in each OSC box; ch0/ch3 now free as spare
+analog. Final frozen tally:
 
 | Class | Count | Panel cutout | Spare |
 |---|---|---|---|
-| Potentiometers (analog) | **22** | pot bushing Ø7 | **2 analog ch free** (ch0, ch3 PENDING) |
-| Momentary buttons (digital) | **8** | button bushing | 4 of 12 free |
-| Rotary encoders (I²C) | **6** | encoder bushing Ø7 (same family as pot) | off-budget |
+| Potentiometers (analog) | **22** | pot bushing Ø7 | **2 ADS channels free** (ch0, ch3 — first-ever spare; future CV/mod in) |
+| Rotary encoders (I²C) | **8** | encoder bushing Ø7 (same family as pot) | **8 of 9** on the one hub (1 spare) |
+| Momentary buttons (digital) | **6** | button bushing | 6 of 12 free |
 | OLED SSD1309 | **1** | display window | — |
 
-→ **37 physical controls: 22 pots + 8 buttons + 6 encoders + 1 OLED.**
+→ **37 physical controls: 22 pots + 8 encoders + 6 buttons + 1 OLED.**
 
-- **8 buttons** = 5 enum cycle-buttons (Filter Type, Keytrack, LFO Shape, LFO Dest, Voice
-  Mode) + 2 Wave (OSC1/OSC2) + 1 hard-sync. All ride `rodeo-button` (momentary, 2-pin
-  JST-SH sig/GND, idle-high via STM32 internal pull-up). No SPDT, no per-button LED.
-- **6 encoders** as individual `rodeo-encoder` singles on the one `rodeo-encoder-hub` (I²C
-  @0x30, 9-cap): trims (OSC2 detune, unison detune, glide, master tune) + octaves OSC1/OSC2 —
-  off the 24/12 budget. OLED `0x3C` shares the bus.
+- **8 encoders** as individual `rodeo-encoder` singles on the one `rodeo-encoder-hub` (I²C
+  @0x30, 9-cap, 8/9 used): **OSC1 Wave, OSC2 Wave** (the Derek pick) + OSC1/OSC2 Octave + OSC2
+  detune, unison detune, glide, master tune. Off the 24/12 budget. OLED `0x3C` shares the bus.
+  *Firmware note (Fizz):* encoders are incremental → the current waveform (and other encoder
+  states) must be **persisted across power cycles** and shown on the OLED; no panel-face
+  indication of position. (Per Bumble's absolute-vs-incremental nuance.)
+- **6 buttons** = 5 enum cycle-buttons (Filter Type, Keytrack, LFO Shape, LFO Dest, Voice
+  Mode) + 1 hard-sync. All ride `rodeo-button` (momentary, 2-pin JST-SH sig/GND, idle-high via
+  STM32 internal pull-up). No SPDT, no per-button LED.
+- **22 pots** on 24 ADS channels → **ch0/ch3 spare** (were the Wave rotary channels; now free).
 
-**OPEN — OSC Wave feel (Derek's call, 2026-08-21):** ch0/ch3 flagged PENDING in the control
-map. All three now co-locate in the OSC box (the fixed 4-gang encoder-bank is gone — encoders
-are free-placed singles), so it's a **pure feel call**:
-- **(a)** cycle-button — crisp press-to-cycle, frees ch0/ch3 (+2 spare analog); value on OLED.
-- **(b)** rotary encoder — detented click (best action, truest heir to the old rotary switch),
-  free on I²C (8/9 on the one hub), also frees ch0/ch3; value on OLED.
-- **(c)** pot thresholded to 4 zones — the *only* one where the wave reads on the **control
-  face** (pointer + 4 silk labels, no OLED glance); spends ch0/ch3; mushy, no detent.
-
-**Panel lean: (b) for best action, (c) for panel-face legibility; (a) = minimalist.** No
-grouping penalty on any option now. Placements freeze once Derek picks. See channel thread
-2026-08-21.
-
-**`rodeo-button` = the digital workhorse (my build deliverable).** Formerly a supplement to
-`rodeo-switch`; now it carries **all 8** digital actions including hard-sync. Same 2-pin JST-SH
-interface; purely a mechanical/cap design I own. On the satellite family + hardware BOM.
+**`rodeo-button` = the digital workhorse (my build deliverable).** Carries all 6 digital
+actions including hard-sync. 2-pin JST-SH; mechanical/cap design I own; on the family + BOM.
 
 **Rev-B upgrade path (documented, not this build):** if a motherboard respin ever happens
 (Issue 6 CS pull-ups are already queued for it), fold in **U5 (3rd ADS114S08, CS3 = PG10/pin
@@ -328,44 +318,55 @@ encoders co-locate with their function (e.g. a Wave encoder inside its own OSC b
 like a pot. Encoders are I²C to the behind-panel `rodeo-encoder-hub`; only the shaft/bushing
 lands on the panel.
 
-## Panel Layout v1 (2026-08-15) — ⚠ SUPERSEDED, redraw pending
+## Panel Layout v2 (2026-08-21) — Wave = encoders (Derek's pick)
 
-> **Stale as of 2026-08-21.** This floorplan predates the ecosystem change: it shows Wave as
-> ADC rotaries, an "ENC BANK" block, and LED elements — all void now (Wave is button/encoder/pot
-> TBD; encoders are free-placed singles off one hub; no LEDs). Kept for signal-flow reference
-> only. **Panel Layout v2 gets redrawn once Derek picks the Wave-feel option** and the 22 pots +
-> 8 buttons + 6 encoders + OLED settle on the uniform 25 mm grid.
-
-Signal-flow, two bands, left → right. Only the 24 ADC controls (22 pots + 2 Wave rotaries)
-are sequenced for channels; buttons/toggle/encoders/OLED are placed in-section but off the
-ADC bus.
+Signal-flow, two bands, left → right, on the uniform 25 mm grid. Every control is a free-placed
+single co-located with its function; the OLED is the only element on the right. **The 2 OSC
+Wave selectors are encoders sitting in their own OSC boxes** (next to Shape/Spread), and the
+former ENC-BANK cluster is gone — its encoders (octaves, detune, glide, master tune) now live in
+their functional sections. Sync is a momentary button; no LEDs anywhere.
 
 ```
  ┌──────────┬──────────┬────────┬─────────────┐   ┌───────────────┐
- │  OSC 1   │  OSC 2   │  MIX   │   FILTER     │   │     OLED      │
- │ Wave*    │ Wave*    │ Osc1 ▪ │ Cutoff ▪     │   │  128×64       │
- │ Shape ▪  │ Shape ▪  │ Osc2 ▪ │ Reso   ▪     │   ├───────────────┤
- │ Spread ▪ │ Spread ▪ │ Noise▪ │ EnvAmt ▪     │   │ ENC BANK 0x31 │
- │ [Oct]e   │ Detune e │        │ Vowel  ▪     │   │ Oct1  Oct2  · │
- │          │ [Oct]e   │        │ Type○ Ktrk○  │   │ ENC BANK 0x30 │
- │          │ Sync⊟    │        │              │   │ Det Uni Gld Tn│
+ │  OSC 1   │  OSC 2   │  MIX   │   FILTER     │   │               │
+ │ Wave  e  │ Wave  e  │ Osc1 ▪ │ Cutoff ▪     │   │     OLED      │
+ │ Shape ▪  │ Shape ▪  │ Osc2 ▪ │ Reso   ▪     │   │   HiLetgo     │
+ │ Spread▪  │ Spread▪  │ Noise▪ │ EnvAmt ▪     │   │  2.42″ 128×64 │
+ │ Oct   e  │ Oct   e  │ Sync ○ │ Vowel  ▪     │   │   (I²C 0x3C)  │
+ │          │ Detune e │        │ Type○  Ktrk○ │   │               │
  ├──────────┼──────────┼────────┼─────────────┤   └───────────────┘
- │ FILT ENV │ AMP ENV  │  LFO   │   GLOBAL     │
- │ A ▪ D ▪  │ A ▪ D ▪  │ Rate ▪ │ Volume ▪     │
- │ S ▪ R ▪  │ S ▪ R ▪  │ Amt  ▪ │ Mode ○       │
- │          │          │ Shp○Dst○│             │
- └──────────┴──────────┴────────┴─────────────┘
-  ▪ pot (ADC)   * Wave rotary (ADC)   ○ cycle-button   ⊟ latching toggle   e encoder
+ │ FILT ENV │ AMP ENV  │  LFO   │   GLOBAL / VOICE      │
+ │ A ▪ D ▪  │ A ▪ D ▪  │ Rate ▪ │ Volume ▪   Mode ○     │
+ │ S ▪ R ▪  │ S ▪ R ▪  │ Amt  ▪ │ Glide e  Uni-det e    │
+ │          │          │ Shp○Dst○│ Mtune e              │
+ └──────────┴──────────┴────────┴───────────────────────┘
+  ▪ pot (ADC, ×22)   e encoder (I²C hub, ×8)   ○ momentary button (×6)   OLED ×1
 ```
 
-**ADC channel sequence (ch = reading order, top band L→R then bottom band L→R):**
+**Encoder placement (8, all on `rodeo-encoder-hub` @0x30):** OSC1 Wave, OSC1 Octave · OSC2
+Wave, OSC2 Octave, OSC2 Detune · Glide, Unison-detune, Master-tune (global/voice). Each is a
+25×25 single dropped into the grid beside its function.
+
+**Hub-slot binding (LOCKED by Bumble in control map, 2026-08-21):** hub is 8/9 (1 spare);
+**slot 7 = OSC1 Wave, slot 8 = OSC2 Wave** (the two new encoders). Wiring convention:
+**header order = slot order**, so when I draw the v2 harness the 2 Wave encoders wire to the
+next 2 free hub headers → slots 7/8. Bumble confirms the final index↔param map off my v2
+harness once drawn. Full slot 1–8 table lives in `RODEO_CONTROL_MAP.md`.
+**Button placement (6):** Sync (OSC/MIX seam) · Filter Type, Keytrack (FILTER) · LFO Shape,
+LFO Dest (LFO) · Voice Mode (GLOBAL).
+
+**ADC channel sequence (ch = reading order, top band L→R then bottom band L→R).** Wave→encoder
+freed **ch0 (J6) and ch3 (J9)** — now spare. **LOCKED (Bumble, 2026-08-21): gaps stay, no
+re-pack** — all 22 pots keep their exact frozen ch assignments + existing harness wiring; the
+only delta is ch0/ch3 → SPARE. J6/J9 are reserved as our first free ADS headers for a future
+CV/mod input (which brings its own buffer + protection).
 
 | ch | Conn | Control | | ch | Conn | Control |
 |---|---|---|---|---|---|---|
-| 0 | J6 | OSC1 Wave (rot) | | 12 | J18 | FILTER Vowel |
+| 0 | J6 | **SPARE** (was OSC1 Wave; now encoder) | | 12 | J18 | FILTER Vowel |
 | 1 | J7 | OSC1 Shape | | 13 | J19 | FILT ENV Attack |
 | 2 | J8 | OSC1 Spread | | 14 | J20 | FILT ENV Decay |
-| 3 | J9 | OSC2 Wave (rot) | | 15 | J21 | FILT ENV Sustain |
+| 3 | J9 | **SPARE** (was OSC2 Wave; now encoder) | | 15 | J21 | FILT ENV Sustain |
 | 4 | J10 | OSC2 Shape | | 16 | J22 | FILT ENV Release |
 | 5 | J11 | OSC2 Spread | | 17 | J23 | AMP ENV Attack |
 | 6 | J12 | MIX Osc1 level | | 18 | J24 | AMP ENV Decay |
@@ -380,11 +381,13 @@ ADC bus.
 a functional section stay whole on one chip, rotate the assignment; the *physical* order above
 is the fixed input from me, map as you see fit.
 
-**Overall envelope (first-pass, pending fab method + form-factor):** ~**380–420 mm W ×
-190–220 mm D** panel — an 8-section desktop surface. The motherboard (95 × 75) + Seed sit
-inside with room to spare; controls, not the boards, set the size (bottom-up per our governing
-principle). Firms up once Derek picks form-factor (desktop tilt?), fabrication method, and
-aesthetic — see open items.
+**Overall envelope (first-pass):** ~**380–420 mm W × 190–220 mm D** panel — an 8-section desktop
+surface, CO2-laser-cut flat sheet at a ~10° tilt on the two 3D-printed cheeks (fab/form/aesthetic
+LOCKED 2026-08-15). The motherboard (95 × 75) + Seed sit inside with room to spare; controls,
+not the boards, set the size (bottom-up per our governing principle). With Wave→encoder the
+right side now carries **only the OLED** (ENC-BANK block gone) — freeing that real estate to
+center/enlarge the 2.42″ display. Final W×D firms up once the 25 mm-grid placement is
+dimensioned (v2 detail pass) and the OLED window lands from Derek's caliper reading.
 
 ## Enclosure construction & aesthetic (Derek, 2026-08-15)
 
@@ -441,8 +444,8 @@ datasheet pull before templates are cut.
 | Control | Panel feature | Nominal | Anti-rotation | Confidence |
 |---|---|---|---|---|
 | Pot (Alps RK09K) ×22 | round hole | **Ø7.0 mm** (M7 bushing) | 3.2 mm lug hole @ offset | high (RK09K std) |
-| Encoder (Alps EC11) ×6 | round hole | **Ø7.0 mm** (M7 bushing) | 3.2 mm lug hole @ offset | high (EC11 std) |
-| Button (`rodeo-button`) ×8 | round hole | TBD w/ chosen switch (target ~Ø6–7 mm bushing) | — | blocked on button pick |
+| Encoder (Alps EC11) ×8 | round hole | **Ø7.0 mm** (M7 bushing) | 3.2 mm lug hole @ offset | high (EC11 std) · incl. 2 OSC Wave |
+| Button (`rodeo-button`) ×6 | round hole | TBD w/ chosen switch (target ~Ø6–7 mm bushing) | — | derive from `rodeo-button` footprint |
 | OLED (**HiLetgo 2.42″ SSD1309, I²C**) | rect window + 4× mount | module PCB ~**72 × 43 mm**; active window **55.01 × 27.49 mm** | 4× mount holes — ⚠VERIFY pattern | window high (confirmed w/ Bumble); **hole pattern not published → Derek to caliper the physical module (4 centers + Ø); do NOT cut standoffs from a guess** |
 | Audio / USB-C / power | rear I/O edge | on motherboard I/O edge (jacks 11 mm pitch, per mobo) | — | high (from mobo) |
 
@@ -457,17 +460,24 @@ SSD1309) — only its 4-hole mounting pattern still needs the mechanical drawing
 carrier boards float behind on their own bushings, so per-control behind-panel depth = board
 (≤6 mm) + JST-SH pigtail bend radius — sets minimum internal depth (~15–18 mm) once confirmed.
 
-### `rodeo-button` momentary satellite — design brief (my new deliverable)
+### `rodeo-button` momentary satellite — design brief (my deliverable)
 
-Mirror the existing dumb-digital satellite pattern so it drops into the hub unchanged:
+**PCB state (checked 2026-08-21):** `rodeo-button.kicad_pcb` exists, board outline **25 × 25 mm**
+(measured, matches the encoder tile), with a 2-pin JST-SH (SM02B-SRSS-TB horizontal) + a 1206 R.
+But the switch is a **generic `Switch:SW_Push` symbol with NO footprint assigned** — so there is
+**no real bushing Ø to read off yet.** Selecting the actual panel-mount momentary switch is my
+open design task; it sets both Bumble's PCB footprint and my cutout Ø.
+
 - **Electrical (settled w/ Bumble):** 2-pin JST-SH (sig/GND), momentary NO to GND, idle-high
-  via STM32 internal pull-up — no on-board pull-up, no LED required (value shows on OLED).
-- **Mechanical (mine):** pick a panel-mount momentary pushbutton with a bushing (so it mounts
-  like the others), keep the carrier ~20 × 30 mm to match `rodeo-switch`'s footprint class and
-  4× M2 pattern. Candidate class: 6 mm threaded-bushing momentary (e.g. PVA1/E-Switch TL59
-  class) — confirm bushing Ø for the cutout schedule. Optional LED pad left DNP for a future
-  "active-edit" indicator.
-- **Qty in first build:** 5 (Filter Type, Keytrack, LFO Shape, LFO Dest, Voice Mode).
+  via STM32 internal pull-up — no on-board pull-up, no LED (value shows on OLED). (The 1206 R on
+  the board is likely a placeholder/optional series — confirm with Bumble whether it stays.)
+- **Mechanical (mine — OPEN):** pick a panel-mount momentary pushbutton with a threaded bushing
+  so it mounts like the pots/encoders. Target ~Ø6–7 mm bushing to sit in the 25 mm grid; want a
+  cap that suits the Cassette-Futurism look. Candidate class: 6 mm threaded-bushing momentary
+  (e.g. PVA1 / E-Switch TL59 class), JLCPCB-stockable (there's a `jlcpcb/` folder). Deliver: a
+  specific MPN → hand Bumble the footprint, log the bushing Ø in the cutout schedule.
+- **Qty in first build (frozen 2026-08-21):** **6** — Filter Type, Keytrack, LFO Shape, LFO
+  Dest, Voice Mode, hard-sync.
 
 
 
@@ -507,6 +517,16 @@ count is a joint Bumble/Honey decision, not just an electrical one.
 
 ## Change log
 
+- 2026-08-21 (latest) — **OSC Wave-select DECIDED = encoders** (Derek, option b). Final frozen
+  tally: **22 pots + 8 encoders + 6 buttons + 1 OLED = 37 controls.** Both OSC Wave selectors
+  become `rodeo-encoder` singles in their OSC boxes (8/9 on the one hub @0x30); ch0/ch3 (J6/J9)
+  freed as the first-ever spare ADS channels (future CV/mod in). Buttons drop 8→6 (5 enum +
+  hard-sync). **Delivered Panel Layout v2** (redrawn floorplan on the 25 mm grid, ENC-BANK block
+  dissolved, encoders distributed to function, OLED alone on the right). Updated cutout schedule
+  (enc ×8 / btn ×6), ADC table (ch0/ch3 SPARE), envelope note. Firmware flag for Fizz: encoders
+  are incremental → persist waveform + encoder state across power cycles, value on OLED.
+  Remaining on me: button bushing Ø off the `rodeo-button` footprint, then dimensioned v2 cut
+  templates once Derek calipers the OLED 4-hole pattern.
 - 2026-08-21 (later) — **Encoder architecture changed** (Derek): the fixed 4-gang
   `rodeo-encoder-bank` is **gone**, replaced by a hub-and-satellite scheme — STM32C0
   `rodeo-encoder-hub` (**9-encoder cap**, one hub @0x30 carrying the voice's 6) + individual

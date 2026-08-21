@@ -15,7 +15,7 @@
 //   by the Filter-Env-Amt pot — a deliberate simplification so the whole synth
 //   fits in 10 pots (no separate filter-ADSR knobs on this build).
 //
-// --- The 10 pots (frozen board.h AdcCtrl enum -> JST-SH connector) ----------
+// --- The 10 pots (this example's local `chan` map -> JST-SH connector) ------
 //   OSC1 level        kMixOsc1      ch6   J12
 //   OSC2 level        kMixOsc2      ch7   J13
 //   Cutoff            kFilterCutoff ch9   J15
@@ -52,6 +52,25 @@ DaisySeed        hw;
 MidiUartHandler  midi;
 rodeo::RodeoAdc  adc;
 rodeo::StatusLed status;
+
+// --- This example's channel map (app-level, local to the demo) --------------
+// board.h is generic rodeo-motherboard boilerplate and deliberately does NOT
+// assign controls to channels. This bring-up picks its own 10 channels here.
+// Index = chip*12 + AIN; the JST connector each lands on is fixed motherboard
+// wiring (see the ch->connector topology in board.h).
+namespace chan
+{
+constexpr int kMixOsc1      = 6;   // J12  OSC1 level
+constexpr int kMixOsc2      = 7;   // J13  OSC2 level
+constexpr int kFilterCutoff = 9;   // J15  Cutoff
+constexpr int kFilterReso   = 10;  // J16  Resonance
+constexpr int kFilterEnvAmt = 11;  // J17  Filter Env amount
+constexpr int kAmpEnvA      = 17;  // J23  Amp Env Attack
+constexpr int kAmpEnvD      = 18;  // J24  Amp Env Decay
+constexpr int kAmpEnvS      = 19;  // J25  Amp Env Sustain
+constexpr int kAmpEnvR      = 20;  // J26  Amp Env Release
+constexpr int kMasterVolume = 23;  // J29  Master volume
+} // namespace chan
 
 // --- Voice model ------------------------------------------------------------
 static constexpr int kMaxVoices = 6;
@@ -215,11 +234,11 @@ void AudioCallback(AudioHandle::InputBuffer  in,
 
 // ADC scan mask: only the 10 populated channels this synth uses.
 static constexpr uint32_t kUsedMask
-    = (1u << board::kMixOsc1) | (1u << board::kMixOsc2)
-      | (1u << board::kFilterCutoff) | (1u << board::kFilterReso)
-      | (1u << board::kFilterEnvAmt) | (1u << board::kAmpEnvA)
-      | (1u << board::kAmpEnvD) | (1u << board::kAmpEnvS)
-      | (1u << board::kAmpEnvR) | (1u << board::kMasterVolume);
+    = (1u << chan::kMixOsc1) | (1u << chan::kMixOsc2)
+      | (1u << chan::kFilterCutoff) | (1u << chan::kFilterReso)
+      | (1u << chan::kFilterEnvAmt) | (1u << chan::kAmpEnvA)
+      | (1u << chan::kAmpEnvD) | (1u << chan::kAmpEnvS)
+      | (1u << chan::kAmpEnvR) | (1u << chan::kMasterVolume);
 
 int main(void)
 {
@@ -266,21 +285,21 @@ int main(void)
         adc.Update(); // pump the non-blocking ADC scan
 
         // Map the 10 pots -> smoothed control params.
-        Smooth(p_osc1, adc.GetNorm(board::kMixOsc1));
-        Smooth(p_osc2, adc.GetNorm(board::kMixOsc2));
+        Smooth(p_osc1, adc.GetNorm(chan::kMixOsc1));
+        Smooth(p_osc2, adc.GetNorm(chan::kMixOsc2));
         Smooth(p_cut,
-               fmap(adc.GetNorm(board::kFilterCutoff),
+               fmap(adc.GetNorm(chan::kFilterCutoff),
                     40.0f,
                     12000.0f,
                     Mapping::EXP));
-        Smooth(p_res, adc.GetNorm(board::kFilterReso) * 0.92f);
-        Smooth(p_amt, adc.GetNorm(board::kFilterEnvAmt));
-        Smooth(p_master, adc.GetNorm(board::kMasterVolume));
+        Smooth(p_res, adc.GetNorm(chan::kFilterReso) * 0.92f);
+        Smooth(p_amt, adc.GetNorm(chan::kFilterEnvAmt));
+        Smooth(p_master, adc.GetNorm(chan::kMasterVolume));
         // Envelope times: exp map, direct (time zipper is inaudible).
-        p_a = fmap(adc.GetNorm(board::kAmpEnvA), 0.001f, 4.0f, Mapping::EXP);
-        p_d = fmap(adc.GetNorm(board::kAmpEnvD), 0.001f, 4.0f, Mapping::EXP);
-        p_s = adc.GetNorm(board::kAmpEnvS);
-        p_r = fmap(adc.GetNorm(board::kAmpEnvR), 0.005f, 6.0f, Mapping::EXP);
+        p_a = fmap(adc.GetNorm(chan::kAmpEnvA), 0.001f, 4.0f, Mapping::EXP);
+        p_d = fmap(adc.GetNorm(chan::kAmpEnvD), 0.001f, 4.0f, Mapping::EXP);
+        p_s = adc.GetNorm(chan::kAmpEnvS);
+        p_r = fmap(adc.GetNorm(chan::kAmpEnvR), 0.005f, 6.0f, Mapping::EXP);
 
         midi.Listen();
         while(midi.HasEvents())
