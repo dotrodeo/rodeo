@@ -34,9 +34,11 @@ reroute needed. (See resolved Issue 1 below.)
   fan-out it mates to. *(2026-08-20/21: `rodeo-rotary-switch` was here but is now **dropped**
   — see Ecosystem Update in the Path B section. Locked control types: pot, encoder (I2C),
   momentary button, OLED.)*
-- **Work-in-progress (characterizations below are provisional, subject to change):**
-  `rodeo-switch`, `rodeo-pixel`, `rodeo-encoder-bank`, and the motherboard itself (this
-  local copy may lag the latest). We firm these up as the control interface develops.
+- **Done / interface-verified (2026-08-20):** `rodeo-button`, `rodeo-encoder`,
+  `rodeo-encoder-hub` (STM32C031C6, 9-slot). The motherboard itself is the only remaining
+  moving piece (this local copy may lag the latest).
+- **Dropped:** `rodeo-rotary-switch`, `rodeo-switch` (SPDT), `rodeo-pixel`,
+  `rodeo-encoder-bank` (RP2040 4-gang → replaced by the hub-and-satellite above).
 
 ---
 
@@ -71,10 +73,12 @@ Rodeo is a modular ecosystem, not a monolith. The motherboard exposes its I/O as
 connectors; each control type is its own satellite PCB that wires back to the hub. This
 **supersedes** the earlier "single co-designed control PCB" seam Honey and I sketched.
 
-- **Dumb analog satellites** (pot, rotary-switch): 3-pin JST-SH → an ADC channel.
-- **Dumb digital satellite** (switch): 2-pin JST-SH → a digital GPIO.
-- **Dumb LED satellite** (pixel): single-wire addressable chain → one GPIO (no mobo jack yet).
-- **Smart I2C satellite** (encoder-bank, RP2040): Qwiic daisy-chain → J42.
+- **Dumb analog satellite** (`rodeo-potentiometer`): 3-pin JST-SH → an ADC channel.
+- **Dumb digital satellite** (`rodeo-button`, momentary): 2-pin JST-SH → a digital GPIO.
+- **Dumb encoder satellite** (`rodeo-encoder`, EC11): 4-pin (A/B/S/GND) → a hub slot.
+- **Smart I2C hub** (`rodeo-encoder-hub`, STM32C031C6, 9 encoders): Qwiic → J42 @0x30.
+
+  *(Dropped: rotary-switch, SPDT switch, pixel-LED, and the RP2040 encoder-bank strip.)*
 
 ### Ownership seam (revised)
 
@@ -139,10 +143,13 @@ those pins as GPIO, or the corresponding channels silently disappear.
 > - `rodeo-rotary-switch` is **dropped**. The two Wave selectors (ch0 OSC1 Wave,
 >   ch3 OSC2 Wave) must rehome/re-spec. Three options on the table (Derek picks on *feel*):
 >   **(a) cycle-buttons** — frees ch0+ch3 as spare analog, digital rises to 8 of 12;
->   **(b) encoders** — costs a 2nd hub bank, breaks per-OSC grouping (ranked last);
+>   **(b) encoders** — **now viable** (Derek 2026-08-21: encoder-bank replaced by
+>   hub-and-satellite, so encoders are free-placed `rodeo-encoder` singles that group
+>   per-OSC): 6→8 encoders fit the single 9-cap hub @0x30, **zero extra I2C bytes/address**,
+>   frees ch0/ch3; only cost = 2 hub slots + encoder BOM. Detent = crisp click;
 >   **(c) pots thresholded into 4 zones** — ch0/ch3 STAY analog (satellite swaps
 >   rotary→pot), **zero channel remap / zero `board.h` change**, digital stays 6, fw adds
->   ~±4% boundary hysteresis; tradeoff = no detent. Engineering + panel ranking: (a) ≈ (c) > (b).
+>   ~±4% boundary hysteresis; tradeoff = no detent. Ranking revised: **(a) ≈ (b) ≈ (c), all viable — feel call.**
 >   **Final feel is Derek's call — not yet rewritten into the frozen table below.**
 > - All **LED** hardware (per-encoder rings, pixel strip, indicators) removed from the
 >   panel; the OLED is the **single feedback surface**. Hub LED chain stays on-board but
@@ -155,7 +162,7 @@ those pins as GPIO, or the corresponding channels silently disappear.
 **Decision (Derek, 2026-08-15):** the motherboard is already produced → **no respin → Path B.**
 **Wheels removed** (Derek: desktop synth — pitch-bend + mod come over MIDI, not the panel),
 dropping the surface to **35 analog** (26 pots + 9 selectors) + 1 toggle. We fit it onto the
-board as-built: 24 ADS channels + digital cycle-buttons + 2 I2C encoder-banks + the OLED for
+board as-built: 24 ADS channels + digital cycle-buttons + one I2C encoder-hub + the OLED for
 enum readout. (Path A / 3rd-ADC is the documented **Rev-B upgrade path** — see below.) Class
 allocation is frozen here; the exact pot→connector *ordering* is deferred to a sync with Honey
 so channel order matches physical left-to-right panel grouping.
@@ -164,7 +171,7 @@ so channel order matches physical left-to-right panel grouping.
 |---|---|---|---|
 | **24 ADS channels** (J6–J29) | 24 | 22 live-sweep **pots** + 2 **Wave rotary switches** | **24 (0 spare)** |
 | **Digital GPIO** (J30–J41) | 12 | 5 enum **cycle-buttons** + 1 hard-sync **toggle** | **6 used** (6 spare) |
-| **I2C encoder-banks** (J42) | — | `0x30` = 4 **trims** · `0x31` = 2 **octaves** | **6 encoders → 2 banks** |
+| **I2C encoder-hub** (J42) | — | one `rodeo-encoder-hub` @`0x30`, 9-slot: 4 **trims** + 2 **octaves** | **6 encoders → 1 hub (6/9)** |
 
 **The 24 ADS channels** — 22 live-sweep pots + 2 rotary switches:
 OSC1 Shape/PW, OSC1 Spread, OSC2 Shape/PW, OSC2 Spread · OSC1 lvl, OSC2 lvl, Noise lvl ·
@@ -178,9 +185,11 @@ Amount · Master volume  = **22 pots**, plus **OSC1 Wave + OSC2 Wave** as 4-posi
 - **1 toggle**: OSC2 Hard-sync (SPDT latching) → the `rodeo-switch` satellite.
 = **6 of 12 digital** (6 spare — room for pixel data on DIG_11/PA6 if pixel enters scope).
 
-**Encoder-banks** (detented, ring + OLED feedback, off the 24/12 budget):
-- **`0x30`** = OSC2 Detune, Unison detune, Glide, Master tune (4 trims — full).
-- **`0x31`** = OSC1 Octave, OSC2 Octave (2 — twist 32′→2′; 2 slots spare).
+**Encoder-hub** (detented, OLED feedback, off the 24/12 budget — hub-and-satellite, one
+9-slot `rodeo-encoder-hub` @`0x30`; see the LOCKED hub section below):
+- **`0x30`, slots 1–6** = OSC2 Detune, Unison detune, Glide, Master tune (4 trims) + OSC1
+  Octave, OSC2 Octave (2 — twist 32′→2′). **6 of 9 slots used, 3 spare** — the 2 Wave
+  selectors fit here as slots 7–8 if Derek picks option (b).
 
 **Electrical contract points I own for Path B (new, because we now lean on digital + I2C):**
 - **Cycle-buttons = momentary-to-GND on the 2-pin digital connectors (sig/GND, no 3V3).**
@@ -191,7 +200,7 @@ Amount · Master volume  = **22 pots**, plus **OSC1 Wave + OSC2 Wave** as 4-posi
 - **Wave rotary switches** ride `rodeo-rotary-switch` (finalized): resistor ladder → one
   analog voltage, 4 silk-labeled positions on 1 ADC channel each. Firmware thresholds the
   voltage into 4 bins (ladder has margin for ≥6 positions, so 4 is comfortable).
-- **I2C is now a live bus** (OLED 0x3C + 2 encoder-banks 0x30/0x31 on J42). Chain length is
+- **I2C is now a live bus** (OLED 0x3C + one encoder-hub 0x30 on J42). Chain length is
   finally known enough to size pull-ups (Issue 2): boot at 100 kHz, target **2.2–3.3 kΩ to
   +3V3** for 400 kHz. SSD1309 full-frame at 400 kHz ≈ 23 ms (~30 fps), so OLED does partial/low-rate
   refresh while encoder polls (12-byte bursts) interleave — Fizz schedules; no contention.
@@ -352,23 +361,27 @@ carrier runs its own LDO rail.
 | Module | Maturity | Class | Sense element | Interface | Budget cost |
 |---|---|---|---|---|---|
 | **rodeo-potentiometer** | ✅ final | dumb analog | Alps RK09K pot; on-board R1 1K + C1 100 nF RC anti-alias | 3-pin JST-SH (3V3/wiper/GND) | 1 ADC channel |
-| **rodeo-rotary-switch** | ✅ final | dumb analog | rotary SW + resistor ladder (1K/2.2K/4.7K/10K/22K/47K); C 100 nF | 3-pin JST-SH (one OUTPUT) | 1 ADC channel, N labeled positions |
-| **rodeo-switch** | 🚧 WIP | dumb digital | SPDT toggle + LED (D1, R 1K) | 2-pin JST-SH (sig/GND); LED powered from JST-ZH taps | 1 digital GPIO |
-| **rodeo-pixel** | 🚧 WIP | dumb LED | 12× SK6812MINI addressable RGB, R 47 Ω on data; **no MCU** | 3-pin JST-SH data (D_IN/D_OUT chain) + 2-pin power | 1 GPIO to clock — **no dedicated mobo jack, Issue 3** |
-| **rodeo-encoder-bank** | 🚧 WIP | **smart I2C** | 4× EC11 encoder+button + 4× SK6812 RGB; RP2040 (PIO quad decode + LED DMA) | Qwiic 4-pin I2C; INT on separate 3-pin | **0** on 24/12 budget; 1 I2C address |
+| **rodeo-button** | ✅ done | dumb digital | momentary tact + 100 nF debounce; idle-high via **STM32 internal pull-up** (no on-board R) | 2-pin JST-SH (sig/GND) | 1 digital GPIO |
+| **rodeo-encoder** | ✅ done | dumb (into hub) | 1× EC11 detented encoder + push-switch | 4-pin (A/B/S/GND) → a hub slot | **0** on 24/12 budget (rides I2C via hub) |
+| **rodeo-encoder-hub** | ✅ done | **smart I2C** | up to **9× EC11**, **STM32C031C6** target (quad decode + press-latch); LED chain HW present but **firmware-stubbed** | Qwiic 4-pin I2C @`0x30` (addr jumpers JP1/JP2) | **0** on 24/12 budget; 1 I2C address, 9 encoder slots |
+| ~~**rodeo-rotary-switch**~~ | ❌ DROPPED 2026-08-20/21 | — | resistor-ladder rotary; **removed** (control set locked to pot/encoder/button/OLED) | — | — |
+| ~~**rodeo-switch** (SPDT)~~ | ❌ DROPPED | — | hard-sync now a momentary **rodeo-button** + firmware toggle, not an SPDT | — | — |
+| ~~**rodeo-pixel**~~ | ❌ DROPPED | — | all LED feedback removed → OLED is sole feedback surface | — | — |
 
-Encoder-bank: addr **0x30 default, 0x30–0x37** jumper-selectable (A2:A0 = RP2040
-GPIO15/16/17), 12-byte burst register map, INT open-drain (separate header, not on Qwiic),
-USB-C UF2. 95 × 62 mm, encoders on 20 mm pitch, up to 8 per bus.
+Encoder-hub (hub-and-satellite, current): **STM32C031C6** target, addr **0x30 default,
+0x30–0x33** via 2 cuttable jumpers JP1/JP2 (on PD0 / PA15), read-clear delta register map +
+press-latch, up to **9 encoders per hub**. Full electrical spec in the **LOCKED hub section**
+below and `RODEO_HUB_I2C_CONTRACT.md`. *(Superseded: the old RP2040 4-gang `rodeo-encoder-bank`
+strip — struck 2026-08-20.)*
 
 ### Budget accounting under "no hidden controls"
 
-- **Continuous (pots) + selectors (rotary):** each = 1 of the 24 ADC channels.
-- **Toggles/buttons (switch module):** each = 1 of the 12 digital GPIO.
-- **Encoders:** via I2C encoder-banks — **do not** touch 24/12. Up to 8 banks × 4 = 32
-  encoders on one bus. Bus-limited, not pin-limited.
-- **Pixel LEDs:** 1 GPIO clocks a whole addressable chain (Issue 3 — assign the pin).
-- **OLED:** I2C @ 0x3C, shares J42 with encoder banks (0x30–0x37 — no collision).
+- **Continuous (pots):** each = 1 of the 24 ADC channels.
+- **Buttons (`rodeo-button`, momentary):** each = 1 of the 12 digital GPIO. (Multi-position
+  selection = press-to-cycle a button, value on OLED.)
+- **Encoders:** via the I2C encoder-hub — **do not** touch 24/12. Up to 9 per hub; add hubs
+  (0x30–0x33) if ever needed. Bus-limited, not pin-limited.
+- **OLED:** I2C @ 0x3C, shares J42 with the encoder-hub (0x30 — no collision).
 
 I2C bus is now a shared managed resource I own: address allocation, pull-up value sized for
 the total daisy-chain capacitance, and chain-length limits.

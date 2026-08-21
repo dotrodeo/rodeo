@@ -275,16 +275,22 @@ re-reconciled tally:
 - **8 buttons** = 5 enum cycle-buttons (Filter Type, Keytrack, LFO Shape, LFO Dest, Voice
   Mode) + 2 Wave (OSC1/OSC2) + 1 hard-sync. All ride `rodeo-button` (momentary, 2-pin
   JST-SH sig/GND, idle-high via STM32 internal pull-up). No SPDT, no per-button LED.
-- **6 encoders** on the I²C hub (bank `0x30` trims: OSC2 detune, unison detune, glide, master
-  tune; octaves OSC1/OSC2) — off the 24/12 budget. OLED `0x3C` shares the bus.
+- **6 encoders** as individual `rodeo-encoder` singles on the one `rodeo-encoder-hub` (I²C
+  @0x30, 9-cap): trims (OSC2 detune, unison detune, glide, master tune) + octaves OSC1/OSC2 —
+  off the 24/12 budget. OLED `0x3C` shares the bus.
 
 **OPEN — OSC Wave feel (Derek's call, 2026-08-21):** ch0/ch3 flagged PENDING in the control
-map. Options: **(a)** cycle-button (in the tally above); **(b)** rotary encoder (costs 2
-encoder slots → likely a 2nd bank); **(c)** pot thresholded into 4 zones (spends the 2 freed
-analog channels, keeps a knob in the OSC box, no detents). **My panel recommendation: (a) ≥
-(c) > (b)** — the encoder-bank is a *fixed 4-gang strip*, so (b) can't co-locate Wave with its
-oscillator's Shape/Spread pots; (a)/(c) both keep the OSC section grouped. Placements freeze
-once Derek picks. See channel thread 2026-08-21.
+map. All three now co-locate in the OSC box (the fixed 4-gang encoder-bank is gone — encoders
+are free-placed singles), so it's a **pure feel call**:
+- **(a)** cycle-button — crisp press-to-cycle, frees ch0/ch3 (+2 spare analog); value on OLED.
+- **(b)** rotary encoder — detented click (best action, truest heir to the old rotary switch),
+  free on I²C (8/9 on the one hub), also frees ch0/ch3; value on OLED.
+- **(c)** pot thresholded to 4 zones — the *only* one where the wave reads on the **control
+  face** (pointer + 4 silk labels, no OLED glance); spends ch0/ch3; mushy, no detent.
+
+**Panel lean: (b) for best action, (c) for panel-face legibility; (a) = minimalist.** No
+grouping penalty on any option now. Placements freeze once Derek picks. See channel thread
+2026-08-21.
 
 **`rodeo-button` = the digital workhorse (my build deliverable).** Formerly a supplement to
 `rodeo-switch`; now it carries **all 8** digital actions including hard-sync. Same 2-pin JST-SH
@@ -304,19 +310,31 @@ from each `.kicad_pcb`:
 
 | Satellite | Board (Edge.Cuts) | Control element | Panel mount | Connector | Notes |
 |---|---|---|---|---|---|
-| `rodeo-potentiometer` | **25 × 30 mm** | Alps RK09K vertical pot | pot bushing | 3-pin JST-SH horiz | 4× M2 · R+C RC on board |
-| `rodeo-button` (build) | TBD (~20 × 30) | momentary pushbutton | button bushing | 2-pin JST-SH | **digital workhorse** — all 8 enum/toggle actions incl. hard-sync |
-| `rodeo-encoder-bank` | **100.3 × 67.3 mm** | 4× Alps EC11 (H20) | board-mount, shafts thru | Qwiic I2C | 20 mm encoder pitch; knobs ≤17 mm; **fixed 4-gang strip** (no free-placed singles) |
-| ~~`rodeo-rotary-switch`~~ | — | — | — | — | **REMOVED (Derek 2026-08-21)** — no rotary switches in ecosystem |
+| `rodeo-potentiometer` | **25 × 30 mm** | Alps RK09K vertical pot | pot bushing Ø7 | 3-pin JST-SH horiz | 4× M2 · R+C RC on board |
+| `rodeo-encoder` (individual) | **25 × 25 mm** (measured Edge.Cuts) | EC11 detented encoder + push | encoder bushing Ø7 | I²C to hub | **free-placed single** → `rodeo-encoder-hub` (9-cap, @0x30); groups per-function like a pot |
+| `rodeo-button` | **25 × 25 mm** (measured Edge.Cuts) | momentary pushbutton | button bushing | 2-pin JST-SH | **digital workhorse** — all 8 enum/toggle actions incl. hard-sync; free-placed single |
+| `rodeo-encoder-hub` | STM32C0 hub PCB (behind-panel, not a control) | — | board-mount, internal | I²C @0x30 | **9-encoder cap**; carries the voice's 6 (+2 if Wave→encoder = 8/9) |
+| ~~`rodeo-encoder-bank` (4-gang)~~ | — | — | — | — | **REMOVED (Derek 2026-08-21)** — replaced by hub + individual `rodeo-encoder` singles |
+| ~~`rodeo-rotary-switch`~~ | — | — | — | — | **REMOVED** — no rotary switches in ecosystem |
 | ~~`rodeo-switch` (SPDT)~~ | — | — | — | — | **REMOVED** — hard-sync now a momentary `rodeo-button` |
 | ~~`rodeo-pixel`~~ | — | — | — | — | **REMOVED** — LED indicators dropped; all feedback on OLED |
 
-**Pitch rule set (v1):** the pot carrier (25 × 30) sets the base grid — **25 mm horizontal
-pitch, 30 mm row pitch** for pots (comfortable for 16–18 mm knobs). Rotary switch wants
-**30 mm**. Buttons/toggle tolerate ~20 mm. The encoder-bank is a **fixed 95-mm-wide 4-gang
-module** (can't be split), so its 4 encoders land on 20 mm pitch as a unit.
+**Pitch rule set (v2 — 2026-08-21, all controls now free-placed singles):** the whole kit is a
+**uniform ~25 mm grid** — pot 25×30, encoder 25×25, button 25×25 — each mounting by its own
+bushing and placeable anywhere. Base grid: **25 mm horizontal pitch, 30 mm row pitch** (pots
+set the tallest tile; comfortable for 16–18 mm knobs). Encoders/buttons drop into the same grid
+with margin. **No fixed multi-gang cluster anymore** — the old 4-gang encoder-bank is gone, so
+encoders co-locate with their function (e.g. a Wave encoder inside its own OSC box) exactly
+like a pot. Encoders are I²C to the behind-panel `rodeo-encoder-hub`; only the shaft/bushing
+lands on the panel.
 
-## Panel Layout v1 (2026-08-15)
+## Panel Layout v1 (2026-08-15) — ⚠ SUPERSEDED, redraw pending
+
+> **Stale as of 2026-08-21.** This floorplan predates the ecosystem change: it shows Wave as
+> ADC rotaries, an "ENC BANK" block, and LED elements — all void now (Wave is button/encoder/pot
+> TBD; encoders are free-placed singles off one hub; no LEDs). Kept for signal-flow reference
+> only. **Panel Layout v2 gets redrawn once Derek picks the Wave-feel option** and the 22 pots +
+> 8 buttons + 6 encoders + OLED settle on the uniform 25 mm grid.
 
 Signal-flow, two bands, left → right. Only the 24 ADC controls (22 pots + 2 Wave rotaries)
 are sequenced for channels; buttons/toggle/encoders/OLED are placed in-section but off the
@@ -489,6 +507,19 @@ count is a joint Bumble/Honey decision, not just an electrical one.
 
 ## Change log
 
+- 2026-08-21 (later) — **Encoder architecture changed** (Derek): the fixed 4-gang
+  `rodeo-encoder-bank` is **gone**, replaced by a hub-and-satellite scheme — STM32C0
+  `rodeo-encoder-hub` (**9-encoder cap**, one hub @0x30 carrying the voice's 6) + individual
+  `rodeo-encoder` satellites. **Panel impact: encoders are now free-placed singles like pots
+  and buttons** — the fixed-cluster constraint that ranked Wave-option (b) last is void, so
+  **(b) is reopened** and all three Wave options co-locate in the OSC box (pure feel call).
+  Measured the new outlines from KiCad Edge.Cuts: **`rodeo-encoder` = 25 × 25 mm, `rodeo-button`
+  = 25 × 25 mm** (both individual, M2-class corners). Tiling kit → **uniform ~25 mm grid**
+  (pot 25×30, encoder 25×25, button 25×25). Updated tiling table, pitch rules (v2), Wave-feel
+  note, and flagged Panel Layout v1 floorplan SUPERSEDED (shows old ENC BANK + rotaries).
+  Satellite projects confirmed on disk under `/Users/derek/proj/rodeo/`: `rodeo-encoder`,
+  `rodeo-encoder-hub`, `rodeo-button` exist; `rodeo-encoder-bank`, `rodeo-switch`, `rodeo-pixel`
+  gone. Revised panel lean: **(b) best action / (c) panel-face legibility / (a) minimalist.**
 - 2026-08-21 — **Ecosystem locked to 4 control types** (Derek): potentiometers (analog),
   rotary encoders (I²C), momentary buttons (digital), HiLetgo 2.42″ SSD1309 OLED (I²C).
   **Rotary switches + LED indicators REMOVED.** Panel impact: cutout families collapse to
