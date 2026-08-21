@@ -2022,7 +2022,7 @@
 			(uuid "125fdaed-f697-4d81-b911-1afa6bd2f9c5")
 		)
 		(instances
-			(project "rodeo-001"
+			(project "rodeo-motherboard"
 				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/35903235-e99a-4b64-82bc-c3b410c4f017"
 					(reference "#PWR0100")
 					(unit 1)
@@ -2218,7 +2218,7 @@
 			(uuid "fce89ba7-dd10-44f1-a307-67ed91ac961f")
 		)
 		(instances
-			(project "rodeo-001"
+			(project "rodeo-motherboard"
 				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/35903235-e99a-4b64-82bc-c3b410c4f017"
 					(reference "A1")
 					(unit 1)
@@ -2296,7 +2296,7 @@
 			(uuid "825dd74e-e95a-4760-9208-85401c23662b")
 		)
 		(instances
-			(project "rodeo-001"
+			(project "rodeo-motherboard"
 				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/35903235-e99a-4b64-82bc-c3b410c4f017"
 					(reference "#PWR0101")
 					(unit 1)

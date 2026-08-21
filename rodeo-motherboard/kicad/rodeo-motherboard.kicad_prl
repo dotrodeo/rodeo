@@ -63,7 +63,7 @@
     "ssh_key": ""
   },
   "meta": {
-    "filename": "rodeo-001.kicad_prl",
+    "filename": "rodeo-motherboard.kicad_prl",
     "version": 5
   },
   "net_inspector_panel": {

@@ -488,7 +488,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "rodeo-001.kicad_pro",
+    "filename": "rodeo-motherboard.kicad_pro",
     "version": 3
   },
   "net_settings": {
@@ -643,7 +643,7 @@
     "subpart_id_separator": 0,
     "top_level_sheets": [
       {
-        "filename": "rodeo-001.kicad_sch",
+        "filename": "rodeo-motherboard.kicad_sch",
         "name": "Root",
         "uuid": "5cef33a9-d56b-4138-ba4b-27694d0eb713"
       }

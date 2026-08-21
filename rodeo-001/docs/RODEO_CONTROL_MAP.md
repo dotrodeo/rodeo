@@ -13,9 +13,9 @@ assignment. Firmware (Fizz) reads controls exactly as mapped here; the panel (Ho
 physically fit what is specified here. Keep all three in sync.
 
 > Status: verified against the KiCad schematics in `rodeo-motherboard/kicad/` (root
-> `rodeo-001.kicad_sch` + subsheets `daisy_seed`, `digital_io`, `jst_connectors`,
+> `rodeo-motherboard.kicad_sch` + subsheets `daisy_seed`, `digital_io`, `jst_connectors`,
 > `serial_io`) and cross-checked with the firmware-side `docs/hardware-map.md`. The **PCB**
-> (`rodeo-001.kicad_pcb`, 87 parts) is the net authority — the root schematic does not
+> (`rodeo-motherboard.kicad_pcb`, 87 parts) is the net authority — the root schematic does not
 > hierarchically instantiate the subsheets, so a schematic-only netlist is incomplete.
 
 ## ✅ SPI orientation — RESOLVED & bench-verified (2026-08-15)

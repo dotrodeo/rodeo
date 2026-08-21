@@ -229,7 +229,7 @@
 		(property ki_fp_filters "DIP*W7.62mm* SMDIP*W9.53mm*")
 		(path "/12e933c8-e41e-47fa-87d9-c55a390a41fe")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -544,7 +544,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/bc251dd1-9a2c-4dc5-9641-a54208fd2638")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -714,7 +714,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/671519a8-87d9-458b-971a-016ae5a4d0e4")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -872,7 +872,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/9d2305d5-2cdd-4190-b8a6-d6fb14ccc512")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2910,7 +2910,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/214faf6d-b686-4e73-84f7-4412d183736e")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -3080,7 +3080,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/cae9edc8-52eb-4d10-9559-d1541f62c02f")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -3252,7 +3252,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/a36e0e94-29cd-4f70-a0e4-9a216eb19255")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -3414,7 +3414,7 @@
 		(property ki_fp_filters "Jack*")
 		(path "/aaeb6457-57e4-451e-8ce8-76130ea46879")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -3819,7 +3819,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/6ec75ce5-65ed-418b-9dd7-a6af32c99461")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -5369,7 +5369,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/33a7e576-c03a-4d4e-98b7-bf551a1877a2")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -5527,7 +5527,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/1234ea08-fa99-439c-bc2c-df409481a5e6")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -6612,7 +6612,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/b2a7d603-53b1-4e47-85a8-aac697452a62")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -7099,7 +7099,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/824fdfcf-8f2a-4f96-93cf-db71e4c9177c")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -7271,7 +7271,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/77f77246-ccf3-4d0a-a932-519928987c62")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -7441,7 +7441,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/cc247052-1260-4a8a-8d5c-55232920a6cc")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -7601,7 +7601,7 @@
 		(property ki_fp_filters "SOT?23*")
 		(path "/fcb4d570-5821-4502-9bb6-de6478739fcc")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -9801,7 +9801,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/51cfb15a-73b4-4671-a6a0-67e97629e798")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -9971,7 +9971,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/ab2ea117-2231-4eb9-969f-2ec46913f1b9")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -11161,7 +11161,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/ba7909e5-332f-41df-b19d-e8eeafe98b8f")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -11331,7 +11331,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/4d7f4211-a92f-409f-ab34-d2eb904f2ab4")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -11555,7 +11555,7 @@
 		)
 		(path "/1d504593-2ede-489b-9b36-582e995d9aca")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -12838,7 +12838,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/a3d3d259-850b-40ab-acfb-c7939d572db8")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -14876,7 +14876,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/1db8f44b-fb13-4bde-bd83-42ef2d9d534f")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -15046,7 +15046,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/934dae43-a07d-47d6-96f2-6dac03dd0a14")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -15521,7 +15521,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/cc62be6d-f71e-4199-b999-b03275809f87")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -15671,7 +15671,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/2b21faba-f443-4542-b497-c9db5bf4c1f8")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -17797,7 +17797,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/5bfdf818-e68f-44f5-91a0-f175677088b8")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -18895,7 +18895,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/028e6cf2-48f9-41c9-85c8-2bc3c68642dc")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -19108,7 +19108,7 @@
 		(property ki_fp_filters "Jack*")
 		(path "/19722782-50a2-4ecb-a90b-ddb2a5a41427")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -19525,7 +19525,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/c10f3052-d4d9-498a-bbd1-7d2fd274881d")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -19697,7 +19697,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/0d953970-c133-44fd-bcb6-634c85e43947")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -20197,7 +20197,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/1088d5c0-37b7-4eed-8c95-a10bb08d2b48")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -20864,7 +20864,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/b7bbeaf0-08cf-4d48-95aa-1e734d96f11a")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -21339,7 +21339,7 @@
 		(property ki_fp_filters "WSON*1EP*2x2mm*P0.65*")
 		(path "/f28c6bce-89a6-4f22-a909-6be3b119c8ce")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -21725,7 +21725,7 @@
 		(property ki_fp_filters "Jack*")
 		(path "/41535c43-16d3-4f55-ae2f-da31f08a0266")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -22142,7 +22142,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/d51d063b-167c-4f8e-b7cf-16e984dceb85")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -22306,7 +22306,7 @@
 		(property ki_fp_filters "Jack*")
 		(path "/50c2f915-24f7-4609-82ab-2b75207f66e0")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -24570,7 +24570,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/97aff9d8-f264-40fc-82a8-e3f43edfb557")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -25265,7 +25265,7 @@
 		(property ki_fp_filters "USB*C*Receptacle*")
 		(path "/73443494-9a30-45bf-a095-87fe85b83b4c")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -26110,7 +26110,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/894e4794-4777-4b42-82bc-22a4905e7f44")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -26610,7 +26610,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/64593923-bcdb-4e52-9d61-d773c2154b2f")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -26819,7 +26819,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/f4dabb5b-cc60-4484-8883-74ff35e55ae3")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -28866,7 +28866,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/33c282d6-7135-497d-995f-a7c211f21938")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -29036,7 +29036,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/da5042f9-e3e5-4085-9e98-505d181cb351")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -29333,7 +29333,7 @@
 		(property ki_fp_filters "D*SOD?123*")
 		(path "/dcf18307-123e-4950-a680-35cc705a978d")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -29695,7 +29695,7 @@
 		)
 		(path "/90ffa758-1ea1-45f1-968a-d88e892c43df")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -31445,7 +31445,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/118e1fe6-cade-4834-a5b6-aa861fb24422")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -32963,7 +32963,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/b20fe73e-57d0-4ae0-824a-84347afbd1a1")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -33707,7 +33707,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/a8563ca3-59fd-4a0c-9327-a8c64dbe4a45")
 		(sheetname "/")
-		(sheetfile "rodeo-001.kicad_sch")
+		(sheetfile "rodeo-motherboard.kicad_sch")
 		(units
 			(unit
 				(name "A")

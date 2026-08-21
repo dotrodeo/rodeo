@@ -1033,7 +1033,7 @@
 			(uuid "b4aadca0-a81a-467e-a775-2f8e5dd4d81f")
 		)
 		(instances
-			(project "rodeo-001"
+			(project "rodeo-motherboard"
 				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/e28741d5-6706-4936-ab3a-13b512f96b42"
 					(reference "#PWR0115")
 					(unit 1)
@@ -1112,7 +1112,7 @@
 			(uuid "696f248d-ea42-427a-859d-a9fdd4da3b56")
 		)
 		(instances
-			(project "rodeo-001"
+			(project "rodeo-motherboard"
 				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/e28741d5-6706-4936-ab3a-13b512f96b42"
 					(reference "#PWR0118")
 					(unit 1)
@@ -1204,7 +1204,7 @@
 			(uuid "97b4b4ca-5fc0-4148-b303-38c66ac80a86")
 		)
 		(instances
-			(project "rodeo-001"
+			(project "rodeo-motherboard"
 				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/e28741d5-6706-4936-ab3a-13b512f96b42"
 					(reference "J43")
 					(unit 1)
@@ -1283,7 +1283,7 @@
 			(uuid "63c46876-d800-45f8-a8c4-f90e5df3cd4e")
 		)
 		(instances
-			(project "rodeo-001"
+			(project "rodeo-motherboard"
 				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/e28741d5-6706-4936-ab3a-13b512f96b42"
 					(reference "#PWR0117")
 					(unit 1)
@@ -1362,7 +1362,7 @@
 			(uuid "71a7b704-87bc-4799-816f-1c68d6856b63")
 		)
 		(instances
-			(project "rodeo-001"
+			(project "rodeo-motherboard"
 				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/e28741d5-6706-4936-ab3a-13b512f96b42"
 					(reference "#PWR0116")
 					(unit 1)
@@ -1448,7 +1448,7 @@
 			(uuid "c0648857-2ac3-4f93-a10f-3b7060d9ffff")
 		)
 		(instances
-			(project "rodeo-001"
+			(project "rodeo-motherboard"
 				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/e28741d5-6706-4936-ab3a-13b512f96b42"
 					(reference "J44")
 					(unit 1)
@@ -1527,7 +1527,7 @@
 			(uuid "afa78a7f-684e-4d76-89fc-325f032f9955")
 		)
 		(instances
-			(project "rodeo-001"
+			(project "rodeo-motherboard"
 				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/e28741d5-6706-4936-ab3a-13b512f96b42"
 					(reference "#PWR0119")
 					(unit 1)
@@ -1613,7 +1613,7 @@
 			(uuid "2bed46ce-8f3b-4027-bdd4-222a008e6ae7")
 		)
 		(instances
-			(project "rodeo-001"
+			(project "rodeo-motherboard"
 				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/e28741d5-6706-4936-ab3a-13b512f96b42"
 					(reference "J42")
 					(unit 1)
@@ -1692,7 +1692,7 @@
 			(uuid "9ed0eaea-85ed-4242-8d36-0b642daf77ef")
 		)
 		(instances
-			(project "rodeo-001"
+			(project "rodeo-motherboard"
 				(path "/5cef33a9-d56b-4138-ba4b-27694d0eb713/e28741d5-6706-4936-ab3a-13b512f96b42"
 					(reference "#PWR0114")
 					(unit 1)

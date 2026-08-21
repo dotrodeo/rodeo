@@ -7,7 +7,7 @@
 // The actual libDaisy `Pin` bindings live in target-only code that uses the
 // `seed::Dxx` numbers documented here.
 //
-// Source of truth: kicad/rodeo-001.kicad_pcb, verified against the Daisy Seed
+// Source of truth: kicad/rodeo-motherboard.kicad_pcb, verified against the Daisy Seed
 // (A1) pin functions. See docs/architecture.md.
 //
 namespace board

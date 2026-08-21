@@ -28,7 +28,7 @@ first and filled after. The OLED is feedback-only and does not reduce control ar
 |------|-------|---------------------|
 | Compute board | Daisy Seed on Rodeo Synthesizer Motherboard | Derek |
 | Daisy Seed footprint | ~51 × 18 mm, 0.1" dual-row castellated headers, USB on one short edge | Commonly published Seed dims — **VERIFY against actual board** |
-| Rodeo motherboard mounting pattern | **95.0 × 75.0 mm**, 4× M2 (2.2 mm holes) at corners (100.3/195.3, 55.8/130.8) | `rodeo-motherboard/kicad/rodeo-001.kicad_pcb` — verified |
+| Rodeo motherboard mounting pattern | **95.0 × 75.0 mm**, 4× M2 (2.2 mm holes) at corners (100.3/195.3, 55.8/130.8) | `rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb` — verified |
 | Rodeo motherboard outline | ~95×75 mm active area; **overall outline not yet finalized on Edge.Cuts** (board is mid-edit) | Same file — provisional |
 | Analog channels | 24 | Derek |
 | Digital I/O | 12 | Derek |
@@ -37,7 +37,7 @@ first and filled after. The OLED is feedback-only and does not reduce control ar
 ## Motherboard reference ingested — 2026-08-08
 
 Derek pointed the project at `/Users/derek/proj/rodeo`; the motherboard KiCad project
-(`rodeo-motherboard/kicad/rodeo-001.kicad_pcb`, KiCad 9, **mid-edit — read-only, numbers
+(`rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb`, KiCad 9, **mid-edit — read-only, numbers
 provisional**) resolves the standing placement blocker. Extracted (as of this state):
 
 - **Mounting:** 4× M2 holes on a **95.0 × 75.0 mm** rectangle (corners above).
