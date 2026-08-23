@@ -3,7 +3,7 @@ title: "Rodeo Control Map — Interface Contract"
 tags: [rodeo, hardware, control-map, daisy-seed, pinout, ads114s08]
 status: active
 created: 2026-08-08
-updated: 2026-08-20
+updated: 2026-08-22
 ---
 
 # Rodeo Control Map — Interface Contract
@@ -156,6 +156,20 @@ those pins as GPIO, or the corresponding channels silently disappear.
 > power cycles**, value shown on the OLED; wave-encoder steps ±1 through the 4 waveforms
 > (wrap), direction per `CONFIG.ENC_DIR_INVERT`.
 
+> **🎛️ VOICE UPDATE (Derek, 2026-08-22): voice = "less-complicated MiniFreak"** — 12-voice
+> poly, oscillators **subtractive + FM + formant**, **polyphonic SVF** filter, Filter ADSR +
+> Amp ADSR + **1 LFO single destination, no mod matrix**. Impact on this contract:
+> - **Filter / mod / mix / global / voice controls: UNCHANGED and frozen** — they map 1:1 onto
+>   the new voice (SVF ↔ Filter Type, LFO Dest ↔ the single destination, both ADSRs, etc.).
+> - **✅ OSCILLATOR section RESOLVED — Option A (Derek, 2026-08-22): semantics-only, no channel
+>   remap, stays 22/24.** Per-osc **Shape → model-dependent Timbre** (PW for subtractive /
+>   FM-index for FM / formant-position for formant — the *interpretation* changes per engine,
+>   the pot keeps its channel). The **Wave encoders (hub slots 7/8) = engine select**. The
+>   global **Vowel pot stays as-is**. No FM/formant params get new channels; the ch0/ch3 spares
+>   are preserved. Only firmware interpretation changes — the pin/channel/slot bindings below
+>   are unaffected. (This is the one place we lean on per-engine macro re-use; Derek accepted it
+>   for the oscillator only, filter/mod/mix stay strictly one-control-per-parameter.)
+
 ### THIS BUILD — Path B allocation (locked 2026-08-15, Derek)
 
 **Decision (Derek, 2026-08-15):** the motherboard is already produced → **no respin → Path B.**
@@ -169,27 +183,51 @@ so channel order matches physical left-to-right panel grouping.
 | Subsystem | Budget | Gets | Count |
 |---|---|---|---|
 | **24 ADS channels** (J6–J29) | 24 | 22 live-sweep **pots** (ch0/ch3 = J6/J9 now **SPARE**) | **22 used, 2 spare** |
-| **Digital GPIO** (J30–J41) | 12 | 5 enum **cycle-buttons** + 1 hard-sync **toggle** | **6 used** (6 spare) |
+| **Digital GPIO** (J30–J41) | 12 | 6× momentary `rodeo-button` (5 cycle-enum + 1 hard-sync) → **DIG_1–6 / J30–J35** | **6 used** (6 spare) |
 | **I2C encoder-hub** (J42) | — | one `rodeo-encoder-hub` @`0x30`, 9-slot: 4 **trims** + 2 **octaves** + 2 **Wave** | **8 encoders → 1 hub (8/9)** |
 
-**The 24 ADS channels** — 22 live-sweep pots (Wave selectors moved to the encoder-hub):
-OSC1 Shape/PW, OSC1 Spread, OSC2 Shape/PW, OSC2 Spread · OSC1 lvl, OSC2 lvl, Noise lvl ·
+**The 24 ADS channels** — 22 live-sweep pots (Wave/engine selectors moved to the encoder-hub):
+OSC1 Timbre, OSC1 Spread, OSC2 Timbre, OSC2 Spread · OSC1 lvl, OSC2 lvl, Noise lvl ·
 Cutoff, Resonance, Env amount, Vowel · Filt-ENV A/D/S/R, Amp-ENV A/D/S/R · LFO Rate, LFO
 Amount · Master volume  = **22 pots**. **ch0 (J6) and ch3 (J9) are now SPARE** (Wave went to
 encoders) — first free ADS headers, reserved for a future CV/mod input. **22 used, 2 spare.**
 
-**Digital** (2-pin JST-SH, sig/GND):
+**Digital** — 6× momentary `rodeo-button` (2-pin JST-SH sig/GND, idle-high via STM32 internal
+pull-up, 100 nF debounce on the satellite):
 - **5 cycle-buttons** (momentary push → firmware cycles enum, OLED shows value): Filter Type,
   Keytrack, LFO Shape, LFO Dest, Voice Mode.
-- **1 toggle**: OSC2 Hard-sync (SPDT latching) → the `rodeo-switch` satellite.
-= **6 of 12 digital** (6 spare — room for pixel data on DIG_11/PA6 if pixel enters scope).
+- **1 hard-sync** (OSC2): also a momentary `rodeo-button`; firmware treats the press as a
+  toggle (SPDT `rodeo-switch` was dropped).
+= **6 of 12 digital used, 6 spare.**
+
+#### 🔒 FROZEN digital-button table (2026-08-23, from Honey's Panel Layout, physical order)
+
+Connector↔digital-index mapping is uniform: **`J(29+n) = DIG_n`** (J30 = DIG_1 … J41 = DIG_12).
+The 6 buttons take the **first 6 connectors J30–J35 = DIG_1–DIG_6 = Seed pins 2–7** (the SDMMC
+pins — digital-only, no ADC/timer capability, so nothing is wasted on them). **J36–J41 =
+DIG_7–DIG_12 = Seed pins 22–27 stay SPARE** — these are the *ADC-capable* pins, deliberately
+reserved so a future need (native-ADC input, CV, a timer function) can reclaim them.
+
+| Button (signal-flow order) | Section | `DIG_n` | Connector | Seed pin |
+|---|---|---|---|---|
+| OSC2 Hard-sync | OSC/MIX seam | DIG_1 | **J30** | 2 |
+| Filter Type / SVF mode | FILTER | DIG_2 | **J31** | 3 |
+| Filter Keytrack | FILTER | DIG_3 | **J32** | 4 |
+| LFO Shape | LFO | DIG_4 | **J33** | 5 |
+| LFO Dest | LFO | DIG_5 | **J34** | 6 |
+| Voice Mode | GLOBAL | DIG_6 | **J35** | 7 |
+
+**Firmware contract:** bind each button's logical enum to its `DIG_n` (→ the libDaisy pin for
+Seed pins 2–7 in `board.h`), `GPIO::Pull::PULLUP`, active-low (pressed = 0). No SD card in
+Rodeo, so the SDMMC pins are free as plain GPIO — no boot-strap conflict.
 
 **Encoder-hub** (detented, OLED feedback, off the 24/12 budget — hub-and-satellite, one
 9-slot `rodeo-encoder-hub` @`0x30`; see the LOCKED hub section below):
 - **`0x30` index↔param table (LOCKED 2026-08-21):**
   slot 1 = OSC2 Detune · slot 2 = Unison detune · slot 3 = Glide · slot 4 = Master tune ·
-  slot 5 = OSC1 Octave · slot 6 = OSC2 Octave · **slot 7 = OSC1 Wave** · **slot 8 = OSC2 Wave**
-  (steps ±1 through 4 waveforms, wrap) · slot 9 = spare. **8 of 9 slots used, 1 spare.**
+  slot 5 = OSC1 Octave · slot 6 = OSC2 Octave · **slot 7 = OSC1 Engine/Wave select** ·
+  **slot 8 = OSC2 Engine/Wave select** (Option A: encoder picks the osc engine/waveform;
+  steps ±1 with wrap) · slot 9 = spare. **8 of 9 slots used, 1 spare.**
   Firmware binds these hub indices; physical hub-header↔slot wiring is Honey's harness (I
   confirm the index↔param map once her v2 harness is drawn — convention: header order = slot order).
 
@@ -219,10 +257,10 @@ must bind these `ch` indices to these functions.
 | `ch` | Function | Class | Chip | AINx | Connector |
 |---|---|---|---|---|---|
 | 0  | **SPARE** (was OSC1 Wave; moved to encoder-hub slot 7) — free ADS header, future CV/mod | — | U3 | AIN0  | **J6**  |
-| 1  | OSC1 Shape/PW  | pot | U3 | AIN1  | **J7**  |
+| 1  | OSC1 Timbre (model-dependent: PW / FM-index / formant-pos) | pot | U3 | AIN1  | **J7**  |
 | 2  | OSC1 Spread    | pot | U3 | AIN2  | **J8**  |
 | 3  | **SPARE** (was OSC2 Wave; moved to encoder-hub slot 8) — free ADS header, future CV/mod | — | U3 | AIN3  | **J9**  |
-| 4  | OSC2 Shape/PW  | pot | U3 | AIN4  | **J10** |
+| 4  | OSC2 Timbre (model-dependent: PW / FM-index / formant-pos) | pot | U3 | AIN4  | **J10** |
 | 5  | OSC2 Spread    | pot | U3 | AIN5  | **J11** |
 | 6  | OSC1 level     | pot | U3 | AIN6  | **J12** |
 | 7  | OSC2 level     | pot | U3 | AIN7  | **J13** |
@@ -315,9 +353,15 @@ channel-by-channel assignment table lands once Derek makes the A-vs-B vibe call.
 ## Digital subsystem — 12 raw GPIO
 
 - **J30–J41**, 2-pin JST-SH (`BM02B-SRSS-TB`), pinout `1=signal, 2=GND` (no 3V3).
-- `DIG_1..DIG_6` → Seed pins 2–7 (SDMMC pins, digital-only).
+- `DIG_1..DIG_6` → Seed pins 2–7 = **`seed::D1..D6` = PC11 / PC10 / PC9 / PC8 / PD2 / PC12**
+  (the SDMMC1 pins D3/D2/D1/D0/CMD/CK — digital-only, no ADC/timer). Verified 1:1 against
+  libDaisy's port table (Fizz, 2026-08-23). No SD card in Rodeo → free as plain GPIO.
 - `DIG_7..DIG_12` → Seed pins 22–27 (ADC-capable pins used as GPIO; firmware could reclaim
-  up to 6 as native analog if ever needed). PB1/PA7 are 3.3 V-tolerant only.
+  up to 6 as native analog if ever needed). PB1/PA7 are 3.3 V-tolerant only. **Kept SPARE.**
+- **Canonical DIG_n→Seed-pin fact now also lives in firmware `common/board.h`** (Fizz added the
+  generic map 2026-08-23; matches this table). board.h = firmware-consumed source, this doc =
+  human contract; they must stay in sync (currently identical). *Instance* button→DIG_n
+  assignment stays in rodeo-001's `control_map.h`, not board.h.
 - No expanders/muxes on the board. To expand digital, either mux off-board or move the
   function to a smart I2C satellite.
 
@@ -414,21 +458,13 @@ the control wishlist. Target ~2.2–4.7 kΩ to +3V3; if the daisy chain is long,
 pull-up pair at the host end sized for the aggregate load. Encoder-banks 0x30–0x37 and OLED
 0x3C/0x3D don't collide; firmware enumerates at boot.
 
-### 3. Pixel data pin — proposed DIG_11 / PA6 (pending Derek: is pixel in first build?)
+### 3. ~~Pixel data pin~~ — MOOT (`rodeo-pixel` dropped, LEDs removed 2026-08-20)
 
-`rodeo-pixel` has no dedicated motherboard connector, so its 800 kHz single-wire data
-borrows a digital GPIO. **Proposed: `DIG_11` → Seed pin 26 = PA6 = TIM3_CH1**, which lands
-on connector **J40**. Confirmed on the connector map; PA6 AF2 = TIM3_CH1, so Fizz can DMA
-the stream off a timer channel (preferred over bit-banging, which fights the audio callback).
-Costs one of the 12 digital connectors. Harness: mobo J40 (signal/GND) → pixel board D_IN.
-
-- **Open electrical decision (Bumble owns): SK6812 data level vs supply.** SK6812MINI wants
-  ~5 V; at 5 V its data logic-high threshold is ~0.7·VDD ≈ 3.5 V, so the Seed's 3.3 V data
-  line is **below threshold and marginal**. Options: (a) power the pixel string at +3V3 from
-  the JST-ZH taps (in-spec-marginal for the LED but the 3.3 V data is then reliable — dimmer
-  / slight color shift); (b) power at 5 V (VIN on the ZH taps) and add a level shifter (or
-  a sacrificial first LED / 74AHCT-type buffer) on D_IN. Decide once pixel is confirmed in
-  scope. This is why the pixel isn't "free": a digital line **and** a level/power choice.
+Resolved by removal: all panel LEDs were cut (OLED is the sole feedback surface), so there is
+no pixel data pin to assign. `DIG_11 / PA6 / J40` is now simply one of the **6 spare digital
+connectors** (J36–J41). The prior SK6812 data-level-vs-supply question no longer applies to the
+panel; the hub's on-board LED chain (fw-stubbed, future upgrade) carries its own power/level
+choice in the LOCKED hub section if it's ever revisited.
 
 ### 4. UART header vs MIDI on USART1 — DECIDED: MIDI wins (Fizz)
 
@@ -483,6 +519,19 @@ firmware can't. Not a fab blocker for the current board; fold into the next spin
 
 ## Change log
 
+- 2026-08-23 — **Digital-button pinning FROZEN.** 6 momentary `rodeo-button`s bound to
+  **DIG_1–6 / J30–J35 / Seed pins 2–7** in physical signal-flow order (Hard-sync, Filter Type,
+  Keytrack, LFO Shape, LFO Dest, Voice Mode). J36–J41 (DIG_7–12, ADC-capable pins 22–27) kept
+  SPARE on purpose. Clears Fizz's cycle-button GPIO stub — control map now frozen on all three
+  control classes (analog / digital / encoder). Retired the stale SPDT-toggle + pixel-on-DIG_11 notes.
+- 2026-08-22 — **Voice v2 = "less-complicated MiniFreak"** (Derek): 12-voice poly, osc
+  subtractive+FM+formant, polyphonic SVF, Filter+Amp ADSR + 1 LFO single-dest (no matrix).
+  **OSC fork resolved — Option A:** per-osc **Shape → model-dependent Timbre** (PW/FM-index/
+  formant-pos by engine), Wave encoders → **engine select**, Vowel pot unchanged. **Semantics
+  only — zero channel remap, stays 22/24, ch0/ch3 spares preserved.** Filter/mod/mix/global/voice
+  block confirmed 1:1 with the new voice. Confirmed the electrical/physical contract FROZEN for
+  Fizz to bind; he's standing up `rodeo-001/firmware` (consume-not-copy). ADC bench-verified on
+  both ADCs. Encoders/hub ordered (~1 wk) → motherboard-voice-first, hub firmware later.
 - 2026-08-21 — **Control set locked to 4 types (pot / encoder / button / OLED); rotary switches
   + LEDs removed** (Derek). **Wave-select = ENCODERS (option b)** after a 3-way (button/encoder/pot)
   eval: OSC1/OSC2 Wave → encoder-hub slots 7/8 @0x30 (hub 8/9). **ch0/ch3 (J6/J9) freed as spare

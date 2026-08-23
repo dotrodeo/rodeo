@@ -156,6 +156,32 @@ out by signal flow. The three modern features are **always-on dial-in controls, 
 - **Formant → a filter "Vowel" morph** (A-E-I-O-U), not a formant *oscillator*. A filter
   character you dial, always available regardless of oscillator settings. Prophet-like.
 
+### Voice v1 UPDATE — locked by Derek 2026-08-23 ("less-complicated MiniFreak")
+
+Firmware gate cleared; Fizz is standing up `rodeo-001/firmware`. Locked voice:
+- **12-voice polyphony** (unchanged).
+- **Oscillators: subtractive core + FM + formant *models*** — note this **supersedes** the
+  v0.1 line above that treated formant as a *filter Vowel morph*. Formant (and FM) are now
+  **oscillator models**, presumably selected by the per-osc **Wave encoder**.
+- **Filter: polyphonic SVF** (state-variable, per-voice) — a topology detail, no panel impact
+  (Cutoff/Reso/EnvAmt/Type/Keytrack unchanged).
+- **Mod: Filter ADSR + Amp ADSR + 1 LFO, single selectable destination, NO mod matrix.**
+
+**Panel fit (my confirmation to Fizz, 2026-08-23):** the mod set is **already fully allocated**
+— 2 ADSRs = 8 pots (ch13–16 / ch17–20), LFO = Rate+Amount pots (ch21/22) + Shape button +
+**LFO Dest button** (the single-destination selector; press-to-cycle, OLED readout). Nothing to
+carve; headroom remains (6/12 digital, ch0/ch3 analog, 1 encoder slot).
+
+**✅ RESOLVED — Option A locked (Derek via Fizz, 2026-08-23):** each oscillator's Shape/PW pot
+becomes a **model-dependent "Timbre" knob** — one normalized 0–1 param whose meaning follows the
+Wave-encoder engine (PW for pulse, **FM-index for FM**, **formant-position for formant**). The
+filter **"Vowel" pot stays as-is** (a formant *filter* ≠ a formant *oscillator* — complementary,
+both kept). **Zero channel remap, zero cutout change**; ch0/ch3 + spare digital stay in reserve.
+Panel relabel done: the 2 OSC Shape pots now read **"Timbre"** here (control-map relabel is
+Bumble's). **Legibility note:** silk reads the generic "Timbre" — the *live* per-engine meaning
+shows on the **OLED** on model-select (same OLED-lean already accepted for Wave-select); it's the
+one spot a knob's current function isn't silk-screened, and it's deliberate.
+
 ### Full control inventory (v0.1)
 
 Signal-flow order, left → right. Class column: **pot** (continuous), **sel** (rotary selector,
@@ -165,11 +191,11 @@ silk-screened positions), **tog** (toggle/button), **wheel** (performance).
 |---|---|---|---|
 | OSC 1 | Octave | sel | 32/16/8/4/2 |
 | OSC 1 | Wave | sel | tri/saw/square/pulse |
-| OSC 1 | Shape / PW | pot | |
+| OSC 1 | Timbre (model-dep) | pot | Shape/PW/FM-index/formant-pos per selected engine (Option A, 2026-08-23) |
 | OSC 1 | Spread (supersaw) | pot | |
 | OSC 2 | Octave | sel | |
 | OSC 2 | Wave | sel | |
-| OSC 2 | Shape / PW | pot | |
+| OSC 2 | Timbre (model-dep) | pot | Shape/PW/FM-index/formant-pos per selected engine (Option A, 2026-08-23) |
 | OSC 2 | Spread | pot | |
 | OSC 2 | Detune | pot | fine, vs OSC 1 |
 | OSC 2 | Hard sync → OSC 1 | tog | digital |
@@ -322,7 +348,7 @@ lands on the panel.
 
 Signal-flow, two bands, left → right, on the uniform 25 mm grid. Every control is a free-placed
 single co-located with its function; the OLED is the only element on the right. **The 2 OSC
-Wave selectors are encoders sitting in their own OSC boxes** (next to Shape/Spread), and the
+Wave selectors are encoders sitting in their own OSC boxes** (next to Timbre/Spread), and the
 former ENC-BANK cluster is gone — its encoders (octaves, detune, glide, master tune) now live in
 their functional sections. Sync is a momentary button; no LEDs anywhere.
 
@@ -330,7 +356,7 @@ their functional sections. Sync is a momentary button; no LEDs anywhere.
  ┌──────────┬──────────┬────────┬─────────────┐   ┌───────────────┐
  │  OSC 1   │  OSC 2   │  MIX   │   FILTER     │   │               │
  │ Wave  e  │ Wave  e  │ Osc1 ▪ │ Cutoff ▪     │   │     OLED      │
- │ Shape ▪  │ Shape ▪  │ Osc2 ▪ │ Reso   ▪     │   │   HiLetgo     │
+ │ Timbre▪  │ Timbre▪  │ Osc2 ▪ │ Reso   ▪     │   │   HiLetgo     │
  │ Spread▪  │ Spread▪  │ Noise▪ │ EnvAmt ▪     │   │  2.42″ 128×64 │
  │ Oct   e  │ Oct   e  │ Sync ○ │ Vowel  ▪     │   │   (I²C 0x3C)  │
  │          │ Detune e │        │ Type○  Ktrk○ │   │               │
@@ -355,6 +381,27 @@ harness once drawn. Full slot 1–8 table lives in `RODEO_CONTROL_MAP.md`.
 **Button placement (6):** Sync (OSC/MIX seam) · Filter Type, Keytrack (FILTER) · LFO Shape,
 LFO Dest (LFO) · Voice Mode (GLOBAL).
 
+**Digital button → connector binding — FROZEN (Bumble took my physical order 1:1, 2026-08-23).**
+My signal-flow order bound to the digital connectors + `board.h`:
+
+| # | Button | Panel section | `DIG_n` | Connector | Seed pin |
+|---|---|---|---|---|---|
+| 1 | OSC2 Hard-sync | OSC/MIX seam | DIG_1 | J30 | 2 |
+| 2 | Filter Type (SVF mode) | FILTER | DIG_2 | J31 | 3 |
+| 3 | Filter Keytrack | FILTER | DIG_3 | J32 | 4 |
+| 4 | LFO Shape | LFO | DIG_4 | J33 | 5 |
+| 5 | LFO Dest | LFO | DIG_5 | J34 | 6 |
+| 6 | Voice Mode | GLOBAL | DIG_6 | J35 | 7 |
+
+**Why J30–J35 (Bumble's rationale):** these are the **SDMMC pins — digital-only, no ADC/timer
+capability** — so buttons waste nothing on them (no SD card in Rodeo → free GPIO, no boot-strap
+conflict). **J36–J41 (DIG_7–12, Seed pins 22–27) kept spare on purpose** — they're the
+*ADC-capable* pins, so the digital reserve can be reclaimed later as native analog / CV / timer.
+**Electrical:** `rodeo-button` is momentary-to-GND with a 100 nF debounce on the satellite, no
+hub-side resistor → firmware `GPIO::Pull::PULLUP`, active-low (pressed = 0); hard-sync is the
+same momentary button, firmware treats the press as a toggle. Control map is now frozen on all
+three classes (pots ch0–23, buttons DIG_1–6, encoder hub slots 1–8).
+
 **ADC channel sequence (ch = reading order, top band L→R then bottom band L→R).** Wave→encoder
 freed **ch0 (J6) and ch3 (J9)** — now spare. **LOCKED (Bumble, 2026-08-21): gaps stay, no
 re-pack** — all 22 pots keep their exact frozen ch assignments + existing harness wiring; the
@@ -364,10 +411,10 @@ CV/mod input (which brings its own buffer + protection).
 | ch | Conn | Control | | ch | Conn | Control |
 |---|---|---|---|---|---|---|
 | 0 | J6 | **SPARE** (was OSC1 Wave; now encoder) | | 12 | J18 | FILTER Vowel |
-| 1 | J7 | OSC1 Shape | | 13 | J19 | FILT ENV Attack |
+| 1 | J7 | OSC1 Timbre (model-dep) | | 13 | J19 | FILT ENV Attack |
 | 2 | J8 | OSC1 Spread | | 14 | J20 | FILT ENV Decay |
 | 3 | J9 | **SPARE** (was OSC2 Wave; now encoder) | | 15 | J21 | FILT ENV Sustain |
-| 4 | J10 | OSC2 Shape | | 16 | J22 | FILT ENV Release |
+| 4 | J10 | OSC2 Timbre (model-dep) | | 16 | J22 | FILT ENV Release |
 | 5 | J11 | OSC2 Spread | | 17 | J23 | AMP ENV Attack |
 | 6 | J12 | MIX Osc1 level | | 18 | J24 | AMP ENV Decay |
 | 7 | J13 | MIX Osc2 level | | 19 | J25 | AMP ENV Sustain |
