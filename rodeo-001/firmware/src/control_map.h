@@ -91,8 +91,8 @@ constexpr int kGlide       = 3;
 constexpr int kMasterTune  = 4;
 constexpr int kOsc1Octave  = 5;
 constexpr int kOsc2Octave  = 6;
-constexpr int kOsc1Engine  = 7; // Option A: encoder selects OSC1 engine/waveform
-constexpr int kOsc2Engine  = 8; // Option A: encoder selects OSC2 engine/waveform
+constexpr int kOsc1Model   = 7; // Option A: encoder steps OSC1 model list (Saw/Pulse/Tri/Sine/FM/Formant)
+constexpr int kOsc2Model   = 8; // Option A: encoder steps OSC2 model list (Saw/Pulse/Tri/Sine/FM/Formant)
 // slot 9 = spare
 } // namespace hub
 

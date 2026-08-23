@@ -6,20 +6,24 @@
 //
 // Voice v2 target = "less-complicated MiniFreak":
 //   - 12-voice polyphony
-//   - per osc: subtractive + FM + formant engines (Option A: Wave-encoder picks
-//     the engine; the single Timbre pot morphs that engine's main parameter —
-//     PW / FM-index / formant-position)
+//   - per osc: ONE flat model list (Option A, Derek 2026-08-23) that the
+//     Wave-encoder steps through — Saw / Pulse / Triangle / Sine / FM / Formant.
+//     The single Timbre pot morphs whatever the active model's main parameter is
+//     (PW on Pulse, FM-index on FM, formant-pos on Formant; subtle/no-op on the
+//     pure waveforms). Classic subtractive waveforms and the FM/formant engines
+//     share one uniform list, MiniFreak-style.
 //   - polyphonic SVF (per voice), selectable LP/BP/HP/notch
 //   - Filter ADSR + Amp ADSR (independent) + 1 LFO, single selectable destination
 //
 // SCAFFOLD STATUS — what this first pass wires vs. what is stubbed:
 //   DONE : build/consume plumbing; MIDI poly (12 voices); all 22 frozen pots ->
-//          params; two independent ADSRs; poly SVF; global LFO -> cutoff.
-//   TODO : FM + formant osc engines (only the subtractive/pulse engine is live —
-//          Timbre = PW for it); Vowel/formant filter; encoder-hub reads
-//          (detune/glide/octave/engine-select); digital buttons (DIG pins not yet
-//          frozen); OLED feedback incl. Honey's requirement that model-select
-//          surface the live per-engine Timbre meaning; QSPI persistence.
+//          params; two independent ADSRs; poly SVF; global LFO -> cutoff; the
+//          four subtractive waveforms live via ApplyModel() (Timbre = PW on Pulse).
+//   TODO : FM + formant osc engines (their model slots fall back to a base
+//          waveform for now); Vowel/formant filter; encoder-hub reads
+//          (detune/glide/octave/model-select — so live model cycling waits on the
+//          hub, parts ~1 week out); OLED feedback incl. Honey's requirement that
+//          model-select surface the live per-model Timbre meaning; QSPI persistence.
 //
 // MIDI IN is USART1 (PB6/D13 TX, PB7/D14 RX) — libDaisy default, no overrides.
 // Flash: put the Daisy in DFU (hold BOOT, tap RESET), then `make program-dfu`.
@@ -42,13 +46,21 @@ rodeo::StatusLed status;
 // --- Voice model ------------------------------------------------------------
 static constexpr int kMaxVoices = 12;
 
-// Osc engine select (Option A, from encoder-hub slots 7/8). Only kSubtractive is
-// implemented in this scaffold; kFm/kFormant fall back to it until built.
-enum class OscEngine
+// Oscillator model select (Option A locked by Derek 2026-08-23): the Wave-encoder
+// (hub slots 7/8) steps through ONE flat list of models — classic subtractive
+// waveforms live right alongside the FM/formant engines, MiniFreak-style. The
+// single Timbre pot morphs whatever the active model's main parameter is.
+// Live now: the four subtractive waveforms (Timbre = PW on Pulse; a gentle
+// symmetry/shape morph on Saw/Tri; no-op on Sine). kFm/kFormant are placeholders
+// that fall back to their base waveform until the engines are built.
+enum class OscModel
 {
-    kSubtractive, // Timbre = pulse width
-    kFm,          // Timbre = FM index          (TODO)
-    kFormant,     // Timbre = formant position  (TODO)
+    kSaw,      // Timbre = (subtle) — WAVE_POLYBLEP_SAW
+    kPulse,    // Timbre = pulse width — WAVE_POLYBLEP_SQUARE
+    kTriangle, // Timbre = (subtle) — WAVE_POLYBLEP_TRI
+    kSine,     // Timbre = (no-op)  — WAVE_SIN
+    kFm,       // Timbre = FM index          (TODO — falls back to sine)
+    kFormant,  // Timbre = formant position  (TODO — falls back to saw)
     kCount
 };
 
@@ -113,7 +125,7 @@ static constexpr float kVoiceGain = 0.12f;
 // --- Shared control parameters (written in main loop, read in audio ISR) ----
 // Aligned 32-bit float access is atomic on the M7; single-writer/single-reader.
 float p_osc1 = 0.f, p_osc2 = 0.f, p_noise = 0.f; // levels 0..1
-float p_tim1 = 0.5f, p_tim2 = 0.5f;              // per-osc Timbre 0..1 (PW for subtractive)
+float p_tim1 = 0.5f, p_tim2 = 0.5f;              // per-osc Timbre 0..1 (meaning = active model)
 float p_cut  = 800.f;                            // filter cutoff (Hz), smoothed
 float p_res  = 0.f;                              // resonance 0..~0.92
 float p_amt  = 0.f;                              // filter env amount 0..1
@@ -122,10 +134,11 @@ float p_aa = 0.01f, p_ad = 0.1f, p_as = 0.8f, p_ar = 0.2f; // amp ADSR
 float p_lfo_amt = 0.f;                           // LFO amount 0..1
 float p_master  = 0.f;                           // master volume 0..1
 
-// Discrete state — osc engines still stubbed (hub engine-select TODO); the rest
-// are now driven live by the DIG_1..6 cycle-buttons.
-OscEngine  g_engine1 = OscEngine::kSubtractive;
-OscEngine  g_engine2 = OscEngine::kSubtractive;
+// Discrete state — osc model select is driven by the Wave-encoder (hub slots
+// 7/8); the hub read is still stubbed (parts ~1 week out), so these hold their
+// default until it lands. The rest are driven live by the DIG_1..6 cycle-buttons.
+OscModel   g_model1 = OscModel::kSaw; // classic default; encoder steps the list
+OscModel   g_model2 = OscModel::kSaw;
 FilterType g_filter    = FilterType::kLowpass;
 LfoDest    g_lfo_dest  = LfoDest::kCutoff;
 VoiceMode  g_voice_mode = VoiceMode::kPoly; // cycled by button; poly live, mono/unison TODO
@@ -204,18 +217,33 @@ static int AllocVoice(int note)
     return oldest;
 }
 
-// Apply the per-engine meaning of the Timbre pot to an oscillator. Scaffold:
-// only the subtractive engine is live (Timbre = pulse width on a square core).
-static inline void ApplyTimbre(Oscillator &osc, OscEngine engine, float timbre)
+// Apply an oscillator model: set its waveform, then morph its main parameter
+// with the single Timbre pot (Option A). The four subtractive waveforms are
+// live; kFm/kFormant fall back to a base waveform until those engines are built.
+static inline void ApplyModel(Oscillator &osc, OscModel model, float timbre)
 {
-    switch(engine)
+    switch(model)
     {
-        case OscEngine::kFm:      // TODO: Timbre = FM index
-        case OscEngine::kFormant: // TODO: Timbre = formant position
-        case OscEngine::kSubtractive:
-        default:
-            // Pulse width 0.05..0.95 (avoid degenerate 0/1 duty).
+        case OscModel::kPulse:
+            osc.SetWaveform(Oscillator::WAVE_POLYBLEP_SQUARE);
+            // Timbre = pulse width 0.05..0.95 (avoid degenerate 0/1 duty).
             osc.SetPw(fmap(timbre, 0.05f, 0.95f));
+            break;
+        case OscModel::kTriangle:
+            osc.SetWaveform(Oscillator::WAVE_POLYBLEP_TRI);
+            break;
+        case OscModel::kSine:
+            osc.SetWaveform(Oscillator::WAVE_SIN);
+            break;
+        case OscModel::kFm:      // TODO: real FM engine (Timbre = FM index)
+            osc.SetWaveform(Oscillator::WAVE_SIN);
+            break;
+        case OscModel::kFormant: // TODO: real formant engine (Timbre = formant pos)
+            osc.SetWaveform(Oscillator::WAVE_POLYBLEP_SAW);
+            break;
+        case OscModel::kSaw:
+        default:
+            osc.SetWaveform(Oscillator::WAVE_POLYBLEP_SAW);
             break;
     }
 }
@@ -317,8 +345,8 @@ void AudioCallback(AudioHandle::InputBuffer  in,
         fc       = fclamp(fc, 20.f, 18000.f);
         V.svf.SetFreq(fc);
         V.svf.SetRes(p_res);
-        ApplyTimbre(V.osc1, g_engine1, p_tim1);
-        ApplyTimbre(V.osc2, g_engine2, p_tim2);
+        ApplyModel(V.osc1, g_model1, p_tim1);
+        ApplyModel(V.osc2, g_model2, p_tim2);
     }
 
     for(size_t n = 0; n < size; ++n)
@@ -358,13 +386,11 @@ int main(void)
     for(int i = 0; i < kMaxVoices; ++i)
     {
         Voice &V = voices[i];
-        // Subtractive engine core = square with variable PW (Timbre). FM/formant
-        // engines swap the model in ApplyTimbre when built.
+        // Waveform is set per-model at control rate by ApplyModel(); just init
+        // the oscillators here (default model = kSaw).
         V.osc1.Init(sr);
-        V.osc1.SetWaveform(Oscillator::WAVE_POLYBLEP_SQUARE);
         V.osc1.SetAmp(1.0f);
         V.osc2.Init(sr);
-        V.osc2.SetWaveform(Oscillator::WAVE_POLYBLEP_SQUARE);
         V.osc2.SetAmp(1.0f);
         V.noise.Init();
         V.noise.SetAmp(1.0f);
@@ -459,8 +485,9 @@ int main(void)
         if(buttons[static_cast<int>(Button::kVoiceMode)].Pressed())
             g_voice_mode = CycleEnum(g_voice_mode); // TODO: mono/unison allocation
 
-        // TODO: read encoder-hub (detune/glide/octave/engine-select) + drive the
-        // OLED (incl. per-engine Timbre label on model-select).
+        // TODO: read encoder-hub (detune/glide/octave/model-select) + drive the
+        // OLED (incl. per-model Timbre label on model-select). Wave-encoder slots
+        // 7/8 will step g_model1/g_model2 through OscModel once the hub read lands.
 
         midi.Listen();
         while(midi.HasEvents())
