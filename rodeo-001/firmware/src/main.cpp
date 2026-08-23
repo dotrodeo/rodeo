@@ -72,6 +72,15 @@ enum class FilterType
     kCount
 };
 
+// Voice Mode (cycle-button). Poly is live; mono/unison allocation is TODO.
+enum class VoiceMode
+{
+    kPoly,
+    kMono,
+    kUnison,
+    kCount
+};
+
 struct Voice
 {
     Oscillator osc1, osc2;
@@ -113,11 +122,24 @@ float p_aa = 0.01f, p_ad = 0.1f, p_as = 0.8f, p_ar = 0.2f; // amp ADSR
 float p_lfo_amt = 0.f;                           // LFO amount 0..1
 float p_master  = 0.f;                           // master volume 0..1
 
-// Discrete state set by cycle-buttons / hub engine-select (stubbed defaults).
+// Discrete state — osc engines still stubbed (hub engine-select TODO); the rest
+// are now driven live by the DIG_1..6 cycle-buttons.
 OscEngine  g_engine1 = OscEngine::kSubtractive;
 OscEngine  g_engine2 = OscEngine::kSubtractive;
-FilterType g_filter  = FilterType::kLowpass;
-LfoDest    g_lfo_dest = LfoDest::kCutoff;
+FilterType g_filter    = FilterType::kLowpass;
+LfoDest    g_lfo_dest  = LfoDest::kCutoff;
+VoiceMode  g_voice_mode = VoiceMode::kPoly; // cycled by button; poly live, mono/unison TODO
+bool       g_sync       = false;            // OSC2 hard-sync on/off (DSP sync TODO)
+float      g_keytrack   = 0.f;              // 0 / 0.5 / 1.0 filter keytrack amount
+
+// LFO waveform options cycled by the LFO Shape button.
+const uint8_t kLfoWaves[]
+    = {Oscillator::WAVE_TRI, Oscillator::WAVE_SIN, Oscillator::WAVE_SAW,
+       Oscillator::WAVE_SQUARE, Oscillator::WAVE_RAMP};
+int g_lfo_wave_idx = 0;
+
+// Filter keytrack reference: no tracking at middle C, ± from there.
+static const float kKeytrackRefHz = 261.63f; // mtof(60)
 
 // Global LFO — one per instrument, single destination. Run at control rate
 // (once per audio block), so init it with the control-rate sample rate.
@@ -128,6 +150,40 @@ float      g_lfo_val = 0.f; // latest bipolar LFO sample (-1..1)
 static inline void Smooth(float &state, float target)
 {
     state += 0.05f * (target - state);
+}
+
+// --- Cycle-buttons (DIG_1..6, active-low, internal pull-up) ------------------
+// rodeo-button = momentary-to-GND with a 100 nF hardware debounce on the
+// satellite, so a plain falling-edge detect is sufficient (no SW debounce).
+struct Btn
+{
+    daisy::GPIO gpio;
+    bool        prev = true; // idle-high (released) with the internal pull-up
+
+    void Init(daisy::Pin pin)
+    {
+        gpio.Init(pin, daisy::GPIO::Mode::INPUT, daisy::GPIO::Pull::PULLUP);
+        prev = true;
+    }
+    // True once on each press (high->low transition).
+    bool Pressed()
+    {
+        bool now  = gpio.Read();   // true = high = released, false = pressed
+        bool edge = prev && !now;  // falling edge = press
+        prev      = now;
+        return edge;
+    }
+};
+
+// Order matches rodeo001::Button (kHardSync, kFilterType, kKeytrack, kLfoShape,
+// kLfoDest, kVoiceMode) -> DIG_1..6 -> seed::D1..D6.
+Btn buttons[static_cast<int>(rodeo001::Button::kCount)];
+
+// Advance an "enum class" value by one, wrapping at kCount.
+template <typename E>
+static inline E CycleEnum(E v)
+{
+    return static_cast<E>((static_cast<int>(v) + 1) % static_cast<int>(E::kCount));
 }
 
 // --- Voice allocation -------------------------------------------------------
@@ -256,7 +312,8 @@ void AudioCallback(AudioHandle::InputBuffer  in,
         V.amp_env.SetSustainLevel(p_as);
         V.amp_env.SetTime(ADSR_SEG_RELEASE, p_ar);
 
-        float fc = p_cut + V.filt_env_val * p_amt * kEnvModHz + lfo_cut_off;
+        float fc = p_cut + V.filt_env_val * p_amt * kEnvModHz + lfo_cut_off
+                   + g_keytrack * (V.freq - kKeytrackRefHz); // filter tracks pitch
         fc       = fclamp(fc, 20.f, 18000.f);
         V.svf.SetFreq(fc);
         V.svf.SetRes(p_res);
@@ -330,6 +387,12 @@ int main(void)
     midi.Init(midi_cfg);
     midi.StartReceive();
 
+    // Cycle-buttons on DIG_1..6 (Seed pins 2..7), order = rodeo001::Button.
+    const Pin kBtnPins[] = {seed::D1, seed::D2, seed::D3,
+                            seed::D4, seed::D5, seed::D6};
+    for(int i = 0; i < static_cast<int>(rodeo001::Button::kCount); ++i)
+        buttons[i].Init(kBtnPins[i]);
+
     hw.StartLog(false);
     status.Init();
     hw.StartAudio(AudioCallback);
@@ -371,9 +434,33 @@ int main(void)
         // LFO rate 0.05..20 Hz from its pot.
         g_lfo.SetFreq(fmap(adc.GetNorm(kLfoRate), 0.05f, 20.0f, Mapping::EXP));
 
-        // TODO: read encoder-hub (detune/glide/octave/engine-select) + digital
-        // cycle-buttons (Filter Type / Keytrack / LFO Shape / LFO Dest / Voice
-        // Mode) once the DIG pin map is frozen; drive OLED feedback.
+        // --- Digital cycle-buttons (DIG_1..6, frozen 2026-08-23) -------------
+        using rodeo001::Button;
+        if(buttons[static_cast<int>(Button::kHardSync)].Pressed())
+            g_sync = !g_sync; // TODO: apply OSC2 hard-sync in the DSP
+        if(buttons[static_cast<int>(Button::kFilterType)].Pressed())
+            g_filter = CycleEnum(g_filter);
+        if(buttons[static_cast<int>(Button::kKeytrack)].Pressed())
+        {
+            static const float kKtSteps[] = {0.f, 0.5f, 1.f};
+            static int         kt         = 0;
+            kt         = (kt + 1) % 3;
+            g_keytrack = kKtSteps[kt];
+        }
+        if(buttons[static_cast<int>(Button::kLfoShape)].Pressed())
+        {
+            g_lfo_wave_idx = (g_lfo_wave_idx + 1)
+                             % static_cast<int>(sizeof(kLfoWaves)
+                                                / sizeof(kLfoWaves[0]));
+            g_lfo.SetWaveform(kLfoWaves[g_lfo_wave_idx]);
+        }
+        if(buttons[static_cast<int>(Button::kLfoDest)].Pressed())
+            g_lfo_dest = CycleEnum(g_lfo_dest);
+        if(buttons[static_cast<int>(Button::kVoiceMode)].Pressed())
+            g_voice_mode = CycleEnum(g_voice_mode); // TODO: mono/unison allocation
+
+        // TODO: read encoder-hub (detune/glide/octave/engine-select) + drive the
+        // OLED (incl. per-engine Timbre label on model-select).
 
         midi.Listen();
         while(midi.HasEvents())

@@ -53,21 +53,31 @@ constexpr uint32_t kSpareMask     = (1u << 0) | (1u << 3);
 constexpr uint32_t kPopulatedMask = 0x00FFFFFFu & ~kSpareMask;
 
 // --- Digital cycle-buttons (momentary-to-GND, STM32 internal pull-up) --------
-// 5 enum cycle-buttons + 1 hard-sync toggle = 6 of 12 digital GPIO (J30..J41).
-// TODO(hw-contract): the specific DIG_n -> seed::Dxx pin for each button is not
-// yet frozen in RODEO_CONTROL_MAP.md (map states "6 used" but not which J30..J41).
-// Bind the pins here once Bumble/Honey pin the digital connectors. Until then the
-// button LOGICAL model below is defined; GPIO binding is stubbed in main.cpp.
+// FROZEN 2026-08-23 (RODEO_CONTROL_MAP.md): 6 buttons on DIG_1..6 = J30..J35 =
+// Seed pins 2..7 (the SDMMC digital-only pins). Signal-flow order. Each is a
+// `rodeo-button` momentary-to-GND with 100 nF debounce; idle-high via the STM32
+// internal pull-up (GPIO::Pull::PULLUP), so pressed reads LOW (active-low).
 enum class Button
 {
-    kFilterType, // cycle SVF mode: LP / BP / HP / notch
-    kKeytrack,   // cycle keytrack amount preset
-    kLfoShape,   // cycle LFO waveform
-    kLfoDest,    // cycle LFO single destination
-    kVoiceMode,  // cycle poly / mono / unison
+    kHardSync,   // DIG_1/J30 — OSC2 hard-sync (momentary press -> firmware toggle)
+    kFilterType, // DIG_2/J31 — cycle SVF mode: LP / BP / HP / notch
+    kKeytrack,   // DIG_3/J32 — cycle filter keytrack amount preset
+    kLfoShape,   // DIG_4/J33 — cycle LFO waveform
+    kLfoDest,    // DIG_5/J34 — cycle LFO single destination
+    kVoiceMode,  // DIG_6/J35 — cycle poly / mono / unison
     kCount
 };
-// 6th digital line: OSC2 hard-sync toggle (rodeo-switch SPDT latching).
+
+// Button -> digital connector (physical Seed pin). Index by Button enum. The
+// libDaisy seed::Dxx Pin is bound in target code (main.cpp), per board.h.
+constexpr int kButtonDig[static_cast<int>(Button::kCount)] = {
+    board::pin::kDig1, // kHardSync
+    board::pin::kDig2, // kFilterType
+    board::pin::kDig3, // kKeytrack
+    board::pin::kDig4, // kLfoShape
+    board::pin::kDig5, // kLfoDest
+    board::pin::kDig6, // kVoiceMode
+};
 
 // --- Encoder-hub @0x30 (9-slot, detented, OLED feedback) ---------------------
 // Firmware binds these slot indices; slot<->param table LOCKED 2026-08-21.

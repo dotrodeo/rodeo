@@ -40,6 +40,29 @@ constexpr int kStatusLed = 28; // seed::D21 (PC4)
 // harness stuffing must supply them. These match libDaisy's I2C_1 defaults.
 constexpr int kI2cScl = 12; // seed::D11 (PB8)
 constexpr int kI2cSda = 13; // seed::D12 (PB9)
+
+// Digital IO header block (J30..J41 = DIG_1..DIG_12), all plain 3.3V GPIO.
+// Values are physical Seed header pins; the seed::Dxx in the comment is the
+// libDaisy Pin to bind in target code. Two hardware-distinct groups:
+//   DIG_1..6  (J30..J35, Seed pins 2..7)  = the SDMMC-capable pins: digital-only,
+//             NO ADC/timer function — ideal for buttons/gates, wastes nothing.
+//   DIG_7..12 (J36..J41, Seed pins 22..27) = the ADC-capable pins (Seed A0..A5),
+//             kept as the reserve so they can be reclaimed for native analog / CV
+//             / a timer function later.
+// Which control lands on each DIG is a per-instance decision (see the instance
+// build's control map), NOT here.
+constexpr int kDig1  = 2;  // seed::D1  (PC11)  J30
+constexpr int kDig2  = 3;  // seed::D2  (PC10)  J31
+constexpr int kDig3  = 4;  // seed::D3  (PC9)   J32
+constexpr int kDig4  = 5;  // seed::D4  (PC8)   J33
+constexpr int kDig5  = 6;  // seed::D5  (PD2)   J34
+constexpr int kDig6  = 7;  // seed::D6  (PC12)  J35
+constexpr int kDig7  = 22; // seed::D15 (PC0/A0)  J36
+constexpr int kDig8  = 23; // seed::D16 (PA3/A1)  J37
+constexpr int kDig9  = 24; // seed::D17 (PB1/A2)  J38
+constexpr int kDig10 = 25; // seed::D18 (PA7/A3)  J39
+constexpr int kDig11 = 26; // seed::D19 (PA6/A4)  J40
+constexpr int kDig12 = 27; // seed::D20 (PC1/A5)  J41
 } // namespace pin
 
 // I2C addresses on the J42 bus.
