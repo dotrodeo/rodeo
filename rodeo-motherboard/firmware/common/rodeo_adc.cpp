@@ -1,6 +1,7 @@
 // Rodeo ADC — Layer 2 scanner. See rodeo_adc.h.
 
 #include "rodeo_adc.h"
+#include "adc_convert.h" // pure value pipeline (host-testable; see common/tests/)
 
 using namespace daisy;
 
@@ -97,21 +98,17 @@ uint16_t RodeoAdc::GetCode(uint8_t ch) const
 {
     if(ch >= kNumChannels)
         return 0;
-    int16_t v = cache_[ch];
-    return v < 0 ? 0 : static_cast<uint16_t>(v); // clamp unipolar negative tail
+    return ClampAdcCode(cache_[ch]); // clamp unipolar negative tail (adc_convert.h)
 }
 
 float RodeoAdc::GetVolts(uint8_t ch) const
 {
-    return (static_cast<float>(GetCode(ch)) / 32767.0f) * Ads114s08::kVref;
+    return AdcCodeToVolts(GetCode(ch), Ads114s08::kVref);
 }
 
 float RodeoAdc::GetNorm(uint8_t ch) const
 {
-    float n = static_cast<float>(GetCode(ch)) / 32767.0f;
-    if(n > 1.0f)
-        n = 1.0f;
-    return n; // GetCode already clamps the low end to 0
+    return AdcCodeToNorm(GetCode(ch)); // GetCode already clamps the low end to 0
 }
 
 } // namespace rodeo
