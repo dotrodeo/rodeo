@@ -68,17 +68,22 @@ int main(void)
 
         // Outer frame so a live edge is always visible.
         display.DrawRect(0, 0, w - 1, h - 1, true);
+        
+        display.DrawRect(0, 0, w - 1, 10, true);
 
-        display.SetCursor(6, 4);
+        display.SetCursor(4, 2);
+        display.WriteString("RODEO SYNTH MOTHERBOARD", Font_4x6, true);
+
+        display.SetCursor(3, 14);
         display.WriteString("RODEO 001", Font_7x10, true);
-        display.SetCursor(6, 18);
-        display.WriteString("OLED I2C 0x3C", Font_6x8, true);
+        display.SetCursor(4, 26);
+        display.WriteString("OLED I2C 0x3C", Font_4x6, true);
 
         // Uptime seconds, large.
         FixedCapStr<16> line("up ");
         line.AppendInt(secs);
         line.Append("s");
-        display.SetCursor(6, 32);
+        display.SetCursor(4, 39);
         display.WriteString(line, Font_11x18, true);
 
         // Sweep bar along the bottom interior — obvious proof of refresh.
