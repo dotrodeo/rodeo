@@ -175,19 +175,52 @@ observes a half-applied update.
 
 ## Status
 
-**Compiles + links clean. Not yet run on hardware** — the three boards aren't
-fabbed. The following are structurally correct but need **bench validation**
-when hardware lands, and are the known hardware-specific assumptions:
+**Running on hardware.** First bring-up on a fabbed board, 2026-09-12: the hub
+enumerates on I²C, serves telemetry, and encoders count correctly alongside the
+SSD1309 on the shared bus. Every hardware-specific assumption below was open
+before that session and is now settled:
 
-1. **I²C `TIMINGR`** = provisional 100 kHz @ 48 MHz (`0x10707DBC`) — validate
-   SDA/SCL setup-hold on a logic analyzer, then generate the 400 kHz value.
-2. **I²C1 alternate function** = AF6 on PB6/PB7 — confirm against the STM32C031
-   datasheet AF table.
-3. **EC11 steps/detent** = 4 (`ENC_STEPS_PER_DETENT`) — confirm the specific EC11
-   variant; some are 2/detent.
-4. **Jumper polarity** — code reads cut = HIGH = 1 bit (external 10 k to +3V3,
-   jumper to GND). Confirm on the board.
-5. **CW = positive** delta is a bench calibration; flip via `CONFIG.ENC_DIR_INVERT`.
+1. **I²C `TIMINGR`** = 100 kHz @ 48 MHz (`0x10707DBC`) — **works on hardware.**
+   Confirmed by behaviour, not by scope: SDA/SCL setup-hold has still never been
+   looked at on a logic analyzer, and the 400 kHz value still has to be
+   generated before the contract's 100 k → 400 k promotion.
+2. **I²C1 alternate function** = AF6 on PB6/PB7 — **confirmed.** The target
+   enumerates and answers, which it could not do on the wrong AF.
+3. **EC11 steps/detent** = 4 (`ENC_STEPS_PER_DETENT`) — **confirmed.** A 2/detent
+   variant would have counted double.
+4. **Jumper polarity** — **confirmed.** Both jumpers intact reads as `0x30`.
+5. **CW = positive** — **confirmed** on the bench. Still flippable per-hub via
+   `CONFIG.ENC_DIR_INVERT`.
+
+### Bring-up gotchas
+
+Two things cost real time on first bring-up and are not visible in the code:
+
+- **All JST cables must be straight-through (pin 1 → pin 1), not reversed.**
+  This holds for *both* the Qwiic I²C ports (J1/J2) and the encoder ports
+  (J3–J11): every connector in the ecosystem uses the same pad-1 convention, so
+  a crossover cable is always wrong. It is easy to build the wrong one by
+  accident, and easy to *believe* you need one, because the motherboard's J42 is
+  a vertical connector while the hub's are horizontal — so the ribbon's colours
+  land mirrored even on a correct cable. **Check continuity pin 1 ↔ pin 1
+  before plugging anything in**, and never go by wire colour.
+  - A reversed Qwiic cable grounds SCL and ties SDA to +3V3, killing the whole
+    bus (the display goes dark too) and back-powering the MCU through its I/O.
+  - A reversed encoder cable ties the A input to the encoder's ground pin and
+    swaps B with the switch, so the slot simply never counts.
+- **An unpowered hub takes the bus down with it.** The hub is the Rev-A pull-up
+  anchor (R4/R5, 2.2 kΩ to VDD) and has no regulator of its own, so if its VDD
+  rail is dead those two resistors stop being pull-ups and become pull-downs,
+  clamping SDA and SCL. A hub that merely fails to answer is harmless; a hub
+  that is *unpowered* is not.
+
+### Known-open
+
+- **Bus recovery after a master reset.** If the Daisy resets mid-burst while the
+  hub is driving a bit low, the target never sees a STOP and keeps holding SDA,
+  so the restarted master cannot issue a START and reports "no hub". Workaround
+  is to power-cycle the hub. The real fix is either 9 recovery clocks on SCL at
+  master init or the hub's `TIMEOUTR` bus-idle timeout; neither is implemented.
 
 ## Not yet implemented (by design)
 
