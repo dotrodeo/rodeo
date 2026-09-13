@@ -37,6 +37,7 @@ bool RodeoAdc::Init(const Config &cfg)
 {
     populated_mask_ = cfg.populated_mask;
     settle_us_      = cfg.settle_us;
+    autorange_      = cfg.autorange;
 
     spi_.Init(Ads114s08::DefaultSpiConfig());
 
@@ -80,6 +81,11 @@ void RodeoAdc::Update()
         uint8_t ch  = static_cast<uint8_t>(c * kChannelsPerChip + cur_ain_[c]);
         cache_[ch]  = adc_[c].ReadData();
 
+        // Fold the fresh reading into this channel's learned travel, so a knob
+        // swept to its stops teaches GetNorm() where its real endpoints are.
+        if(autorange_)
+            span_[ch].Observe(ClampAdcCode(cache_[ch]));
+
         // Advance to the next populated channel on this chip and start it.
         uint8_t next = NextPopulatedAin(c, (cur_ain_[c] + 1) % kChannelsPerChip);
         cur_ain_[c]  = next; // != 0xFF: active chip has >=1 populated channel
@@ -108,7 +114,22 @@ float RodeoAdc::GetVolts(uint8_t ch) const
 
 float RodeoAdc::GetNorm(uint8_t ch) const
 {
-    return AdcCodeToNorm(GetCode(ch)); // GetCode already clamps the low end to 0
+    if(ch >= kNumChannels)
+        return 0.0f;
+    // GetCode already clamps the low end to 0; the span maps the rest to 0..1.
+    return AdcCodeToNormSpan(GetCode(ch), span_[ch]);
+}
+
+const PotSpan &RodeoAdc::GetSpan(uint8_t ch) const
+{
+    static const PotSpan kFallback;
+    return ch < kNumChannels ? span_[ch] : kFallback;
+}
+
+void RodeoAdc::SetSpan(uint8_t ch, const PotSpan &span)
+{
+    if(ch < kNumChannels)
+        span_[ch] = span;
 }
 
 } // namespace rodeo

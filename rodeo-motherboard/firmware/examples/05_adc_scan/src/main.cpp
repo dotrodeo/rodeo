@@ -8,12 +8,23 @@
 //       U3 | 0.251 0.260 ...   (ch 0..11,  connectors J6..J17)
 //       U4 | 0.234 0.240 ...   (ch 12..23, connectors J18..J29)
 //   Drift report (~0.5 Hz): any channel whose span since boot exceeds 0.10 V,
-//       shown as min..max — so a swept pot auto-surfaces and you can confirm it
-//       reaches ~0 and ~3.3 V endpoints. Idle floating inputs stay quiet.
+//       shown as min..max, plus that channel's LEARNED span and the 0..1 control
+//       value GetNorm() now returns — so a swept pot auto-surfaces and you can
+//       confirm both its raw volts and that it reaches a true 0.000..1.000.
+//       Idle floating inputs stay quiet.
 //
-//   PASS: sweep a pot on any channel -> its column tracks 0..3.3 V and it shows
-//         up in the drift report; grounded inputs read ~0; a missing chip's 12
-//         columns stay 0 and its presence line prints FAILED at boot.
+//   Note a satellite pot tops out near 3.00 V, not 3.3 V: rodeo-potentiometer
+//   feeds the pot's top leg from +3V3 through R1 = 1 kΩ, so the top of travel is
+//   3.3 * Rpot/(Rpot+1k) — 90.9 % of full scale for the nominal 10 kΩ pot. That
+//   is expected, not a fault. RodeoAdc learns each channel's real travel as it
+//   is swept (rodeo::PotSpan) so GetNorm() still spans a true 0..1; the "norm"
+//   and "learned" columns below are how you verify it.
+//
+//   PASS: sweep a pot on any channel -> its column tracks 0..~3.0 V and it shows
+//         up in the drift report; after one full stop-to-stop sweep its norm
+//         reads 0.000 at one end and 1.000 at the other; grounded inputs read
+//         ~0; a missing chip's 12 columns stay 0 and its presence line prints
+//         FAILED at boot.
 //
 // Bench harness for the multi-channel + revisit-rate validation (needs the JST
 // harness). See docs/RODEO_ADC_LIB_DESIGN.md.
@@ -124,11 +135,21 @@ int main(void)
                 int mn     = static_cast<int>(vmin * 1000.0f);
                 int mx     = static_cast<int>(vmax * 1000.0f);
                 int sp     = static_cast<int>(span * 1000.0f);
-                hw.PrintLine("  moved ch%02d: %d.%03d..%d.%03d V (span %d.%03d)",
+                // The learned travel RodeoAdc is normalizing against, and the
+                // control value that falls out of it. A fully swept pot should
+                // show norm 0.000 at one stop and 1.000 at the other even though
+                // the raw volts only reach ~3.0 (see the R1 note at the top).
+                const rodeo::PotSpan &ls = adc.GetSpan(ch);
+                int n = static_cast<int>(adc.GetNorm(ch) * 1000.0f);
+                hw.PrintLine("  moved ch%02d: %d.%03d..%d.%03d V (span %d.%03d)"
+                             "  learned %u..%u  norm %d.%03d",
                              ch,
                              mn / 1000, mn % 1000,
                              mx / 1000, mx % 1000,
-                             sp / 1000, sp % 1000);
+                             sp / 1000, sp % 1000,
+                             static_cast<unsigned>(ls.lo),
+                             static_cast<unsigned>(ls.hi),
+                             n / 1000, n % 1000);
             }
             if(!any)
                 hw.PrintLine("  (no channel moved >0.10 V yet — sweep a pot)");

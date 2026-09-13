@@ -28,6 +28,8 @@
 // MIDI IN is USART1 (PB6/D13 TX, PB7/D14 RX) — libDaisy default, no overrides.
 // Flash: put the Daisy in DFU (hold BOOT, tap RESET), then `make program-dfu`.
 
+#include <cmath>
+
 #include "daisy_seed.h"
 #include "daisysp.h"
 #include "board.h"
@@ -109,11 +111,30 @@ struct Voice
 };
 
 Voice    voices[kMaxVoices];
+float    g_sr = 48000.0f; // set in main(), used to re-init a poisoned filter
 uint32_t g_age = 0; // monotonically increasing "voice birth" counter
 
 // Fixed osc2 detune (~7 cents up) for width until the Spread/Detune controls
 // (hub OSC2 Detune + Spread pots) drive it. TODO: wire Spread/hub-detune.
 static const float kBaseDetune = 1.004047f; // 2^(7/1200)
+
+// --- Filter stability (do not "tidy" these away) -----------------------------
+// DaisySP's Svf is a double-sampled Chamberlin with a cubic drive term
+// (band_ -= drive_ * band_^3) meant to tame resonance. That term DIVERGES when
+// the filter is driven hard at a high cutoff: the state runs to NaN, and since
+// nothing ever clears low_/band_/high_, the voice's filter stays dead until the
+// next power cycle. Measured on the host against the vendored DaisySP: with the
+// stock drive and three sources summed at unity (+/-3.0 into a filter that
+// breaks at 0.65) SEVENTY PERCENT of realistic res/env/pitch settings blew up
+// while sweeping the cutoff. Same bug was found and fixed in examples 06 and 09.
+//
+// Two changes give a measured 3.2x margin:
+//   - unity gain staging: osc1 + osc2 + noise at 1/3 each sum to +/-1.0
+//   - a gentler drive: SetDrive(0.5) stores pre_drive_ = 0.05 (stock is 0.5)
+// SetDrive() only has to be called once -- SetRes() recomputes drive_ from the
+// stored pre_drive_, so it stays gentle for the life of the voice.
+static constexpr float kSrcAmp   = 1.0f / 3.0f; // osc1 + osc2 + noise -> unity
+static constexpr float kSvfDrive = 0.5f;
 
 // Env -> cutoff modulation range (Hz) at full Filter-Env-Amt.
 static constexpr float kEnvModHz = 8000.0f;
@@ -343,6 +364,14 @@ void AudioCallback(AudioHandle::InputBuffer  in,
         float fc = p_cut + V.filt_env_val * p_amt * kEnvModHz + lfo_cut_off
                    + g_keytrack * (V.freq - kKeytrackRefHz); // filter tracks pitch
         fc       = fclamp(fc, 20.f, 18000.f);
+        // Belt and braces: the settings above should keep the Svf in its stable
+        // region, but a NaN there is permanent and silent, so recover instead of
+        // leaving the voice dead. Costs one compare per voice per block.
+        if(!std::isfinite(V.svf.Low()))
+        {
+            V.svf.Init(g_sr);
+            V.svf.SetDrive(kSvfDrive);
+        }
         V.svf.SetFreq(fc);
         V.svf.SetRes(p_res);
         ApplyModel(V.osc1, g_model1, p_tim1);
@@ -383,18 +412,20 @@ int main(void)
     hw.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
 
     const float sr = hw.AudioSampleRate();
+    g_sr           = sr;
     for(int i = 0; i < kMaxVoices; ++i)
     {
         Voice &V = voices[i];
         // Waveform is set per-model at control rate by ApplyModel(); just init
         // the oscillators here (default model = kSaw).
         V.osc1.Init(sr);
-        V.osc1.SetAmp(1.0f);
+        V.osc1.SetAmp(kSrcAmp);
         V.osc2.Init(sr);
-        V.osc2.SetAmp(1.0f);
+        V.osc2.SetAmp(kSrcAmp);
         V.noise.Init();
-        V.noise.SetAmp(1.0f);
+        V.noise.SetAmp(kSrcAmp);
         V.svf.Init(sr);
+        V.svf.SetDrive(kSvfDrive); // see kSvfDrive -- keeps the filter stable
         V.filt_env.Init(sr);
         V.amp_env.Init(sr);
     }

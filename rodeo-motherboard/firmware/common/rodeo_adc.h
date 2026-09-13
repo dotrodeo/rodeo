@@ -20,6 +20,7 @@
 //
 #include "daisy_seed.h"
 #include "board.h"
+#include "adc_convert.h" // PotSpan + the value pipeline GetNorm delegates to
 #include "ads114s08.h"
 
 namespace rodeo
@@ -38,6 +39,11 @@ class RodeoAdc
         // per-hop settle window (µs). Default: 1000 SPS low-latency (1/1000 s +
         // ~156 µs overhead ≈ 1156 µs) + margin. Lower the data rate -> raise this.
         uint32_t settle_us = 1200;
+        // Learn each channel's real travel as it is swept, so GetNorm() spans a
+        // true 0..1 despite the satellite's 1 kΩ top-rail resistor (see PotSpan
+        // in adc_convert.h). Turn off for absolute-referenced inputs (CV), where
+        // the reading is a voltage rather than a knob position.
+        bool autorange = true;
     };
 
     // Inits the shared SPI bus and both chips (each presence-checked), seeds the
@@ -54,8 +60,16 @@ class RodeoAdc
     // unipolar single-ended pots can dip a few codes negative at the fully-off
     // position, which must not wrap to full-scale (design-doc value pipeline).
     uint16_t GetCode(uint8_t ch) const;
+    // TRUE measured voltage — never span-corrected, so bring-up examples can
+    // still see what the pin is actually doing.
     float    GetVolts(uint8_t ch) const; // 0..3.3 V (ratiometric)
+    // Control value, normalized across the channel's learned travel (see
+    // PotSpan). This is the one that reaches a real 1.0 at the knob's stop.
     float    GetNorm(uint8_t ch) const;  // 0..1
+
+    // Learned travel, for logging or for seeding from stored calibration.
+    const PotSpan &GetSpan(uint8_t ch) const;
+    void           SetSpan(uint8_t ch, const PotSpan &span);
 
     bool ChannelPopulated(uint8_t ch) const;
     bool ChipPresent(uint8_t chip) const
@@ -71,6 +85,8 @@ class RodeoAdc
     daisy::SpiHandle spi_;
     Ads114s08        adc_[kNumChips];
     int16_t          cache_[kNumChannels] = {0}; // signed; clamp on read
+    PotSpan          span_[kNumChannels];        // per-channel learned travel
+    bool             autorange_           = true;
     uint8_t          cur_ain_[kNumChips]  = {0}; // AIN each chip is converting
     bool             present_[kNumChips]  = {false};
     bool             active_[kNumChips]   = {false}; // present AND has channels

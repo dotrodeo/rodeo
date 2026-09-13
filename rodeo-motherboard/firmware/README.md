@@ -17,9 +17,13 @@ firmware/
     rodeo.mk             # shared build rules; every app/example includes this
     ads114s08.{h,cpp}    # Layer 1: per-chip ADS114S08 SPI ADC driver
     rodeo_adc.{h,cpp}    # Layer 2: 24-ch two-chip pipelined ADC scanner
+    adc_convert.h        # pure value pipeline + PotSpan knob-travel calibration
     encoder_hub.{h,cpp}  # Layer 1: per-hub STM32C0 I2C target driver (master side)
     rodeo_encoders.{h,cpp} # Layer 2: multi-hub encoder scanner + friendly API
     status_led.h         # tiny onboard/carrier LED helper
+    oled_ssd130x_bulk.{h,cpp} # faster SSD130x I2C transport (page-at-a-time + yield hook)
+    pot_ui.h             # pure panel logic: stepped pots, "which knob is moving"
+    tests/               # host-side GoogleTest for the pure-logic headers
   template/          # copy-to-start skeleton for a new Rodeo app (blinks LEDs)
   examples/
     01_blink/          # onboard + carrier LED — boots-and-alive smoke test
@@ -28,8 +32,10 @@ firmware/
     04_adc_1ch/        # one channel of the external ADS114S08 SPI ADC -> serial
     05_adc_scan/       # full 24-ch control-surface scan via rodeo::RodeoAdc
     06_poly_synth/     # 6-voice poly subtractive synth, 10 live pots (first musical demo)
-    07_encoder_scan/   # rodeo-encoder-hub scan over I2C via rodeo::RodeoEncoders
+    07_encoder_scan/   # rodeo-encoder-hub scan via rodeo::RodeoEncoders, on the OLED
+                       #   (also proves the hub's I2C pass-through + bus pull-ups)
     08_oled_i2c/       # SSD1309 128x64 feedback display smoke test (I2C @ 0x3C)
+    09_poly_synth_oled/ # 06 + the OLED: knob-value popups and a live output scope
   docs/
     RODEO_ADC_LIB_DESIGN.md  # design of the ADS114S08 / RodeoAdc driver stack
   libDaisy/  DaisySP/ # vendored submodules (static libs live in their build/)

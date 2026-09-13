@@ -288,12 +288,53 @@ state PER CHIP (U3, U4 advance in lockstep windows):
 
 ---
 
-## 9. Calibration (optional, phase 2)
+## 9. Calibration
 
 ADS114S08 supports self-offset (SFOCAL), system-offset (SYOCAL) and system-gain
-(SYGCAL). For ratiometric pot reads absolute accuracy barely matters (endpoints
-self-normalize via `GetNorm`), so V1 can skip calibration. Expose
+(SYGCAL). For pot reads the chip's own absolute accuracy barely matters — what
+matters is the **endpoints**, and those are *not* the rails. Expose
 `Ads114s08::Calibrate()` for future absolute-referenced inputs.
+
+### 9.1 Pot span (implemented)
+
+A `rodeo-potentiometer` satellite feeds its pot's top leg from the connector's
++3V3 pin **through R1 = 1 kΩ** (J1 pin 3 → R1 → pot top; C1 100 nF decouples that
+node; the wiper leaves on pin 2, the bottom leg goes straight to GND). So the top
+of pot travel sits at
+
+```
+Vtop = 3.3 V * Rpot / (Rpot + 1 kΩ)      # 3.00 V for the nominal 10 kΩ pot
+```
+
+The ADC's reference is that same +3V3, so **this does not cancel
+ratiometrically**. Uncorrected, a knob at its clockwise stop reads `0.909` and
+every parameter tops out at 91 %. Alps RK09K tolerance (±20 %) then moves the
+real endpoint per pot, roughly `0.889 .. 0.923` of full scale — so one global
+constant cannot be right for every knob.
+
+`rodeo::PotSpan` (in `adc_convert.h`, host-tested in
+`common/tests/pot_span_gtest.cpp`) therefore **learns** each channel's travel:
+
+- **Seeded pessimistically** — narrower than any real pot, at the −20 % endpoint.
+  The learner only ever *widens*, so seeding narrow guarantees every knob reaches
+  a full `1.0` from the first boot; seeding at nominal would leave an under-spec
+  pot permanently unable to reach the top.
+- **Widened** by `RodeoAdc::Update()` on every sample (`Config::autorange`,
+  default on). Sweeping a knob stop to stop makes its endpoints exact.
+- **Bounded** at `kPotMaxPlausibleHiCode` (95 % FS). A satellite pot physically
+  cannot exceed 12/13 of full scale, so anything higher is a glitch and is
+  refused — one spurious full-scale sample must not undo the calibration.
+- **Edge margin** pulled in from each end, so the last sliver of travel saturates
+  and the stops read exactly `0.000` / `1.000` rather than dithering at `0.999`.
+
+The split to remember: **`GetVolts()` is never span-corrected** (it is a bring-up
+diagnostic and must report what the pin actually does); **`GetNorm()` is the
+control value** and is the one normalized across the learned span. `05_adc_scan`
+prints both, which is how you verify a channel on the bench.
+
+Not persisted: the span relearns from its seed each boot, which costs nothing
+because the seed is already correct to within pot tolerance. If it is ever worth
+storing, `RodeoAdc::SetSpan()` is the seam — feed it from QSPI at startup.
 
 ---
 
