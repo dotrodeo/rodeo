@@ -21,6 +21,13 @@ void    hub_init(uint8_t i2c_addr7);
 
 /* Called by the I2C target ISR (auto-increment handled by caller). */
 uint8_t hub_reg_read(uint8_t reg);          /* applies read-clear side effects */
+
+/* Undo hub_reg_read's read-clear side effects for a byte that was loaded into
+ * TXDR but never actually clocked out (see i2c_target.c — the peripheral
+ * pre-loads one byte past the end of every read burst). Restores by OR/ADD
+ * rather than assignment, because the ~1 kHz poll may have folded new input in
+ * between the speculative read and the rollback. */
+void    hub_reg_unread(uint8_t reg, uint8_t val);
 void    hub_reg_write(uint8_t reg, uint8_t val);
 
 /*

@@ -25,6 +25,34 @@
 static volatile uint8_t cur_reg;      /* auto-incrementing register pointer */
 static volatile uint8_t expect_ptr;   /* next RX byte is the pointer         */
 
+/*
+ * Speculative-read bookkeeping.
+ *
+ * TXIS fires whenever TXDR empties into the shift register — including for the
+ * final byte of a burst, the one the master NACKs. So the ISR always serves ONE
+ * MORE byte than the master receives, and that last byte is stranded in TXDR
+ * and discarded at STOP.
+ *
+ * That is fine for plain registers but destructive for the read-to-clear ones:
+ * a 16-byte telemetry burst from 0x10 ends at 0x1F, so the speculative byte is
+ * 0x20 = SW_PRESSED_LO, and every single poll silently ate the press latches.
+ *
+ * So remember what the speculative read consumed. The NEXT TXIS proves the
+ * previous byte reached the shift register (i.e. was really delivered) and
+ * commits it; a STOP with one still outstanding rolls it back.
+ */
+static volatile uint8_t spec_pending;  /* a loaded byte is not yet proven sent */
+static volatile uint8_t spec_reg;
+static volatile uint8_t spec_val;
+
+static inline void spec_rollback(void)
+{
+  if (spec_pending) {
+    spec_pending = 0;
+    hub_reg_unread(spec_reg, spec_val);
+  }
+}
+
 static void gpio_init(void)
 {
   /* PB6=SCL, PB7=SDA — alternate function, open-drain, no pull (external). */
@@ -64,8 +92,9 @@ void i2c_target_init(uint8_t addr7)
   LL_I2C_EnableIT_STOP(I2C1);
   LL_I2C_EnableIT_NACK(I2C1);
 
-  expect_ptr = 1;
-  cur_reg    = 0;
+  expect_ptr   = 1;
+  cur_reg      = 0;
+  spec_pending = 0;
 
   NVIC_SetPriority(I2C1_IRQn, 1);
   NVIC_EnableIRQ(I2C1_IRQn);
@@ -77,19 +106,35 @@ void I2C1_IRQHandler(void)
   if (LL_I2C_IsActiveFlag_ADDR(I2C1)) {
     if (LL_I2C_GetTransferDirection(I2C1) == LL_I2C_DIRECTION_WRITE) {
       /* Master will send the register pointer next. */
+      spec_rollback();   /* in case a burst ended without a STOP we saw */
       expect_ptr = 1;
       LL_I2C_ClearFlag_ADDR(I2C1);
     } else {
       /* Repeated-start read: keep cur_reg from the write phase. Flush any
-       * stale TXDR so the first TXIS loads fresh data. */
+       * stale byte a previous read burst left loaded in TXDR, so the first
+       * TXIS serves fresh data instead of replaying it.
+       *
+       * Order matters: flush BEFORE clearing ADDR, because clearing ADDR
+       * releases SCL and TXIS can fire immediately after.
+       *
+       * Unconditional on purpose. TXE reads 1 when TXDR is ALREADY EMPTY, so
+       * gating the flush on it inverts the test — it skips the flush in
+       * exactly the case that needs one. Flushing an empty TXDR is a no-op. */
+      LL_I2C_ClearFlag_TXE(I2C1);
       LL_I2C_ClearFlag_ADDR(I2C1);
-      if (LL_I2C_IsActiveFlag_TXE(I2C1)) { /* TXDR empty, ready to load */ }
     }
   }
 
-  /* Master read: load the next byte. */
+  /* Master read: load the next byte. Reaching TXIS means the previously loaded
+   * byte moved into the shift register, so it is genuinely on the wire — commit
+   * it before speculatively serving the next one. */
   if (LL_I2C_IsActiveFlag_TXIS(I2C1)) {
-    LL_I2C_TransmitData8(I2C1, hub_reg_read(cur_reg));
+    uint8_t v    = hub_reg_read(cur_reg);
+    spec_pending = 0;            /* previous byte delivered */
+    spec_reg     = cur_reg;
+    spec_val     = v;
+    spec_pending = 1;
+    LL_I2C_TransmitData8(I2C1, v);
     cur_reg++;
   }
 
@@ -108,9 +153,11 @@ void I2C1_IRQHandler(void)
   /* STOP — end of transaction, re-arm for the next pointer. */
   if (LL_I2C_IsActiveFlag_STOP(I2C1)) {
     LL_I2C_ClearFlag_STOP(I2C1);
-    if (LL_I2C_IsActiveFlag_TXE(I2C1)) {
-      LL_I2C_ClearFlag_TXE(I2C1);   /* flush leftover TX data */
-    }
+    /* Give back whatever the trailing speculative read consumed, THEN drop the
+     * byte itself so it cannot lead off the next burst. Both unconditional —
+     * see the TXE-polarity note above. */
+    spec_rollback();
+    LL_I2C_ClearFlag_TXE(I2C1);
     expect_ptr = 1;
   }
 }

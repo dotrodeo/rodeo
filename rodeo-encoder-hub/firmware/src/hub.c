@@ -89,6 +89,36 @@ uint8_t hub_reg_read(uint8_t reg)
   }
 }
 
+void hub_reg_unread(uint8_t reg, uint8_t val)
+{
+  /* Deltas 0x10..0x18 — add the consumed detents back, saturating. */
+  if (reg >= RODEO_HUB_REG_ENC_DELTA_BASE &&
+      reg <  RODEO_HUB_REG_ENC_DELTA_BASE + RODEO_HUB_ENC_COUNT) {
+    unsigned i = reg - RODEO_HUB_REG_ENC_DELTA_BASE;
+    int32_t  acc = (int32_t)s.enc_delta[i] + (int32_t)(int8_t)val;
+    if (acc > 127)       acc = 127;
+    else if (acc < -128) acc = -128;
+    s.enc_delta[i] = (int8_t)acc;
+    return;
+  }
+
+  switch (reg) {
+  /* Press latches — OR the bits back; the poll may have set more since. */
+  case RODEO_HUB_REG_SW_PRESSED_LO:
+    s.sw_pressed |= (uint16_t)val;
+    break;
+  case RODEO_HUB_REG_SW_PRESSED_HI:
+    s.sw_pressed |= (uint16_t)((val & 0x01u) << 8);
+    break;
+  /* STATUS read-clears OVERFLOW; restore the sticky bit. */
+  case RODEO_HUB_REG_STATUS:
+    if (val & RODEO_HUB_STAT_OVERFLOW) s.overflow = 1;
+    break;
+  default:
+    break;   /* every other register reads without side effects */
+  }
+}
+
 void hub_reg_write(uint8_t reg, uint8_t val)
 {
   switch (reg) {
