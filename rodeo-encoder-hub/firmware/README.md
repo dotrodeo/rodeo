@@ -3,7 +3,7 @@
 Bare-metal firmware for the **STM32C031C6** (Cortex-M0+, 48 MHz, 32 KB flash /
 12 KB RAM) encoder hub. The hub reads 9 EC11 encoders + push-switches and serves
 them to the Rodeo motherboard (Daisy Seed) as an **I²C target**, implementing
-[`RODEO_HUB_I2C_CONTRACT.md`](../../rodeo-001/docs/RODEO_HUB_I2C_CONTRACT.md).
+[`RODEO_HUB_I2C_CONTRACT.md`](../../rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md).
 
 Toolchain: **STM32Cube LL** (low-layer, vendored) + ARM GNU Toolchain. No HAL,
 no CubeMX code-gen, no RTOS.
@@ -196,14 +196,17 @@ before that session and is now settled:
 
 Two things cost real time on first bring-up and are not visible in the code:
 
-- **All JST cables must be straight-through (pin 1 → pin 1), not reversed.**
-  This holds for *both* the Qwiic I²C ports (J1/J2) and the encoder ports
-  (J3–J11): every connector in the ecosystem uses the same pad-1 convention, so
-  a crossover cable is always wrong. It is easy to build the wrong one by
-  accident, and easy to *believe* you need one, because the motherboard's J42 is
-  a vertical connector while the hub's are horizontal — so the ribbon's colours
-  land mirrored even on a correct cable. **Check continuity pin 1 ↔ pin 1
-  before plugging anything in**, and never go by wire colour.
+- **The hub's cables are straight-through (pin 1 → pin 1), not reversed.**
+  Both the Qwiic I²C ports (J1/J2) and the encoder ports (J3–J11) match their
+  mating connector pad-for-pad. This is **not** true of every run in the
+  ecosystem — the 3-pin analog harness is mirrored and needs *reversed* cables.
+  The full per-link table is in
+  [`RODEO_CONTROL_MAP.md` → *Harness cable orientation*](../../rodeo-001/docs/RODEO_CONTROL_MAP.md).
+  It is easy to build the wrong one by accident, and easy to *believe* you need
+  one, because the motherboard's J42 is a vertical connector while the hub's are
+  horizontal — so the ribbon's colours land mirrored even on a correct cable.
+  **Check continuity pin 1 ↔ pin 1 before plugging anything in**, and never go
+  by wire colour.
   - A reversed Qwiic cable grounds SCL and ties SDA to +3V3, killing the whole
     bus (the display goes dark too) and back-powering the MCU through its I/O.
   - A reversed encoder cable ties the A input to the encoder's ground pin and
@@ -214,13 +217,20 @@ Two things cost real time on first bring-up and are not visible in the code:
   clamping SDA and SCL. A hub that merely fails to answer is harmless; a hub
   that is *unpowered* is not.
 
-### Known-open
+### Master reset → "no hub" (resolved)
 
-- **Bus recovery after a master reset.** If the Daisy resets mid-burst while the
-  hub is driving a bit low, the target never sees a STOP and keeps holding SDA,
-  so the restarted master cannot issue a START and reports "no hub". Workaround
-  is to power-cycle the hub. The real fix is either 9 recovery clocks on SCL at
-  master init or the hub's `TIMEOUTR` bus-idle timeout; neither is implemented.
+Before the TXDR fix, a Daisy reset without a hub power-cycle reliably reported
+"no hub", while a cold power-up always enumerated. That was **not** a stuck bus.
+A Seed reset does not reset the hub, so the byte stranded in the hub's TXDR by
+its last pre-reset burst survived, and the master's first identity read —
+`WHO_AM_I`, which must equal `0x9E` — received that stale byte instead and
+failed the gate. Cold power-up clears TXDR on both sides, hence the asymmetry.
+Flushing TXDR at STOP fixed it; the hub now survives Seed resets on the bench.
+
+**Residual, theoretical:** a reset that lands *mid-byte* while the hub is
+driving SDA low can still leave the target holding the line, since it never
+sees a STOP. Not observed. If it ever shows up, the fix is 9 recovery clocks on
+SCL at master init, or the hub's `TIMEOUTR` bus-idle timeout.
 
 ## Not yet implemented (by design)
 

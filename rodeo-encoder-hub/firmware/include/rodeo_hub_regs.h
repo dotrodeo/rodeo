@@ -6,7 +6,7 @@
  *   - hub target firmware (STM32C031C6) — serves this map from its RAM shadow
  *   - motherboard master firmware (Daisy Seed) — drives reads/writes against it
  *
- * Source of truth: rodeo-001/docs/RODEO_HUB_I2C_CONTRACT.md (silicon-verified
+ * Source of truth: rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md (silicon-verified
  * Bumble 2026-08-20). If you change a value here, bump RODEO_HUB_MAP_VERSION and
  * the doc's MAP_VERSION together — they are one contract.
  *

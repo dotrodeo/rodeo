@@ -88,6 +88,41 @@ connectors; each control type is its own satellite PCB that wires back to the hu
   the **I2C bus** (address allocation, pull-up sizing, chain length), ADC/SPI integrity,
   grounding, and any anti-alias filtering that isn't already on a satellite.
 
+### Harness cable orientation (netlist-verified 2026-09-13)
+
+JST-SH cables come in two builds — **straight** (pin 1 → pin 1) and **reversed**
+(pin 1 → last pin) — and the ecosystem does **not** use one pin-1 convention
+everywhere, so which one a run needs depends on the link. Verified pad-by-pad from
+each board's `.kicad_pcb`:
+
+| Link | Host pins (1 → N) | Satellite pins (1 → N) | Cable |
+|---|---|---|---|
+| **Analog:** motherboard J6–J29 ↔ `rodeo-potentiometer` / `rodeo-rotary-switch` | `+3V3 / signal / GND` | `GND / signal / supply-in` | **REVERSED** |
+| **Digital:** motherboard J30–J41 ↔ `rodeo-button` | `DIG / GND` | `signal / GND` | straight |
+| **I²C:** motherboard J42 ↔ `rodeo-encoder-hub` J1/J2 | `GND / +3V3 / SDA / SCL` | same | straight |
+| **Encoder:** hub J3–J11 ↔ `rodeo-encoder` J1 | `A / B / S / GND` | same | straight |
+
+On the analog satellites, pin 3 feeds the top of the pot / ladder through the 1 kΩ + 100 nF
+supply filter, and pin 1 is ground — the mirror image of the motherboard side. What the wrong
+cable does, per link:
+
+- **Analog, built straight:** the satellite's supply and ground swap. Everything on those boards
+  is passive, so nothing is damaged — but **every pot reads backwards** and a rotary-switch ladder
+  inverts into the wrong bins. The wiper is the centre pin, so it still produces a plausible
+  0–3.3 V sweep, which makes this look like a firmware sign bug rather than a harness fault.
+- **I²C, built reversed:** SCL is grounded and SDA is tied to +3V3. The whole bus dies (the OLED
+  goes dark too), and the hub MCU is back-powered through its SDA pin.
+- **Encoder, built reversed:** A lands on the encoder's ground pin and B swaps with the switch, so
+  the slot never counts.
+- **Button:** straight matches the netlist. A reversed 2-pin still happens to switch, but build
+  them straight.
+
+**Never judge a cable by wire colour.** Motherboard connectors are vertical and satellite
+connectors horizontal, so the ribbon colours land mirrored *even on a correct cable* — that is
+exactly how the reversed I²C and encoder cables got built on first bring-up. Ohm out pin 1 at each
+end before plugging in. Off-the-shelf Qwiic / STEMMA QT cables are straight and suit the I²C and
+encoder runs (colours are meaningless on the encoder runs); the analog runs need reversed builds.
+
 ---
 
 ## Analog subsystem — 24 channels via 2× ADS114S08 (U3/U4) on SPI1
@@ -111,7 +146,8 @@ connectors; each control type is its own satellite PCB that wires back to the hu
 | **J18–J29** | `ADC2_1..12` | U4 AIN0–AIN11 | 1=+3V3, 2=signal, 3=GND |
 
 Rule: `ADC1_k ↔ J(5+k)`, `ADC2_k ↔ J(17+k)`, and `AINindex = k−1`. All 24 are 3-pin
-JST-SH 1.0 mm (`BM03B-SRSS-TB`, vertical).
+JST-SH 1.0 mm (`BM03B-SRSS-TB`, vertical). **These runs take REVERSED cables** — the
+satellites are pinned `GND / signal / supply-in`; see *Harness cable orientation* above.
 
 **Firmware channel-index convention (contract with `RodeoAdc::GetCode(ch)`):** the
 canonical linear index is `ch = chip·12 + AINindex`, so:
@@ -243,7 +279,7 @@ Rodeo, so the SDMMC pins are free as plain GPIO — no boot-strap conflict.
 - **I2C is now a live bus** (OLED 0x3C + one encoder-hub 0x30 on J42). Chain length is
   finally known enough to size pull-ups (Issue 2): boot at 100 kHz, target **2.2–3.3 kΩ to
   +3V3** for 400 kHz. SSD1309 full-frame at 400 kHz ≈ 23 ms (~30 fps), so OLED does partial/low-rate
-  refresh while encoder polls (12-byte bursts) interleave — Fizz schedules; no contention.
+  refresh while encoder polls (16-byte bursts from `0x10`) interleave — Fizz schedules; no contention.
 - **Release valve (0-spare ADS):** if we ever need a free ADS channel, demote one Wave rotary
   back to a cycle-button (frees 1 channel, costs 1 of the 6 spare digital). Trivial swap.
 
@@ -519,6 +555,11 @@ firmware can't. Not a fab blocker for the current board; fold into the next spin
 
 ## Change log
 
+- 2026-09-13 — **Harness cable orientation documented** after first hub bring-up. The ecosystem
+  has no single pin-1 convention: I²C, encoder and button runs are straight-through, but the 24
+  analog runs are mirrored (motherboard `+3V3/sig/GND` vs satellite `GND/sig/supply-in`) and need
+  **reversed** cables — a straight build reads every pot backwards. Encoder-poll burst length
+  corrected 12 → 16 bytes to match `RODEO_HUB_TELEMETRY_LEN` and the contract.
 - 2026-08-23 — **Digital-button pinning FROZEN.** 6 momentary `rodeo-button`s bound to
   **DIG_1–6 / J30–J35 / Seed pins 2–7** in physical signal-flow order (Hard-sync, Filter Type,
   Keytrack, LFO Shape, LFO Dest, Voice Mode). J36–J41 (DIG_7–12, ADC-capable pins 22–27) kept
