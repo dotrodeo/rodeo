@@ -188,6 +188,9 @@ those pins as GPIO, or the corresponding channels silently disappear.
 >   panel; the OLED is the **single feedback surface**. Hub LED chain stays on-board but
 >   firmware-stubbed (parked future upgrade). No LED cutouts/lightpipes on the panel.
 > Final locked panel tally: **22 pots + 8 encoders + 6 buttons + 1 OLED = 37 controls.**
+> **Amended 2026-09-13 (Derek): 22 pots + 7 encoders + 5 buttons + 1 OLED = 35 controls** — OSC2
+> hard-sync moved from a button to a press on the OSC2 Octave encoder, and Master tune removed.
+> Current allocation in the Path B section below.
 > Firmware note (Fizz): encoders are incremental → **persist waveform + encoder state across
 > power cycles**, value shown on the OLED; wave-encoder steps ±1 through the 4 waveforms
 > (wrap), direction per `CONFIG.ENC_DIR_INVERT`.
@@ -219,8 +222,8 @@ so channel order matches physical left-to-right panel grouping.
 | Subsystem | Budget | Gets | Count |
 |---|---|---|---|
 | **24 ADS channels** (J6–J29) | 24 | 22 live-sweep **pots** (ch0/ch3 = J6/J9 now **SPARE**) | **22 used, 2 spare** |
-| **Digital GPIO** (J30–J41) | 12 | 6× momentary `rodeo-button` (5 cycle-enum + 1 hard-sync) → **DIG_1–6 / J30–J35** | **6 used** (6 spare) |
-| **I2C encoder-hub** (J42) | — | one `rodeo-encoder-hub` @`0x30`, 9-slot: 4 **trims** + 2 **octaves** + 2 **Wave** | **8 encoders → 1 hub (8/9)** |
+| **Digital GPIO** (J30–J41) | 12 | 5× momentary `rodeo-button` (cycle-enum) → **DIG_2–6 / J31–J35**; DIG_1 / J30 **SPARE** since 2026-09-13 | **5 used** (7 spare) |
+| **I2C encoder-hub** (J42) | — | one `rodeo-encoder-hub` @`0x30`, 9-slot: 3 **trims** + 2 **octaves** + 2 **Wave**; OSC2 Octave press = hard-sync | **7 encoders → 1 hub (7/9)** |
 
 **The 24 ADS channels** — 22 live-sweep pots (Wave/engine selectors moved to the encoder-hub):
 OSC1 Timbre, OSC1 Spread, OSC2 Timbre, OSC2 Spread · OSC1 lvl, OSC2 lvl, Noise lvl ·
@@ -228,25 +231,28 @@ Cutoff, Resonance, Env amount, Vowel · Filt-ENV A/D/S/R, Amp-ENV A/D/S/R · LFO
 Amount · Master volume  = **22 pots**. **ch0 (J6) and ch3 (J9) are now SPARE** (Wave went to
 encoders) — first free ADS headers, reserved for a future CV/mod input. **22 used, 2 spare.**
 
-**Digital** — 6× momentary `rodeo-button` (2-pin JST-SH sig/GND, idle-high via STM32 internal
+**Digital** — 5× momentary `rodeo-button` (2-pin JST-SH sig/GND, idle-high via STM32 internal
 pull-up, 100 nF debounce on the satellite):
 - **5 cycle-buttons** (momentary push → firmware cycles enum, OLED shows value): Filter Type,
   Keytrack, LFO Shape, LFO Dest, Voice Mode.
-- **1 hard-sync** (OSC2): also a momentary `rodeo-button`; firmware treats the press as a
-  toggle (SPDT `rodeo-switch` was dropped).
-= **6 of 12 digital used, 6 spare.**
+- ~~**1 hard-sync** (OSC2) button~~ — **moved 2026-09-13 (Derek)** to a **press on the OSC2
+  Octave encoder** (hub slot 6); firmware toggles sync on the press edge. The button is gone and
+  **DIG_1 / J30 is now SPARE**. The encoder is silkscreened **`PUSH: SYNC`** so the function
+  stays visible under the no-hidden-controls rule (labeled = visible); sync state shows on the OLED.
+= **5 of 12 digital used, 7 spare.**
 
 #### 🔒 FROZEN digital-button table (2026-08-23, from Honey's Panel Layout, physical order)
 
 Connector↔digital-index mapping is uniform: **`J(29+n) = DIG_n`** (J30 = DIG_1 … J41 = DIG_12).
-The 6 buttons take the **first 6 connectors J30–J35 = DIG_1–DIG_6 = Seed pins 2–7** (the SDMMC
-pins — digital-only, no ADC/timer capability, so nothing is wasted on them). **J36–J41 =
-DIG_7–DIG_12 = Seed pins 22–27 stay SPARE** — these are the *ADC-capable* pins, deliberately
+The buttons take **J31–J35 = DIG_2–DIG_6 = Seed pins 3–7**; **J30 = DIG_1 = Seed pin 2 is SPARE**
+(hard-sync moved to an encoder press 2026-09-13 — the other five kept their pins, so no re-pin and
+no harness change). J30–J35 are all SDMMC pins — digital-only, no ADC/timer capability, so
+nothing is wasted on them. **J36–J41 = DIG_7–DIG_12 = Seed pins 22–27 stay SPARE** — these are the *ADC-capable* pins, deliberately
 reserved so a future need (native-ADC input, CV, a timer function) can reclaim them.
 
 | Button (signal-flow order) | Section | `DIG_n` | Connector | Seed pin |
 |---|---|---|---|---|
-| OSC2 Hard-sync | OSC/MIX seam | DIG_1 | **J30** | 2 |
+| ~~OSC2 Hard-sync~~ **SPARE** — hard-sync → OSC2 Octave press (2026-09-13) | — | DIG_1 | **J30** | 2 |
 | Filter Type / SVF mode | FILTER | DIG_2 | **J31** | 3 |
 | Filter Keytrack | FILTER | DIG_3 | **J32** | 4 |
 | LFO Shape | LFO | DIG_4 | **J33** | 5 |
@@ -254,16 +260,19 @@ reserved so a future need (native-ADC input, CV, a timer function) can reclaim t
 | Voice Mode | GLOBAL | DIG_6 | **J35** | 7 |
 
 **Firmware contract:** bind each button's logical enum to its `DIG_n` (→ the libDaisy pin for
-Seed pins 2–7 in `board.h`), `GPIO::Pull::PULLUP`, active-low (pressed = 0). No SD card in
+Seed pins 3–7 in `board.h`), `GPIO::Pull::PULLUP`, active-low (pressed = 0). No SD card in
 Rodeo, so the SDMMC pins are free as plain GPIO — no boot-strap conflict.
 
 **Encoder-hub** (detented, OLED feedback, off the 24/12 budget — hub-and-satellite, one
 9-slot `rodeo-encoder-hub` @`0x30`; see the LOCKED hub section below):
 - **`0x30` index↔param table (LOCKED 2026-08-21):**
-  slot 1 = OSC2 Detune · slot 2 = Unison detune · slot 3 = Glide · slot 4 = Master tune ·
-  slot 5 = OSC1 Octave · slot 6 = OSC2 Octave · **slot 7 = OSC1 Engine/Wave select** ·
+  slot 1 = OSC2 Detune · slot 2 = Unison detune · slot 3 = Glide · **slot 4 = spare** (was Master
+  tune, removed 2026-09-13) · slot 5 = OSC1 Octave · **slot 6 = OSC2 Octave; press = OSC2
+  hard-sync toggle** (2026-09-13) · **slot 7 = OSC1 Engine/Wave select** ·
   **slot 8 = OSC2 Engine/Wave select** (Option A: encoder picks the osc engine/waveform;
-  steps ±1 with wrap) · slot 9 = spare. **8 of 9 slots used, 1 spare.**
+  steps ±1 with wrap) · slot 9 = spare. **7 of 9 slots used, 2 spare.**
+  Slot 6 is the only slot with a press function; every other push-switch is unbound. With Master
+  tune gone there is no panel tuning control — the pitch reference is fixed.
   Firmware binds these hub indices; physical hub-header↔slot wiring is Honey's harness (I
   confirm the index↔param map once her v2 harness is drawn — convention: header order = slot order).
 
@@ -281,7 +290,7 @@ Rodeo, so the SDMMC pins are free as plain GPIO — no boot-strap conflict.
   +3V3** for 400 kHz. SSD1309 full-frame at 400 kHz ≈ 23 ms (~30 fps), so OLED does partial/low-rate
   refresh while encoder polls (16-byte bursts from `0x10`) interleave — Fizz schedules; no contention.
 - **Release valve (0-spare ADS):** if we ever need a free ADS channel, demote one Wave rotary
-  back to a cycle-button (frees 1 channel, costs 1 of the 6 spare digital). Trivial swap.
+  back to a cycle-button (frees 1 channel, costs 1 of the 7 spare digital). Trivial swap.
 
 #### 🔒 FROZEN pot-by-pot table (2026-08-15, from Honey's Panel Layout v1)
 
@@ -450,7 +459,7 @@ carrier runs its own LDO rail.
 | **rodeo-encoder** | ✅ done | dumb (into hub) | 1× EC11 detented encoder + push-switch | 4-pin (A/B/S/GND) → a hub slot | **0** on 24/12 budget (rides I2C via hub) |
 | **rodeo-encoder-hub** | ✅ done | **smart I2C** | up to **9× EC11**, **STM32C031C6** target (quad decode + press-latch); LED chain HW present but **firmware-stubbed** | Qwiic 4-pin I2C @`0x30` (addr jumpers JP1/JP2) | **0** on 24/12 budget; 1 I2C address, 9 encoder slots |
 | ~~**rodeo-rotary-switch**~~ | ❌ DROPPED 2026-08-20/21 | — | resistor-ladder rotary; **removed** (control set locked to pot/encoder/button/OLED) | — | — |
-| ~~**rodeo-switch** (SPDT)~~ | ❌ DROPPED | — | hard-sync now a momentary **rodeo-button** + firmware toggle, not an SPDT | — | — |
+| ~~**rodeo-switch** (SPDT)~~ | ❌ DROPPED | — | hard-sync is not an SPDT — briefly a `rodeo-button`, and since 2026-09-13 a press on the OSC2 Octave encoder | — | — |
 | ~~**rodeo-pixel**~~ | ❌ DROPPED | — | all LED feedback removed → OLED is sole feedback surface | — | — |
 
 Encoder-hub (hub-and-satellite, current): **STM32C031C6** target, addr **0x30 default,
@@ -465,7 +474,8 @@ strip — struck 2026-08-20.)*
 - **Buttons (`rodeo-button`, momentary):** each = 1 of the 12 digital GPIO. (Multi-position
   selection = press-to-cycle a button, value on OLED.)
 - **Encoders:** via the I2C encoder-hub — **do not** touch 24/12. Up to 9 per hub; add hubs
-  (0x30–0x33) if ever needed. Bus-limited, not pin-limited.
+  (0x30–0x33) if ever needed. Bus-limited, not pin-limited. Each encoder's push-switch comes free
+  with its slot; exactly one is bound (OSC2 Octave press = hard-sync), and it must be silk-labeled.
 - **OLED:** I2C @ 0x3C, shares J42 with the encoder-hub (0x30 — no collision).
 
 I2C bus is now a shared managed resource I own: address allocation, pull-up value sized for
@@ -555,6 +565,13 @@ firmware can't. Not a fab blocker for the current board; fold into the next spin
 
 ## Change log
 
+- 2026-09-13 — **Two physical inputs removed (Derek): 37 → 35 controls.** (1) **OSC2 hard-sync
+  button → press on the OSC2 Octave encoder** (hub slot 6), silk-labeled `PUSH: SYNC` to stay
+  within no-hidden-controls; Octave picked over Detune because it's turned deliberately, so an
+  accidental press while turning is unlikely. (2) **Master tune removed** (hub slot 4). Both freed
+  positions left as **gaps, not re-packed**: DIG_1 / J30 and hub slot 4 are SPARE, so every other
+  button and encoder keeps its pin, slot and harness wiring. Now 5 buttons (7/12 digital spare) and
+  7 encoders (7/9 hub). Firmware `control_map.h` + `main.cpp` updated to match.
 - 2026-09-13 — **Harness cable orientation documented** after first hub bring-up. The ecosystem
   has no single pin-1 convention: I²C, encoder and button runs are straight-through, but the 24
   analog runs are mirrored (motherboard `+3V3/sig/GND` vs satellite `GND/sig/supply-in`) and need
@@ -646,20 +663,22 @@ master. Verified against the KiCad schematic + PCB this session.
   pulls). If revisions are ever mixed, the parallel 2.2 k‖2.2 k ≈ 1.1 kΩ (~3 mA sink, at the
   fast-mode limit) → lift the hub resistors in that case. **Rev-B:** pulls move to the
   motherboard; the respun Rev-B hub drops these two resistors.
-- **Hub count for the current voice:** the Path-B voice needs **8 encoders** (OSC2 Detune,
-  Unison Detune, Glide, Master Tune, OSC1 Octave, OSC2 Octave, **OSC1 Wave, OSC2 Wave** —
-  Wave added 2026-08-21) → they fit on **ONE hub @0x30**, **8 of 9 slots used, 1 spare.** A
-  second hub (0x31…) is only warranted if a future voice exceeds 9 encoders. **Slot↔parameter
-  binding LOCKED (see the Path-B "Encoder-hub index↔param table" above): slots 1–8 assigned,
-  slot 9 spare; physical hub-header↔slot wiring confirmed with Honey off her v2 harness.**
+- **Hub count for the current voice:** the Path-B voice needs **7 encoders** (OSC2 Detune,
+  Unison Detune, Glide, OSC1 Octave, OSC2 Octave, **OSC1 Wave, OSC2 Wave** — Wave added
+  2026-08-21, Master Tune removed 2026-09-13) → they fit on **ONE hub @0x30**, **7 of 9 slots
+  used, 2 spare.** A second hub (0x31…) is only warranted if a future voice exceeds 9 encoders.
+  **Slot↔parameter binding LOCKED (see the Path-B "Encoder-hub index↔param table" above): slots
+  1–3 and 5–8 assigned, slots 4 and 9 spare (slot 4 left as a gap, not re-packed, so no other
+  encoder moves); physical hub-header↔slot wiring confirmed with Honey off her v2 harness.**
 - **LED subsystem (opt-in):** `PB8 = TIM16_CH1` → 330 Ω (R1) → **J13** (JST-SH 3-pin,
   `GND / LED_3V3 / DATA`) drives a WS2812/SK6812 chain out to satellites (LED-IN/OUT chain).
   Power from **J14 (JST-ZH)** motherboard feed; **`LED_3V3` is a rail separate from the MCU
   `VDD`/Qwiic supply, common GND**, 100 µF bulk (C at J14). Use **SK6805 / SK6812-mini @
   3.3V** (no level shifter); size total chain **< 1 A** (ZH + SH both ~1 A).
 - **SWD:** J12 (1.0 mm 1×5, GND/+3V3/SWDIO/SWCLK/NRST).
-- **Hard-sync:** handled by a **momentary `rodeo-button`** (2-pin SIG/GND) + firmware toggle.
-  `rodeo-rotary-switch` is **dropped** — no dedicated toggle satellite.
+- **Hard-sync:** a **press on the OSC2 Octave encoder** (slot 6) toggles it. The hub already reads
+  and latches every push-switch (`SW_PRESSED`), so this costs no hardware. (Was a `rodeo-button`
+  until 2026-09-13.) `rodeo-rotary-switch` is **dropped** — no dedicated toggle satellite.
 
 **Status:** buildable / fab-ready pending ERC + DRC (no `kicad-cli` on this box → Derek runs
 Inspect→ERC/DRC in KiCad). **Open (product, not blocking fab):** the LED chain has no host

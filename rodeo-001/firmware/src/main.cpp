@@ -157,13 +157,13 @@ float p_master  = 0.f;                           // master volume 0..1
 
 // Discrete state — osc model select is driven by the Wave-encoder (hub slots
 // 7/8); the hub read is still stubbed (parts ~1 week out), so these hold their
-// default until it lands. The rest are driven live by the DIG_1..6 cycle-buttons.
+// default until it lands. The rest are driven live by the DIG_2..6 cycle-buttons.
 OscModel   g_model1 = OscModel::kSaw; // classic default; encoder steps the list
 OscModel   g_model2 = OscModel::kSaw;
 FilterType g_filter    = FilterType::kLowpass;
 LfoDest    g_lfo_dest  = LfoDest::kCutoff;
 VoiceMode  g_voice_mode = VoiceMode::kPoly; // cycled by button; poly live, mono/unison TODO
-bool       g_sync       = false;            // OSC2 hard-sync on/off (DSP sync TODO)
+bool       g_sync       = false;            // OSC2 hard-sync; toggled by hub slot-6 press (hub read + DSP TODO)
 float      g_keytrack   = 0.f;              // 0 / 0.5 / 1.0 filter keytrack amount
 
 // LFO waveform options cycled by the LFO Shape button.
@@ -186,7 +186,7 @@ static inline void Smooth(float &state, float target)
     state += 0.05f * (target - state);
 }
 
-// --- Cycle-buttons (DIG_1..6, active-low, internal pull-up) ------------------
+// --- Cycle-buttons (DIG_2..6, active-low, internal pull-up) ------------------
 // rodeo-button = momentary-to-GND with a 100 nF hardware debounce on the
 // satellite, so a plain falling-edge detect is sufficient (no SW debounce).
 struct Btn
@@ -209,8 +209,8 @@ struct Btn
     }
 };
 
-// Order matches rodeo001::Button (kHardSync, kFilterType, kKeytrack, kLfoShape,
-// kLfoDest, kVoiceMode) -> DIG_1..6 -> seed::D1..D6.
+// Order matches rodeo001::Button (kFilterType, kKeytrack, kLfoShape, kLfoDest,
+// kVoiceMode) -> DIG_2..6 -> seed::D2..D6.
 Btn buttons[static_cast<int>(rodeo001::Button::kCount)];
 
 // Advance an "enum class" value by one, wrapping at kCount.
@@ -444,9 +444,13 @@ int main(void)
     midi.Init(midi_cfg);
     midi.StartReceive();
 
-    // Cycle-buttons on DIG_1..6 (Seed pins 2..7), order = rodeo001::Button.
-    const Pin kBtnPins[] = {seed::D1, seed::D2, seed::D3,
-                            seed::D4, seed::D5, seed::D6};
+    // Cycle-buttons on DIG_2..6 (Seed pins 3..7), order = rodeo001::Button.
+    // DIG_1 / seed::D1 is spare since hard-sync moved to an encoder press. This
+    // list binds BY POSITION, so it must track the enum exactly — asserted below.
+    const Pin kBtnPins[] = {seed::D2, seed::D3, seed::D4, seed::D5, seed::D6};
+    static_assert(sizeof(kBtnPins) / sizeof(kBtnPins[0])
+                      == static_cast<size_t>(rodeo001::Button::kCount),
+                  "kBtnPins must have one pin per rodeo001::Button");
     for(int i = 0; i < static_cast<int>(rodeo001::Button::kCount); ++i)
         buttons[i].Init(kBtnPins[i]);
 
@@ -491,10 +495,8 @@ int main(void)
         // LFO rate 0.05..20 Hz from its pot.
         g_lfo.SetFreq(fmap(adc.GetNorm(kLfoRate), 0.05f, 20.0f, Mapping::EXP));
 
-        // --- Digital cycle-buttons (DIG_1..6, frozen 2026-08-23) -------------
+        // --- Digital cycle-buttons (DIG_2..6; DIG_1 spare since 2026-09-13) ---
         using rodeo001::Button;
-        if(buttons[static_cast<int>(Button::kHardSync)].Pressed())
-            g_sync = !g_sync; // TODO: apply OSC2 hard-sync in the DSP
         if(buttons[static_cast<int>(Button::kFilterType)].Pressed())
             g_filter = CycleEnum(g_filter);
         if(buttons[static_cast<int>(Button::kKeytrack)].Pressed())
@@ -519,6 +521,7 @@ int main(void)
         // TODO: read encoder-hub (detune/glide/octave/model-select) + drive the
         // OLED (incl. per-model Timbre label on model-select). Wave-encoder slots
         // 7/8 will step g_model1/g_model2 through OscModel once the hub read lands.
+        // A press on hub::kOsc2SyncPress (slot 6) toggles g_sync; slot 4 is spare.
 
         midi.Listen();
         while(midi.HasEvents())

@@ -53,13 +53,14 @@ constexpr uint32_t kSpareMask     = (1u << 0) | (1u << 3);
 constexpr uint32_t kPopulatedMask = 0x00FFFFFFu & ~kSpareMask;
 
 // --- Digital cycle-buttons (momentary-to-GND, STM32 internal pull-up) --------
-// FROZEN 2026-08-23 (RODEO_CONTROL_MAP.md): 6 buttons on DIG_1..6 = J30..J35 =
-// Seed pins 2..7 (the SDMMC digital-only pins). Signal-flow order. Each is a
+// FROZEN 2026-08-23, amended 2026-09-13 (RODEO_CONTROL_MAP.md): 5 buttons on
+// DIG_2..6 = J31..J35 = Seed pins 3..7 (the SDMMC digital-only pins). DIG_1/J30
+// is SPARE: hard-sync moved to a press on the OSC2 Octave encoder (see
+// hub::kOsc2SyncPress). Signal-flow order. Each is a
 // `rodeo-button` momentary-to-GND with 100 nF debounce; idle-high via the STM32
 // internal pull-up (GPIO::Pull::PULLUP), so pressed reads LOW (active-low).
 enum class Button
 {
-    kHardSync,   // DIG_1/J30 — OSC2 hard-sync (momentary press -> firmware toggle)
     kFilterType, // DIG_2/J31 — cycle SVF mode: LP / BP / HP / notch
     kKeytrack,   // DIG_3/J32 — cycle filter keytrack amount preset
     kLfoShape,   // DIG_4/J33 — cycle LFO waveform
@@ -71,7 +72,6 @@ enum class Button
 // Button -> digital connector (physical Seed pin). Index by Button enum. The
 // libDaisy seed::Dxx Pin is bound in target code (main.cpp), per board.h.
 constexpr int kButtonDig[static_cast<int>(Button::kCount)] = {
-    board::pin::kDig1, // kHardSync
     board::pin::kDig2, // kFilterType
     board::pin::kDig3, // kKeytrack
     board::pin::kDig4, // kLfoShape
@@ -80,7 +80,8 @@ constexpr int kButtonDig[static_cast<int>(Button::kCount)] = {
 };
 
 // --- Encoder-hub @0x30 (9-slot, detented, OLED feedback) ---------------------
-// Firmware binds these slot indices; slot<->param table LOCKED 2026-08-21.
+// Firmware binds these slot indices; slot<->param table LOCKED 2026-08-21,
+// amended 2026-09-13 (Master tune removed; OSC2 Octave press = hard-sync).
 // Slots are 1-based in the doc; kept 1-based here to match the wire contract.
 namespace hub
 {
@@ -88,9 +89,10 @@ constexpr int kAddr        = board::i2c::kEncoderHubAddr; // 0x30
 constexpr int kOsc2Detune  = 1;
 constexpr int kUnisonDetune = 2;
 constexpr int kGlide       = 3;
-constexpr int kMasterTune  = 4;
+// slot 4 = spare (was Master tune, removed 2026-09-13 — left as a gap, not re-packed)
 constexpr int kOsc1Octave  = 5;
 constexpr int kOsc2Octave  = 6;
+constexpr int kOsc2SyncPress = kOsc2Octave; // PRESS on slot 6 toggles OSC2 hard-sync
 constexpr int kOsc1Model   = 7; // Option A: encoder steps OSC1 model list (Saw/Pulse/Tri/Sine/FM/Formant)
 constexpr int kOsc2Model   = 8; // Option A: encoder steps OSC2 model list (Saw/Pulse/Tri/Sine/FM/Formant)
 // slot 9 = spare

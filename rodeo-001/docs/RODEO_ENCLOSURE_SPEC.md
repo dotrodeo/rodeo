@@ -198,7 +198,7 @@ silk-screened positions), **tog** (toggle/button), **wheel** (performance).
 | OSC 2 | Timbre (model-dep) | pot | Shape/PW/FM-index/formant-pos per selected engine (Option A, 2026-08-23) |
 | OSC 2 | Spread | pot | |
 | OSC 2 | Detune | pot | fine, vs OSC 1 |
-| OSC 2 | Hard sync → OSC 1 | tog | digital |
+| OSC 2 | Hard sync → OSC 1 | push | press on the OSC 2 Octave encoder (was a button; moved 2026-09-13) |
 | MIX | OSC 1 level | pot | |
 | MIX | OSC 2 level | pot | |
 | MIX | Noise level | pot | |
@@ -217,7 +217,7 @@ silk-screened positions), **tog** (toggle/button), **wheel** (performance).
 | VOICE | Mode | sel | Poly / Mono / Unison |
 | VOICE | Unison detune | pot | |
 | GLOBAL | Glide | pot | |
-| GLOBAL | Master tune | pot | |
+| ~~GLOBAL~~ | ~~Master tune~~ | — | **removed 2026-09-13** |
 | GLOBAL | Master volume | pot | |
 
 **Pitch bend + mod wheel: NOT on the panel** (Derek, 2026-08-15) — supported over **MIDI**
@@ -292,25 +292,27 @@ analog. Final frozen tally:
 | Class | Count | Panel cutout | Spare |
 |---|---|---|---|
 | Potentiometers (analog) | **22** | pot bushing Ø7 | **2 ADS channels free** (ch0, ch3 — first-ever spare; future CV/mod in) |
-| Rotary encoders (I²C) | **8** | encoder bushing Ø7 (same family as pot) | **8 of 9** on the one hub (1 spare) |
-| Momentary buttons (digital) | **6** | button bushing | 6 of 12 free |
+| Rotary encoders (I²C) | **7** | encoder bushing Ø7 (same family as pot) | **7 of 9** on the one hub (2 spare) |
+| Momentary buttons (digital) | **5** | button bushing | 7 of 12 free |
 | OLED SSD1309 | **1** | display window | — |
 
-→ **37 physical controls: 22 pots + 8 encoders + 6 buttons + 1 OLED.**
+→ **35 physical controls: 22 pots + 7 encoders + 5 buttons + 1 OLED.** *(37 until 2026-09-13:
+hard-sync moved from a button to the OSC 2 Octave encoder's press, and Master tune removed.)*
 
-- **8 encoders** as individual `rodeo-encoder` singles on the one `rodeo-encoder-hub` (I²C
-  @0x30, 9-cap, 8/9 used): **OSC1 Wave, OSC2 Wave** (the Derek pick) + OSC1/OSC2 Octave + OSC2
-  detune, unison detune, glide, master tune. Off the 24/12 budget. OLED `0x3C` shares the bus.
+- **7 encoders** as individual `rodeo-encoder` singles on the one `rodeo-encoder-hub` (I²C
+  @0x30, 9-cap, 7/9 used): **OSC1 Wave, OSC2 Wave** (the Derek pick) + OSC1/OSC2 Octave + OSC2
+  detune, unison detune, glide. **OSC 2 Octave doubles as the hard-sync toggle on press** —
+  silkscreen it `PUSH: SYNC`. Off the 24/12 budget. OLED `0x3C` shares the bus.
   *Firmware note (Fizz):* encoders are incremental → the current waveform (and other encoder
   states) must be **persisted across power cycles** and shown on the OLED; no panel-face
   indication of position. (Per Bumble's absolute-vs-incremental nuance.)
-- **6 buttons** = 5 enum cycle-buttons (Filter Type, Keytrack, LFO Shape, LFO Dest, Voice
-  Mode) + 1 hard-sync. All ride `rodeo-button` (momentary, 2-pin JST-SH sig/GND, idle-high via
+- **5 buttons** = enum cycle-buttons (Filter Type, Keytrack, LFO Shape, LFO Dest, Voice
+  Mode). All ride `rodeo-button` (momentary, 2-pin JST-SH sig/GND, idle-high via
   STM32 internal pull-up). No SPDT, no per-button LED.
 - **22 pots** on 24 ADS channels → **ch0/ch3 spare** (were the Wave rotary channels; now free).
 
-**`rodeo-button` = the digital workhorse (my build deliverable).** Carries all 6 digital
-actions including hard-sync. 2-pin JST-SH; mechanical/cap design I own; on the family + BOM.
+**`rodeo-button` = the digital workhorse (my build deliverable).** Carries all 5 digital
+actions (hard-sync moved to an encoder press 2026-09-13). 2-pin JST-SH; mechanical/cap design I own; on the family + BOM.
 
 **Rev-B upgrade path (documented, not this build):** if a motherboard respin ever happens
 (Issue 6 CS pull-ups are already queued for it), fold in **U5 (3rd ADS114S08, CS3 = PG10/pin
@@ -328,11 +330,11 @@ from each `.kicad_pcb`:
 |---|---|---|---|---|---|
 | `rodeo-potentiometer` | **25 × 30 mm** | Alps RK09K vertical pot | pot bushing Ø7 | 3-pin JST-SH horiz | 4× M2 · R+C RC on board |
 | `rodeo-encoder` (individual) | **25 × 25 mm** (measured Edge.Cuts) | EC11 detented encoder + push | encoder bushing Ø7 | I²C to hub | **free-placed single** → `rodeo-encoder-hub` (9-cap, @0x30); groups per-function like a pot |
-| `rodeo-button` | **25 × 25 mm** (measured Edge.Cuts) | momentary pushbutton | button bushing | 2-pin JST-SH | **digital workhorse** — all 8 enum/toggle actions incl. hard-sync; free-placed single |
-| `rodeo-encoder-hub` | STM32C0 hub PCB (behind-panel, not a control) | — | board-mount, internal | I²C @0x30 | **9-encoder cap**; carries the voice's 6 (+2 if Wave→encoder = 8/9) |
+| `rodeo-button` | **25 × 25 mm** (measured Edge.Cuts) | momentary pushbutton | button bushing | 2-pin JST-SH | **digital workhorse** — all 5 enum cycle actions; free-placed single |
+| `rodeo-encoder-hub` | STM32C0 hub PCB (behind-panel, not a control) | — | board-mount, internal | I²C @0x30 | **9-encoder cap**; carries the voice's 7 (7/9) |
 | ~~`rodeo-encoder-bank` (4-gang)~~ | — | — | — | — | **REMOVED (Derek 2026-08-21)** — replaced by hub + individual `rodeo-encoder` singles |
 | ~~`rodeo-rotary-switch`~~ | — | — | — | — | **REMOVED** — no rotary switches in ecosystem |
-| ~~`rodeo-switch` (SPDT)~~ | — | — | — | — | **REMOVED** — hard-sync now a momentary `rodeo-button` |
+| ~~`rodeo-switch` (SPDT)~~ | — | — | — | — | **REMOVED** — hard-sync is now a press on the OSC 2 Octave encoder |
 | ~~`rodeo-pixel`~~ | — | — | — | — | **REMOVED** — LED indicators dropped; all feedback on OLED |
 
 **Pitch rule set (v2 — 2026-08-21, all controls now free-placed singles):** the whole kit is a
@@ -349,8 +351,12 @@ lands on the panel.
 Signal-flow, two bands, left → right, on the uniform 25 mm grid. Every control is a free-placed
 single co-located with its function; the OLED is the only element on the right. **The 2 OSC
 Wave selectors are encoders sitting in their own OSC boxes** (next to Timbre/Spread), and the
-former ENC-BANK cluster is gone — its encoders (octaves, detune, glide, master tune) now live in
-their functional sections. Sync is a momentary button; no LEDs anywhere.
+former ENC-BANK cluster is gone — its encoders (octaves, detune, glide) now live in
+their functional sections. Sync is a press on the OSC 2 Octave encoder; no LEDs anywhere.
+
+**Amended 2026-09-13:** the Sync button (MIX column) and the Master-tune encoder (GLOBAL) are
+removed. Hard-sync is now the OSC 2 Octave encoder's press, marked `e*` below. Those two cells
+each lose one control; nothing else moves.
 
 ```
  ┌──────────┬──────────┬────────┬─────────────┐   ┌───────────────┐
@@ -358,35 +364,37 @@ their functional sections. Sync is a momentary button; no LEDs anywhere.
  │ Wave  e  │ Wave  e  │ Osc1 ▪ │ Cutoff ▪     │   │     OLED      │
  │ Timbre▪  │ Timbre▪  │ Osc2 ▪ │ Reso   ▪     │   │   HiLetgo     │
  │ Spread▪  │ Spread▪  │ Noise▪ │ EnvAmt ▪     │   │  2.42″ 128×64 │
- │ Oct   e  │ Oct   e  │ Sync ○ │ Vowel  ▪     │   │   (I²C 0x3C)  │
+ │ Oct   e  │ Oct  e*  │        │ Vowel  ▪     │   │   (I²C 0x3C)  │
  │          │ Detune e │        │ Type○  Ktrk○ │   │               │
  ├──────────┼──────────┼────────┼─────────────┤   └───────────────┘
  │ FILT ENV │ AMP ENV  │  LFO   │   GLOBAL / VOICE      │
  │ A ▪ D ▪  │ A ▪ D ▪  │ Rate ▪ │ Volume ▪   Mode ○     │
  │ S ▪ R ▪  │ S ▪ R ▪  │ Amt  ▪ │ Glide e  Uni-det e    │
- │          │          │ Shp○Dst○│ Mtune e              │
+ │          │          │ Shp○Dst○│                      │
  └──────────┴──────────┴────────┴───────────────────────┘
-  ▪ pot (ADC, ×22)   e encoder (I²C hub, ×8)   ○ momentary button (×6)   OLED ×1
+  ▪ pot (ADC, ×22)   e encoder (I²C hub, ×7)   e* = encoder, press = OSC 2 hard-sync
+  ○ momentary button (×5)   OLED ×1
 ```
 
-**Encoder placement (8, all on `rodeo-encoder-hub` @0x30):** OSC1 Wave, OSC1 Octave · OSC2
-Wave, OSC2 Octave, OSC2 Detune · Glide, Unison-detune, Master-tune (global/voice). Each is a
+**Encoder placement (7, all on `rodeo-encoder-hub` @0x30):** OSC1 Wave, OSC1 Octave · OSC2
+Wave, OSC2 Octave (press = hard-sync, silk `PUSH: SYNC`), OSC2 Detune · Glide, Unison-detune
+(global/voice). Each is a
 25×25 single dropped into the grid beside its function.
 
-**Hub-slot binding (LOCKED by Bumble in control map, 2026-08-21):** hub is 8/9 (1 spare);
+**Hub-slot binding (LOCKED by Bumble in control map, 2026-08-21):** hub is 7/9 (slots 4 and 9 spare — slot 4 was Master tune, removed 2026-09-13);
 **slot 7 = OSC1 Wave, slot 8 = OSC2 Wave** (the two new encoders). Wiring convention:
 **header order = slot order**, so when I draw the v2 harness the 2 Wave encoders wire to the
 next 2 free hub headers → slots 7/8. Bumble confirms the final index↔param map off my v2
-harness once drawn. Full slot 1–8 table lives in `RODEO_CONTROL_MAP.md`.
-**Button placement (6):** Sync (OSC/MIX seam) · Filter Type, Keytrack (FILTER) · LFO Shape,
-LFO Dest (LFO) · Voice Mode (GLOBAL).
+harness once drawn. Full slot table lives in `RODEO_CONTROL_MAP.md`.
+**Button placement (5):** Filter Type, Keytrack (FILTER) · LFO Shape, LFO Dest (LFO) · Voice
+Mode (GLOBAL). *(The Sync button at the OSC/MIX seam was removed 2026-09-13.)*
 
 **Digital button → connector binding — FROZEN (Bumble took my physical order 1:1, 2026-08-23).**
 My signal-flow order bound to the digital connectors + `board.h`:
 
 | # | Button | Panel section | `DIG_n` | Connector | Seed pin |
 |---|---|---|---|---|---|
-| 1 | OSC2 Hard-sync | OSC/MIX seam | DIG_1 | J30 | 2 |
+| 1 | ~~OSC2 Hard-sync~~ **SPARE** — moved to OSC2 Octave press (2026-09-13) | — | DIG_1 | J30 | 2 |
 | 2 | Filter Type (SVF mode) | FILTER | DIG_2 | J31 | 3 |
 | 3 | Filter Keytrack | FILTER | DIG_3 | J32 | 4 |
 | 4 | LFO Shape | LFO | DIG_4 | J33 | 5 |
@@ -398,9 +406,9 @@ capability** — so buttons waste nothing on them (no SD card in Rodeo → free 
 conflict). **J36–J41 (DIG_7–12, Seed pins 22–27) kept spare on purpose** — they're the
 *ADC-capable* pins, so the digital reserve can be reclaimed later as native analog / CV / timer.
 **Electrical:** `rodeo-button` is momentary-to-GND with a 100 nF debounce on the satellite, no
-hub-side resistor → firmware `GPIO::Pull::PULLUP`, active-low (pressed = 0); hard-sync is the
-same momentary button, firmware treats the press as a toggle. Control map is now frozen on all
-three classes (pots ch0–23, buttons DIG_1–6, encoder hub slots 1–8).
+hub-side resistor → firmware `GPIO::Pull::PULLUP`, active-low (pressed = 0). Control map is
+frozen on all three classes (pots ch0–23; buttons DIG_2–6 with DIG_1 spare; encoder hub slots
+1–3 and 5–8 with 4 and 9 spare).
 
 **ADC channel sequence (ch = reading order, top band L→R then bottom band L→R).** Wave→encoder
 freed **ch0 (J6) and ch3 (J9)** — now spare. **LOCKED (Bumble, 2026-08-21): gaps stay, no
@@ -491,8 +499,8 @@ datasheet pull before templates are cut.
 | Control | Panel feature | Nominal | Anti-rotation | Confidence |
 |---|---|---|---|---|
 | Pot (Alps RK09K) ×22 | round hole | **Ø7.0 mm** (M7 bushing) | 3.2 mm lug hole @ offset | high (RK09K std) |
-| Encoder (Alps EC11) ×8 | round hole | **Ø7.0 mm** (M7 bushing) | 3.2 mm lug hole @ offset | high (EC11 std) · incl. 2 OSC Wave |
-| Button (`rodeo-button`) ×6 | round hole | TBD w/ chosen switch (target ~Ø6–7 mm bushing) | — | derive from `rodeo-button` footprint |
+| Encoder (Alps EC11) ×7 | round hole | **Ø7.0 mm** (M7 bushing) | 3.2 mm lug hole @ offset | high (EC11 std) · incl. 2 OSC Wave · OSC 2 Octave needs `PUSH: SYNC` silk |
+| Button (`rodeo-button`) ×5 | round hole | TBD w/ chosen switch (target ~Ø6–7 mm bushing) | — | derive from `rodeo-button` footprint |
 | OLED (**HiLetgo 2.42″ SSD1309, I²C**) | rect window + 4× mount | module PCB ~**72 × 43 mm**; active window **55.01 × 27.49 mm** | 4× mount holes — ⚠VERIFY pattern | window high (confirmed w/ Bumble); **hole pattern not published → Derek to caliper the physical module (4 centers + Ø); do NOT cut standoffs from a guess** |
 | Audio / USB-C / power | rear I/O edge | on motherboard I/O edge (jacks 11 mm pitch, per mobo) | — | high (from mobo) |
 
@@ -523,8 +531,8 @@ open design task; it sets both Bumble's PCB footprint and my cutout Ø.
   cap that suits the Cassette-Futurism look. Candidate class: 6 mm threaded-bushing momentary
   (e.g. PVA1 / E-Switch TL59 class), JLCPCB-stockable (there's a `jlcpcb/` folder). Deliver: a
   specific MPN → hand Bumble the footprint, log the bushing Ø in the cutout schedule.
-- **Qty in first build (frozen 2026-08-21):** **6** — Filter Type, Keytrack, LFO Shape, LFO
-  Dest, Voice Mode, hard-sync.
+- **Qty in first build:** **5** — Filter Type, Keytrack, LFO Shape, LFO Dest, Voice Mode.
+  (6 from 2026-08-21 until 2026-09-13, when hard-sync moved to an encoder press.)
 
 
 
@@ -564,7 +572,13 @@ count is a joint Bumble/Honey decision, not just an electrical one.
 
 ## Change log
 
-- 2026-08-21 (latest) — **OSC Wave-select DECIDED = encoders** (Derek, option b). Final frozen
+- 2026-09-13 (latest) — **Two physical inputs removed (Derek): 37 → 35 controls.** The **Sync
+  button is gone** — OSC 2 hard-sync is now a **press on the OSC 2 Octave encoder** (silk
+  `PUSH: SYNC`; `e*` in Panel Layout v2) — and the **GLOBAL Master-tune encoder is removed**.
+  Tally now 22 pots + 7 encoders + 5 buttons + 1 OLED. Freed DIG_1 / J30 and hub slot 4 left as
+  gaps, so no other control moves. Updated frozen tally, inventory, satellite table, Panel
+  Layout v2 art + placement notes, button binding table, cutout schedule, `rodeo-button` qty.
+- 2026-08-21 — **OSC Wave-select DECIDED = encoders** (Derek, option b). Final frozen
   tally: **22 pots + 8 encoders + 6 buttons + 1 OLED = 37 controls.** Both OSC Wave selectors
   become `rodeo-encoder` singles in their OSC boxes (8/9 on the one hub @0x30); ch0/ch3 (J6/J9)
   freed as the first-ever spare ADS channels (future CV/mod in). Buttons drop 8→6 (5 enum +
