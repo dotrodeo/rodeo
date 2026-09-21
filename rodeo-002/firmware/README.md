@@ -22,6 +22,23 @@ make
 make program-dfu   # Daisy in DFU first: hold BOOT, tap RESET
 ```
 
+### The instrument runs under the Daisy bootloader
+
+The Seed's internal flash is 128 KB and `bench_voices` alone uses ~90% of it, so the
+instrument firmware is built as `APP_TYPE = BOOT_SRAM`: the Daisy bootloader copies it from
+QSPI into SRAM at boot (see the concept doc, *Firmware platform*). One-time setup, then
+updates without the BOOT button:
+
+```bash
+make program-boot                  # once: installs the Daisy bootloader (Daisy in ST DFU)
+make APP_TYPE=BOOT_SRAM
+make APP_TYPE=BOOT_SRAM program-dfu   # within 2 s of a reset, while the bootloader waits
+```
+
+`bench_voices` still defaults to plain internal flash, which is how its published numbers
+were measured. **Re-run it once with `APP_TYPE=BOOT_SRAM`** to confirm those numbers carry
+over before relying on them in that mode.
+
 If you are building inside a git worktree where the submodules aren't checked
 out, point at the main checkout instead of initialising them again:
 

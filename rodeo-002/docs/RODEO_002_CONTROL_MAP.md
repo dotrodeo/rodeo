@@ -20,6 +20,9 @@ channel convention `ch = chip·12 + AINindex` is the platform's, shared with rod
 > **Status: 🔒 PANEL LAYOUT LOCKED (Derek, 2026-09-20).** The grid, the 30 × 35 mm pitch, and
 > the pot-channel and encoder-slot assignments below are frozen — firmware and harness build to
 > them. Nothing is wired yet. Changes from here need an explicit decision, not a drift.
+>
+> **Channel map revised 2026-09-21 (Derek):** pots split 8 + 8 across both ADC chips for a
+> faster scan. The panel is unchanged; only which motherboard header each pot plugs into moved.
 
 ## Surface
 
@@ -73,37 +76,50 @@ Every encoder is physically adjacent to the one pot it pairs with, and nothing i
 * The Alps RK09K pot and EC11E encoder bushings are the same size — one hole diameter serves
   all 21 (verify against the parts in hand).
 
-## Analog — 16 pots on ADC channels 0–15 (J6–J21)
+## Analog — 16 pots, 8 per ADC chip (J6–J13, J18–J25)
 
-Physical order is the grid read left-to-right, top-to-bottom, mapped 1:1 onto consecutive
-channels. **Channels 16–23 (J22–J29) stay spare**, as do all 12 digital inputs.
+**Rows 1–2 are on U3, rows 3–4 are on U4, eight pots each** (revised 2026-09-21). The two chips
+convert in parallel, so the scan rate is set by whichever carries more channels: 8 per chip
+reads each pot every ~9.3 ms, **~108 Hz per pot** at the platform's default 1000 SPS
+(`RODEO_ADC_LIB_DESIGN.md` §4: 1.16 ms per hop). The earlier 12 + 4 split ran U3 at 12 hops,
+~72 Hz, while U4 sat mostly idle.
+
+Within each chip the grid is read left-to-right, top-to-bottom onto consecutive inputs.
+**Spare: ch8–11 (J14–J17) and ch20–23 (J26–J29)**, plus all 12 digital inputs.
 
 | `ch` | Grid | Main layer | Shift layer | Chip | AINx | Conn |
 |---|---|---|---|---|---|---|
-| 0  | R1C1 | Harmonics         | Env→Timbre               | U3 | AIN0  | J6  |
-| 1  | R1C2 | Timbre            | Env→Morph                | U3 | AIN1  | J7  |
-| 2  | R1C3 | Morph             | LFO rate                 | U3 | AIN2  | J8  |
-| 3  | R1C4 | **Character amt** | Character secondary      | U3 | AIN3  | J9  |
-| 4  | R2C1 | Cutoff            | Filter type *(stepped)*  | U3 | AIN4  | J10 |
-| 5  | R2C2 | Resonance         | Filter env amount        | U3 | AIN5  | J11 |
-| 6  | R2C3 | Spread / detune   | **LFO dest** *(stepped)* | U3 | AIN6  | J12 |
-| 7  | R2C4 | **Movement amt**  | Movement secondary       | U3 | AIN7  | J13 |
-| 8  | R3C1 | Attack            | Decay                    | U3 | AIN8  | J14 |
-| 9  | R3C2 | Release           | Sustain                  | U3 | AIN9  | J15 |
-| 10 | R3C3 | Master volume     | LFO depth                | U3 | AIN10 | J16 |
-| 11 | R3C4 | **Texture amt**   | Texture secondary        | U3 | AIN11 | J17 |
-| 12 | R4C1 | Space Time        | Grain pitch              | U4 | AIN0  | J18 |
-| 13 | R4C2 | Space Feedback    | Grain position spread    | U4 | AIN1  | J19 |
-| 14 | R4C3 | Space Grain       | Tilt EQ                  | U4 | AIN2  | J20 |
-| 15 | R4C4 | **Space Mix**     | Space secondary          | U4 | AIN3  | J21 |
+| 0  | R1C1 | Harmonics         | Env→Timbre               | U3 | AIN0 | J6  |
+| 1  | R1C2 | Timbre            | Env→Morph                | U3 | AIN1 | J7  |
+| 2  | R1C3 | Morph             | LFO rate                 | U3 | AIN2 | J8  |
+| 3  | R1C4 | **Character amt** | Character secondary      | U3 | AIN3 | J9  |
+| 4  | R2C1 | Cutoff            | Filter type *(stepped)*  | U3 | AIN4 | J10 |
+| 5  | R2C2 | Resonance         | Filter env amount        | U3 | AIN5 | J11 |
+| 6  | R2C3 | Spread            | **LFO dest** *(stepped)* | U3 | AIN6 | J12 |
+| 7  | R2C4 | **Movement amt**  | Movement secondary       | U3 | AIN7 | J13 |
+| 12 | R3C1 | Attack            | Decay                    | U4 | AIN0 | J18 |
+| 13 | R3C2 | Release           | Sustain                  | U4 | AIN1 | J19 |
+| 14 | R3C3 | Master volume *(global)* | LFO depth         | U4 | AIN2 | J20 |
+| 15 | R3C4 | **Texture amt**   | Texture secondary        | U4 | AIN3 | J21 |
+| 16 | R4C1 | Space Time        | Grain pitch              | U4 | AIN4 | J22 |
+| 17 | R4C2 | Space Feedback    | Grain position spread    | U4 | AIN5 | J23 |
+| 18 | R4C3 | Space Grain       | Tilt EQ                  | U4 | AIN6 | J24 |
+| 19 | R4C4 | **Space Mix**     | Space secondary          | U4 | AIN7 | J25 |
 
+* **Alias footgun, both chips:** AIN6/AIN7 are also REFP1/REFN1, and ch6/7 and ch18/19 use
+  them. They are correct as inputs only while `REFSEL=00` — never select reference 1. (AIN8–11,
+  the GPIO aliases, are now unused.)
 * Shift-layer labels are printed smaller on the panel. Labeled ≠ hidden.
 * **Two shift positions are enums, read as stepped pots** (the platform already has stepped-pot
   logic in `pot_ui.h`): **Filter type** (LP / BP / HP) and **LFO dest**. Keep the destination
   list short — Pitch / Timbre / Morph / Cutoff / Amp / Space mix — so the steps stay readable.
-* **Filter keytrack is not on the panel.** It moved to MAIN's patch-settings page because it
-  is set once per patch, unlike LFO destination, which is played with. That trade is what made
-  room for LFO dest, and keytrack is the only parameter demoted to a menu.
+* **Master volume is global and always live.** It is never stored in a preset and never
+  waits for pickup — it is the physical output level, and a preset load must not move it
+  (Derek, 2026-09-21).
+* **Some parameters live on MAIN's settings pages, not the panel** — the set-once-per-patch
+  ones: filter keytrack, glide time, LFO shape, velocity→filter amount and pitch-bend range.
+  Keytrack gave its panel position to LFO destination, which is played with rather than set.
+  See *Settings pages* under the OLED section.
 * Pot wiring: 3-pin JST-SH, `1=+3V3, 2=wiper, 3=GND` at the motherboard. **These runs need
   REVERSED cables** — the satellite is pinned `GND / signal / supply-in`. See the harness
   section of rodeo-001's control map; a straight cable makes every pot read backwards.
@@ -115,6 +131,9 @@ A pot is **inert until its position crosses the parameter's stored value**, afte
 * a shift press or release (the pot now addresses a different parameter),
 * engine or slot-type changes that redefine a parameter,
 * a gesture loop stopping or being cleared (parameters stay where the loop left them).
+
+Master volume is exempt — see above. Stepped pots (filter type, LFO dest) catch when the pot's
+step matches the stored step.
 
 Without this, every preset load would jump 16 parameters to wherever the knobs happen to sit.
 The OLED shows a catch indicator (which side of the value the knob is on) for any pot that is
@@ -131,7 +150,7 @@ bottom; the isolated encoder under the OLED is slot 5. Slots 6–9 unpopulated.
 | 2 | R2C5 MOVEMENT  | Slot effect type | Bypass slot | — | Slot secondary |
 | 3 | R3C5 TEXTURE   | Slot effect type | Bypass slot | — | Slot secondary |
 | 4 | R4C5 SPACE     | Slot effect type | Bypass slot | **FREEZE** (grain buffer) | Slot secondary |
-| 5 | R4C6 **MAIN**  | Engine select (wrap) | Preset browser: turn = browse, tap = load, long-press = save to this slot | **GESTURE** — arm / close loop / clear | **Voice mode** |
+| 5 | R4C6 **MAIN**  | Engine select (wrap) | Open preset browser *(see below)* | **GESTURE** — arm / close loop / clear | **Voice mode** |
 
 * **Shift = MAIN's switch held.** MAIN sits at the far right, so shift is held with one hand
   while the other sweeps pots. Holding it and turning MAIN itself (a push-turn) selects the
@@ -153,6 +172,21 @@ bottom; the isolated encoder under the OLED is slot 5. Slots 6–9 unpopulated.
 * Encoder satellites take **straight** cables (`A / B / S / GND` both ends).
 * Direction follows the hub's `CONFIG.ENC_DIR_INVERT`.
 
+### Preset browser (decided 2026-09-21)
+
+Tapping MAIN opens it, and **while it is open MAIN's controls mean something else** — the OLED
+says so for as long as it is open:
+
+| In the browser | Does |
+|---|---|
+| Turn MAIN | Browse slots |
+| Tap MAIN | **Load** the highlighted preset and close |
+| Long-press MAIN | **Save** to the highlighted slot and close |
+| Touch any other control, or 5 s idle | **Close without loading** |
+
+Long-press means *gesture* everywhere else and *save* here. That is the one modal exception on
+the instrument, and it is acceptable only because the browser is on screen whenever it applies.
+
 ### Gesture recorder (decided 2026-09-21)
 
 Records pot movements and loops them — the Chroma Console's gesture idea. It lives on **MAIN's
@@ -173,11 +207,8 @@ highlighted slot while browsing), which is where you are already choosing a slot
   like those reads as a malfunction, not a gesture.
 * **Grabbing a pot that is in the loop takes that parameter back** from the loop for the rest
   of playback, so you can play over a gesture without stopping it.
-* **Up to 16 s, sampled at the pot scan rate.** That is ~72 Hz per channel with the platform's
-  default 1000 SPS ADC rate — set by U3, which carries 12 of the 16 pots (ch0–11) while U4
-  carries 4; the two chips convert in parallel, so the busier one sets the pace
-  (`RODEO_ADC_LIB_DESIGN.md` §4). Recording faster than the pots are read would only store
-  repeated samples.
+* **Up to 16 s, sampled at the pot scan rate** — ~108 Hz with the 8 + 8 channel split.
+  Recording faster than the pots are read would only store repeated samples.
 * Gestures **are saved with presets** (Derek, 2026-09-21): a preset
   with a gesture starts looping when it loads. Clearing a loop affects only the live state — the
   stored preset keeps its gesture until it is saved again.
@@ -196,14 +227,25 @@ their bypass states, the parameter being touched (with its value and pickup indi
 state, voice mode, preset name. Partial/low-rate refresh, interleaved with encoder polling —
 a full frame at 400 kHz is ~23 ms.
 
-Its one menu page is **patch settings**: filter keytrack, MIDI channel, bend range and the
-other set-once parameters. Reached from MAIN.
+### Settings pages
+
+Two pages, reached from MAIN. The split between them is what a preset load may and may not
+touch:
+
+| Page | Holds | Saved |
+|---|---|---|
+| **Patch** | Filter keytrack · glide time · LFO shape · velocity→filter amount · pitch-bend range | with each preset |
+| **Global** | MIDI channel · pot calibration | once, never by a preset |
+
+Master volume is also global but lives on its pot. **MIDI channel must never be in a preset** —
+loading one could otherwise leave the synth listening on a channel the keyboard isn't sending
+(Derek, 2026-09-21).
 
 ## Unused platform resources
 
 | Resource | Spare |
 |---|---|
-| ADC channels | 8 (ch16–23 = J22–J29) |
+| ADC channels | 8 (ch8–11 = J14–J17, ch20–23 = J26–J29) |
 | Digital GPIO | all 12 (J30–J41) |
 | Hub slots | 4 (slots 6–9 = J8–J11) |
 | Audio IN | unused this build |

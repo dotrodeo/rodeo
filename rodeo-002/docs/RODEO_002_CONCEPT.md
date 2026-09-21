@@ -82,7 +82,12 @@ a matter of *driving* them from common macros rather than porting new DSP. Anyth
 missing comes from the MIT-licensed Mutable source.
 
 **Per voice, after the engine:** a DaisySP `Svf` (Derek chose a real multimode filter over a
-Plaits-style low-pass gate) plus an amp envelope, a filter envelope and one LFO.
+Plaits-style low-pass gate), **one ADSR** and one LFO.
+
+**One envelope, shared** (decided 2026-09-21). The single ADSR drives the amp directly, and
+the filter, Timbre and Morph through their amount controls (Filter env amount, Env→Timbre,
+Env→Morph). That is what the panel has controls for — four envelope stages, not eight — and
+it is how the platform's `06_poly_synth` example works.
 
 **Voice modes:** Poly (8, or 6 on Vosim/Z-osc) · Mono (legato + glide) · Unison (stacked,
 detuned by Spread).
@@ -92,10 +97,16 @@ to be polyphonic, so each engine declares which voice modes it supports:
 
 | Engine class | Poly | Mono | Unison |
 |---|---|---|---|
-| Everything 8-voice or better | 8 | yes | up to 4 |
+| Everything 8-voice or better | 8 *(see below)* | yes | up to 4 |
 | Vosim, Z-osc | 6 | yes | up to 4 |
 | String, Karplus | — | yes | 2 only |
 | Modal | — | yes | — |
+
+**The voice outranks the voice count** (Derek, 2026-09-21). FM, Harmonic and Grainlet run 8
+voices at 66–69% — right at the ceiling. If the finished voice (LFO, voice management, any
+richer-voice additions) pushes one of them past 70%, **that engine drops to 6 voices** rather
+than the voice being held back for it. Each engine's poly count is therefore set from the
+finished firmware's measured load, not from the benchmark table.
 
 Selecting a mono-only engine while in Poly **switches the voice mode to Mono and says so on
 the OLED**, remembering the previous mode so that moving back to a polyphonic engine restores
@@ -109,6 +120,12 @@ Four slots in series, mirroring the Chroma Console's module layout: each slot ha
 **selectable effect type** (encoder), **one amount knob** (pot), a **secondary parameter**
 (shift + encoder) and a **bypass** (encoder tap). The chain is stereo and runs once on the
 voice sum, not per voice.
+
+> **Effect-type lists are not yet defined** — which effects each slot offers, and what each
+> one's secondary parameter and discrete option mean. That is the next design session, and the
+> chain cannot be written without it. Working rule until then: the pot's shift layer carries
+> the slot's continuous secondary; the encoder's shift-turn carries a discrete option (e.g.
+> forward/reverse grains).
 
 **SPACE is the headline block.** A granular delay whose buffer lives in SDRAM — 64 MB is
 minutes of stereo float, so buffer length is a non-issue. Controls: Time, Feedback, Grain
@@ -145,7 +162,9 @@ Per-engine cost is in the table above.
   would make a worse instrument.
 * **There is real headroom at 8 voices** on the cheaper engines: 8 VA voices plus the chain
   is ~39%. That is better spent on a *richer voice* — a second oscillator, a better filter, a
-  second LFO — than on voices 9 through 16.
+  second LFO — than on voices 9 through 16. **Cost anything per-voice against FM, Harmonic
+  and Grainlet**, not VA: they are the ones at the ceiling, and they drop to 6 voices if it
+  pushes them past it (see *Voice modes*).
 * **70% is the ceiling, deliberately.** The benchmark ran with no pot scanning, no encoder
   polling, no OLED and no MIDI. Audio runs in interrupt context and the UI runs in what is
   left, so that 30% remainder is the UI's entire budget — a full OLED frame at 400 kHz is
@@ -153,22 +172,60 @@ Per-engine cost is in the table above.
 * **Wavetable and Chord are deferred, and so unmeasured.** If revisited: Chord stacks 4–6
   oscillators per voice, so expect roughly 4 voices; Wavetable should be cheap.
 
+## MIDI performance mapping (decided 2026-09-21)
+
+A MIDI-keyboard-only instrument, so the keyboard's own controls matter as much as the panel's:
+
+| Source | Destination | Adjust |
+|---|---|---|
+| Velocity | Amp level, always; filter by a per-patch amount | Patch settings: velocity→filter |
+| Pitch bend | Pitch, **±2 semitones** default | Patch settings: bend range |
+| Mod wheel (CC1) | **Adds** to LFO depth | — |
+| Channel aftertouch | Morph | — |
+| Sustain pedal (CC64) | Holds notes | — |
+
+Glide time and LFO shape also sit on the patch-settings page — they have no panel position.
+
 ## Preset system
 
 Patches in the Daisy's QSPI flash: engine, all pot values (both layers), all four slot types
-and their parameters, voice mode, MIDI settings, **and the gesture loop if one was recorded**.
-Browsing and saving live on the main encoder (see the control map).
+and their parameters, voice mode, the patch-settings page, **and the gesture loop if one was
+recorded**. Browsing and saving live on the main encoder (see the control map).
+
+**Not in presets** (Derek, 2026-09-21): **MIDI channel** and **master volume** are global. A
+preset that stored the MIDI channel could leave the synth deaf to the keyboard, and one that
+stored volume would jump the output level on load. Pot calibration is global too.
 
 **Gestures save with presets** (Derek, 2026-09-21), so a preset can move by itself: it starts
-its loop when loaded. Size is the only cost: gestures sample at the pot scan rate (~72 Hz —
-see the control map), so a full 16-second, 16-pot gesture is ~37 KB, and 64 presets with full
-gestures would take ~2.4 MB of the 8 MB QSPI. Storing only the pots that actually moved makes a
+its loop when loaded. Size is the only cost: gestures sample at the pot scan rate (~108 Hz —
+see the control map), so a full 16-second, 16-pot gesture is ~55 KB, and 64 presets with full
+gestures would take ~3.5 MB of the QSPI (which also holds the program image — see *Firmware
+platform*). Storing only the pots that actually moved makes a
 typical gesture far smaller.
 
 **Physical-position problem:** pots hold their last physical position, so after a preset load
 (and after every shift-layer release) the panel disagrees with the patch. Every pot therefore
 uses **pickup** — a pot is inert until it crosses the stored value. This applies to the main
 layer too, not just the shift layer.
+
+## Firmware platform (decided 2026-09-21)
+
+**The program runs from SRAM via the Daisy bootloader (`APP_TYPE = BOOT_SRAM`), not from
+internal flash.** The Seed's internal flash is 128 KB, and `bench_voices` alone — twelve
+engines and the chain, with no MIDI, UI, OLED, ADC driver, presets or gestures — already uses
+89.7% of it at libDaisy's default `-O2`. The instrument cannot fit there.
+
+Under `BOOT_SRAM` the bootloader copies the program from QSPI into ~480 KB of AXI SRAM at boot
+and runs it from there, which is also fast memory, so DSP cost should carry over. Consequences:
+
+* **Install the bootloader once** (`make program-boot`). After that, updates are `make
+  program-dfu` in the bootloader's 2-second window after reset — **no BOOT button** needed.
+* **Program image and presets share the 8 MB QSPI** (7.75 MB usable above the bootloader's
+  reserved region). Plenty for both.
+* **Re-run `bench_voices` under `BOOT_SRAM` once** (`make APP_TYPE=BOOT_SRAM`) to confirm the
+  benchmark numbers carry over before relying on them in that mode.
+* **The enclosure needs access to the Daisy's own micro-USB** — updates and the debug log both
+  go through it, and the panel USB-C is power-only. Derek is designing this into the case.
 
 ## Open questions
 
@@ -178,4 +235,6 @@ layer too, not just the shift layer.
    keep them, restricted to Mono/Unison — see Voice modes above.
 3. ~~Panel layout~~ **LOCKED (Derek, 2026-09-20):** 4×4 pots, a column of 4 slot encoders, MAIN
    isolated under the OLED, 30 × 35 mm pitch — see the control map.
-4. MIDI CC in/out map for the pots.
+4. **Texture-slot effect lists** — the effect types per slot and what each one's secondary
+   and discrete option mean. **Next design session**; blocks the chain firmware.
+5. MIDI CC in/out map for the pots.
