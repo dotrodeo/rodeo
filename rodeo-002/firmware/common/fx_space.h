@@ -247,6 +247,15 @@ class Space
     }
     bool WetIsSilent() const { return wet_.cur < 1e-4f; }
 
+    /** Grains currently playing -- for profiling and the OLED, not control. */
+    int ActiveGrains() const
+    {
+        int n = 0;
+        for(int g = 0; g < kMaxGrains; g++)
+            n += grains_[g].active ? 1 : 0;
+        return n;
+    }
+
     /** Bypassed with the tail fully decayed: ProcessBlock does nothing (the
      *  dry is already at unity), so an unused Space costs no CPU. */
     bool IsIdle() const

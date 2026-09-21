@@ -6,9 +6,10 @@ here just points `RODEO_ROOT` back at that tree.
 
 | App | What it is |
 |---|---|
-| `common/` | **The real texture-chain effects**, shared by the benchmark now and the instrument later: four slots (`fx_character.h`, `fx_movement.h`, `fx_texture.h`, `fx_space.h`), the chain (`texture_chain.h`), helpers (`dsp_util.h`). Header-only and host-compilable. |
+| `common/` | **Shared code** for every app and, later, the instrument: the voice engines (`engines.h`), the four texture-chain slots (`fx_character.h`, `fx_movement.h`, `fx_texture.h`, `fx_space.h`), the chain (`texture_chain.h`), helpers (`dsp_util.h`) — header-only and host-compilable — plus `app.mk`, the build rules every app includes. |
 | `tests/` | Host-side GoogleTest for `common/`, against the real vendored DaisySP: every effect type at every corner must stay finite, bounded, quiet after the input stops, transparent at zero, and audible at full; plus a fuzz test that twiddles the whole chain at random. `make test`. |
 | `bench_voices/` | CPU benchmark: the cost of every effect type, then voices per engine with the worst-case chain running. |
+| `bench_space/` | Space-slot profiler (~40 s): splits Space's cost into ReverbSc, shimmer, pre-delay, grain engine (cost per grain) and running-at-mix-0, to decide which optimisation pays. |
 
 ## Building
 
@@ -20,8 +21,9 @@ the official Arm GNU Toolchain with newlib, `GCC_PATH` set in
 
 **rodeo-002 runs under the Daisy bootloader** (`APP_TYPE = BOOT_SRAM`): the Seed's 128 KB
 internal flash is too small for the instrument, so the bootloader copies the program from QSPI
-into SRAM at boot (see the concept doc, *Firmware platform*). The Makefiles here **default to
-that mode**, so plain `make` and `make program-dfu` agree.
+into SRAM at boot (see the concept doc, *Firmware platform*). Every app **defaults to that
+mode** — the rule lives once, in `common/app.mk` — so plain `make` and `make program-dfu`
+agree.
 
 One-time setup — install the bootloader from the chip's ROM DFU:
 
