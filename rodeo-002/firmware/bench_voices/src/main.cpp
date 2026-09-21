@@ -22,14 +22,23 @@
 // over I2C, redraws the OLED and handles MIDI. Treat the 70% column as the
 // honest voice count and the 90% one as the cliff.
 //
+// PASS FX (first, ~40 s): the cost of every texture-chain effect type -- the
+// REAL effects in ../common, the ones the instrument will ship. Four cheap
+// voices supply signal; every slot is bypassed (and so costs nothing) except
+// the one under test, which is pushed to its most expensive settings. Then the
+// most expensive type of each slot runs all at once: the worst-case chain.
+// The engine sweep's "fx on" pass then runs with THAT chain, so its voice
+// counts are the real ones.
+//
 // Flash: this builds for the Daisy bootloader by default (see the Makefile and
 // ../README.md). Tap RESET, tap BOOT while the LED pulses (holds the bootloader
-// in DFU), then `make program-dfu`. Open the serial log (115200) to watch the
-// sweep. Audio also comes out of
-// the jacks while it runs, so you can hear each engine as it is measured.
+// in DFU), then `make program-dfu`. Open the serial log (115200) to watch.
+// Audio comes out of the jacks throughout, so you can hear each effect type
+// and each engine as it is measured.
 
 #include <cmath>
 #include <cstdio>
+#include <new>
 
 #include "daisy_seed.h"
 #include "daisysp.h"
@@ -41,9 +50,18 @@ using namespace daisy;
 using namespace daisysp;
 using namespace rodeo002;
 
-// SDRAM grain buffers declared in texture_chain.h.
-float DSY_SDRAM_BSS rodeo002::g_grain_buf_l[kGrainBufLen];
-float DSY_SDRAM_BSS rodeo002::g_grain_buf_r[kGrainBufLen];
+using fx::Space;
+using fx::TextureChain;
+
+// Space's big buffers live in SDRAM. ReverbSc (~396 KB) too -- as raw storage,
+// constructed only after hw.Init() has brought the SDRAM up: a global object
+// with a constructor would be written to before the SDRAM exists.
+float DSY_SDRAM_BSS g_grain_l[Space::kGrainLen];
+float DSY_SDRAM_BSS g_grain_r[Space::kGrainLen];
+float DSY_SDRAM_BSS g_pre_l[Space::kPreLen];
+float DSY_SDRAM_BSS g_pre_r[Space::kPreLen];
+alignas(daisysp::ReverbSc) static uint8_t DSY_SDRAM_BSS
+    g_reverb_mem[sizeof(daisysp::ReverbSc)];
 
 static constexpr size_t kBlockSize  = 48;
 static constexpr float  kSampleRate = 48000.f;
@@ -120,7 +138,7 @@ struct BenchVoice
 };
 
 BenchVoice   voices[kMaxVoices];
-TextureChain chain;
+TextureChain chain; // DTCM: the slots' small state, voices beside it
 
 // --- sweep state ------------------------------------------------------------
 
@@ -163,24 +181,13 @@ void AudioCallback(AudioHandle::InputBuffer  in,
     for(int v = 0; v < n; v++)
         voices[v].RenderAdd(g_mix, size);
 
+    for(size_t i = 0; i < size; i++)
+    {
+        out[0][i] = g_mix[i];
+        out[1][i] = g_mix[i];
+    }
     if(g_fx_on)
-    {
-        for(size_t i = 0; i < size; i++)
-        {
-            float l, r;
-            chain.Process(g_mix[i], g_mix[i], &l, &r);
-            out[0][i] = l;
-            out[1][i] = r;
-        }
-    }
-    else
-    {
-        for(size_t i = 0; i < size; i++)
-        {
-            out[0][i] = g_mix[i];
-            out[1][i] = g_mix[i];
-        }
-    }
+        chain.ProcessBlock(out[0], out[1], size);
 
     meter.OnBlockEnd();
 
@@ -231,18 +238,145 @@ static void StartStep(EngineId id, int count)
     g_active_voices = count;
 }
 
+// ------------------------------------------------------------ FX pass
+
+static void PrintPct(const char* prefix, float v)
+{
+    hw.PrintLine("%s%d.%d",
+                 prefix,
+                 static_cast<int>(v),
+                 static_cast<int>((v - floorf(v)) * 10.f));
+}
+
+static constexpr int kAllSlots = -1;
+static constexpr int kNoSlots  = -2;
+
+/** Configure the chain with the audio callback kept out of it. With `only`
+ *  >= 0, that slot runs types[only] and the rest are bypassed; kAllSlots runs
+ *  all four, kNoSlots bypasses everything. Active slots get their most
+ *  expensive settings. */
+static void ConfigureChain(const int* types, int only)
+{
+    g_fx_on = false;
+    WaitBlocks(3); // make sure the callback has left the chain
+    for(int s = 0; s < TextureChain::kNumSlots; s++)
+    {
+        const bool on = (only == kAllSlots || s == only);
+        chain.SetBypass(s, !on);
+        chain.SetType(s, types[s]);
+        chain.SetAmount(s, 1.f);
+        chain.SetSecondary(s, 0.5f);
+        chain.SetOption(s, 0);
+    }
+    // Space at its heaviest: dense long grains, pitched (every grain is
+    // resampled), wide, fed back. For Reverb, Grain = full shimmer.
+    Space& sp = chain.space();
+    sp.SetFreeze(false);
+    sp.SetTime(0.5f);
+    sp.SetFeedback(0.8f);
+    sp.SetGrain(1.f);
+    sp.SetPitch(0.75f); // +12 semitones
+    sp.SetSpread(1.f);
+    sp.Silence();       // no leftover tail from the previous measurement
+    chain.SnapToTargets();
+    g_fx_on = true;
+}
+
+/** Settle 300 ms, measure 1.2 s. Returns false on overload. */
+static bool Measure(float* avg, float* max)
+{
+    g_overload    = false;
+    g_over_blocks = 0;
+    WaitBlocks(300);
+    meter.Reset();
+    WaitBlocks(1200);
+    *avg = meter.GetAvgCpuLoad() * 100.f;
+    *max = meter.GetMaxCpuLoad() * 100.f;
+    return !g_overload;
+}
+
+/** Cost of every effect type in isolation, then the worst-case chain. Fills
+ *  worst[] with the most expensive type per slot. */
+static void RunFxPass(int* worst)
+{
+    hw.PrintLine("--- FX pass: cost of each effect type (4 x variable-saw) ---");
+    hw.PrintLine("FX,slot,type,avg_pct,max_pct,cost_pct");
+    StartStep(EngineId::kVariableSaw, 4);
+
+    // Baseline: every slot bypassed -- only the output stage runs.
+    int types[TextureChain::kNumSlots] = {};
+    ConfigureChain(types, kNoSlots);
+    float base = 0.f, base_max = 0.f;
+    Measure(&base, &base_max);
+    PrintPct("FX,baseline (all bypassed),-,", base);
+
+    for(int s = 0; s < TextureChain::kNumSlots; s++)
+    {
+        float worst_cost = -1.f;
+        for(int t = 0; t < TextureChain::NumTypes(s); t++)
+        {
+            hw.PrintLine("RUN,FX,%s,%s", TextureChain::SlotName(s), TextureChain::TypeName(s, t));
+            types[s] = t;
+            ConfigureChain(types, s);
+            float avg = 0.f, max = 0.f;
+            if(!Measure(&avg, &max))
+            {
+                hw.PrintLine("FX,%s,%s,OVER,OVER,OVER",
+                             TextureChain::SlotName(s),
+                             TextureChain::TypeName(s, t));
+                worst[s] = t;
+                worst_cost = 1e9f;
+                continue;
+            }
+            const float cost = avg - base;
+            hw.PrintLine("FX,%s,%s,%d.%d,%d.%d,%d.%d",
+                         TextureChain::SlotName(s),
+                         TextureChain::TypeName(s, t),
+                         static_cast<int>(avg),
+                         static_cast<int>((avg - floorf(avg)) * 10.f),
+                         static_cast<int>(max),
+                         static_cast<int>((max - floorf(max)) * 10.f),
+                         static_cast<int>(cost),
+                         static_cast<int>((cost - floorf(cost)) * 10.f));
+            if(cost > worst_cost)
+            {
+                worst_cost = cost;
+                worst[s]   = t;
+            }
+        }
+        types[s] = worst[s];
+    }
+
+    // All four at their most expensive, at once.
+    ConfigureChain(worst, kAllSlots);
+    float avg = 0.f, max = 0.f;
+    const bool ok = Measure(&avg, &max);
+    hw.PrintLine("FX,worst chain = %s + %s + %s + %s",
+                 TextureChain::TypeName(0, worst[0]),
+                 TextureChain::TypeName(1, worst[1]),
+                 TextureChain::TypeName(2, worst[2]),
+                 TextureChain::TypeName(3, worst[3]));
+    if(ok)
+    {
+        PrintPct("FX,worst chain total load,", avg);
+        PrintPct("FX,worst chain cost over baseline,", avg - base);
+    }
+    else
+        hw.PrintLine("FX,worst chain,OVER");
+    g_fx_on = false;
+}
+
 int main(void)
 {
     hw.Init();
     hw.SetAudioBlockSize(kBlockSize);
     hw.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
 
-    chain.Init(kSampleRate);
-    chain.SetAmounts(0.5f, 0.5f, 0.5f, 0.5f);
-    chain.Space().SetTime(0.35f);
-    chain.Space().SetFeedback(0.45f);
-    chain.Space().SetGrain(0.7f); // long, dense grains = worst case
-    chain.Space().SetPitch(12.f); // shimmer: every grain is resampled
+    // SDRAM is up now; build the reverb in its storage, then the chain.
+    daisysp::ReverbSc* reverb = new(g_reverb_mem) daisysp::ReverbSc();
+    chain.Init(kSampleRate, {g_grain_l, g_grain_r, g_pre_l, g_pre_r, reverb});
+    chain.SetVolume(1.f);
+    chain.SetTilt(0.5f);
 
     meter.Init(kSampleRate, static_cast<int>(kBlockSize));
 
@@ -256,16 +390,18 @@ int main(void)
     System::Delay(1500);
 
     hw.PrintLine("=== rodeo-002 bench_voices ===");
-    hw.PrintLine("sr=48k block=%d grains=%d buf=%ds(SDRAM)",
+    hw.PrintLine("sr=48k block=%d, grain buffer %d ms/ch in SDRAM, ReverbSc in SDRAM",
                  static_cast<int>(kBlockSize),
-                 kMaxGrains,
-                 static_cast<int>(kGrainBufSeconds));
+                 static_cast<int>(Space::kGrainLen * 1000 / 48000));
     hw.PrintLine("NOTE: no ADC scan / encoder poll / OLED / MIDI running --");
     hw.PrintLine("      budget ~%d%% load, not 100%%.",
                  static_cast<int>(kTargetLoad));
-    hw.PrintLine("CSV,engine,fx,voices,avg_pct,max_pct");
-
     hw.StartAudio(AudioCallback);
+
+    int worst[TextureChain::kNumSlots] = {};
+    RunFxPass(worst);
+
+    hw.PrintLine("CSV,engine,fx,voices,avg_pct,max_pct");
 
     // Results: per engine, largest voice count under target / under cliff.
     int best_at_target[2][static_cast<int>(EngineId::kCount)] = {};
@@ -273,10 +409,12 @@ int main(void)
 
     for(int pass = 0; pass < 2; pass++)
     {
+        if(pass == 1)
+            ConfigureChain(worst, kAllSlots); // the worst-case chain
         g_fx_on = (pass == 1);
         hw.PrintLine("--- pass %d: texture chain %s ---",
                      pass,
-                     g_fx_on ? "ON" : "OFF");
+                     g_fx_on ? "ON (worst case per slot)" : "OFF");
 
         for(int e = 0; e < static_cast<int>(EngineId::kCount); e++)
         {
@@ -352,7 +490,7 @@ int main(void)
 
     g_active_voices = 0;
     hw.PrintLine("");
-    hw.PrintLine("=== SUMMARY: max voices ===");
+    hw.PrintLine("=== SUMMARY: max voices (fx on = worst-case chain) ===");
     hw.PrintLine("engine,voices@70pct_fxoff,voices@70pct_fxon,voices@90pct_fxon");
     for(int e = 0; e < static_cast<int>(EngineId::kCount); e++)
     {

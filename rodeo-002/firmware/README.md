@@ -6,7 +6,9 @@ here just points `RODEO_ROOT` back at that tree.
 
 | App | What it is |
 |---|---|
-| `bench_voices/` | Voice + texture-chain CPU benchmark. Answers "how many voices?" before the instrument is designed around a guess. |
+| `common/` | **The real texture-chain effects**, shared by the benchmark now and the instrument later: four slots (`fx_character.h`, `fx_movement.h`, `fx_texture.h`, `fx_space.h`), the chain (`texture_chain.h`), helpers (`dsp_util.h`). Header-only and host-compilable. |
+| `tests/` | Host-side GoogleTest for `common/`, against the real vendored DaisySP: every effect type at every corner must stay finite, bounded, quiet after the input stops, transparent at zero, and audible at full; plus a fuzz test that twiddles the whole chain at random. `make test`. |
+| `bench_voices/` | CPU benchmark: the cost of every effect type, then voices per engine with the worst-case chain running. |
 
 ## Building
 
@@ -67,11 +69,24 @@ make RODEO_ROOT=/path/to/rodeo/rodeo-motherboard/firmware
 
 ## `bench_voices` — what it measures and how to read it
 
-For each candidate engine it holds a sustained chord at a rising voice count and
-reports audio-callback load from libDaisy's `CpuLoadMeter`. The whole sweep runs
-twice: voices alone, then voices plus the full texture chain (overdrive + fold,
-chorus, bitcrush, and the granular delay with its 4-second SDRAM buffer,
-configured to its worst case — long dense grains, shimmer pitch, feedback up).
+**First, the FX pass (~40 s).** Four cheap voices supply signal. Every
+texture-chain slot is bypassed — which costs nothing — except the one under
+test, pushed to its most expensive settings (full amount; for Space, long dense
+pitched grains with feedback). Each effect type's cost is its load over the
+all-bypassed baseline:
+
+```
+FX,slot,type,avg_pct,max_pct,cost_pct
+```
+
+Then the most expensive type from each slot runs all at once: **the worst-case
+chain**.
+
+**Then the engine sweep**: for each candidate engine it holds a sustained chord
+at a rising voice count and reports audio-callback load from libDaisy's
+`CpuLoadMeter`, twice — voices alone, then voices plus **the worst-case chain
+measured above**. These are the real effects from `../common`, so the voice
+counts are the ones the instrument will get.
 
 The voice under test is the rodeo-002 voice from the control map: one engine →
 `Svf` low-pass → amp ADSR, with a block-rate filter ADSR.
@@ -107,9 +122,6 @@ engine being measured.
 - **Wavetable and Chord aren't in the sweep.** They still need porting from the
   Mutable Instruments source, so the benchmark cannot speak for them. They are
   likely the two most expensive engines in the concept's list.
-- **One effect type per slot.** Character, Movement and Texture each implement
-  the option I expect to be most expensive; the alternates should come in under
-  these numbers. Space is implemented properly because it is the point.
 - **Voices all run the same engine**, which is how the instrument works — engine
   is a per-patch choice.
 - **Grain count is capped** at `kMaxGrains` (12), which is also what bounds the

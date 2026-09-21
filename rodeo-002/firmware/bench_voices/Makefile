@@ -7,6 +7,13 @@ RODEO_ROOT := ../../../rodeo-motherboard/firmware
 TARGET      = bench_voices
 CPP_SOURCES = src/main.cpp
 
+# The real texture-chain effects, shared with the instrument (../common).
+C_INCLUDES += -I../common
+
+# Space's Reverb is DaisySP-LGPL's ReverbSc. rodeo-002 firmware is always open
+# source, so linking LGPL is fine (concept doc, *Firmware platform*).
+USE_DAISYSP_LGPL = 1
+
 # rodeo-002 runs under the Daisy bootloader, so that is the default here too.
 # APP_TYPE decides BOTH the memory map the program is linked for AND the address
 # `program-dfu` writes it to, and the two must agree: a bootloader build flashed
