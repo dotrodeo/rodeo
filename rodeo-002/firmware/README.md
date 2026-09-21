@@ -40,13 +40,25 @@ configured to its worst case — long dense grains, shimmer pitch, feedback up).
 The voice under test is the rodeo-002 voice from the control map: one engine →
 `Svf` low-pass → amp ADSR, with a block-rate filter ADSR.
 
-Output is CSV over the serial log at 115200:
+Output is CSV over the serial log at 115200. Each step announces itself first,
+so if the board ever does wedge, the log's last line names what was playing:
 
 ```
+RUN,engine,fx,voices
 CSV,engine,fx,voices,avg_pct,max_pct
 ```
 
 then a summary of the largest voice count that stayed under 70% average load.
+
+A step that cannot run in real time reports `CSV,engine,fx,voices,OVER,OVER`
+and the sweep moves to the next engine. This matters more than it sounds: an
+overrunning audio callback starves every lower-priority interrupt including
+SysTick, so `System::GetNow()` and `System::Delay()` stop advancing and the
+main thread freezes mid-measurement with the chord still sounding. The first
+hardware run died exactly that way, at step 24. The harness therefore clocks
+itself from the audio callback (one block = 48 samples = 1 ms exactly) and the
+callback drops all voices after 16 consecutive over-budget blocks, which frees
+the CPU and lets the sweep continue.
 
 **Read the 70% column, not the 90% one.** Nothing else runs during the sweep —
 no 16-pot ADC scan over SPI, no encoder-hub I²C polling, no OLED redraw, no
