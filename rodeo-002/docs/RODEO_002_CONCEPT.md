@@ -3,7 +3,7 @@ title: "rodeo-002 — Instrument Concept"
 tags: [rodeo, rodeo-002, instrument, concept, granular, plaits, daisy-seed]
 status: draft
 created: 2026-09-20
-updated: 2026-09-20
+updated: 2026-09-21
 ---
 
 # rodeo-002 — Instrument Concept
@@ -156,8 +156,13 @@ Per-engine cost is in the table above.
 ## Preset system
 
 Patches in the Daisy's QSPI flash: engine, all pot values (both layers), all four slot types
-and their parameters, voice mode, MIDI settings. Browsing and saving live on the main encoder
-(see the control map).
+and their parameters, voice mode, MIDI settings, **and the gesture loop if one was recorded**.
+Browsing and saving live on the main encoder (see the control map).
+
+**Gestures save with presets** (Derek, 2026-09-21), so a preset can move by itself: it starts
+its loop when loaded. Size is the only cost: a full 16-second, 16-pot gesture at 100 Hz is
+~51 KB, so 64 presets with full gestures would take ~3.3 MB of the 8 MB QSPI. Storing only the
+pots that actually moved makes a typical gesture far smaller.
 
 **Physical-position problem:** pots hold their last physical position, so after a preset load
 (and after every shift-layer release) the panel disagrees with the patch. Every pot therefore
@@ -166,8 +171,8 @@ layer too, not just the shift layer.
 
 ## Open questions
 
-1. **Gesture recorder** (record and loop a knob movement, as the Chroma Console does) —
-   Derek: nice-to-have, droppable if an encoder action is better spent elsewhere. Parked.
+1. ~~Gesture recorder~~ **RESOLVED (Derek, 2026-09-21):** in, on MAIN's long-press, saved with
+   presets — see the control map. It costs well under 1% CPU; control space was the constraint.
 2. ~~The three physical models miss the 6-voice minimum~~ **RESOLVED (Derek, 2026-09-20):**
    keep them, restricted to Mono/Unison — see Voice modes above.
 3. Panel/enclosure layout — not started. The 4×4 pot grid plus a row of 5 encoders under the

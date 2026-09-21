@@ -3,7 +3,7 @@ title: "rodeo-002 Control Map — Interface Contract"
 tags: [rodeo, rodeo-002, control-map, pinout, ads114s08, encoder-hub, panel]
 status: active
 created: 2026-09-20
-updated: 2026-09-20
+updated: 2026-09-21
 ---
 
 # rodeo-002 Control Map — Interface Contract
@@ -49,7 +49,7 @@ Three blocks, and the grouping is the point:
 * **Column 4 plus the encoder column are the texture chain** — one slot per row, its amount
   pot beside the encoder that picks its effect type, reading top-to-bottom in signal order.
 * **The OLED and the isolated MAIN encoder (E5) are the brain** — engine, presets, voice mode,
-  and every readout.
+  the gesture recorder, and every readout.
 
 Every encoder is physically adjacent to the one pot it pairs with, and nothing is modal.
 
@@ -113,7 +113,8 @@ channels. **Channels 16–23 (J22–J29) stay spare**, as do all 12 digital inpu
 A pot is **inert until its position crosses the parameter's stored value**, after:
 * a preset load,
 * a shift press or release (the pot now addresses a different parameter),
-* engine or slot-type changes that redefine a parameter.
+* engine or slot-type changes that redefine a parameter,
+* a gesture loop stopping or being cleared (parameters stay where the loop left them).
 
 Without this, every preset load would jump 16 parameters to wherever the knobs happen to sit.
 The OLED shows a catch indicator (which side of the value the knob is on) for any pot that is
@@ -130,7 +131,7 @@ bottom; the isolated encoder under the OLED is slot 5. Slots 6–9 unpopulated.
 | 2 | R2C5 MOVEMENT  | Slot effect type | Bypass slot | — | Slot secondary |
 | 3 | R3C5 TEXTURE   | Slot effect type | Bypass slot | — | Slot secondary |
 | 4 | R4C5 SPACE     | Slot effect type | Bypass slot | **FREEZE** (grain buffer) | Slot secondary |
-| 5 | R4C6 **MAIN**  | Engine select (wrap) | Preset browser: turn = browse, tap = load | Save-to-slot flow | **Voice mode** |
+| 5 | R4C6 **MAIN**  | Engine select (wrap) | Preset browser: turn = browse, tap = load, long-press = save to this slot | **GESTURE** — arm / close loop / clear | **Voice mode** |
 
 * **Shift = MAIN's switch held.** MAIN sits at the far right, so shift is held with one hand
   while the other sweeps pots. Holding it and turning MAIN itself (a push-turn) selects the
@@ -151,6 +152,30 @@ bottom; the isolated encoder under the OLED is slot 5. Slots 6–9 unpopulated.
   (engine, slot types, voice mode) — same rule as rodeo-001.
 * Encoder satellites take **straight** cables (`A / B / S / GND` both ends).
 * Direction follows the hub's `CONFIG.ENC_DIR_INVERT`.
+
+### Gesture recorder (decided 2026-09-21)
+
+Records pot movements and loops them — the Chroma Console's gesture idea. It lives on **MAIN's
+long-press** because it is a global performance feature and belongs on the brain encoder, not
+on a texture slot. **Save moved into the preset browser** to make room (long-press on the
+highlighted slot while browsing), which is where you are already choosing a slot anyway.
+
+| MAIN long-press, when… | Does |
+|---|---|
+| idle | **Arm.** Recording starts on the first pot movement, so there is no rush. OLED: `REC`. |
+| recording | **Close the loop** and start playing it back. |
+| looping | **Stop and clear.** |
+
+* **Loop end is trimmed to the press-DOWN moment.** A long-press resolves ≥ 600 ms after the
+  press starts (and MAIN resolves on release — see above), so closing the loop at resolution
+  would make every loop end late. The firmware timestamps the press-down and cuts there.
+* **Pots only, both layers.** Encoders change effect types and engines; looping discrete jumps
+  like those reads as a malfunction, not a gesture.
+* **Grabbing a pot that is in the loop takes that parameter back** from the loop for the rest
+  of playback, so you can play over a gesture without stopping it.
+* **Up to 16 s** at 100 Hz. Gestures **are saved with presets** (Derek, 2026-09-21): a preset
+  with a gesture starts looping when it loads. Clearing a loop affects only the live state — the
+  stored preset keeps its gesture until it is saved again.
 
 ### Firmware polling
 
