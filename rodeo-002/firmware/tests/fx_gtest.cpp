@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "fx_character.h"
+#include "fx_movement.h"
 
 using namespace rodeo002::fx;
 
@@ -113,48 +114,115 @@ const float kCorners[] = {0.f, 0.5f, 1.f};
 
 } // namespace
 
-// ---------------------------------------------------------------- CHARACTER
-
-TEST(Character, StableAndQuietAfterInputStops)
+// Sweeps every type x option x amount/secondary corner of a slot. `Fx` needs
+// Init/SetType/SetOption/SetAmount/ProcessBlock and static TypeName;
+// `set_secondary` applies the slot's secondary (Bias, Rate, ...).
+template <typename Fx, typename SetSecondary>
+void SweepSlot(int n_types,
+               int n_options,
+               SetSecondary set_secondary,
+               float peak_limit,
+               float tail_limit)
 {
-    for(int type = 0; type < Character::kNumTypes; type++)
-        for(int opt = 0; opt < Character::kNumOptions; opt++)
+    for(int type = 0; type < n_types; type++)
+        for(int opt = 0; opt < n_options; opt++)
             for(float amount : kCorners)
-                for(float bias : kCorners)
+                for(float sec : kCorners)
                 {
-                    Character fx;
+                    Fx fx;
                     fx.Init(kSr);
                     fx.SetType(type);
                     fx.SetOption(opt);
                     fx.SetAmount(amount);
-                    fx.SetBias(bias);
+                    set_secondary(fx, sec);
                     const Result res = RunFx(
                         [&](float* l, float* r, size_t n) { fx.ProcessBlock(l, r, n); },
                         0.5f);
                     SCOPED_TRACE(testing::Message()
-                                 << Character::TypeName(type) << " opt " << opt
-                                 << " amount " << amount << " bias " << bias);
+                                 << Fx::TypeName(type) << " opt " << opt << " amount "
+                                 << amount << " secondary " << sec);
                     EXPECT_TRUE(res.finite);
-                    EXPECT_LT(res.peak, 2.f);
-                    // Memoryless shaper + DC blocker: silence in, silence out.
-                    EXPECT_LT(res.tail_peak, 1e-3f);
+                    EXPECT_LT(res.peak, peak_limit);
+                    EXPECT_LT(res.tail_peak, tail_limit);
                 }
 }
 
-TEST(Character, TransparentAtZeroAmount)
+template <typename Fx, typename SetSecondary>
+void CheckTransparentAtZero(int n_types, int option, SetSecondary set_secondary)
 {
-    for(int type = 0; type < Character::kNumTypes; type++)
+    for(int type = 0; type < n_types; type++)
     {
-        Character fx;
+        Fx fx;
         fx.Init(kSr);
         fx.SetType(type);
-        fx.SetOption(Character::kCut300);
-        fx.SetBias(1.f);
+        fx.SetOption(option);
+        set_secondary(fx, 1.f);
         fx.SetAmount(0.f);
-        SCOPED_TRACE(Character::TypeName(type));
+        SCOPED_TRACE(Fx::TypeName(type));
         EXPECT_LT(MaxDeviation([&](float* l, float* r, size_t n) {
                       fx.ProcessBlock(l, r, n);
                   }),
                   1e-5f);
     }
+}
+
+// The converse of transparency: at full amount every type must audibly change
+// the signal -- a stability test alone would pass an effect that did nothing.
+template <typename Fx, typename SetSecondary>
+void CheckAudibleAtFull(int n_types, int option, float secondary, SetSecondary set_secondary)
+{
+    for(int type = 0; type < n_types; type++)
+    {
+        Fx fx;
+        fx.Init(kSr);
+        fx.SetType(type);
+        fx.SetOption(option);
+        set_secondary(fx, secondary);
+        fx.SetAmount(1.f);
+        SCOPED_TRACE(Fx::TypeName(type));
+        EXPECT_GT(MaxDeviation([&](float* l, float* r, size_t n) {
+                      fx.ProcessBlock(l, r, n);
+                  }),
+                  0.05f);
+    }
+}
+
+// ---------------------------------------------------------------- CHARACTER
+
+auto kSetBias = [](Character& fx, float v) { fx.SetBias(v); };
+
+// Memoryless shaper + DC blocker: silence in, silence out.
+TEST(Character, StableAndQuietAfterInputStops)
+{
+    SweepSlot<Character>(Character::kNumTypes, Character::kNumOptions, kSetBias, 2.f, 1e-3f);
+}
+
+TEST(Character, AudibleAtFullAmount)
+{
+    CheckAudibleAtFull<Character>(Character::kNumTypes, Character::kCutOff, 0.5f, kSetBias);
+}
+
+TEST(Character, TransparentAtZeroAmount)
+{
+    CheckTransparentAtZero<Character>(Character::kNumTypes, Character::kCut300, kSetBias);
+}
+
+// ---------------------------------------------------------------- MOVEMENT
+
+auto kSetRate = [](Movement& fx, float v) { fx.SetRate(v); };
+
+// Flanger feedback and the phaser's feedback loop must both die away.
+TEST(Movement, StableAndQuietAfterInputStops)
+{
+    SweepSlot<Movement>(Movement::kNumTypes, Movement::kNumOptions, kSetRate, 2.f, 1e-3f);
+}
+
+TEST(Movement, AudibleAtFullAmount)
+{
+    CheckAudibleAtFull<Movement>(Movement::kNumTypes, Lfo::kSine, 0.7f, kSetRate);
+}
+
+TEST(Movement, TransparentAtZeroAmount)
+{
+    CheckTransparentAtZero<Movement>(Movement::kNumTypes, Lfo::kRandom, kSetRate);
 }
