@@ -103,7 +103,8 @@ to be polyphonic, so each engine declares which voice modes it supports:
 | Modal | — | yes | — |
 
 **The voice outranks the voice count** (Derek, 2026-09-21). FM, Harmonic and Grainlet run 8
-voices at 66–69% — right at the ceiling. If the finished voice (LFO, voice management, any
+voices at 66–69% in the plain build, 63.5–64.7% under the bootloader — close to the ceiling
+either way, with ~5 points of room for the finished voice. If the finished voice (LFO, voice management, any
 richer-voice additions) pushes one of them past 70%, **that engine drops to 6 voices** rather
 than the voice being held back for it. Each engine's poly count is therefore set from the
 finished firmware's measured load, not from the benchmark table.
@@ -154,6 +155,19 @@ load = 12.9% (chain) + voices x cost-per-voice
 
 **8 voices is confirmed for 7 of the 12 measured engines**, and the two cheapest run 16.
 Per-engine cost is in the table above.
+
+### Re-measured under the bootloader, 2026-09-21
+
+The instrument runs as `BOOT_SRAM` (see *Firmware platform*), so the sweep was repeated in
+that mode — log: [`bench_voices-2026-09-21-bootsram.log`](bench_voices-2026-09-21-bootsram.log).
+**Every number carries over or improves:** across 125 paired measurements the load is 1.4
+points lower on average (−3%), ranging from 5.6 points better to 1.6 worse. The chain is
+unchanged at 12.9%. The gains concentrate in the engines with the most per-voice state — FM,
+Formant, Grainlet — consistent with voice state moving to zero-wait-state DTCM in this mode.
+
+The table above keeps the original plain-build figures, so it slightly *overstates* cost in
+the shipping configuration. No engine changes voice class: Karplus now fits 4 voices at 68.6%,
+a hair under the line, which doesn't matter because it is Mono/Unison-2 by design.
 
 ### What this means for the design
 

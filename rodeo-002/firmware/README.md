@@ -53,9 +53,10 @@ Plain internal-flash builds are still available with `make APP_TYPE=BOOT_NONE` â
 `program-dfu` as well, and note that it replaces the bootloader. The platform's bring-up
 examples are plain builds, so **flashing any of them erases the bootloader** too.
 
-`bench_voices`' published numbers were measured as a plain build. **Re-run it once under the
-bootloader** to confirm they carry over. In that mode it sweeps to 12 voices rather than 16:
-the bootloader build puts zero-initialised globals in the 128 KB DTCM, which 16 voices overflow.
+`bench_voices` was first measured as a plain build, then **re-run under the bootloader on
+2026-09-21: the numbers carry over, ~3% cheaper on average** (concept doc, *Resource budget*).
+In that mode it sweeps to 12 voices rather than 16: the bootloader build puts zero-initialised
+globals in the 128 KB DTCM, which 16 voices overflow.
 
 If you are building inside a git worktree where the submodules aren't checked
 out, point at the main checkout instead of initialising them again:
