@@ -37,7 +37,13 @@ make APP_TYPE=BOOT_SRAM program-dfu   # within 2 s of a reset, while the bootloa
 
 `bench_voices` still defaults to plain internal flash, which is how its published numbers
 were measured. **Re-run it once with `APP_TYPE=BOOT_SRAM`** to confirm those numbers carry
-over before relying on them in that mode.
+over before relying on them in that mode. In that mode it sweeps to 12 voices rather than 16:
+the bootloader build puts zero-initialised globals in the 128 KB DTCM, which 16 voices
+overflow.
+
+**Gotcha:** once the bootloader is installed, flashing any plain (`BOOT_NONE`) build — this
+benchmark's default, or any of the platform's bring-up examples — overwrites the bootloader in
+internal flash. Reinstall it with `make program-boot` before going back to `BOOT_SRAM` builds.
 
 If you are building inside a git worktree where the submodules aren't checked
 out, point at the main checkout instead of initialising them again:

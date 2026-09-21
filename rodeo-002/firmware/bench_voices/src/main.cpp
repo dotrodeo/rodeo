@@ -45,12 +45,22 @@ float DSY_SDRAM_BSS rodeo002::g_grain_buf_r[kGrainBufLen];
 
 static constexpr size_t kBlockSize  = 48;
 static constexpr float  kSampleRate = 48000.f;
-static constexpr int    kMaxVoices  = 16;
 
 // Voice counts to try, in order. The sweep abandons an engine as soon as one
 // of these exceeds the cliff, so heavy engines cost little bench time.
+#ifdef BOOT_APP
+// Under the Daisy bootloader (APP_TYPE=BOOT_SRAM, which defines BOOT_APP),
+// zero-initialised globals live in the 128 KB DTCM, shared with the stack, and
+// 16 voices overflow it by ~5 KB. Twelve is enough to confirm the numbers carry
+// over to that mode: only four engines ever ran past 12 anyway.
+static constexpr int kMaxVoices     = 12;
+static constexpr int kVoiceSteps[]  = {1, 2, 4, 6, 8, 10, 12};
+static constexpr int kNumVoiceSteps = 7;
+#else
+static constexpr int kMaxVoices     = 16;
 static constexpr int kVoiceSteps[]  = {1, 2, 4, 6, 8, 10, 12, 16};
 static constexpr int kNumVoiceSteps = 8;
+#endif
 
 static constexpr float kTargetLoad = 70.f; // usable, leaves room for the UI
 static constexpr float kCliffLoad  = 90.f; // stop climbing
@@ -208,7 +218,7 @@ static void StartStep(EngineId id, int count)
 
     // A wide voicing -- low notes make the physical models work hardest, and
     // spreading the pitches keeps any shared-state caching honest.
-    static const int kChord[kMaxVoices] = {36, 43, 48, 52, 55, 60, 64, 67,
+    static const int kChord[16] = {36, 43, 48, 52, 55, 60, 64, 67,
                                            69, 72, 76, 79, 81, 84, 88, 91};
     for(int v = 0; v < count; v++)
     {

@@ -218,6 +218,14 @@ engines and the chain, with no MIDI, UI, OLED, ADC driver, presets or gestures �
 Under `BOOT_SRAM` the bootloader copies the program from QSPI into ~480 KB of AXI SRAM at boot
 and runs it from there, which is also fast memory, so DSP cost should carry over. Consequences:
 
+* **Zero-initialised globals go to the 128 KB DTCM, not the 480 KB SRAM** — and DTCM also holds
+  the stack. This is the real memory budget. `bench_voices` could not link its 16 voices there
+  (overflow ~5 KB) and runs 12 in that mode, at 87% of DTCM. The instrument's 8 voices fit
+  comfortably, but **any large buffer must be placed explicitly in SDRAM**
+  (`DSY_SDRAM_BSS`): the grain buffer already is, and **the live gesture buffer (~55 KB) and
+  preset staging must be too**. DTCM is zero-wait-state, so keeping voice state there is a
+  speed win rather than a compromise.
+
 * **Install the bootloader once** (`make program-boot`). After that, updates are `make
   program-dfu` in the bootloader's 2-second window after reset — **no BOOT button** needed.
 * **Program image and presets share the 8 MB QSPI** (7.75 MB usable above the bootloader's
