@@ -141,6 +141,15 @@ class Space
         shim_ref_ = shim_env_ = 0.f;
     }
 
+    /** Snap the dry/wet/input smoothers to their targets -- for the chain's
+     *  immediate (non-faded) configuration. */
+    void SnapGains()
+    {
+        dry_.Snap(dry_.target);
+        wet_.Snap(wet_.target);
+        input_.Snap(input_.target);
+    }
+
     void SetType(int t)
     {
         type_ = (t >= 0 && t < kNumTypes) ? t : kEcho;
@@ -229,8 +238,41 @@ class Space
         buf_.reverb->SetLpFreq(ExpMap(damp_pot_, 18000.f, 1500.f));
     }
 
+    /** Holds the wet at zero (smoothly) without touching the mix setting --
+     *  the chain uses it to fade Space out across a type change. */
+    void SetWetHold(bool h)
+    {
+        wet_hold_ = h;
+        UpdateGains();
+    }
+    bool WetIsSilent() const { return wet_.cur < 1e-4f; }
+
+    /** Bypassed with the tail fully decayed: ProcessBlock does nothing (the
+     *  dry is already at unity), so an unused Space costs no CPU. */
+    bool IsIdle() const
+    {
+        return bypass_ && input_.cur < 1e-4f && tail_env_ < 1e-5f;
+    }
+
+    /** Zero every buffer and re-initialise the reverb: a true silence. Takes
+     *  milliseconds -- only ever call it while the audio callback is NOT
+     *  running this slot (the benchmark does, between measurements). */
+    void Silence()
+    {
+        for(size_t i = 0; i < kGrainLen; i++)
+            buf_.grain_l[i] = buf_.grain_r[i] = 0.f;
+        for(size_t i = 0; i < kPreLen; i++)
+            buf_.pre_l[i] = buf_.pre_r[i] = 0.f;
+        buf_.reverb->Init(sample_rate_);
+        SetDamp(damp_pot_); // Init resets the reverb's damping
+        Reset();
+        tail_env_ = 0.f;
+    }
+
     void ProcessBlock(float* l, float* r, size_t n)
     {
+        if(IsIdle())
+            return;
         switch(type_)
         {
             case kEcho: Run<kEcho>(l, r, n); break;
@@ -281,7 +323,7 @@ class Space
     void UpdateGains()
     {
         dry_.Set(bypass_ ? 1.f : 1.f - mix_ * mix_);
-        wet_.Set(1.f - (1.f - mix_) * (1.f - mix_));
+        wet_.Set(wet_hold_ ? 0.f : 1.f - (1.f - mix_) * (1.f - mix_));
         input_.Set(bypass_ ? 0.f : 1.f);
     }
 
@@ -502,6 +544,11 @@ class Space
 
             l[i] = l[i] * dry_g + wl * wet_g;
             r[i] = r[i] * dry_g + wr * wet_g;
+
+            // Tail level, for IsIdle(). Includes the input so a slot that is
+            // still being fed never counts as idle.
+            const float lvl = fmaxf(fmaxf(fabsf(wl), fabsf(wr)), fabsf(in_l) + fabsf(in_r));
+            tail_env_ = lvl > tail_env_ ? lvl : tail_env_ * 0.9999f;
         }
     }
 
@@ -524,7 +571,8 @@ class Space
     float    mix_ = 0.f, time_ = 0.35f, feedback_ = 0.4f, grain_ = 0.5f;
     float    spread_ = 0.5f, pitch_pot_ = 0.5f, damp_pot_ = 0.3f;
     float    semitones_ = 0.f, rate_ = 1.f;
-    bool     bypass_ = false, freeze_ = false;
+    bool     bypass_ = false, freeze_ = false, wet_hold_ = false;
+    float    tail_env_ = 0.f;
     float    grain_len_ = 4800.f, overlap_ = 2.f, offset_ = 16800.f, norm_ = 1.f;
     int      spawn_countdown_ = 1;
     size_t   write_ = 0, pre_write_ = 0;

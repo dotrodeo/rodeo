@@ -21,6 +21,7 @@
 #include "fx_movement.h"
 #include "fx_texture.h"
 #include "fx_space.h"
+#include "texture_chain.h"
 
 #include <memory>
 
@@ -97,10 +98,17 @@ Result RunFx(const std::function<void(float*, float*, size_t)>& process,
     return res;
 }
 
-// Max |out - in| once smoothers have settled (skips the first 100 ms).
-float MaxDeviation(const std::function<void(float*, float*, size_t)>& process)
+// Max |out - in| once smoothers have settled (skips the first 100 ms). `gain`
+// scales the test signal (the chain's limiter is only transparent below 0.9).
+float MaxDeviation(const std::function<void(float*, float*, size_t)>& process,
+                   float gain = 1.f)
 {
     std::vector<float> l = MakeSignal(0, 0.1f), r = MakeSignal(1, 0.1f);
+    for(size_t i = 0; i < l.size(); i++)
+    {
+        l[i] *= gain;
+        r[i] *= gain;
+    }
     std::vector<float> l0 = l, r0 = r;
     float              dev  = 0.f;
     const size_t       skip = static_cast<size_t>(kSr * 0.1f);
@@ -435,4 +443,172 @@ TEST(Space, PitchQuantizeLandsOnItsIntervals)
     rig.fx.SetOption(Space::kFree);
     rig.fx.SetPitch(0.505f); // a hair off centre still means unison
     EXPECT_EQ(rig.fx.GetSemitones(), 0.f);
+}
+
+// ---------------------------------------------------------------- CHAIN
+
+namespace
+{
+struct ChainRig
+{
+    std::vector<float>                 gl, gr, pl, pr;
+    std::unique_ptr<daisysp::ReverbSc> reverb;
+    std::unique_ptr<TextureChain>      chain; // ~30 KB: heap, not stack
+
+    ChainRig()
+    : gl(Space::kGrainLen), gr(Space::kGrainLen), pl(Space::kPreLen),
+      pr(Space::kPreLen), reverb(new daisysp::ReverbSc), chain(new TextureChain)
+    {
+        chain->Init(kSr, {gl.data(), gr.data(), pl.data(), pr.data(), reverb.get()});
+    }
+};
+
+// Largest sample-to-sample step over a buffer: a click shows up as a jump.
+float MaxStep(const std::vector<float>& x, size_t from, size_t to)
+{
+    float m = 0.f;
+    for(size_t i = from + 1; i < to; i++)
+        m = fmaxf(m, fabsf(x[i] - x[i - 1]));
+    return m;
+}
+} // namespace
+
+TEST(Chain, TransparentWithEverythingAtZero)
+{
+    ChainRig rig;
+    rig.chain->SetTilt(0.5f);
+    rig.chain->SetVolume(1.f);
+    for(int s = 0; s < TextureChain::kNumSlots; s++)
+        rig.chain->SetAmount(s, 0.f);
+    // Below the limiter's 0.9 knee.
+    EXPECT_LT(MaxDeviation([&](float* l, float* r, size_t n) {
+                  rig.chain->ProcessBlock(l, r, n);
+              },
+                           0.85f),
+              1e-5f);
+}
+
+// Random twiddling of every control, as a player might: 8 independent 30 s
+// runs, one change every 200 ms (long enough for feedback to build), values
+// biased to the extremes, every slot starting fully on.
+//   * The OUTPUT never exceeds full scale (the limiter's job).
+//   * The level INTO the limiter stays under 8x. Hot but legitimate patches
+//     reach ~5x (max-decay Reverb fed by a full Rectify); real runaways
+//     measured in the thousands. Mutation-checked: with the old unbounded
+//     shimmer restored, this test fails.
+TEST(Chain, SurvivesRandomTwiddlingOfEverything)
+{
+    for(uint32_t seed = 1; seed <= 8; seed++)
+    {
+        ChainRig rig;
+        Rng      rng;
+        rng.Seed(seed * 7919u);
+        // Extremes half the time: that is where the trouble lives.
+        auto pick = [&]() {
+            const float u = rng.Uniform();
+            return u < 0.25f ? 0.f : (u < 0.5f ? 1.f : rng.Uniform());
+        };
+        for(int s = 0; s < TextureChain::kNumSlots; s++)
+            rig.chain->SetAmount(s, 1.f);
+
+        const size_t       kLen  = static_cast<size_t>(kSr * 30.f);
+        std::vector<float> src_l = MakeSignal(0, 0.5f), src_r = MakeSignal(1, 0.5f);
+        float              l[kBlock], r[kBlock];
+        float              peak = 0.f, pre_peak = 0.f;
+        bool               finite = true;
+        for(size_t i = 0; i + kBlock <= kLen; i += kBlock)
+        {
+            if((i / kBlock) % 200 == 0)
+            {
+                const int s = static_cast<int>(rng.Next() % TextureChain::kNumSlots);
+                switch(rng.Next() % 8)
+                {
+                    case 0: rig.chain->SetType(s, static_cast<int>(rng.Next() % 5)); break;
+                    case 1: rig.chain->SetBypass(s, rng.Uniform() < 0.2f); break;
+                    case 2: rig.chain->SetAmount(s, pick()); break;
+                    case 3: rig.chain->SetSecondary(s, pick()); break;
+                    case 4: rig.chain->SetOption(s, static_cast<int>(rng.Next() % 4)); break;
+                    case 5:
+                        rig.chain->space().SetFeedback(pick());
+                        rig.chain->space().SetGrain(pick());
+                        break;
+                    case 6:
+                        rig.chain->space().SetPitch(pick());
+                        rig.chain->space().SetTime(pick());
+                        rig.chain->space().SetSpread(pick());
+                        break;
+                    default: rig.chain->space().SetFreeze(rng.Uniform() < 0.15f); break;
+                }
+            }
+            for(size_t j = 0; j < kBlock; j++)
+            {
+                l[j] = src_l[(i + j) % src_l.size()];
+                r[j] = src_r[(i + j) % src_r.size()];
+            }
+            rig.chain->ProcessBlock(l, r, kBlock);
+            pre_peak = fmaxf(pre_peak, rig.chain->OutputPeak());
+            for(size_t j = 0; j < kBlock; j++)
+            {
+                if(!std::isfinite(l[j]) || !std::isfinite(r[j]))
+                    finite = false;
+                peak = fmaxf(peak, fmaxf(fabsf(l[j]), fabsf(r[j])));
+            }
+        }
+        SCOPED_TRACE(testing::Message() << "seed " << seed);
+        EXPECT_TRUE(finite);
+        EXPECT_LE(peak, 1.f);
+        EXPECT_LT(pre_peak, 8.f);
+    }
+}
+
+// Switching Movement from a delay type to the phaser resets state that the
+// dry signal can't mask -- without the crossfade that is a jump. With it, the
+// largest sample-to-sample step during the switch stays in line with the
+// steady-state signal's own.
+TEST(Chain, TypeChangesDoNotClick)
+{
+    ChainRig rig;
+    const size_t kLen = static_cast<size_t>(kSr * 1.f);
+    std::vector<float> l(kLen), r(kLen);
+    for(size_t i = 0; i < kLen; i++)
+        l[i] = r[i] = 0.5f * sinf(kTwoPi * 220.f * static_cast<float>(i) / kSr);
+    rig.chain->SetType(TextureChain::kMovement, Movement::kChorus);
+    rig.chain->SetAmount(TextureChain::kMovement, 1.f);
+    const size_t kSwitch = static_cast<size_t>(kSr * 0.5f);
+    for(size_t i = 0; i + kBlock <= kLen; i += kBlock)
+    {
+        if(i == kSwitch)
+            rig.chain->SetType(TextureChain::kMovement, Movement::kPhaser);
+        rig.chain->ProcessBlock(&l[i], &r[i], kBlock);
+    }
+    const float steady = MaxStep(l, kSwitch - 4800, kSwitch);
+    const float during = MaxStep(l, kSwitch, kSwitch + 2400);
+    EXPECT_EQ(rig.chain->GetType(TextureChain::kMovement), Movement::kPhaser);
+    EXPECT_LT(during, steady * 1.5f + 1e-3f);
+}
+
+// A Space type change fades only the wet: the dry never dips.
+TEST(Chain, SpaceTypeChangeKeepsTheDry)
+{
+    ChainRig rig;
+    rig.chain->SetAmount(TextureChain::kSpace, 0.5f);
+    rig.chain->SnapToTargets();
+    const size_t kLen = static_cast<size_t>(kSr * 0.5f);
+    std::vector<float> l(kLen, 0.25f), r(kLen, 0.25f); // DC: easy to see a dip
+    // Silence the wet so what remains is the dry alone: bypass-free, but the
+    // grains read an empty buffer for the first Time's worth of samples.
+    rig.chain->space().SetTime(1.f);
+    for(size_t i = 0; i + kBlock <= kLen; i += kBlock)
+    {
+        if(i == kBlock * 20)
+            rig.chain->SetType(TextureChain::kSpace, Space::kCloud);
+        rig.chain->ProcessBlock(&l[i], &r[i], kBlock);
+    }
+    // Dry at mix 0.5 is 1 - 0.25 = 0.75 of the input, before the tilt/volume
+    // stage (flat, unity). It must hold through the switch.
+    float lo = 1.f;
+    for(size_t i = kBlock * 10; i < kLen; i++)
+        lo = fminf(lo, l[i]);
+    EXPECT_GT(lo, 0.25f * 0.75f - 0.01f);
+    EXPECT_EQ(rig.chain->GetType(TextureChain::kSpace), Space::kCloud);
 }
