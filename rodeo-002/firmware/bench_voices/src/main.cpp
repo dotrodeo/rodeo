@@ -22,8 +22,9 @@
 // over I2C, redraws the OLED and handles MIDI. Treat the 70% column as the
 // honest voice count and the 90% one as the cliff.
 //
-// Flash: put the Daisy in DFU (hold BOOT, tap RESET), then `make program-dfu`,
-// and open the serial log (115200) to watch the sweep. Audio also comes out of
+// Flash: this builds for the Daisy bootloader by default (see the Makefile and
+// ../README.md). Tap RESET, then `make program-dfu` within ~2 s. Open the
+// serial log (115200) to watch the sweep. Audio also comes out of
 // the jacks while it runs, so you can hear each engine as it is measured.
 
 #include <cmath>

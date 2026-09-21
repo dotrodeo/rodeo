@@ -16,34 +16,43 @@ the official Arm GNU Toolchain with newlib, `GCC_PATH` set in
 `rodeo-motherboard/firmware/config.mk`, and the submodules initialised
 (`git submodule update --init --recursive`).
 
+**rodeo-002 runs under the Daisy bootloader** (`APP_TYPE = BOOT_SRAM`): the Seed's 128 KB
+internal flash is too small for the instrument, so the bootloader copies the program from QSPI
+into SRAM at boot (see the concept doc, *Firmware platform*). The Makefiles here **default to
+that mode**, so plain `make` and `make program-dfu` agree.
+
+One-time setup — install the bootloader from the chip's ROM DFU:
+
+```bash
+make program-boot     # first: hold BOOT, tap RESET
+```
+
+Then, for every update — **no BOOT button**:
+
 ```bash
 cd rodeo-002/firmware/bench_voices
 make
-make program-dfu   # Daisy in DFU first: hold BOOT, tap RESET
+make program-dfu      # tap RESET, then run this within ~2 s while the bootloader waits
 ```
 
-### The instrument runs under the Daisy bootloader
+If the 2-second window is missed, the Daisy just boots the program it already has — tap RESET
+and try again.
 
-The Seed's internal flash is 128 KB and `bench_voices` alone uses ~90% of it, so the
-instrument firmware is built as `APP_TYPE = BOOT_SRAM`: the Daisy bootloader copies it from
-QSPI into SRAM at boot (see the concept doc, *Firmware platform*). One-time setup, then
-updates without the BOOT button:
+**Why `APP_TYPE` must match on build *and* flash.** It sets both the memory map the program is
+linked for and the address `program-dfu` writes to. A bootloader build flashed as a plain one
+lands on `0x08000000`, overwrites the bootloader, and crashes silently at boot — and dfu-util
+reports success, because the bootloader and the chip's ROM DFU share a USB ID. That happened on
+2026-09-21. The Makefile now wipes the build whenever `APP_TYPE` changes, so a mismatched flash
+fails with a missing file instead. **Recovery if it happens anyway:** reinstall the bootloader
+(`make program-boot` from ROM DFU), then flash normally.
 
-```bash
-make program-boot                  # once: installs the Daisy bootloader (Daisy in ST DFU)
-make APP_TYPE=BOOT_SRAM
-make APP_TYPE=BOOT_SRAM program-dfu   # within 2 s of a reset, while the bootloader waits
-```
+Plain internal-flash builds are still available with `make APP_TYPE=BOOT_NONE` — pass it to
+`program-dfu` as well, and note that it replaces the bootloader. The platform's bring-up
+examples are plain builds, so **flashing any of them erases the bootloader** too.
 
-`bench_voices` still defaults to plain internal flash, which is how its published numbers
-were measured. **Re-run it once with `APP_TYPE=BOOT_SRAM`** to confirm those numbers carry
-over before relying on them in that mode. In that mode it sweeps to 12 voices rather than 16:
-the bootloader build puts zero-initialised globals in the 128 KB DTCM, which 16 voices
-overflow.
-
-**Gotcha:** once the bootloader is installed, flashing any plain (`BOOT_NONE`) build — this
-benchmark's default, or any of the platform's bring-up examples — overwrites the bootloader in
-internal flash. Reinstall it with `make program-boot` before going back to `BOOT_SRAM` builds.
+`bench_voices`' published numbers were measured as a plain build. **Re-run it once under the
+bootloader** to confirm they carry over. In that mode it sweeps to 12 voices rather than 16:
+the bootloader build puts zero-initialised globals in the 128 KB DTCM, which 16 voices overflow.
 
 If you are building inside a git worktree where the submodules aren't checked
 out, point at the main checkout instead of initialising them again:
