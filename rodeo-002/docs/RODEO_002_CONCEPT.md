@@ -62,15 +62,16 @@ chain running** — i.e. what the instrument can actually offer.
 | Grainlet | DaisySP `GrainletOscillator` | 6.9% | **8** |
 | Vosim | DaisySP `VosimOscillator` | 8.9% | 6 |
 | Z-osc | DaisySP `ZOscillator` | 9.5% | 6 |
-| Karplus string | DaisySP `String` | 14.5% | 2 |
-| String voice | DaisySP `StringVoice` | 17.1% | 2 |
-| Modal | DaisySP `ModalVoice` | 46.2% | **1** |
+| Karplus string | DaisySP `String` | 14.5% | **Mono · Unison-2** |
+| String voice | DaisySP `StringVoice` | 17.1% | **Mono · Unison-2** |
+| Modal | DaisySP `ModalVoice` | 46.2% | **Mono only** |
 | Wavetable | **to port** — Plaits (MIT), or a small in-house table set | unmeasured | — |
 | Chord | **to port** — Plaits (MIT) | unmeasured, ~4–6 osc/voice | — |
 
-**The three physical models cannot meet the 6-voice minimum** and need a
-decision (see Open questions). Everything from Grainlet up meets the 8-voice
-target; the two cheapest VA engines have room for twice that.
+**The three physical models cannot meet the 6-voice minimum, so they are monophonic
+engines** (Derek, 2026-09-20 — see Voice modes). They are struck and plucked models that
+suit monophonic playing anyway. Everything from Grainlet up meets the 8-voice target; the
+two cheapest VA engines have room for twice that.
 
 Most of the list is already vendored in `rodeo-motherboard/firmware/DaisySP` — these are the
 Plaits-derived modules Émilie Gillet contributed upstream, so the "Plaits-like" feel is mostly
@@ -80,7 +81,24 @@ missing comes from the MIT-licensed Mutable source.
 **Per voice, after the engine:** a DaisySP `Svf` (Derek chose a real multimode filter over a
 Plaits-style low-pass gate) plus an amp envelope, a filter envelope and one LFO.
 
-**Voice modes:** Poly · Mono (legato + glide) · Unison (stacked, detuned by Spread).
+**Voice modes:** Poly (8, or 6 on Vosim/Z-osc) · Mono (legato + glide) · Unison (stacked,
+detuned by Spread).
+
+**Mono-only engines (decided 2026-09-20).** Modal, String and Karplus cost too much per voice
+to be polyphonic, so each engine declares which voice modes it supports:
+
+| Engine class | Poly | Mono | Unison |
+|---|---|---|---|
+| Everything 8-voice or better | 8 | yes | up to 4 |
+| Vosim, Z-osc | 6 | yes | up to 4 |
+| String, Karplus | — | yes | 2 only |
+| Modal | — | yes | — |
+
+Selecting a mono-only engine while in Poly **switches the voice mode to Mono and says so on
+the OLED**, remembering the previous mode so that moving back to a polyphonic engine restores
+it. The engine list is never filtered — every engine stays reachable in the same order, and
+the instrument explains the change rather than hiding the option. This is the one place where
+engine choice reaches outside the voice.
 
 ### The texture chain
 
@@ -147,10 +165,8 @@ layer too, not just the shift layer.
 
 1. **Gesture recorder** (record and loop a knob movement, as the Chroma Console does) —
    Derek: nice-to-have, droppable if an encoder action is better spent elsewhere. Parked.
-2. **The three physical models (Modal, String, Karplus) miss the 6-voice minimum** — Modal
-   is monophonic at 46% a voice. Options: drop them; keep them but restrict to the Mono and
-   Unison voice modes (they are struck/plucked and suit monophonic playing anyway); or spend
-   effort optimising them (Modal's 24-mode resonator is the obvious knob). **Needs Derek.**
+2. ~~The three physical models miss the 6-voice minimum~~ **RESOLVED (Derek, 2026-09-20):**
+   keep them, restricted to Mono/Unison — see Voice modes above.
 3. Panel/enclosure layout — not started. The 4×4 pot grid plus a row of 5 encoders under the
    OLED is the assumed geometry.
 4. MIDI CC in/out map for the pots.

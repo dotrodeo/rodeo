@@ -85,6 +85,11 @@ Hub slot N ↔ hub connector J(N+2) ↔ panel encoder N. Slots 6–9 unpopulated
 
 * **Shift = MAIN's switch held.** Holding it and turning MAIN itself (a push-turn) selects the
   voice mode, which is why voice mode needs no button.
+* **Voice mode is constrained by the engine** (concept doc, *Voice modes*). Modal is Mono
+  only; String and Karplus are Mono or Unison-2. Turning MAIN onto one of those engines while
+  in Poly switches the mode to Mono and posts it on the OLED, restoring the previous mode when
+  a polyphonic engine is selected again. Engine order never changes — nothing is hidden or
+  skipped, the instrument just says what it did.
 * Encoders are incremental, so **all encoder-owned state persists in the patch/flash**
   (engine, slot types, voice mode) — same rule as rodeo-001.
 * Encoder satellites take **straight** cables (`A / B / S / GND` both ends).
