@@ -65,8 +65,11 @@ chain running** — i.e. what the instrument can actually offer.
 | Karplus string | DaisySP `String` | 14.5% | **Mono · Unison-2** |
 | String voice | DaisySP `StringVoice` | 17.1% | **Mono · Unison-2** |
 | Modal | DaisySP `ModalVoice` | 46.2% | **Mono only** |
-| Wavetable | **to port** — Plaits (MIT), or a small in-house table set | unmeasured | — |
-| Chord | **to port** — Plaits (MIT) | unmeasured, ~4–6 osc/voice | — |
+| Wavetable | *deferred* — would port from Plaits (MIT) | unmeasured | — |
+| Chord | *deferred* — would port from Plaits (MIT) | unmeasured, ~4–6 osc/voice | — |
+
+**Wavetable and Chord are deferred** (Derek, 2026-09-20): not ported for now, so the shipping
+engine list is the twelve measured above.
 
 **The three physical models cannot meet the 6-voice minimum, so they are monophonic
 engines** (Derek, 2026-09-20 — see Voice modes). They are struck and plucked models that
@@ -147,8 +150,8 @@ Per-engine cost is in the table above.
   polling, no OLED and no MIDI. Audio runs in interrupt context and the UI runs in what is
   left, so that 30% remainder is the UI's entire budget — a full OLED frame at 400 kHz is
   ~23 ms of I²C by itself.
-* **Wavetable and Chord remain unmeasured** — they are not ported yet. Chord stacks 4–6
-  oscillators per voice, so expect roughly 4 voices; it may not earn its place.
+* **Wavetable and Chord are deferred, and so unmeasured.** If revisited: Chord stacks 4–6
+  oscillators per voice, so expect roughly 4 voices; Wavetable should be cheap.
 
 ## Preset system
 

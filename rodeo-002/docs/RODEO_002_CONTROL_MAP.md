@@ -1,7 +1,7 @@
 ---
 title: "rodeo-002 Control Map — Interface Contract"
 tags: [rodeo, rodeo-002, control-map, pinout, ads114s08, encoder-hub, panel]
-status: draft
+status: active
 created: 2026-09-20
 updated: 2026-09-20
 ---
@@ -17,9 +17,9 @@ Platform facts referenced here come from
 [`RODEO_HUB_I2C_CONTRACT.md`](../../rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md); the
 channel convention `ch = chip·12 + AINindex` is the platform's, shared with rodeo-001.
 
-> **Status: DRAFT.** Nothing is wired yet. The voice count and engine set are settled (the CPU
-> benchmark has run — see the concept doc); the layout below matches Derek's panel proposal of
-> 2026-09-20 and its **30 × 35 mm** hole pitch.
+> **Status: 🔒 PANEL LAYOUT LOCKED (Derek, 2026-09-20).** The grid, the 30 × 35 mm pitch, and
+> the pot-channel and encoder-slot assignments below are frozen — firmware and harness build to
+> them. Nothing is wired yet. Changes from here need an explicit decision, not a drift.
 
 ## Surface
 
@@ -67,7 +67,9 @@ Every encoder is physically adjacent to the one pot it pairs with, and nothing i
   bend back behind the board plane, so 5 mm below each board is enough. **Rows 1–3's cables
   must pass the rows below them**, so 37–38 mm vertical is easier to harness if the panel
   proportions still look right — not required.
-* Behind the panel: `rodeo-encoder-hub` is 45 × 45 mm, the motherboard 100 × 80 mm.
+* **The motherboard (100 × 80 mm) and `rodeo-encoder-hub` (45 × 45 mm) mount directly to the
+  3D-printed case**, not to the panel (Derek, 2026-09-20). Only the 21 control satellites and the
+  OLED hang on the panel, so the harness is the only thing crossing between the two.
 * The Alps RK09K pot and EC11E encoder bushings are the same size — one hole diameter serves
   all 21 (verify against the parts in hand).
 
@@ -133,6 +135,13 @@ bottom; the isolated encoder under the OLED is slot 5. Slots 6–9 unpopulated.
 * **Shift = MAIN's switch held.** MAIN sits at the far right, so shift is held with one hand
   while the other sweeps pots. Holding it and turning MAIN itself (a push-turn) selects the
   voice mode, which is why voice mode needs no button.
+* **MAIN's press resolves on release, and only if nothing else was touched.** Shift is a *hold*,
+  and so is a long-press — without this rule, holding shift for more than 600 ms while reaching
+  for a pot would fire the long-press action. On release: if any pot or encoder moved while MAIN
+  was down, the press was a shift and does nothing; otherwise it is a tap (< 600 ms) or a
+  long-press (≥ 600 ms). Once a clean hold passes 600 ms the OLED shows what releasing will do,
+  so the pending action is never invisible. Slot encoders 1–4 are never shift, so their own
+  long-press (Freeze) can fire at the threshold without waiting for release.
 * **Voice mode is constrained by the engine** (concept doc, *Voice modes*). Modal is Mono
   only; String and Karplus are Mono or Unison-2. Turning MAIN onto one of those engines while
   in Poly switches the mode to Mono and posts it on the OLED, restoring the previous mode when
