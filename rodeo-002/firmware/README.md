@@ -27,16 +27,19 @@ One-time setup — install the bootloader from the chip's ROM DFU:
 make program-boot     # first: hold BOOT, tap RESET
 ```
 
-Then, for every update — **no BOOT button**:
+Then, for every update:
 
 ```bash
 cd rodeo-002/firmware/bench_voices
 make
-make program-dfu      # tap RESET, then run this within ~2 s while the bootloader waits
+make program-dfu
 ```
 
-If the 2-second window is missed, the Daisy just boots the program it already has — tap RESET
-and try again.
+**Before `program-dfu`, park the bootloader:** tap RESET, and while the LED is pulsing slowly,
+tap BOOT once — a few rapid blinks confirm it will now wait indefinitely. Don't try to race
+the bootloader's 2.5-second grace period instead: dfu-util can find the device and still lose
+it mid-connect (`Cannot claim interface - LIBUSB_ERROR_NO_DEVICE`) when the window closes.
+(Behaviour per libDaisy's `doc/md/_a7_Getting-Started-Daisy-Bootloader.md`.)
 
 **Why `APP_TYPE` must match on build *and* flash.** It sets both the memory map the program is
 linked for and the address `program-dfu` writes to. A bootloader build flashed as a plain one

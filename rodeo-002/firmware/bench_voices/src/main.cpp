@@ -23,8 +23,9 @@
 // honest voice count and the 90% one as the cliff.
 //
 // Flash: this builds for the Daisy bootloader by default (see the Makefile and
-// ../README.md). Tap RESET, then `make program-dfu` within ~2 s. Open the
-// serial log (115200) to watch the sweep. Audio also comes out of
+// ../README.md). Tap RESET, tap BOOT while the LED pulses (holds the bootloader
+// in DFU), then `make program-dfu`. Open the serial log (115200) to watch the
+// sweep. Audio also comes out of
 // the jacks while it runs, so you can hear each engine as it is measured.
 
 #include <cmath>

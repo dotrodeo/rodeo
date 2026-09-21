@@ -227,7 +227,8 @@ and runs it from there, which is also fast memory, so DSP cost should carry over
   speed win rather than a compromise.
 
 * **Install the bootloader once** (`make program-boot`). After that, updates are `make
-  program-dfu` in the bootloader's 2-second window after reset — **no BOOT button** needed.
+  program-dfu` into the bootloader: tap RESET, then tap BOOT while the LED pulses to hold it
+  in DFU indefinitely. The BOOT button no longer has to be held through a reset.
 * **Program image and presets share the 8 MB QSPI** (7.75 MB usable above the bootloader's
   reserved region). Plenty for both.
 * **Re-run `bench_voices` under `BOOT_SRAM` once** (`make APP_TYPE=BOOT_SRAM`) to confirm the
