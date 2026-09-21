@@ -47,20 +47,30 @@ MIDI IN ─► voice alloc ─► N × [ macro-oscillator engine ─► SVF ─�
 
 One **engine per patch**, selected on the main encoder. Every engine is driven by the same
 three macros — **Harmonics / Timbre / Morph** — so the panel never changes meaning, only
-character. Candidate engine list (final set gated on the CPU spike below):
+character. Candidate engine list, **measured on hardware 2026-09-20** (budget section
+below). "Voices" is the largest count that stayed under 70% audio load **with the texture
+chain running** — i.e. what the instrument can actually offer.
 
-| Engine | Source |
-|---|---|
-| Virtual analog (dual variable-shape) | DaisySP `VariableShapeOscillator`, `VariableSawOscillator` |
-| Waveshaper / wavefolder | DaisySP `Oscillator` + `Wavefolder` |
-| 2-op FM | DaisySP `Fm2` |
-| Formant / vowel | DaisySP `FormantOscillator`, `VosimOscillator` |
-| Harmonic / additive | DaisySP `HarmonicOscillator` |
-| Granular-ish grit | DaisySP `GrainletOscillator`, `Particle` |
-| String (Karplus/physical) | DaisySP `StringVoice`, `KarplusString` |
-| Modal | DaisySP `ModalVoice` |
-| Wavetable | **to port** — Mutable Instruments Plaits (MIT), or a small in-house table set |
-| Chord | **to port** — Plaits (MIT), the most expensive engine by far |
+| Engine | Source | Cost/voice | Voices |
+|---|---|---|---|
+| Virtual analog (synced variable-shape) | DaisySP `VariableShapeOscillator` | 3.3% | **16** |
+| Variable saw | DaisySP `VariableSawOscillator` | 3.0% | **16** |
+| Particle (resonant noise grains) | DaisySP `Particle` | 3.6% | **12** |
+| Formant / vowel | DaisySP `FormantOscillator` | 4.6% | **12** |
+| Harmonic / additive (16 partials) | DaisySP `HarmonicOscillator<16>` | 6.7% | **8** |
+| 2-op FM | DaisySP `Fm2` | 6.8% | **8** |
+| Grainlet | DaisySP `GrainletOscillator` | 6.9% | **8** |
+| Vosim | DaisySP `VosimOscillator` | 8.9% | 6 |
+| Z-osc | DaisySP `ZOscillator` | 9.5% | 6 |
+| Karplus string | DaisySP `String` | 14.5% | 2 |
+| String voice | DaisySP `StringVoice` | 17.1% | 2 |
+| Modal | DaisySP `ModalVoice` | 46.2% | **1** |
+| Wavetable | **to port** — Plaits (MIT), or a small in-house table set | unmeasured | — |
+| Chord | **to port** — Plaits (MIT) | unmeasured, ~4–6 osc/voice | — |
+
+**The three physical models cannot meet the 6-voice minimum** and need a
+decision (see Open questions). Everything from Grainlet up meets the 8-voice
+target; the two cheapest VA engines have room for twice that.
 
 Most of the list is already vendored in `rodeo-motherboard/firmware/DaisySP` — these are the
 Plaits-derived modules Émilie Gillet contributed upstream, so the "Plaits-like" feel is mostly
@@ -85,19 +95,42 @@ minutes of stereo float, so buffer length is a non-issue. Controls: Time, Feedba
 **Freeze** (long-press its encoder) locks the buffer so new notes play over a held cloud;
 that is the instrument's signature gesture, and it makes a "capture" feature nearly free.
 
-## Resource budget — UNVERIFIED, gating the design
+## Resource budget — MEASURED on hardware, 2026-09-20
 
-**8 voices is the working target; 12 is unlikely once the texture chain and granular delay
-are live.** The Daisy's H7 has real headroom, but these engines were written for
-single-voice Eurorack modules, and the heavier ones (chord, modal, full FM) may need a
-per-patch voice cap applied automatically.
+Measured by [`bench_voices`](../firmware/bench_voices/) on the real board, at 48 kHz / block
+48, voices in SRAM and the grain buffer in SDRAM. Raw log:
+[`bench_voices-2026-09-20.log`](bench_voices-2026-09-20.log).
 
-> **Next build step:** a bench program that instantiates N copies of each candidate engine on
-> the actual board and reports audio-callback load, then adds the texture chain. Its numbers
-> set the voice count and the final engine list **before** any of this is committed to.
+**The texture chain costs a flat 12.9%** — 12.8–13.0% measured across five engines — and it
+does not scale with voice count, because it runs once on the voice sum. That figure includes
+the granular delay at its worst case: 12 overlapping grains, long and dense, shimmer pitch,
+feedback up, reading a 4-second SDRAM buffer. **The headline feature of the instrument costs
+about an eighth of the processor**, and SDRAM latency — the thing most likely to have made
+this unworkable — is a non-issue.
 
-Working assumptions for that spike: 48 kHz, block size 48, voices and FX state in internal
-SRAM, granular buffer in SDRAM.
+Everything else is linear in voice count, so the whole budget is:
+
+```
+load = 12.9% (chain) + voices x cost-per-voice
+```
+
+**8 voices is confirmed for 7 of the 12 measured engines**, and the two cheapest run 16.
+Per-engine cost is in the table above.
+
+### What this means for the design
+
+* **8 voices is the architecture** — not 6, not 12. Only the two VA engines and Particle
+  could do more, and designing around a count that a third of the engine list cannot reach
+  would make a worse instrument.
+* **There is real headroom at 8 voices** on the cheaper engines: 8 VA voices plus the chain
+  is ~39%. That is better spent on a *richer voice* — a second oscillator, a better filter, a
+  second LFO — than on voices 9 through 16.
+* **70% is the ceiling, deliberately.** The benchmark ran with no pot scanning, no encoder
+  polling, no OLED and no MIDI. Audio runs in interrupt context and the UI runs in what is
+  left, so that 30% remainder is the UI's entire budget — a full OLED frame at 400 kHz is
+  ~23 ms of I²C by itself.
+* **Wavetable and Chord remain unmeasured** — they are not ported yet. Chord stacks 4–6
+  oscillators per voice, so expect roughly 4 voices; it may not earn its place.
 
 ## Preset system
 
@@ -114,7 +147,10 @@ layer too, not just the shift layer.
 
 1. **Gesture recorder** (record and loop a knob movement, as the Chroma Console does) —
    Derek: nice-to-have, droppable if an encoder action is better spent elsewhere. Parked.
-2. Final engine list, pending the CPU spike.
+2. **The three physical models (Modal, String, Karplus) miss the 6-voice minimum** — Modal
+   is monophonic at 46% a voice. Options: drop them; keep them but restrict to the Mono and
+   Unison voice modes (they are struck/plucked and suit monophonic playing anyway); or spend
+   effort optimising them (Modal's 24-mode resonator is the obvious knob). **Needs Derek.**
 3. Panel/enclosure layout — not started. The 4×4 pot grid plus a row of 5 encoders under the
    OLED is the assumed geometry.
 4. MIDI CC in/out map for the pots.
