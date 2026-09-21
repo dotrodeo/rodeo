@@ -92,24 +92,26 @@ Within each chip the grid is read left-to-right, top-to-bottom onto consecutive 
 | 0  | R1C1 | Harmonics         | Env→Timbre               | U3 | AIN0 | J6  |
 | 1  | R1C2 | Timbre            | Env→Morph                | U3 | AIN1 | J7  |
 | 2  | R1C3 | Morph             | LFO rate                 | U3 | AIN2 | J8  |
-| 3  | R1C4 | **Character amt** | Character secondary      | U3 | AIN3 | J9  |
+| 3  | R1C4 | **Character amt** | Character **Bias**       | U3 | AIN3 | J9  |
 | 4  | R2C1 | Cutoff            | Filter type *(stepped)*  | U3 | AIN4 | J10 |
 | 5  | R2C2 | Resonance         | Filter env amount        | U3 | AIN5 | J11 |
 | 6  | R2C3 | Spread            | **LFO dest** *(stepped)* | U3 | AIN6 | J12 |
-| 7  | R2C4 | **Movement amt**  | Movement secondary       | U3 | AIN7 | J13 |
+| 7  | R2C4 | **Movement amt**  | Movement **Rate**        | U3 | AIN7 | J13 |
 | 12 | R3C1 | Attack            | Decay                    | U4 | AIN0 | J18 |
 | 13 | R3C2 | Release           | Sustain                  | U4 | AIN1 | J19 |
 | 14 | R3C3 | Master volume *(global)* | LFO depth         | U4 | AIN2 | J20 |
-| 15 | R3C4 | **Texture amt**   | Texture secondary        | U4 | AIN3 | J21 |
+| 15 | R3C4 | **Texture amt**   | Texture **Tone**         | U4 | AIN3 | J21 |
 | 16 | R4C1 | Space Time        | Grain pitch              | U4 | AIN4 | J22 |
 | 17 | R4C2 | Space Feedback    | Grain position spread    | U4 | AIN5 | J23 |
 | 18 | R4C3 | Space Grain       | Tilt EQ                  | U4 | AIN6 | J24 |
-| 19 | R4C4 | **Space Mix**     | Space secondary          | U4 | AIN7 | J25 |
+| 19 | R4C4 | **Space Mix**     | Space **Damp**           | U4 | AIN7 | J25 |
 
 * **Alias footgun, both chips:** AIN6/AIN7 are also REFP1/REFN1, and ch6/7 and ch18/19 use
   them. They are correct as inputs only while `REFSEL=00` — never select reference 1. (AIN8–11,
   the GPIO aliases, are now unused.)
-* Shift-layer labels are printed smaller on the panel. Labeled ≠ hidden.
+* Shift-layer labels are printed smaller on the panel. Labeled ≠ hidden. Column 4's shift
+  labels are **Bias / Rate / Tone / Damp** — each true for every effect type in that slot
+  (concept doc, *Effect types*), which is what makes them printable.
 * **Two shift positions are enums, read as stepped pots** (the platform already has stepped-pot
   logic in `pot_ui.h`): **Filter type** (LP / BP / HP) and **LFO dest**. Keep the destination
   list short — Pitch / Timbre / Morph / Cutoff / Amp / Space mix — so the steps stay readable.
@@ -146,10 +148,10 @@ bottom; the isolated encoder under the OLED is slot 5. Slots 6–9 unpopulated.
 
 | Slot | Panel | Turn | Tap | Long-press (≥600 ms) | Shift + turn |
 |---|---|---|---|---|---|
-| 1 | R1C5 CHARACTER | Slot effect type | Bypass slot | — | Slot secondary |
-| 2 | R2C5 MOVEMENT  | Slot effect type | Bypass slot | — | Slot secondary |
-| 3 | R3C5 TEXTURE   | Slot effect type | Bypass slot | — | Slot secondary |
-| 4 | R4C5 SPACE     | Slot effect type | Bypass slot | **FREEZE** (grain buffer) | Slot secondary |
+| 1 | R1C5 CHARACTER | Type: Warm / Drive / Fuzz / Fold / Rectify | Bypass slot | — | Low cut |
+| 2 | R2C5 MOVEMENT  | Type: Chorus / Vibrato / Phaser / Flanger / Tremolo | Bypass slot | — | LFO shape |
+| 3 | R3C5 TEXTURE   | Type: Crush / Downsample / Tape / Dust / Squash | Bypass slot | — | Per-type variant |
+| 4 | R4C5 SPACE     | Type: Echo / Cloud / Reverse / Wash / Reverb | Bypass slot | **FREEZE** | Grain-pitch quantize |
 | 5 | R4C6 **MAIN**  | Engine select (wrap) | Open preset browser *(see below)* | **GESTURE** — arm / close loop / clear | **Voice mode** |
 
 * **Shift = MAIN's switch held.** MAIN sits at the far right, so shift is held with one hand

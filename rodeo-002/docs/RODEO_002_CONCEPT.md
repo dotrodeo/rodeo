@@ -122,11 +122,79 @@ Four slots in series, mirroring the Chroma Console's module layout: each slot ha
 (shift + encoder) and a **bypass** (encoder tap). The chain is stereo and runs once on the
 voice sum, not per voice.
 
-> **Effect-type lists are not yet defined** — which effects each slot offers, and what each
-> one's secondary parameter and discrete option mean. That is the next design session, and the
-> chain cannot be written without it. Working rule until then: the pot's shift layer carries
-> the slot's continuous secondary; the encoder's shift-turn carries a discrete option (e.g.
-> forward/reverse grains).
+### Effect types (decided 2026-09-21)
+
+Chain order is **fixed: Character → Movement → Texture → Space**. Derek approved the lists
+below as the starting set, to be revisited during implementation if something doesn't earn
+its place.
+
+**Each slot's secondary means one thing across all its types.** The shift layer is printed on
+the locked panel, so "Character secondary" has to become a word that is true for every
+Character type — otherwise the label could not be silkscreened and the OLED would have to
+explain it. The discrete option is shown on the OLED, so it may vary.
+
+| Slot | Amount pot | Secondary *(printed)* | Option *(shift + encoder turn, OLED)* |
+|---|---|---|---|
+| **Character** | Drive | **Bias** — offset into the shaper, odd ↔ even harmonics | Low cut before the drive: off / 100 Hz / 300 Hz |
+| **Movement** | Depth | **Rate** | LFO shape: sine / triangle / square / random |
+| **Texture** | Intensity | **Tone** — darker ↔ brighter after the effect | Per type (below) |
+| **Space** | Mix | **Damp** — darkening in the feedback path | Grain-pitch quantize: free / semitones / fifths + octaves / octaves |
+
+**CHARACTER** — waveshaping
+
+| Type | What it is | Source |
+|---|---|---|
+| Warm | Gentle soft saturation — the "always on" sweetener | new, trivial (tanh) |
+| Drive | Classic overdrive | DaisySP `Overdrive` |
+| Fuzz | Hard clip; high Bias makes it gated and sputtery | new, small |
+| Fold | Wavefolder; Bias gives asymmetric folds | DaisySP `Wavefolder` |
+| Rectify | Octave-up fuzz; Bias blends half-wave into full-wave | new, trivial |
+
+**MOVEMENT** — modulation
+
+| Type | What it is | Source |
+|---|---|---|
+| Chorus | Stereo chorus | DaisySP `ChorusEngine` ×2 |
+| Vibrato | Pitch wobble only, no dry | chorus, fully wet |
+| Phaser | Swept all-pass | DaisySP `Phaser` |
+| Flanger | Short delay with feedback | DaisySP `Flanger` |
+| Tremolo | Amplitude; stereo LFO offset makes it autopan | DaisySP `Tremolo` |
+
+DaisySP's chorus, flanger and phaser each run a fixed internal LFO, so **all five are driven
+from our own LFO** — that is what makes the LFO-shape option uniform.
+
+**TEXTURE** — degradation
+
+| Type | What it is | Option | Source |
+|---|---|---|---|
+| Crush | Bit-depth reduction | smooth / hard steps | DaisySP `Decimator` |
+| Downsample | Sample-rate reduction, aliasing | — | DaisySP `SampleRateReducer` |
+| Tape | Wow and flutter, saturation, hiss | slow wow / fast flutter | new: modulated delay |
+| Dust | Vinyl crackle and noise bed | vinyl / radio | DaisySP `Dust` + noise |
+| Squash | Compressor, up to audible pumping | soft / hard / pump | DaisySP-LGPL `Compressor`, or new |
+
+**SPACE** — the granular block. All types use Time / Feedback / Grain / Mix, grain pitch and
+spread; **Freeze works in every type**.
+
+| Type | What it does | Time | Feedback | Grain |
+|---|---|---|---|---|
+| Echo | Granular delay; small grains sound like a clean echo, large ones smear | delay time | repeats | grain size |
+| Cloud | Grains scattered across the last *Time* seconds of the buffer | window | regeneration | density |
+| Reverse | Echoes play backwards | delay time | repeats | segment length |
+| Wash | Grains feed a diffuser — an ambient, reverb-like tail | size | regeneration | diffusion |
+| Reverb | A plain reverb | pre-delay | decay | **shimmer** — pitched grains fed into the tail |
+
+**Reverb is DaisySP-LGPL's `ReverbSc`** (Derek, 2026-09-21). Its controls map naturally:
+Feedback is `SetFeedback`, Damp is `SetLpFreq`, and Freeze holds the tail indefinitely. Grain
+turns the grain engine into a shimmer: grains pitched by the grain-pitch pot, fed back into the
+reverb. It is the only type that runs the granular engine *and* a reverb together, so it is
+the one to watch on the budget.
+
+**Budget: unmeasured for the new types.** The chain's 12.9% was measured with the most
+expensive option I expected per slot (overdrive + fold, chorus, bitcrush, granular echo).
+Tape, Wash and Reverb are new, and Reverb-with-shimmer is likely the most expensive thing in
+the chain. **Every type gets measured before the chain is built for real** — the chain's cost
+is flat regardless of voice count, but it comes straight out of the voices' headroom.
 
 **SPACE is the headline block.** A granular delay whose buffer lives in SDRAM — 64 MB is
 minutes of stereo float, so buffer length is a non-issue. Controls: Time, Feedback, Grain
@@ -247,6 +315,10 @@ and runs it from there, which is also fast memory, so DSP cost should carry over
   reserved region). Plenty for both.
 * **Re-run `bench_voices` under `BOOT_SRAM` once** (`make APP_TYPE=BOOT_SRAM`) to confirm the
   benchmark numbers carry over before relying on them in that mode.
+* **Licence: the rodeo-002 firmware is always open source** (Derek, 2026-09-21), so the LGPL
+  half of DaisySP (`ReverbSc`, `Compressor`, …) is fair game. Enable it with
+  `USE_DAISYSP_LGPL = 1` in the app Makefile; the library is already built in the vendored
+  tree (`DaisySP-LGPL/build/libdaisysp-lgpl.a`).
 * **The enclosure needs access to the Daisy's own micro-USB** — updates and the debug log both
   go through it, and the panel USB-C is power-only. Derek is designing this into the case.
 
@@ -258,6 +330,7 @@ and runs it from there, which is also fast memory, so DSP cost should carry over
    keep them, restricted to Mono/Unison — see Voice modes above.
 3. ~~Panel layout~~ **LOCKED (Derek, 2026-09-20):** 4×4 pots, a column of 4 slot encoders, MAIN
    isolated under the OLED, 30 × 35 mm pitch — see the control map.
-4. **Texture-slot effect lists** — the effect types per slot and what each one's secondary
-   and discrete option mean. **Next design session**; blocks the chain firmware.
+4. ~~Texture-slot effect lists~~ **RESOLVED (Derek, 2026-09-21):** see *Effect types* — 5 / 5 /
+   5 / 5, printed secondaries Bias / Rate / Tone / Damp, fixed chain order. Every type still
+   needs a cost measurement.
 5. MIDI CC in/out map for the pots.
