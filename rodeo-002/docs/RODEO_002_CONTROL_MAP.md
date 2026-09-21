@@ -18,7 +18,9 @@ Platform facts referenced here come from
 channel convention `ch = chip·12 + AINindex` is the platform's, shared with rodeo-001.
 
 > **Status: DRAFT.** Channel and slot assignments below are a proposal, not frozen — nothing
-> is wired yet. The CPU spike in the concept doc may still change the parameter set.
+> is wired yet. The CPU benchmark has now run (concept doc, *Resource budget*), so the voice
+> count and engine set are settled; the panel layout is still open, and that is what would
+> most likely move these assignments.
 
 ## Surface
 
