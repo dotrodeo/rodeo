@@ -19,6 +19,7 @@
 
 #include "fx_character.h"
 #include "fx_movement.h"
+#include "fx_texture.h"
 
 using namespace rodeo002::fx;
 
@@ -122,7 +123,8 @@ void SweepSlot(int n_types,
                int n_options,
                SetSecondary set_secondary,
                float peak_limit,
-               float tail_limit)
+               float tail_limit,
+               float silence_s = 0.5f)
 {
     for(int type = 0; type < n_types; type++)
         for(int opt = 0; opt < n_options; opt++)
@@ -137,7 +139,7 @@ void SweepSlot(int n_types,
                     set_secondary(fx, sec);
                     const Result res = RunFx(
                         [&](float* l, float* r, size_t n) { fx.ProcessBlock(l, r, n); },
-                        0.5f);
+                        silence_s);
                     SCOPED_TRACE(testing::Message()
                                  << Fx::TypeName(type) << " opt " << opt << " amount "
                                  << amount << " secondary " << sec);
@@ -225,4 +227,46 @@ TEST(Movement, AudibleAtFullAmount)
 TEST(Movement, TransparentAtZeroAmount)
 {
     CheckTransparentAtZero<Movement>(Movement::kNumTypes, Lfo::kRandom, kSetRate);
+}
+
+// ---------------------------------------------------------------- TEXTURE
+
+auto kSetTone = [](Texture& fx, float v) { fx.SetTone(v); };
+
+// Tape hiss and Dust crackle follow the input, so give them 3 s of silence to
+// fade out; after that everything must be quiet. Squash's make-up gain is the
+// peak risk, bounded by its soft clip.
+TEST(Texture, StableAndQuietAfterInputStops)
+{
+    SweepSlot<Texture>(Texture::kNumTypes, Texture::kNumOptions, kSetTone, 2.f, 1e-3f, 3.f);
+}
+
+TEST(Texture, AudibleAtFullAmount)
+{
+    // Tone fully open, so any change is the effect's, not the filter's.
+    CheckAudibleAtFull<Texture>(Texture::kNumTypes, 0, 1.f, kSetTone);
+}
+
+TEST(Texture, TransparentAtZeroAmount)
+{
+    CheckTransparentAtZero<Texture>(Texture::kNumTypes, 0, kSetTone);
+}
+
+TEST(Texture, OptionsClampToEachTypesRange)
+{
+    for(int type = 0; type < Texture::kNumTypes; type++)
+        for(int opt = -1; opt <= Texture::kNumOptions; opt++)
+        {
+            Texture fx;
+            fx.Init(kSr);
+            fx.SetType(type);
+            fx.SetOption(opt);
+            EXPECT_GE(fx.GetOption(), 0);
+            EXPECT_LT(fx.GetOption(), Texture::OptionCount(type));
+            // Switching type re-clamps: Squash's "Pump" (2) is not valid for
+            // Downsample, which has no options.
+            fx.SetOption(2);
+            fx.SetType(Texture::kDownsample);
+            EXPECT_EQ(fx.GetOption(), 0);
+        }
 }
