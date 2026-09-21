@@ -47,9 +47,9 @@ MIDI IN ─► voice alloc ─► N × [ macro-oscillator engine ─► SVF ─�
 
 One **engine per patch**, selected on the main encoder. Every engine is driven by the same
 three macros — **Harmonics / Timbre / Morph** — so the panel never changes meaning, only
-character. Candidate engine list, **measured on hardware 2026-09-20** (budget section
-below). "Voices" is the largest count that stayed under 70% audio load **with the texture
-chain running** — i.e. what the instrument can actually offer.
+character. The engine list, **measured on hardware 2026-09-20** (budget section below).
+"Voices" is the largest count that stayed under 70% audio load **with the texture chain
+running**. Poly mode caps at 8 regardless — a higher number here is headroom, not voices.
 
 | Engine | Source | Cost/voice | Voices |
 |---|---|---|---|
@@ -160,9 +160,10 @@ and their parameters, voice mode, MIDI settings, **and the gesture loop if one w
 Browsing and saving live on the main encoder (see the control map).
 
 **Gestures save with presets** (Derek, 2026-09-21), so a preset can move by itself: it starts
-its loop when loaded. Size is the only cost: a full 16-second, 16-pot gesture at 100 Hz is
-~51 KB, so 64 presets with full gestures would take ~3.3 MB of the 8 MB QSPI. Storing only the
-pots that actually moved makes a typical gesture far smaller.
+its loop when loaded. Size is the only cost: gestures sample at the pot scan rate (~72 Hz —
+see the control map), so a full 16-second, 16-pot gesture is ~37 KB, and 64 presets with full
+gestures would take ~2.4 MB of the 8 MB QSPI. Storing only the pots that actually moved makes a
+typical gesture far smaller.
 
 **Physical-position problem:** pots hold their last physical position, so after a preset load
 (and after every shift-layer release) the panel disagrees with the patch. Every pot therefore
@@ -175,6 +176,6 @@ layer too, not just the shift layer.
    presets — see the control map. It costs well under 1% CPU; control space was the constraint.
 2. ~~The three physical models miss the 6-voice minimum~~ **RESOLVED (Derek, 2026-09-20):**
    keep them, restricted to Mono/Unison — see Voice modes above.
-3. Panel/enclosure layout — not started. The 4×4 pot grid plus a row of 5 encoders under the
-   OLED is the assumed geometry.
+3. ~~Panel layout~~ **LOCKED (Derek, 2026-09-20):** 4×4 pots, a column of 4 slot encoders, MAIN
+   isolated under the OLED, 30 × 35 mm pitch — see the control map.
 4. MIDI CC in/out map for the pots.

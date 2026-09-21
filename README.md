@@ -16,6 +16,7 @@ and the design docs that tie them together.
 | [`rodeo-potentiometer/`](rodeo-potentiometer/) | Potentiometer daughterboard — analog, into the motherboard's ADC channels. |
 | [`rodeo-rotary-switch/`](rodeo-rotary-switch/) | Rotary-switch daughterboard (resistor-ladder → ADC). |
 | [`rodeo-001/`](rodeo-001/) | **The first instrument instance** — the specific synth built from the boards above. Instance-only material: the [control map](rodeo-001/docs/RODEO_CONTROL_MAP.md), the [enclosure spec](rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md), and its instance KiCad. |
+| [`rodeo-002/`](rodeo-002/) | **The second instrument instance** — a multi-engine digital polysynth into a Chroma-Console-style texture chain ending in a granular delay. 16 pots, 5 encoders, OLED, no buttons. [Concept](rodeo-002/docs/RODEO_002_CONCEPT.md), [control map](rodeo-002/docs/RODEO_002_CONTROL_MAP.md), and [firmware](rodeo-002/firmware/) (currently the voice/FX CPU benchmark). |
 
 > **Naming, so nobody trips on it again:** `rodeo-motherboard` is the *host board*;
 > `rodeo-001` is the *first instrument built from the ecosystem*. They are different
@@ -29,6 +30,7 @@ and the design docs that tie them together.
 - **ADC driver-library design** → [`rodeo-motherboard/firmware/docs/RODEO_ADC_LIB_DESIGN.md`](rodeo-motherboard/firmware/docs/RODEO_ADC_LIB_DESIGN.md).
 - **rodeo-001 control map** (which physical control does what) → [`rodeo-001/docs/RODEO_CONTROL_MAP.md`](rodeo-001/docs/RODEO_CONTROL_MAP.md). This is the instance contract shared by firmware, hardware, and the panel layout.
 - **rodeo-001 enclosure / panel** → [`rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md`](rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md).
+- **rodeo-002 concept + control map** → [`rodeo-002/docs/`](rodeo-002/docs/): the voice and engine budget measured on hardware, and the locked panel/channel map.
 
 ## Building the firmware
 

@@ -173,7 +173,12 @@ highlighted slot while browsing), which is where you are already choosing a slot
   like those reads as a malfunction, not a gesture.
 * **Grabbing a pot that is in the loop takes that parameter back** from the loop for the rest
   of playback, so you can play over a gesture without stopping it.
-* **Up to 16 s** at 100 Hz. Gestures **are saved with presets** (Derek, 2026-09-21): a preset
+* **Up to 16 s, sampled at the pot scan rate.** That is ~72 Hz per channel with the platform's
+  default 1000 SPS ADC rate — set by U3, which carries 12 of the 16 pots (ch0–11) while U4
+  carries 4; the two chips convert in parallel, so the busier one sets the pace
+  (`RODEO_ADC_LIB_DESIGN.md` §4). Recording faster than the pots are read would only store
+  repeated samples.
+* Gestures **are saved with presets** (Derek, 2026-09-21): a preset
   with a gesture starts looping when it loads. Clearing a loop affects only the live state — the
   stored preset keeps its gesture until it is saved again.
 
