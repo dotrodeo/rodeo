@@ -154,14 +154,15 @@ explain it. The discrete option is shown on the OLED, so it may vary.
 
 | Type | What it is | Source |
 |---|---|---|
-| Chorus | Stereo chorus | DaisySP `ChorusEngine` ×2 |
-| Vibrato | Pitch wobble only, no dry | chorus, fully wet |
-| Phaser | Swept all-pass | DaisySP `Phaser` |
-| Flanger | Short delay with feedback | DaisySP `Flanger` |
-| Tremolo | Amplitude; stereo LFO offset makes it autopan | DaisySP `Tremolo` |
+| Chorus | Stereo chorus | own, on DaisySP `DelayLine` |
+| Vibrato | Pitch wobble only, no dry | own, on DaisySP `DelayLine` |
+| Phaser | Swept all-pass, 6 stages with feedback | own |
+| Flanger | Short delay with feedback | own, on DaisySP `DelayLine` |
+| Tremolo | Amplitude; stereo LFO offset makes it autopan | own |
 
 DaisySP's chorus, flanger and phaser each run a fixed internal LFO, so **all five are driven
-from our own LFO** — that is what makes the LFO-shape option uniform.
+from our own LFO** — that is what makes the LFO-shape option uniform. (As implemented; the
+original plan had named the DaisySP classes.)
 
 **TEXTURE** — degradation
 
@@ -170,8 +171,8 @@ from our own LFO** — that is what makes the LFO-shape option uniform.
 | Crush | Bit-depth reduction | smooth / hard steps | DaisySP `Decimator` |
 | Downsample | Sample-rate reduction, aliasing | — | DaisySP `SampleRateReducer` |
 | Tape | Wow and flutter, saturation, hiss | slow wow / fast flutter | new: modulated delay |
-| Dust | Vinyl crackle and noise bed | vinyl / radio | DaisySP `Dust` + noise |
-| Squash | Compressor, up to audible pumping | soft / hard / pump | DaisySP-LGPL `Compressor`, or new |
+| Dust | Vinyl crackle and noise bed | vinyl / radio | own (xorshift RNG, not `rand()`) |
+| Squash | Compressor, up to audible pumping | soft / hard / pump | own |
 
 **SPACE** — the granular block. All types use Time / Feedback / Grain / Mix, grain pitch and
 spread; **Freeze works in every type**.
@@ -190,11 +191,21 @@ turns the grain engine into a shimmer: grains pitched by the grain-pitch pot, fe
 reverb. It is the only type that runs the granular engine *and* a reverb together, so it is
 the one to watch on the budget.
 
-**Budget: unmeasured for the new types.** The chain's 12.9% was measured with the most
-expensive option I expected per slot (overdrive + fold, chorus, bitcrush, granular echo).
-Tape, Wash and Reverb are new, and Reverb-with-shimmer is likely the most expensive thing in
-the chain. **Every type gets measured before the chain is built for real** — the chain's cost
-is flat regardless of voice count, but it comes straight out of the voices' headroom.
+**Measured on hardware, 2026-09-21** — log:
+[`bench_voices-2026-09-21-fx.log`](bench_voices-2026-09-21-fx.log). Load added by each type
+at its heaviest settings, over an all-bypassed baseline, under the bootloader:
+
+| Slot | Types, cheapest → costliest (% of CPU) |
+|---|---|
+| Character | Drive 1.7 · Fold 1.9 · Fuzz 2.2 · Rectify 2.6 · Warm 3.0 |
+| Movement | Tremolo 1.4 · Vibrato 3.3 · Chorus 3.5 · Flanger 3.6 · Phaser 5.1 |
+| Texture | Downsample 1.1 · Crush 1.7 · Squash 2.3 · Dust 2.5 · Tape 6.4 |
+| Space | Reverse 6.5 · Echo 10.1 · Wash 13.6 · Cloud 13.9 · **Reverb 21.9** |
+
+**Costs add:** the worst-case chain (Warm + Phaser + Tape + Reverb) measured 36.8%, against
+36.4% summed — so any configuration's cost can be predicted from this table. That is **~3×
+the 12.9% the benchmark's stand-in chain cost**, and Space is most of it: Reverb alone costs
+more than the other three slots combined. See *Resource budget* for what it does to voices.
 
 **SPACE is the headline block.** A granular delay whose buffer lives in SDRAM — 64 MB is
 minutes of stereo float, so buffer length is a non-issue. Controls: Time, Feedback, Grain
@@ -268,6 +279,23 @@ A MIDI-keyboard-only instrument, so the keyboard's own controls matter as much a
 
 Glide time and LFO shape also sit on the patch-settings page — they have no panel position.
 
+### The real chain changes the voice budget (2026-09-21)
+
+With the real effects, the worst-case chain costs **36.8%**, not 12.9%. Voices at the 70%
+ceiling with that chain running (log above; bootloader build):
+
+| Engine | Stand-in chain | Real worst-case chain |
+|---|---|---|
+| Virtual analog · Variable saw · Particle | 12+ | 8–10 |
+| Formant | 12 | 6 |
+| FM · Harmonic · Grainlet | 8 | **4** |
+| Vosim · Z-osc | 6 | **2** |
+| Modal | 1 | **0** — does not fit |
+
+**OPEN — needs a decision.** The worst case is reachable by any player, so the firmware must
+never overload regardless (an overload is an audible dropout, not a slowdown). See the
+options recorded under *Open questions*.
+
 ## Preset system
 
 Patches in the Daisy's QSPI flash: engine, all pot values (both layers), all four slot types
@@ -334,3 +362,7 @@ and runs it from there, which is also fast memory, so DSP cost should carry over
    5 / 5, printed secondaries Bias / Rate / Tone / Damp, fixed chain order. Every type still
    needs a cost measurement.
 5. MIDI CC in/out map for the pots.
+6. **The real chain's cost (2026-09-21).** Worst case 36.8%, Reverb 21.9% of it. Options
+   under discussion: optimise Reverb and the grain engine (profile first); replace ReverbSc
+   with a lighter in-house reverb; and — needed regardless — a polyphony cap computed from
+   the measured cost table, so no engine + chain combination can overload the processor.
