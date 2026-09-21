@@ -20,6 +20,9 @@
 #include "fx_character.h"
 #include "fx_movement.h"
 #include "fx_texture.h"
+#include "fx_space.h"
+
+#include <memory>
 
 using namespace rodeo002::fx;
 
@@ -269,4 +272,167 @@ TEST(Texture, OptionsClampToEachTypesRange)
             fx.SetType(Texture::kDownsample);
             EXPECT_EQ(fx.GetOption(), 0);
         }
+}
+
+// ---------------------------------------------------------------- SPACE
+
+namespace
+{
+// Space borrows its big buffers, as it does from SDRAM on the Seed. ReverbSc
+// alone is ~396 KB, so it goes on the heap, not the stack.
+struct SpaceRig
+{
+    std::vector<float>                 gl, gr, pl, pr;
+    std::unique_ptr<daisysp::ReverbSc> reverb;
+    Space                              fx;
+
+    SpaceRig()
+    : gl(Space::kGrainLen), gr(Space::kGrainLen), pl(Space::kPreLen),
+      pr(Space::kPreLen), reverb(new daisysp::ReverbSc)
+    {
+        fx.Init(kSr, {gl.data(), gr.data(), pl.data(), pr.data(), reverb.get()});
+    }
+    Result Run(float silence_s)
+    {
+        return RunFx([&](float* l, float* r, size_t n) { fx.ProcessBlock(l, r, n); },
+                     silence_s);
+    }
+};
+} // namespace
+
+// The corners that stress feedback: max feedback, both grain extremes, pitch
+// down/unison/up, bright and dark. With feedback at max the tail is SUPPOSED
+// to ring for a long time, so only boundedness is checked there; at moderate
+// feedback it must also die away.
+TEST(Space, StableAtEveryCorner)
+{
+    for(int type = 0; type < Space::kNumTypes; type++)
+        for(float fb : {0.3f, 1.f})
+            for(float grain : {0.f, 1.f})
+                for(float pitch : {0.f, 0.5f, 1.f})
+                    for(float damp : {0.f, 1.f})
+                    {
+                        SpaceRig rig;
+                        rig.fx.SetType(type);
+                        rig.fx.SetOption(Space::kSemitones);
+                        rig.fx.SetMix(1.f);
+                        rig.fx.SetTime(0.3f);
+                        rig.fx.SetFeedback(fb);
+                        rig.fx.SetGrain(grain);
+                        rig.fx.SetPitch(pitch);
+                        rig.fx.SetSpread(1.f);
+                        rig.fx.SetDamp(damp);
+                        const Result res = rig.Run(fb < 0.5f ? 8.f : 4.f);
+                        SCOPED_TRACE(testing::Message()
+                                     << Space::TypeName(type) << " fb " << fb << " grain "
+                                     << grain << " pitch " << pitch << " damp " << damp);
+                        EXPECT_TRUE(res.finite);
+                        EXPECT_LT(res.peak, 3.f);
+                        if(fb < 0.5f)
+                            EXPECT_LT(res.tail_peak, 1e-2f);
+                    }
+}
+
+TEST(Space, FreezeHoldsWithoutRunningAway)
+{
+    for(int type = 0; type < Space::kNumTypes; type++)
+    {
+        SpaceRig rig;
+        rig.fx.SetType(type);
+        rig.fx.SetMix(1.f);
+        rig.fx.SetFeedback(1.f);
+        rig.fx.SetGrain(1.f);
+        rig.fx.SetPitch(1.f); // shimmer up two octaves, the worst case for Reverb
+        // Freeze 1.2 s in (during the noise burst), once there is enough
+        // history: a reversed grain at +24 st reads 2 s back. The held material
+        // must keep sounding through 4 s of silence, and stay bounded.
+        size_t     blocks = 0;
+        const auto res    = RunFx(
+            [&](float* l, float* r, size_t n) {
+                if(++blocks == 1200) // 1.2 s in
+                    rig.fx.SetFreeze(true);
+                rig.fx.ProcessBlock(l, r, n);
+            },
+            4.f);
+        SCOPED_TRACE(Space::TypeName(type));
+        EXPECT_TRUE(res.finite);
+        EXPECT_LT(res.peak, 3.f);
+        EXPECT_GT(res.tail_peak, 1e-3f); // still holding sound
+    }
+}
+
+TEST(Space, TransparentAtZeroMix)
+{
+    for(int type = 0; type < Space::kNumTypes; type++)
+    {
+        SpaceRig rig;
+        rig.fx.SetType(type);
+        rig.fx.SetFeedback(1.f);
+        rig.fx.SetMix(0.f);
+        SCOPED_TRACE(Space::TypeName(type));
+        EXPECT_LT(MaxDeviation([&](float* l, float* r, size_t n) {
+                      rig.fx.ProcessBlock(l, r, n);
+                  }),
+                  1e-5f);
+    }
+}
+
+TEST(Space, AudibleAtFullMix)
+{
+    for(int type = 0; type < Space::kNumTypes; type++)
+    {
+        SpaceRig rig;
+        rig.fx.SetType(type);
+        rig.fx.SetMix(1.f);
+        SCOPED_TRACE(Space::TypeName(type));
+        EXPECT_GT(MaxDeviation([&](float* l, float* r, size_t n) {
+                      rig.fx.ProcessBlock(l, r, n);
+                  }),
+                  0.05f);
+    }
+}
+
+// Bypassed from the start, the effect is never fed, so there is no tail and
+// the output must be the input exactly -- even at full mix.
+TEST(Space, BypassPassesDryAtUnity)
+{
+    for(int type = 0; type < Space::kNumTypes; type++)
+    {
+        SpaceRig rig;
+        rig.fx.SetType(type);
+        rig.fx.SetMix(1.f);
+        rig.fx.SetBypass(true);
+        rig.fx.ProcessBlock(nullptr, nullptr, 0);
+        // Let the dry/input smoothers settle before comparing.
+        std::vector<float> z(static_cast<size_t>(kSr * 0.2f), 0.f), z2 = z;
+        rig.fx.ProcessBlock(z.data(), z2.data(), z.size());
+        SCOPED_TRACE(Space::TypeName(type));
+        EXPECT_LT(MaxDeviation([&](float* l, float* r, size_t n) {
+                      rig.fx.ProcessBlock(l, r, n);
+                  }),
+                  1e-4f);
+    }
+}
+
+TEST(Space, PitchQuantizeLandsOnItsIntervals)
+{
+    SpaceRig rig;
+    for(float p = 0.f; p <= 1.f; p += 0.01f)
+    {
+        rig.fx.SetOption(Space::kOctaves);
+        rig.fx.SetPitch(p);
+        EXPECT_EQ(fmodf(rig.fx.GetSemitones(), 12.f), 0.f) << p;
+
+        rig.fx.SetOption(Space::kFifths);
+        rig.fx.SetPitch(p);
+        const float st = fabsf(rig.fx.GetSemitones());
+        EXPECT_TRUE(st == 0 || st == 7 || st == 12 || st == 19 || st == 24) << p;
+
+        rig.fx.SetOption(Space::kSemitones);
+        rig.fx.SetPitch(p);
+        EXPECT_EQ(rig.fx.GetSemitones(), roundf(rig.fx.GetSemitones())) << p;
+    }
+    rig.fx.SetOption(Space::kFree);
+    rig.fx.SetPitch(0.505f); // a hair off centre still means unison
+    EXPECT_EQ(rig.fx.GetSemitones(), 0.f);
 }
