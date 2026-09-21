@@ -1,6 +1,6 @@
 ---
 title: "rodeo-002 Control Map — Interface Contract"
-tags: [rodeo, rodeo-002, control-map, pinout, ads114s08, encoder-hub]
+tags: [rodeo, rodeo-002, control-map, pinout, ads114s08, encoder-hub, panel]
 status: draft
 created: 2026-09-20
 updated: 2026-09-20
@@ -9,7 +9,7 @@ updated: 2026-09-20
 # rodeo-002 Control Map — Interface Contract
 
 Source of truth for **which physical control does what** on rodeo-002. Firmware binds exactly
-these channels and slots; a panel must physically fit this. Sibling doc:
+these channels and slots; the panel must physically fit this. Sibling doc:
 [`RODEO_002_CONCEPT.md`](RODEO_002_CONCEPT.md).
 
 Platform facts referenced here come from
@@ -17,10 +17,9 @@ Platform facts referenced here come from
 [`RODEO_HUB_I2C_CONTRACT.md`](../../rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md); the
 channel convention `ch = chip·12 + AINindex` is the platform's, shared with rodeo-001.
 
-> **Status: DRAFT.** Channel and slot assignments below are a proposal, not frozen — nothing
-> is wired yet. The CPU benchmark has now run (concept doc, *Resource budget*), so the voice
-> count and engine set are settled; the panel layout is still open, and that is what would
-> most likely move these assignments.
+> **Status: DRAFT.** Nothing is wired yet. The voice count and engine set are settled (the CPU
+> benchmark has run — see the concept doc); the layout below matches Derek's panel proposal of
+> 2026-09-20 and its **30 × 35 mm** hole pitch.
 
 ## Surface
 
@@ -31,33 +30,78 @@ Consequences of having no buttons:
   `SW_STATE_LO` (§5 of the I²C contract), so "held right now" is directly readable.
 * Every mode, preset and voice-mode action is a press, a long-press or a press-and-turn.
 
+## Panel geometry
+
+```
+    col1    col2    col3    col4  │ col5    col6
+  ┌───────────────────────────────────────────────────────┐
+  │   (o)     (o)     (o)     (o) │  (E1)     ┌─────────┐  │  row 1
+  │   (o)     (o)     (o)     (o) │  (E2)     │  OLED   │  │  row 2
+  │   (o)     (o)     (o)     (o) │  (E3)     └─────────┘  │  row 3
+  │   (o)     (o)     (o)     (o) │  (E4)   (E5)           │  row 4
+  └───────────────────────────────────────────────────────┘
+     └──── the synth ────┘ └── the chain ──┘ └─ the brain ─┘
+```
+
+Three blocks, and the grouping is the point:
+* **Columns 1–3 are the synth** — voice, filter, envelope, and the granular block's own
+  parameters.
+* **Column 4 plus the encoder column are the texture chain** — one slot per row, its amount
+  pot beside the encoder that picks its effect type, reading top-to-bottom in signal order.
+* **The OLED and the isolated MAIN encoder (E5) are the brain** — engine, presets, voice mode,
+  and every readout.
+
+Every encoder is physically adjacent to the one pot it pairs with, and nothing is modal.
+
+### Mechanical (verified against the satellite KiCad, 2026-09-20)
+
+| Board | Outline | Shaft | Cable |
+|---|---|---|---|
+| `rodeo-potentiometer` | 25 × 30 mm | 10.0 mm from left edge, 16.6 mm from top | JST-SH, **bottom** edge, exits in-plane |
+| `rodeo-encoder` | 25 × 25 mm | 10.0 mm from left, 16.2 mm from top | JST-SH, **bottom** edge |
+
+* The shaft is off-centre (10 mm left / 15 mm right) **identically on both board types**, so
+  boards in a common orientation tile exactly and the pot and encoder columns line up.
+* **Pitch: 30 × 35 mm** (Derek, 2026-09-20). Boards collide below 25 × 30 mm, so this leaves
+  ~5 mm of gap both ways. The in-plane cable exit needs only a few millimetres before it can
+  bend back behind the board plane, so 5 mm below each board is enough. **Rows 1–3's cables
+  must pass the rows below them**, so 37–38 mm vertical is easier to harness if the panel
+  proportions still look right — not required.
+* Behind the panel: `rodeo-encoder-hub` is 45 × 45 mm, the motherboard 100 × 80 mm.
+* The Alps RK09K pot and EC11E encoder bushings are the same size — one hole diameter serves
+  all 21 (verify against the parts in hand).
+
 ## Analog — 16 pots on ADC channels 0–15 (J6–J21)
 
-Physical order is the 4×4 grid read left-to-right, top-to-bottom, mapped 1:1 onto consecutive
-channels. **Channels 16–23 (J22–J29) are left spare**, as are all 12 digital inputs.
+Physical order is the grid read left-to-right, top-to-bottom, mapped 1:1 onto consecutive
+channels. **Channels 16–23 (J22–J29) stay spare**, as do all 12 digital inputs.
 
-| `ch` | Grid | Main layer | Shift layer | Chip | AINx | Connector |
+| `ch` | Grid | Main layer | Shift layer | Chip | AINx | Conn |
 |---|---|---|---|---|---|---|
-| 0  | R1C1 | Harmonics      | Env→Timbre          | U3 | AIN0  | J6  |
-| 1  | R1C2 | Timbre         | Env→Morph           | U3 | AIN1  | J7  |
-| 2  | R1C3 | Morph          | LFO rate            | U3 | AIN2  | J8  |
-| 3  | R1C4 | Spread / detune| LFO depth           | U3 | AIN3  | J9  |
-| 4  | R2C1 | Cutoff         | Filter env amount   | U3 | AIN4  | J10 |
-| 5  | R2C2 | Resonance      | Keytrack            | U3 | AIN5  | J11 |
-| 6  | R2C3 | Attack         | Decay               | U3 | AIN6  | J12 |
-| 7  | R2C4 | Release        | Sustain             | U3 | AIN7  | J13 |
-| 8  | R3C1 | Character amt  | Character secondary | U3 | AIN8  | J14 |
-| 9  | R3C2 | Movement amt   | Movement secondary  | U3 | AIN9  | J15 |
-| 10 | R3C3 | Texture amt    | Texture secondary   | U3 | AIN10 | J16 |
-| 11 | R3C4 | Space amt      | Space secondary     | U3 | AIN11 | J17 |
-| 12 | R4C1 | Space Time     | Grain pitch         | U4 | AIN0  | J18 |
-| 13 | R4C2 | Space Feedback | Grain position spread | U4 | AIN1 | J19 |
-| 14 | R4C3 | Space Grain    | Tilt EQ             | U4 | AIN2  | J20 |
-| 15 | R4C4 | Space Mix      | Master volume       | U4 | AIN3  | J21 |
+| 0  | R1C1 | Harmonics         | Env→Timbre               | U3 | AIN0  | J6  |
+| 1  | R1C2 | Timbre            | Env→Morph                | U3 | AIN1  | J7  |
+| 2  | R1C3 | Morph             | LFO rate                 | U3 | AIN2  | J8  |
+| 3  | R1C4 | **Character amt** | Character secondary      | U3 | AIN3  | J9  |
+| 4  | R2C1 | Cutoff            | Filter type *(stepped)*  | U3 | AIN4  | J10 |
+| 5  | R2C2 | Resonance         | Filter env amount        | U3 | AIN5  | J11 |
+| 6  | R2C3 | Spread / detune   | **LFO dest** *(stepped)* | U3 | AIN6  | J12 |
+| 7  | R2C4 | **Movement amt**  | Movement secondary       | U3 | AIN7  | J13 |
+| 8  | R3C1 | Attack            | Decay                    | U3 | AIN8  | J14 |
+| 9  | R3C2 | Release           | Sustain                  | U3 | AIN9  | J15 |
+| 10 | R3C3 | Master volume     | LFO depth                | U3 | AIN10 | J16 |
+| 11 | R3C4 | **Texture amt**   | Texture secondary        | U3 | AIN11 | J17 |
+| 12 | R4C1 | Space Time        | Grain pitch              | U4 | AIN0  | J18 |
+| 13 | R4C2 | Space Feedback    | Grain position spread    | U4 | AIN1  | J19 |
+| 14 | R4C3 | Space Grain       | Tilt EQ                  | U4 | AIN2  | J20 |
+| 15 | R4C4 | **Space Mix**     | Space secondary          | U4 | AIN3  | J21 |
 
-* Rows 1–2 are the voice, rows 3–4 the texture chain — rows 3 and 4 are Chroma-Console-shaped
-  (four module amounts, then the granular block's own controls).
 * Shift-layer labels are printed smaller on the panel. Labeled ≠ hidden.
+* **Two shift positions are enums, read as stepped pots** (the platform already has stepped-pot
+  logic in `pot_ui.h`): **Filter type** (LP / BP / HP) and **LFO dest**. Keep the destination
+  list short — Pitch / Timbre / Morph / Cutoff / Amp / Space mix — so the steps stay readable.
+* **Filter keytrack is not on the panel.** It moved to MAIN's patch-settings page because it
+  is set once per patch, unlike LFO destination, which is played with. That trade is what made
+  room for LFO dest, and keytrack is the only parameter demoted to a menu.
 * Pot wiring: 3-pin JST-SH, `1=+3V3, 2=wiper, 3=GND` at the motherboard. **These runs need
   REVERSED cables** — the satellite is pinned `GND / signal / supply-in`. See the harness
   section of rodeo-001's control map; a straight cable makes every pot read backwards.
@@ -75,17 +119,19 @@ currently out of pickup.
 
 ## I²C encoders — hub @ `0x30`, slots 1–5 (J3–J7)
 
-Hub slot N ↔ hub connector J(N+2) ↔ panel encoder N. Slots 6–9 unpopulated.
+Hub slot N ↔ hub connector J(N+2) ↔ panel encoder N. The encoder column is slots 1–4, top to
+bottom; the isolated encoder under the OLED is slot 5. Slots 6–9 unpopulated.
 
-| Slot | Encoder | Turn | Tap | Long-press (≥600 ms) | Shift + turn |
+| Slot | Panel | Turn | Tap | Long-press (≥600 ms) | Shift + turn |
 |---|---|---|---|---|---|
-| 1 | **MAIN** | Engine select (wrap) | Preset browser: turn = browse, tap = load | Save-to-slot flow | **Voice mode** (Poly / Mono / Unison) |
-| 2 | CHARACTER | Slot effect type | Bypass slot | — | Finer/alternate slot param |
-| 3 | MOVEMENT  | Slot effect type | Bypass slot | — | Finer/alternate slot param |
-| 4 | TEXTURE   | Slot effect type | Bypass slot | — | Finer/alternate slot param |
-| 5 | SPACE     | Slot effect type | Bypass slot | **FREEZE toggle** (grain buffer) | Finer/alternate slot param |
+| 1 | R1C5 CHARACTER | Slot effect type | Bypass slot | — | Slot secondary |
+| 2 | R2C5 MOVEMENT  | Slot effect type | Bypass slot | — | Slot secondary |
+| 3 | R3C5 TEXTURE   | Slot effect type | Bypass slot | — | Slot secondary |
+| 4 | R4C5 SPACE     | Slot effect type | Bypass slot | **FREEZE** (grain buffer) | Slot secondary |
+| 5 | R4C6 **MAIN**  | Engine select (wrap) | Preset browser: turn = browse, tap = load | Save-to-slot flow | **Voice mode** |
 
-* **Shift = MAIN's switch held.** Holding it and turning MAIN itself (a push-turn) selects the
+* **Shift = MAIN's switch held.** MAIN sits at the far right, so shift is held with one hand
+  while the other sweeps pots. Holding it and turning MAIN itself (a push-turn) selects the
   voice mode, which is why voice mode needs no button.
 * **Voice mode is constrained by the engine** (concept doc, *Voice modes*). Modal is Mono
   only; String and Karplus are Mono or Unison-2. Turning MAIN onto one of those engines while
@@ -110,6 +156,9 @@ Feedback only, sharing I²C1/J42 with the hub. Shows: engine name, the four slot
 their bypass states, the parameter being touched (with its value and pickup indicator), freeze
 state, voice mode, preset name. Partial/low-rate refresh, interleaved with encoder polling —
 a full frame at 400 kHz is ~23 ms.
+
+Its one menu page is **patch settings**: filter keytrack, MIDI channel, bend range and the
+other set-once parameters. Reached from MAIN.
 
 ## Unused platform resources
 
