@@ -292,9 +292,13 @@ ceiling with that chain running (log above; bootloader build):
 | Vosim · Z-osc | 6 | **2** |
 | Modal | 1 | **0** — does not fit |
 
-**OPEN — needs a decision.** The worst case is reachable by any player, so the firmware must
-never overload regardless (an overload is an audible dropout, not a slowdown). See the
-options recorded under *Open questions*.
+**Polyphony is capped from the cost table** (Derek, 2026-09-21). The worst case is reachable
+by any player, and an overload is an audible dropout, not a slowdown — so the firmware
+computes a safe voice count from the measured costs whenever the engine or a slot's type
+changes, and the OLED always shows it ("FM · 6 voices"). **The voice count can therefore
+change when a Space type changes.** Combinations that don't fit at all (Modal + Reverb) still
+need a rule. The caps get set once the chain has been optimised — `bench_space` profiles
+Space first, to see which optimisation pays.
 
 ## Preset system
 
@@ -362,7 +366,8 @@ and runs it from there, which is also fast memory, so DSP cost should carry over
    5 / 5, printed secondaries Bias / Rate / Tone / Damp, fixed chain order. Every type still
    needs a cost measurement.
 5. MIDI CC in/out map for the pots.
-6. **The real chain's cost (2026-09-21).** Worst case 36.8%, Reverb 21.9% of it. Options
-   under discussion: optimise Reverb and the grain engine (profile first); replace ReverbSc
-   with a lighter in-house reverb; and — needed regardless — a polyphony cap computed from
-   the measured cost table, so no engine + chain combination can overload the processor.
+6. **The real chain's cost (2026-09-21).** Worst case 36.8%, Reverb 21.9% of it. Polyphony
+   cap from the cost table: **approved** (see *Resource budget*). Optimisation: pending the
+   `bench_space` profile — ReverbSc vs shimmer vs pre-delay vs grain engine vs mix-0 cost —
+   which decides between replacing ReverbSc, restructuring the grain loop, or moving data out
+   of SDRAM. Still open: what happens for combinations that don't fit at all (Modal + Reverb).
