@@ -191,21 +191,31 @@ turns the grain engine into a shimmer: grains pitched by the grain-pitch pot, fe
 reverb. It is the only type that runs the granular engine *and* a reverb together, so it is
 the one to watch on the budget.
 
-**Measured on hardware, 2026-09-21** — log:
-[`bench_voices-2026-09-21-fx.log`](bench_voices-2026-09-21-fx.log). Load added by each type
-at its heaviest settings, over an all-bypassed baseline, under the bootloader:
+**Measured on hardware, 2026-09-21, re-measured 2026-09-22 after optimisation.** Load added by
+each type at its heaviest settings, over an all-bypassed baseline, under the bootloader.
+Measurement note: these figures come from raw timer ticks. libDaisy's `CpuLoadMeter` reported
+0.0 for every case in `bench_space` (cause unexplained); in `bench_voices` it agrees with raw
+ticks to within 0.2 points, so the voice numbers it produced stand.
 
 | Slot | Types, cheapest → costliest (% of CPU) |
 |---|---|
-| Character | Drive 1.7 · Fold 1.9 · Fuzz 2.2 · Rectify 2.6 · Warm 3.0 |
-| Movement | Tremolo 1.4 · Vibrato 3.3 · Chorus 3.5 · Flanger 3.6 · Phaser 5.1 |
-| Texture | Downsample 1.1 · Crush 1.7 · Squash 2.3 · Dust 2.5 · Tape 6.4 |
-| Space | Reverse 6.5 · Echo 10.1 · Wash 13.6 · Cloud 13.9 · **Reverb 21.9** |
+| Character | Drive 1.7 · Fold 1.9 · Fuzz 2.2 · Rectify 2.7 · Warm 3.0 |
+| Movement | Tremolo 1.4 · Vibrato 3.4 · Chorus 3.6 · Flanger 3.6 · Phaser 5.2 |
+| Texture | Downsample 1.3 · Crush 1.9 · Squash 2.4 · Dust 2.6 · Tape 6.5 |
+| Space | Reverse 5.3 · Echo 7.8 · Cloud 11.0 · Wash 11.7 · **Reverb 20.6** |
 
-**Costs add:** the worst-case chain (Warm + Phaser + Tape + Reverb) measured 36.8%, against
-36.4% summed — so any configuration's cost can be predicted from this table. That is **~3×
-the 12.9% the benchmark's stand-in chain cost**, and Space is most of it: Reverb alone costs
-more than the other three slots combined. See *Resource budget* for what it does to voices.
+Space's figures are **after the grain-engine optimisation of 2026-09-22** (Echo −23%,
+Cloud −21%; the log before it is
+[`bench_voices-2026-09-21-fx.log`](bench_voices-2026-09-21-fx.log), after it
+[`bench_voices-2026-09-22-optimised.log`](bench_voices-2026-09-22-optimised.log)).
+
+**Costs add:** the worst-case chain (Warm + Phaser + Tape + Reverb) measured **35.4%**, against
+35.3% summed — so any configuration's cost can be predicted from this table. That is still
+**~3× the 12.9% the benchmark's stand-in chain cost**, and Space is most of it: Reverb alone
+costs more than the other three slots combined, because **ReverbSc is 11.6 of its 20.6**
+(profile: [`bench_space-2026-09-22.log`](bench_space-2026-09-22.log) — ReverbSc 11.6, grains
+~5.0, Space's own per-sample overhead ~5.2). A lighter in-house reverb is the one remaining
+optimisation of any size; it is **not** done.
 
 **SPACE is the headline block.** A granular delay whose buffer lives in SDRAM — 64 MB is
 minutes of stereo float, so buffer length is a non-issue. Controls: Time, Feedback, Grain
@@ -286,11 +296,13 @@ ceiling with that chain running (log above; bootloader build):
 
 | Engine | Stand-in chain | Real worst-case chain |
 |---|---|---|
-| Virtual analog · Variable saw · Particle | 12+ | 8–10 |
-| Formant | 12 | 6 |
+| Virtual analog · Variable saw · Particle · Formant | 12+ | 8–10 |
 | FM · Harmonic · Grainlet | 8 | **4** |
 | Vosim · Z-osc | 6 | **2** |
 | Modal | 1 | **0** — does not fit |
+
+A *light* chain is a different story: Warm + Chorus + Crush + Echo costs ~16%, and FM keeps 8
+voices under it. The cap is what makes the difference visible instead of audible.
 
 **Polyphony is capped from the cost table** (Derek, 2026-09-21). The worst case is reachable
 by any player, and an overload is an audible dropout, not a slowdown — so the firmware
