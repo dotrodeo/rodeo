@@ -150,6 +150,13 @@ volatile uint32_t g_blocks        = 0; // audio blocks rendered; our clock
 static uint32_t g_block_budget = 0; // System ticks available per block
 static int      g_over_blocks  = 0; // consecutive blocks that ran over
 
+// Load measured here from raw ticks. libDaisy's CpuLoadMeter reported 0.0 for
+// every case in bench_space, so it is no longer trusted on its own: both
+// figures are reported and the decisions use this one.
+volatile uint32_t g_busy_ticks  = 0;
+volatile uint32_t g_busy_max    = 0;
+volatile uint32_t g_busy_blocks = 0;
+
 // A block that overruns starves everything below the audio interrupt --
 // including SysTick, which is what System::GetNow() and System::Delay() count.
 // So an overloaded step freezes the main thread mid-measurement and the sweep
@@ -194,6 +201,10 @@ void AudioCallback(AudioHandle::InputBuffer  in,
     // Self-policing. Unsigned subtraction, so the free-running tick wrapping is
     // harmless.
     const uint32_t dt = System::GetTick() - t_start;
+    g_busy_ticks += dt;
+    if(dt > g_busy_max)
+        g_busy_max = dt;
+    g_busy_blocks++;
     if(dt > (g_block_budget / 100) * kOverBudgetPct)
     {
         if(++g_over_blocks >= kOverBlocksPanic)
@@ -282,16 +293,26 @@ static void ConfigureChain(const int* types, int only)
     g_fx_on = true;
 }
 
-/** Settle 300 ms, measure 1.2 s. Returns false on overload. */
-static bool Measure(float* avg, float* max)
+/** Settle 300 ms, measure 1.2 s. Returns false on overload. `avg`/`max` come
+ *  from raw ticks; `meter_avg` is CpuLoadMeter's opinion, for comparison. */
+static bool Measure(float* avg, float* max, float* meter_avg = nullptr)
 {
     g_overload    = false;
     g_over_blocks = 0;
     WaitBlocks(300);
     meter.Reset();
+    g_busy_ticks  = 0;
+    g_busy_max    = 0;
+    g_busy_blocks = 0;
     WaitBlocks(1200);
-    *avg = meter.GetAvgCpuLoad() * 100.f;
-    *max = meter.GetMaxCpuLoad() * 100.f;
+    const uint32_t blocks = g_busy_blocks;
+    const float    budget = static_cast<float>(g_block_budget);
+    *avg = blocks ? static_cast<float>(g_busy_ticks) / (static_cast<float>(blocks) * budget)
+                        * 100.f
+                  : 0.f;
+    *max = static_cast<float>(g_busy_max) / budget * 100.f;
+    if(meter_avg)
+        *meter_avg = meter.GetAvgCpuLoad() * 100.f;
     return !g_overload;
 }
 
@@ -401,7 +422,7 @@ int main(void)
     int worst[TextureChain::kNumSlots] = {};
     RunFxPass(worst);
 
-    hw.PrintLine("CSV,engine,fx,voices,avg_pct,max_pct");
+    hw.PrintLine("CSV,engine,fx,voices,load_pct,max_pct,meter_avg_pct");
 
     // Results: per engine, largest voice count under target / under cliff.
     int best_at_target[2][static_cast<int>(EngineId::kCount)] = {};
@@ -440,6 +461,9 @@ int main(void)
                 // idle state) while being measured.
                 WaitBlocks(300);
                 meter.Reset();
+                g_busy_ticks  = 0;
+                g_busy_max    = 0;
+                g_busy_blocks = 0;
                 const uint32_t start   = g_blocks;
                 uint32_t       next_tr = start + 400;
                 while((g_blocks - start) < 1200 && !g_overload)
@@ -466,17 +490,24 @@ int main(void)
                     break;
                 }
 
-                const float avg = meter.GetAvgCpuLoad() * 100.f;
-                const float max = meter.GetMaxCpuLoad() * 100.f;
+                const uint32_t blocks = g_busy_blocks;
+                const float    budget = static_cast<float>(g_block_budget);
+                const float    avg    = blocks ? static_cast<float>(g_busy_ticks)
+                                                  / (static_cast<float>(blocks) * budget) * 100.f
+                                               : 0.f;
+                const float max       = static_cast<float>(g_busy_max) / budget * 100.f;
+                const float meter_avg = meter.GetAvgCpuLoad() * 100.f;
 
-                hw.PrintLine("CSV,%s,%d,%d,%d.%d,%d.%d",
+                hw.PrintLine("CSV,%s,%d,%d,%d.%d,%d.%d,%d.%d",
                              EngineName(id),
                              g_fx_on ? 1 : 0,
                              count,
                              static_cast<int>(avg),
                              static_cast<int>((avg - floorf(avg)) * 10.f),
                              static_cast<int>(max),
-                             static_cast<int>((max - floorf(max)) * 10.f));
+                             static_cast<int>((max - floorf(max)) * 10.f),
+                             static_cast<int>(meter_avg),
+                             static_cast<int>((meter_avg - floorf(meter_avg)) * 10.f));
 
                 if(avg <= kTargetLoad)
                     best_at_target[pass][e] = count;

@@ -1,0 +1,41 @@
+Daisy is online
+===============
+=== rodeo-002 bench_space ===
+4 x variable-saw; other slots bypassed; Space at FX-pass heavy
+settings unless named (mix 1, time .5, fb .8, pitch +12, sprea$$RUN,space bypassed - idle
+SP,space bypassed - idle,9.0,-0.0,0.0,0.0
+RUN,echo grain 0
+SP,echo grain 0,14.4,5.4,2.0,0.0
+RUN,echo grain 0.5
+SP,echo grain 0.5,16.9,7.9,3.0,0.0
+RUN,echo grain 1
+SP,echo grain 1,19.4,10.4,4.0,0.0
+RUN,echo grain 1 pitch unison
+SP,echo grain 1 pitch unison,16.6,7.6,4.0,0.0
+RUN,cloud grain 0
+SP,cloud grain 0,13.2,4.2,1.0,0.0
+RUN,cloud grain 0.5
+SP,cloud grain 0.5,18.3,9.3,3.5,0.0
+RUN,cloud grain 1
+SP,cloud grain 1,23.7,14.6,6.0,0.0
+RUN,reverse grain 1
+SP,reverse grain 1,15.6,6.6,2.0,0.0
+RUN,wash grain 0
+SP,wash grain 0,23.0,14.0,4.0,0.0
+RUN,wash grain 1
+SP,wash grain 1,23.1,14.0,4.0,0.0
+RUN,echo grain 1 - MIX 0
+SP,echo grain 1 - MIX 0,19.3,10.2,4.0,0.0
+RUN,reverbsc alone - bare - no chain
+SP,reverbsc alone - bare - no chain,20.7,11.6,0.0,0.0
+RUN,reverb grain 0 (no shimmer) time 0
+SP,reverb grain 0 (no shimmer) time 0,25.8,16.8,0.0,0.0
+RUN,reverb grain 0 (no shimmer) time 1
+SP,reverb grain 0 (no shimmer) time 1,26.2,17.1,0.0,0.0
+RUN,reverb grain 0.5 (shimmer)
+SP,reverb grain 0.5 (shimmer),31.0,21.9,2.0,0.0
+RUN,reverb grain 1 (full shimmer)
+SP,reverb grain 1 (full shimmer),30.9,21.8,2.0,0.0
+RUN,reverb grain 1 - frozen
+SP,reverb grain 1 - frozen,30.2,21.2,2.0,0.0
+=== done ===

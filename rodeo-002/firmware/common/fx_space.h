@@ -128,8 +128,7 @@ class Space
      *  and the reverb alone (see the header note). */
     void Reset()
     {
-        for(int g = 0; g < kMaxGrains; g++)
-            grains_[g].active = false;
+        n_grains_ = 0;
         for(int c = 0; c < 2; c++)
         {
             damp_[c].Reset();
@@ -248,13 +247,7 @@ class Space
     bool WetIsSilent() const { return wet_.cur < 1e-4f; }
 
     /** Grains currently playing -- for profiling and the OLED, not control. */
-    int ActiveGrains() const
-    {
-        int n = 0;
-        for(int g = 0; g < kMaxGrains; g++)
-            n += grains_[g].active ? 1 : 0;
-        return n;
-    }
+    int ActiveGrains() const { return n_grains_; }
 
     /** Bypassed with the tail fully decayed: ProcessBlock does nothing (the
      *  dry is already at unity), so an unused Space costs no CPU. */
@@ -282,6 +275,14 @@ class Space
     {
         if(IsIdle())
             return;
+        // Mix at zero: nobody can hear the wet, so don't render it. Recording
+        // continues, so raising the mix brings in the audio that just played.
+        // Measured on hardware: a full Echo cost the same at mix 0 as at mix 1.
+        if(wet_.cur < 1e-4f && wet_.target < 1e-4f)
+        {
+            RecordOnly(l, r, n);
+            return;
+        }
         switch(type_)
         {
             case kEcho: Run<kEcho>(l, r, n); break;
@@ -293,16 +294,28 @@ class Space
     }
 
   private:
-    static constexpr int    kMaxGrains  = 12;
+    static constexpr int      kMaxGrains = 12;
+    static constexpr int      kFracBits  = 14;
+    static constexpr uint32_t kFracOne   = 1u << kFracBits;
+    static constexpr float    kFracScale = static_cast<float>(kFracOne);
+    static constexpr float    kFracInv   = 1.f / kFracScale;
     static constexpr int    kWindowLen  = 512;
     static constexpr int    kDiffStages = 4;
     static constexpr size_t kGrainMask  = kGrainLen - 1;
     static constexpr size_t kPreMask    = kPreLen - 1;
 
+    // Position is FIXED POINT: 18 bits of sample index (the buffer is 1<<18)
+    // and 14 bits of fraction. That removes a floorf and two float->int
+    // conversions per channel per sample; the hardware profile put the grain
+    // loop at ~250 cycles/sample/grain, and this arithmetic was most of it.
+    // 14 fractional bits is ~-84 dB of interpolation error -- inaudible here.
     struct Grain
     {
-        float pos, rate, len, age, gl, gr;
-        bool  active;
+        uint32_t pos;   // 18.14 fixed point, wraps with kGrainMask
+        int32_t  step;  // playback rate in the same fixed point; negative = reverse
+        float    t;     // 0..1 through the window
+        float    t_inc; // 1/len, so no division per sample
+        float    gl, gr;
     };
 
     // Schroeder all-pass for Wash's diffuser.
@@ -385,33 +398,30 @@ class Space
     template <int T>
     void Spawn()
     {
-        for(int i = 0; i < kMaxGrains; i++)
-        {
-            Grain& g = grains_[i];
-            if(g.active)
-                continue;
-            float back;
-            if(T == kCloud || T == kWash)
-                back = rng_.Uniform() * offset_ + grain_len_ * rate_ + 64.f;
-            else
-                back = offset_ * (1.f + 0.1f * spread_ * rng_.Bipolar());
-            float pos = static_cast<float>(write_) - back;
-            while(pos < 0.f)
-                pos += static_cast<float>(kGrainLen);
-            g.pos  = pos;
-            g.rate = T == kReverse ? -rate_ : rate_;
-            g.len  = grain_len_;
-            g.age  = 0.f;
-            // Balance, not constant-power pan: each side tops out at 1. A
-            // constant-power law boosts a hard-panned grain by sqrt(2), which
-            // inside the feedback loop made Echo's loop gain 0.95 x 1.41 = 1.34.
-            const float p = 0.5f + 0.5f * spread_ * rng_.Bipolar();
-            g.gl          = p < 0.5f ? 1.f : 2.f * (1.f - p);
-            g.gr          = p > 0.5f ? 1.f : 2.f * p;
-            g.active      = true;
+        // All slots busy: skip. kMaxGrains is what bounds the worst case.
+        if(n_grains_ >= kMaxGrains)
             return;
-        }
-        // All grains busy: skip. kMaxGrains is what bounds the worst case.
+        Grain& g = grains_[n_grains_++];
+
+        float back;
+        if(T == kCloud || T == kWash)
+            back = rng_.Uniform() * offset_ + grain_len_ * rate_ + 64.f;
+        else
+            back = offset_ * (1.f + 0.1f * spread_ * rng_.Bipolar());
+        float pos = static_cast<float>(write_) - back;
+        while(pos < 0.f)
+            pos += static_cast<float>(kGrainLen);
+
+        g.pos   = static_cast<uint32_t>(pos * kFracScale);
+        g.step  = static_cast<int32_t>((T == kReverse ? -rate_ : rate_) * kFracScale);
+        g.t     = 0.f;
+        g.t_inc = 1.f / grain_len_;
+        // Balance, not constant-power pan: each side tops out at 1. A
+        // constant-power law boosts a hard-panned grain by sqrt(2), which
+        // inside the feedback loop made Echo's loop gain 0.95 x 1.41 = 1.34.
+        const float p = 0.5f + 0.5f * spread_ * rng_.Bipolar();
+        g.gl          = p < 0.5f ? 1.f : 2.f * (1.f - p);
+        g.gr          = p > 0.5f ? 1.f : 2.f * p;
     }
 
     float WindowAt(float t) const
@@ -422,11 +432,46 @@ class Space
         return window_[i] + (window_[j] - window_[i]) * (x - static_cast<float>(i));
     }
 
-    static float ReadInterp(const float* buf, float pos)
+    /** Linear interpolation straight out of the fixed-point position: an
+     *  index, a mask and a multiply -- no floorf, no float->int conversion. */
+    static float ReadInterp(const float* buf, uint32_t pos)
     {
-        const size_t i = static_cast<size_t>(pos) & kGrainMask;
-        const float  f = pos - floorf(pos);
+        const size_t i = (pos >> kFracBits) & kGrainMask;
+        const float  f = static_cast<float>(pos & (kFracOne - 1)) * kFracInv;
         return buf[i] + (buf[(i + 1) & kGrainMask] - buf[i]) * f;
+    }
+
+    /** Mix 0: keep the buffers fed and the smoothers moving, render nothing.
+     *  Regeneration stops too -- inaudible at mix 0, and the delay still has
+     *  the input's own history when the mix comes back up. */
+    void RecordOnly(float* l, float* r, size_t n)
+    {
+        for(size_t i = 0; i < n; i++)
+        {
+            const float dry_g = dry_.Next();
+            wet_.Next();
+            const float in_g = input_.Next() * (freeze_ ? 0.f : 1.f);
+            const float in_l = l[i] * in_g, in_r = r[i] * in_g;
+
+            if(type_ == kReverb)
+            {
+                buf_.pre_l[pre_write_] = in_l;
+                buf_.pre_r[pre_write_] = in_r;
+                pre_write_             = (pre_write_ + 1) & kPreMask;
+            }
+            if(!freeze_)
+            {
+                buf_.grain_l[write_] = in_l;
+                buf_.grain_r[write_] = in_r;
+                write_               = (write_ + 1) & kGrainMask;
+            }
+            const float lvl = fabsf(in_l) + fabsf(in_r);
+            tail_env_       = lvl > tail_env_ ? lvl : tail_env_ * 0.9999f;
+
+            l[i] *= dry_g;
+            r[i] *= dry_g;
+        }
+        n_grains_ = 0;
     }
 
     template <int T>
@@ -456,27 +501,23 @@ class Space
                     Spawn<T>();
             }
 
+            // Only the live grains, packed at the front: an idle slot costs
+            // nothing. A finished grain is swapped with the last one.
             float gl = 0.f, gr = 0.f;
-            for(int k = 0; k < kMaxGrains; k++)
+            for(int k = 0; k < n_grains_;)
             {
                 Grain& g = grains_[k];
-                if(!g.active)
-                    continue;
-                const float t = g.age / g.len;
-                if(t >= 1.f)
+                if(g.t >= 1.f)
                 {
-                    g.active = false;
+                    grains_[k] = grains_[--n_grains_];
                     continue;
                 }
-                const float w = WindowAt(t);
+                const float w = WindowAt(g.t);
                 gl += ReadInterp(buf_.grain_l, g.pos) * w * g.gl;
                 gr += ReadInterp(buf_.grain_r, g.pos) * w * g.gr;
-                g.pos += g.rate;
-                if(g.pos >= static_cast<float>(kGrainLen))
-                    g.pos -= static_cast<float>(kGrainLen);
-                else if(g.pos < 0.f)
-                    g.pos += static_cast<float>(kGrainLen);
-                g.age += 1.f;
+                g.pos += static_cast<uint32_t>(g.step); // wraps; masked on read
+                g.t += g.t_inc;
+                k++;
             }
             gl *= norm_;
             gr *= norm_;
@@ -586,6 +627,7 @@ class Space
     int      spawn_countdown_ = 1;
     size_t   write_ = 0, pre_write_ = 0;
     Grain    grains_[kMaxGrains] = {};
+    int      n_grains_           = 0;
     float    window_[kWindowLen]  = {};
     float    rev_out_[2]          = {};
     float    shim_ref_ = 0.f, shim_env_ = 0.f;
