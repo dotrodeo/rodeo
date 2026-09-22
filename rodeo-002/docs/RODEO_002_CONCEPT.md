@@ -3,7 +3,7 @@ title: "rodeo-002 — Instrument Concept"
 tags: [rodeo, rodeo-002, instrument, concept, granular, plaits, daisy-seed]
 status: draft
 created: 2026-09-20
-updated: 2026-09-21
+updated: 2026-09-22
 ---
 
 # rodeo-002 — Instrument Concept
