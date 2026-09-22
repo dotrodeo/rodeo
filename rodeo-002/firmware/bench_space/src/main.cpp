@@ -15,7 +15,11 @@
 // baseline, and the average number of grains playing -- which turns the grain
 // cases into a cost-per-grain.
 //
-//   SP,case,avg_pct,max_pct,cost_pct,avg_grains
+//   SP,case,load_pct,cost_pct,avg_grains,meter_avg_pct
+//
+// `load_pct` is measured here from raw timer ticks; `meter_avg_pct` is
+// libDaisy's CpuLoadMeter, which reported 0.0 for every case on the first run
+// and is kept only to show whether it agrees.
 //
 // Flash: tap RESET, tap BOOT while the LED pulses, then `make program-dfu`.
 // Serial log at 115200. Audio plays throughout.
@@ -76,10 +80,20 @@ volatile bool     g_chain_on = false;
 volatile bool     g_bare_on  = false; // the "ReverbSc alone" case
 volatile uint32_t g_blocks   = 0;
 
+// Load measured HERE, from raw timer ticks, rather than trusting
+// CpuLoadMeter: its first run reported 0.0 for every case (an infinite
+// ticksPerBlockInv_ prints as 0 through an int cast). Both are reported so the
+// log says which one to believe.
+volatile uint32_t g_busy_ticks  = 0; // ticks spent inside the callback
+volatile uint32_t g_busy_blocks = 0;
+static uint32_t   g_tick_freq   = 0;
+static float      g_block_ticks = 1.f; // ticks available per block
+
 void AudioCallback(AudioHandle::InputBuffer  in,
                    AudioHandle::OutputBuffer out,
                    size_t                    size)
 {
+    const uint32_t t_start = System::GetTick();
     meter.OnBlockStart();
     for(size_t i = 0; i < size; i++)
     {
@@ -94,6 +108,8 @@ void AudioCallback(AudioHandle::InputBuffer  in,
         for(size_t i = 0; i < size; i++)
             g_bare_reverb->Process(out[0][i] * 0.5f, out[1][i] * 0.5f, &out[0][i], &out[1][i]);
     meter.OnBlockEnd();
+    g_busy_ticks += System::GetTick() - t_start;
+    g_busy_blocks++;
     g_blocks++;
 }
 
@@ -137,8 +153,8 @@ struct Case
 
 // clang-format off
 static const Case kCases[] = {
-    {"baseline: all bypassed",              kBaseline, {}},
-    {"space bypassed, idle",                kNone, {Space::kEcho, 1, .5f, .8f, 1, .75f, true, false}},
+    {"baseline - all bypassed",             kBaseline, {}},
+    {"space bypassed - idle",               kNone, {Space::kEcho, 1, .5f, .8f, 1, .75f, true, false}},
 
     // Grain engine: cost scales with grains playing?
     {"echo grain 0",                        kNone, Heavy(Space::kEcho, 0.f)},
@@ -153,15 +169,15 @@ static const Case kCases[] = {
     {"wash grain 1",                        kNone, Heavy(Space::kWash, 1.f)},
 
     // Does Space cost the same when nobody can hear it?
-    {"echo grain 1, MIX 0",                 kNone, {Space::kEcho, 0, .5f, .8f, 1, .75f, false, false}},
+    {"echo grain 1 - MIX 0",                kNone, {Space::kEcho, 0, .5f, .8f, 1, .75f, false, false}},
 
     // Reverb: ReverbSc vs shimmer vs pre-delay
-    {"reverbsc alone (bare, no chain)",     kBare, {}},
+    {"reverbsc alone - bare - no chain",    kBare, {}},
     {"reverb grain 0 (no shimmer) time 0",  kNone, {Space::kReverb, 1, 0, .8f, 0, .75f, false, false}},
     {"reverb grain 0 (no shimmer) time 1",  kNone, {Space::kReverb, 1, 1, .8f, 0, .75f, false, false}},
     {"reverb grain 0.5 (shimmer)",          kNone, Heavy(Space::kReverb, 0.5f)},
     {"reverb grain 1 (full shimmer)",       kNone, Heavy(Space::kReverb, 1.f)},
-    {"reverb grain 1, frozen",              kNone, {Space::kReverb, 1, .5f, .8f, 1, .75f, false, true}},
+    {"reverb grain 1 - frozen",             kNone, {Space::kReverb, 1, .5f, .8f, 1, .75f, false, true}},
 };
 // clang-format on
 
@@ -207,16 +223,16 @@ static void Configure(const Case& c)
     }
 }
 
-static void PrintCase(const char* label, float avg, float max, float cost, float grains)
+static void PrintCase(const char* label, float load, float cost, float grains, float meter_avg)
 {
     auto whole = [](float v) { return static_cast<int>(v); };
     auto tenth = [](float v) { return static_cast<int>(fabsf(v - truncf(v)) * 10.f); };
-    hw.PrintLine("SP,%s,%d.%d,%d.%d,%s%d.%d,%d.%d",
+    hw.PrintLine("SP,%s,%d.%d,%s%d.%d,%d.%d,%d.%d",
                  label,
-                 whole(avg), tenth(avg),
-                 whole(max), tenth(max),
+                 whole(load), tenth(load),
                  cost < 0.f && cost > -1.f ? "-" : "", whole(cost), tenth(cost),
-                 whole(grains), tenth(grains));
+                 whole(grains), tenth(grains),
+                 whole(meter_avg), tenth(meter_avg));
 }
 
 int main(void)
@@ -237,13 +253,19 @@ int main(void)
         voices[v].Init(daisysp::mtof(static_cast<float>(kChord[v])));
 
     meter.Init(kSampleRate, static_cast<int>(kBlockSize));
+    g_tick_freq   = System::GetTickFreq();
+    g_block_ticks = static_cast<float>(g_tick_freq) * static_cast<float>(kBlockSize)
+                    / kSampleRate;
     hw.StartLog(false);
     System::Delay(1500);
 
     hw.PrintLine("=== rodeo-002 bench_space ===");
     hw.PrintLine("4 x variable-saw; other slots bypassed; Space at FX-pass heavy");
     hw.PrintLine("settings unless named (mix 1, time .5, fb .8, pitch +12, spread 1)");
-    hw.PrintLine("SP,case,avg_pct,max_pct,cost_pct,avg_grains");
+    hw.PrintLine("tick freq %d Hz, %d ticks per block",
+                 static_cast<int>(g_tick_freq),
+                 static_cast<int>(g_block_ticks));
+    hw.PrintLine("SP,case,load_pct,cost_pct,avg_grains,meter_avg_pct");
 
     hw.StartAudio(AudioCallback);
 
@@ -254,6 +276,8 @@ int main(void)
         Configure(c);
         WaitBlocks(300);
         meter.Reset();
+        g_busy_ticks  = 0;
+        g_busy_blocks = 0;
         // Average the grain count over the window, sampling once per block.
         uint64_t       grain_sum = 0;
         uint32_t       samples   = 0;
@@ -268,14 +292,18 @@ int main(void)
                 samples++;
             }
         }
-        const float avg = meter.GetAvgCpuLoad() * 100.f;
-        const float max = meter.GetMaxCpuLoad() * 100.f;
+        // Our own figure: ticks spent in the callback / ticks available.
+        const uint32_t blocks = g_busy_blocks;
+        const float    load   = blocks ? static_cast<float>(g_busy_ticks)
+                                          / (static_cast<float>(blocks) * g_block_ticks) * 100.f
+                                       : 0.f;
+        const float meter_avg = meter.GetAvgCpuLoad() * 100.f;
         if(c.special == kBaseline)
-            base = avg;
+            base = load;
         const float grains = (g_chain_on && samples)
                                  ? static_cast<float>(grain_sum) / static_cast<float>(samples)
                                  : 0.f;
-        PrintCase(c.label, avg, max, avg - base, grains);
+        PrintCase(c.label, load, load - base, grains, meter_avg);
     }
 
     g_chain_on = false;
