@@ -6,7 +6,7 @@ here just points `RODEO_ROOT` back at that tree.
 
 | App | What it is |
 |---|---|
-| `common/` | **Shared code** — `voice.h` (voices, allocation, the three voice modes), `patch.h` (what a preset holds), `cost_model.h` (measured costs → the voice cap) for every app and, later, the instrument: the voice engines (`engines.h`), the four texture-chain slots (`fx_character.h`, `fx_movement.h`, `fx_texture.h`, `fx_space.h`), the chain (`texture_chain.h`), helpers (`dsp_util.h`) — header-only and host-compilable — plus `app.mk`, the build rules every app includes. |
+| `common/` | **Shared code**, header-only and host-compilable: the voice engines (`engines.h`), the voices and allocation (`voice.h`), what a patch holds (`patch.h`), the measured costs behind the voice cap (`cost_model.h`), the four texture-chain slots (`fx_*.h`), the chain (`texture_chain.h`) and helpers (`dsp_util.h`) — plus `app.mk`, the build rules every app includes. |
 | `tests/` | Host-side GoogleTest for `common/`, against the real vendored DaisySP: every effect type at every corner must stay finite, bounded, quiet after the input stops, transparent at zero, and audible at full; plus a fuzz test that twiddles the whole chain at random. `make test`. |
 | `synth/` | **The instrument.** MIDI in → voices → texture chain → audio out, with polyphony capped from the measured cost model. The panel is not wired yet, so its parameters are on MIDI CC in the meantime (map below). |
 | `bench_voices/` | CPU benchmark: the cost of every effect type, then voices per engine with the worst-case chain running. |
@@ -35,7 +35,7 @@ make program-boot     # first: hold BOOT, tap RESET
 Then, for every update:
 
 ```bash
-cd rodeo-002/firmware/bench_voices
+cd rodeo-002/firmware/synth     # or bench_voices, bench_space
 make
 make program-dfu
 ```
@@ -86,9 +86,8 @@ Then the most expensive type from each slot runs all at once: **the worst-case
 chain**.
 
 **Then the engine sweep**: for each candidate engine it holds a sustained chord
-at a rising voice count and reports audio-callback load from libDaisy's
-`CpuLoadMeter`, twice — voices alone, then voices plus **the worst-case chain
-measured above**. These are the real effects from `../common`, so the voice
+at a rising voice count and reports audio-callback load, twice — voices alone,
+then voices plus **the worst-case chain measured above**. These are the real effects from `../common`, so the voice
 counts are the ones the instrument will get.
 
 The voice under test is the rodeo-002 voice from the control map: one engine →
@@ -99,8 +98,12 @@ so if the board ever does wedge, the log's last line names what was playing:
 
 ```
 RUN,engine,fx,voices
-CSV,engine,fx,voices,avg_pct,max_pct
+CSV,engine,fx,voices,load_pct,max_pct,meter_avg_pct
 ```
+
+`load_pct` is measured from raw timer ticks. `meter_avg_pct` is libDaisy's
+`CpuLoadMeter`, kept alongside because it reported 0.0 for every case in
+`bench_space` (cause unexplained); here the two agree within 0.2 points.
 
 then a summary of the largest voice count that stayed under 70% average load.
 
