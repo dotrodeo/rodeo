@@ -6,8 +6,9 @@ here just points `RODEO_ROOT` back at that tree.
 
 | App | What it is |
 |---|---|
-| `common/` | **Shared code** for every app and, later, the instrument: the voice engines (`engines.h`), the four texture-chain slots (`fx_character.h`, `fx_movement.h`, `fx_texture.h`, `fx_space.h`), the chain (`texture_chain.h`), helpers (`dsp_util.h`) — header-only and host-compilable — plus `app.mk`, the build rules every app includes. |
+| `common/` | **Shared code** — `voice.h` (voices, allocation, the three voice modes), `patch.h` (what a preset holds), `cost_model.h` (measured costs → the voice cap) for every app and, later, the instrument: the voice engines (`engines.h`), the four texture-chain slots (`fx_character.h`, `fx_movement.h`, `fx_texture.h`, `fx_space.h`), the chain (`texture_chain.h`), helpers (`dsp_util.h`) — header-only and host-compilable — plus `app.mk`, the build rules every app includes. |
 | `tests/` | Host-side GoogleTest for `common/`, against the real vendored DaisySP: every effect type at every corner must stay finite, bounded, quiet after the input stops, transparent at zero, and audible at full; plus a fuzz test that twiddles the whole chain at random. `make test`. |
+| `synth/` | **The instrument.** MIDI in → voices → texture chain → audio out, with polyphony capped from the measured cost model. The panel is not wired yet, so its parameters are on MIDI CC in the meantime (map below). |
 | `bench_voices/` | CPU benchmark: the cost of every effect type, then voices per engine with the worst-case chain running. |
 | `bench_space/` | Space-slot profiler (~40 s): splits Space's cost into ReverbSc, shimmer, pre-delay, grain engine (cost per grain) and running-at-mix-0, to decide which optimisation pays. |
 
@@ -128,3 +129,25 @@ engine being measured.
   is a per-patch choice.
 - **Grain count is capped** at `kMaxGrains` (12), which is also what bounds the
   granular delay's worst-case cost.
+
+## `synth` — the instrument
+
+MIDI IN on the TRS jack; audio on the line out. **Polyphony is not fixed**: the
+voice count is recomputed from `cost_model.h` whenever the engine or a slot's
+type changes, so an expensive Space type costs voices. The serial log prints the
+count next to the measured and predicted load — if those two drift apart, the
+cost table is stale and the benchmarks need re-running.
+
+Until the panel is wired, every parameter it will own is on MIDI CC, laid out in
+panel order so the mapping is easy to remember:
+
+| CC | What |
+|---|---|
+| 70–85 | Main layer, panel order: 70 harmonics, 71 timbre, 72 morph, 73 character amt, 74 cutoff, 75 resonance, 76 spread, 77 movement amt, 78 attack, 79 release, 80 volume, 81 texture amt, 82 space time, 83 space feedback, 84 space grain, 85 space mix |
+| 90–105 | Shift layer, same order: 90 env→timbre, 91 env→morph, 92 LFO rate, 93 character bias, 94 filter type, 95 filter env, 96 LFO dest, 97 movement rate, 98 decay, 99 sustain, 100 LFO depth, 101 texture tone, 102 grain pitch, 103 grain spread, 104 tilt, 105 space damp |
+| 110–120 | 110 engine · 111–114 slot types · 115 voice mode · 116 freeze · 117–120 slot bypass |
+| 1, 64 | Mod wheel, sustain pedal |
+
+Memory: 8 voices and the chain leave DTCM at ~76%. libDaisy's MIDI handler
+(~37 KB, a 256-entry event queue) lives in SDRAM — its DMA buffer is elsewhere,
+and MIDI is far too slow for the slower memory to matter.

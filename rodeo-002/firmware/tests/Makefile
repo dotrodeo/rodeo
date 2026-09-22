@@ -24,7 +24,24 @@ DAISYSP_DIR = $(RODEO_ROOT)/DaisySP/Source
 LGPL_DIR    = $(RODEO_ROOT)/DaisySP/DaisySP-LGPL/Source
 
 # Only the DaisySP translation units the effects actually use.
-DSP_SOURCES = $(DAISYSP_DIR)/Effects/overdrive.cpp \
+DSP_SOURCES = $(DAISYSP_DIR)/Filters/svf.cpp \
+              $(DAISYSP_DIR)/Control/adsr.cpp \
+              $(DAISYSP_DIR)/Synthesis/oscillator.cpp \
+              $(DAISYSP_DIR)/Synthesis/variableshapeosc.cpp \
+              $(DAISYSP_DIR)/Synthesis/variablesawosc.cpp \
+              $(DAISYSP_DIR)/Synthesis/fm2.cpp \
+              $(DAISYSP_DIR)/Synthesis/formantosc.cpp \
+              $(DAISYSP_DIR)/Synthesis/vosim.cpp \
+              $(DAISYSP_DIR)/Synthesis/zoscillator.cpp \
+              $(DAISYSP_DIR)/Noise/grainlet.cpp \
+              $(DAISYSP_DIR)/Noise/particle.cpp \
+              $(DAISYSP_DIR)/Noise/clockednoise.cpp \
+              $(DAISYSP_DIR)/PhysicalModeling/stringvoice.cpp \
+              $(DAISYSP_DIR)/PhysicalModeling/KarplusString.cpp \
+              $(DAISYSP_DIR)/PhysicalModeling/resonator.cpp \
+              $(DAISYSP_DIR)/Utility/dcblock.cpp \
+              $(DAISYSP_DIR)/Dynamics/crossfade.cpp \
+              $(DAISYSP_DIR)/Effects/overdrive.cpp \
               $(DAISYSP_DIR)/Effects/wavefolder.cpp \
               $(DAISYSP_DIR)/Effects/decimator.cpp \
               $(DAISYSP_DIR)/Effects/sampleratereducer.cpp \
