@@ -11,10 +11,13 @@
 // no virtuals, so the audio loop stays inlinable and the cost measured here is
 // the DSP's, not the abstraction's.
 //
-// All of these except the last two ship in the vendored DaisySP (they are the
-// Plaits-derived modules Emilie Gillet contributed upstream). Wavetable and
-// Chord are NOT here yet -- they still need porting from the MIT-licensed
-// Mutable Instruments source, so the benchmark cannot speak for them.
+// All of these ship in the vendored DaisySP (they are the Plaits-derived
+// modules Emilie Gillet contributed upstream). Wavetable and Chord are NOT here
+// -- they need porting from the MIT-licensed Mutable source and are deferred.
+//
+// MODAL IS DROPPED (Derek, 2026-09-22): DaisySP's ModalVoice measured 46% CPU
+// for ONE voice, so it could not run at all beside an expensive Space type. The
+// DSP is still in DaisySP if it is ever worth optimising back in.
 
 #pragma once
 
@@ -37,7 +40,6 @@ enum class EngineId : uint8_t
     kZOsc,               // ZOscillator
     kGrainlet,           // GrainletOscillator
     kParticle,           // Particle (resonant noise grains)
-    kModal,              // ModalVoice (struck resonator)
     kString,             // StringVoice (plucked/bowed)
     kKarplus,            // KarplusString, externally excited
     kCount
@@ -56,7 +58,6 @@ inline const char* EngineName(EngineId id)
         case EngineId::kZOsc: return "z-osc";
         case EngineId::kGrainlet: return "grainlet";
         case EngineId::kParticle: return "particle";
-        case EngineId::kModal: return "modal";
         case EngineId::kString: return "string";
         case EngineId::kKarplus: return "karplus";
         default: return "?";
@@ -68,8 +69,7 @@ inline const char* EngineName(EngineId id)
  *  under-reports them unless it re-triggers. The harness re-triggers these. */
 inline bool EngineIsPercussive(EngineId id)
 {
-    return id == EngineId::kModal || id == EngineId::kString
-           || id == EngineId::kKarplus;
+    return id == EngineId::kString || id == EngineId::kKarplus;
 }
 
 /** One engine instance. Init() picks which; the macros are control-rate. */
@@ -114,9 +114,6 @@ class Engine
                 break;
             case EngineId::kParticle:
                 (new(storage_) daisysp::Particle())->Init(sample_rate);
-                break;
-            case EngineId::kModal:
-                (new(storage_) daisysp::ModalVoice())->Init(sample_rate);
                 break;
             case EngineId::kString:
                 (new(storage_) daisysp::StringVoice())->Init(sample_rate);
@@ -220,15 +217,6 @@ class Engine
                 o->SetGain(1.f);
                 break;
             }
-            case EngineId::kModal:
-            {
-                auto* o = As<daisysp::ModalVoice>();
-                o->SetFreq(freq);
-                o->SetStructure(harmonics);
-                o->SetBrightness(timbre);
-                o->SetDamping(morph);
-                break;
-            }
             case EngineId::kString:
             {
                 auto* o = As<daisysp::StringVoice>();
@@ -256,7 +244,6 @@ class Engine
     {
         switch(id_)
         {
-            case EngineId::kModal: As<daisysp::ModalVoice>()->Trig(); break;
             case EngineId::kString: As<daisysp::StringVoice>()->Trig(); break;
             case EngineId::kKarplus:
                 // KarplusString takes an external exciter -- burst some noise
@@ -286,7 +273,6 @@ class Engine
             case EngineId::kGrainlet:
                 return As<daisysp::GrainletOscillator>()->Process();
             case EngineId::kParticle: return As<daisysp::Particle>()->Process();
-            case EngineId::kModal: return As<daisysp::ModalVoice>()->Process();
             case EngineId::kString: return As<daisysp::StringVoice>()->Process();
             case EngineId::kKarplus:
             {
@@ -315,7 +301,6 @@ class Engine
         daisysp::ZOscillator             zosc;
         daisysp::GrainletOscillator      grainlet;
         daisysp::Particle                particle;
-        daisysp::ModalVoice              modal;
         daisysp::StringVoice             string;
         daisysp::String                  karplus;
     };

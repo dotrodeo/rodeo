@@ -62,19 +62,23 @@ running**. Poly mode caps at 8 regardless — a higher number here is headroom, 
 | Grainlet | DaisySP `GrainletOscillator` | 6.9% | **8** |
 | Vosim | DaisySP `VosimOscillator` | 8.9% | 6 |
 | Z-osc | DaisySP `ZOscillator` | 9.5% | 6 |
-| Karplus string | DaisySP `String` | 14.5% | **Mono · Unison-2** |
-| String voice | DaisySP `StringVoice` | 17.1% | **Mono · Unison-2** |
-| Modal | DaisySP `ModalVoice` | 46.2% | **Mono only** |
+| Karplus string | DaisySP `String` | 14.0% | **Mono · Unison-2** |
+| String voice | DaisySP `StringVoice` | 16.4% | **Mono · Unison-2** |
+| ~~Modal~~ | ~~DaisySP `ModalVoice`~~ | ~~46.2%~~ | **DROPPED** |
 | Wavetable | *deferred* — would port from Plaits (MIT) | unmeasured | — |
 | Chord | *deferred* — would port from Plaits (MIT) | unmeasured, ~4–6 osc/voice | — |
 
 **Wavetable and Chord are deferred** (Derek, 2026-09-20): not ported for now, so the shipping
 engine list is the twelve measured above.
 
-**The three physical models cannot meet the 6-voice minimum, so they are monophonic
-engines** (Derek, 2026-09-20 — see Voice modes). They are struck and plucked models that
-suit monophonic playing anyway. Everything from Grainlet up meets the 8-voice target; the
-two cheapest VA engines have room for twice that.
+**MODAL IS DROPPED** (Derek, 2026-09-22): at 46% for a single voice it could not run at all
+beside an expensive Space type, and designing around it was not worth it. The DSP stays in
+DaisySP if it is ever worth optimising back in. **String and Karplus remain, as monophonic
+engines** — they are struck and plucked models that suit monophonic playing anyway. That
+leaves **eleven engines**, and no combination that fails to fit.
+
+Per-voice costs above are the 2026-09-22 hardware fit (raw ticks, post-optimisation); they
+are the numbers [`cost_model.h`](../firmware/common/cost_model.h) uses.
 
 Most of the list is already vendored in `rodeo-motherboard/firmware/DaisySP` — these are the
 Plaits-derived modules Émilie Gillet contributed upstream, so the "Plaits-like" feel is mostly
@@ -100,7 +104,6 @@ to be polyphonic, so each engine declares which voice modes it supports:
 | Everything 8-voice or better | 8 *(see below)* | yes | up to 4 |
 | Vosim, Z-osc | 6 | yes | up to 4 |
 | String, Karplus | — | yes | 2 only |
-| Modal | — | yes | — |
 
 **The voice outranks the voice count** (Derek, 2026-09-21). FM, Harmonic and Grainlet run 8
 voices at 66–69% in the plain build, 63.5–64.7% under the bootloader — close to the ceiling
@@ -304,13 +307,14 @@ ceiling with that chain running (log above; bootloader build):
 A *light* chain is a different story: Warm + Chorus + Crush + Echo costs ~16%, and FM keeps 8
 voices under it. The cap is what makes the difference visible instead of audible.
 
-**Polyphony is capped from the cost table** (Derek, 2026-09-21). The worst case is reachable
-by any player, and an overload is an audible dropout, not a slowdown — so the firmware
-computes a safe voice count from the measured costs whenever the engine or a slot's type
-changes, and the OLED always shows it ("FM · 6 voices"). **The voice count can therefore
-change when a Space type changes.** Combinations that don't fit at all (Modal + Reverb) still
-need a rule. The caps get set once the chain has been optimised — `bench_space` profiles
-Space first, to see which optimisation pays.
+**Polyphony is capped from the cost table** (Derek, 2026-09-21), implemented in
+[`cost_model.h`](../firmware/common/cost_model.h) and pinned to the hardware logs by host
+tests — it predicts measured load within 2 points. The worst case is reachable by any player,
+and an overload is an audible dropout, not a slowdown — so the firmware computes a safe voice
+count from the measured costs whenever the engine or a slot's type changes, and the OLED
+always shows it ("FM · 6 voices"). **The voice count can therefore change when a Space type
+changes.** With Modal dropped, **every remaining engine fits beside every Space type**, so
+there is no unplayable combination to rule on.
 
 ## Preset system
 
@@ -378,8 +382,8 @@ and runs it from there, which is also fast memory, so DSP cost should carry over
    5 / 5, printed secondaries Bias / Rate / Tone / Damp, fixed chain order. Every type still
    needs a cost measurement.
 5. MIDI CC in/out map for the pots.
-6. **The real chain's cost (2026-09-21).** Worst case 36.8%, Reverb 21.9% of it. Polyphony
-   cap from the cost table: **approved** (see *Resource budget*). Optimisation: pending the
-   `bench_space` profile — ReverbSc vs shimmer vs pre-delay vs grain engine vs mix-0 cost —
-   which decides between replacing ReverbSc, restructuring the grain loop, or moving data out
-   of SDRAM. Still open: what happens for combinations that don't fit at all (Modal + Reverb).
+6. ~~The real chain's cost~~ **RESOLVED (Derek, 2026-09-22):** grain engine optimised
+   (Space types −14 to −23%), worst chain now 35.4%; polyphony cap implemented in
+   `cost_model.h`; Modal dropped, which removes the only unplayable combination. **Deferred:**
+   replacing ReverbSc with a lighter in-house reverb (it is 11.6 of Reverb's 20.6) — worth
+   ~2 voices on the heavy engines if Reverb patches ever feel too tight.
