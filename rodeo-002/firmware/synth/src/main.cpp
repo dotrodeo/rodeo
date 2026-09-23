@@ -545,7 +545,7 @@ int main(void)
 
     daisysp::ReverbSc* reverb = new(g_reverb_mem) daisysp::ReverbSc();
     chain.Init(kSampleRate, {g_grain_l, g_grain_r, g_pre_l, g_pre_r, reverb});
-    voices.Init(kSampleRate);
+    voices.Init(kSampleRate, kBlockSize);
     ui.Init(patch, globals);
     pots.Init();
     ApplyPatch();

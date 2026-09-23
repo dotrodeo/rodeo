@@ -11,6 +11,13 @@
 // SVF SAFETY: DaisySP's Svf diverges to NaN when driven hard, and it never
 // recovers (see rodeo-motherboard's svf_stability_gtest). The platform's rule
 // is to keep the source at +/-1 and call SetDrive(0.5); both are done here.
+//
+// CONTROL SMOOTHING: the panel's pots are read ~108 times a second, and a raw
+// reading applied straight to an engine steps audibly -- worst on Harmonics,
+// which sets the virtual-analog sync frequency. The macro parameters therefore
+// ramp toward their target once per block (~1 kHz), so what the ear gets is a
+// glide between readings rather than a staircase. Measured on hardware
+// 2026-09-23: without this, turning a pot is plainly stepped.
 
 #pragma once
 
@@ -27,6 +34,7 @@ namespace rodeo002
 {
 // The small helpers (Clamp, ExpMap, TimeCoeff, Lfo) live in the fx namespace.
 using fx::Clamp;
+using fx::Smoother;
 using fx::ExpMap;
 using fx::TimeCoeff;
 
@@ -36,9 +44,19 @@ class VoiceManager
     static constexpr int   kMaxVoices = CostModel::kMaxPoly;
     static constexpr float kSvfDrive  = 0.5f; // platform rule; do not raise
 
-    void Init(float sample_rate)
+    void Init(float sample_rate, size_t block_size = 48)
     {
         sample_rate_ = sample_rate;
+        // Control smoothers run once per BLOCK, so their "sample rate" is the
+        // block rate. 20 ms is fast enough to feel immediate and slow enough to
+        // bridge the ~9 ms between ADC readings.
+        const float block_rate = sample_rate / static_cast<float>(block_size);
+        sm_harmonics_.Init(block_rate, kSmoothSeconds, 0.5f);
+        sm_timbre_.Init(block_rate, kSmoothSeconds, 0.5f);
+        sm_morph_.Init(block_rate, kSmoothSeconds, 0.5f);
+        sm_cutoff_.Init(block_rate, kSmoothSeconds, 0.8f);
+        sm_resonance_.Init(block_rate, kSmoothSeconds, 0.2f);
+        sm_spread_.Init(block_rate, kSmoothSeconds, 0.f);
         lfo_.Init(sample_rate);
         for(int v = 0; v < kMaxVoices; v++)
         {
@@ -96,9 +114,20 @@ class VoiceManager
             x.env.SetDecayTime(ExpMap(p.decay, 0.005f, 8.f));
             x.env.SetSustainLevel(p.sustain);
             x.env.SetReleaseTime(ExpMap(p.release, 0.005f, 12.f));
-            x.svf.SetRes(Clamp(p.resonance, 0.f, 0.95f));
         }
+        // Targets only: the smoothers walk toward these per block (see Render).
+        sm_harmonics_.Set(p.harmonics);
+        sm_timbre_.Set(p.timbre);
+        sm_morph_.Set(p.morph);
+        sm_cutoff_.Set(p.cutoff);
+        sm_resonance_.Set(Clamp(p.resonance, 0.f, 0.95f));
+        sm_spread_.Set(p.spread);
     }
+
+    /** The smoothed control values actually in use -- for tests and the OLED,
+     *  which should show where a parameter IS, not where it is heading. */
+    float SmoothedHarmonics() const { return sm_harmonics_.cur; }
+    float SmoothedCutoff() const { return sm_cutoff_.cur; }
 
     // --------------------------------------------------------------- MIDI
 
@@ -163,9 +192,18 @@ class VoiceManager
     void Render(float* out, size_t n)
     {
         const Patch& p = patch_;
+
+        // One step per block: the pots' ~108 Hz staircase becomes a ramp.
+        const float harmonics = sm_harmonics_.Next();
+        const float timbre_p  = sm_timbre_.Next();
+        const float morph_p   = sm_morph_.Next();
+        const float cutoff_p  = sm_cutoff_.Next();
+        const float res_p     = sm_resonance_.Next();
+        const float spread_p  = sm_spread_.Next();
+
         // Mod wheel adds to LFO depth; aftertouch pushes Morph.
         const float depth = Clamp(p.lfo_depth + mod_wheel_, 0.f, 1.f);
-        const float morph = Clamp(p.morph + aftertouch_ * 0.5f, 0.f, 1.f);
+        const float morph = Clamp(morph_p + aftertouch_ * 0.5f, 0.f, 1.f);
         const float glide_coeff
             = p.glide > 0.001f ? TimeCoeff(ExpMap(p.glide, 0.005f, 2.f), sample_rate_) : 1.f;
 
@@ -198,11 +236,11 @@ class VoiceManager
             const float to_timb  = (p.env_to_timbre - 0.5f) * 2.f;
             const float to_morph = (p.env_to_morph - 0.5f) * 2.f;
             const float timbre
-                = Clamp(p.timbre + env * to_timb * 0.5f + timbre_mod, 0.f, 1.f);
+                = Clamp(timbre_p + env * to_timb * 0.5f + timbre_mod, 0.f, 1.f);
             const float morph_v = Clamp(morph + env * to_morph * 0.5f + morph_mod, 0.f, 1.f);
-            const float detune  = x.detune * p.spread * 0.06f; // +/- ~1 semitone
+            const float detune  = x.detune * spread_p * 0.06f; // +/- ~1 semitone
             x.eng.SetParams(x.glide_freq * powf(2.f, (bend_ + pitch_mod + detune) / 12.f),
-                            p.harmonics,
+                            harmonics,
                             timbre,
                             morph_v);
 
@@ -210,7 +248,8 @@ class VoiceManager
             const float env_amt = (p.filter_env - 0.5f) * 2.f;
             const float keytrk  = (p.keytrack - 0.5f) * 2.f
                                  * (static_cast<float>(x.note - 60) / 24.f);
-            const float cut = Clamp(p.cutoff + env * env_amt + keytrk
+            x.svf.SetRes(res_p);
+            const float cut = Clamp(cutoff_p + env * env_amt + keytrk
                                         + x.vel * p.vel_to_filter * 0.5f + cutoff_mod,
                                     0.f,
                                     1.f);
@@ -349,10 +388,12 @@ class VoiceManager
 
     static constexpr int   kUnisonMax = 4;
     static constexpr int   kNoteStack = 16;
-    static constexpr float kVoiceGain = 0.25f; // headroom for 8 voices
+    static constexpr float kVoiceGain     = 0.25f; // headroom for 8 voices
+    static constexpr float kSmoothSeconds = 0.02f; // control ramp
 
     Voice    voices_[kMaxVoices];
     Patch    patch_;
+    Smoother sm_harmonics_, sm_timbre_, sm_morph_, sm_cutoff_, sm_resonance_, sm_spread_;
     fx::Lfo  lfo_;
     float    sample_rate_ = 48000.f;
     int      max_voices_  = kMaxVoices;

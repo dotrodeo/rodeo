@@ -203,3 +203,60 @@ TEST(VoiceManager, BendAndModWheelAreAudibleButBounded)
     EXPECT_GT(r.peak, 0.01f);
     EXPECT_LT(r.peak, 4.f);
 }
+
+// The panel reads pots ~108 times a second. Applied raw, each reading lands as
+// a jump and the ear hears a staircase -- reported from hardware on 2026-09-23,
+// most audibly on Harmonics, which sets the virtual-analog sync frequency. The
+// control smoothers must turn that into a ramp.
+TEST(VoiceManager, ControlChangesRampRatherThanStep)
+{
+    VoiceManager vm;
+    vm.Init(kSr, kBlock);
+    Patch p;
+    p.harmonics = 0.f;
+    p.cutoff    = 0.2f;
+    vm.ApplyPatch(p);
+    vm.NoteOn(60, 0.8f);
+    Render(vm, 0.2f); // settle at the starting value
+    ASSERT_NEAR(vm.SmoothedHarmonics(), 0.f, 0.02f);
+
+    // A big jump, as a fast turn of the knob delivers.
+    p.harmonics = 1.f;
+    p.cutoff    = 0.9f;
+    vm.ApplyPatch(p);
+
+    // One block must move only a fraction of the way -- that is the point.
+    float  buf[kBlock];
+    vm.Render(buf, kBlock);
+    EXPECT_LT(vm.SmoothedHarmonics(), 0.2f) << "a single block jumped most of the way";
+
+    // ...and it must still arrive promptly: ~20 ms, not a slow drift.
+    for(int i = 0; i < 60; i++) // 60 blocks = 60 ms
+        vm.Render(buf, kBlock);
+    EXPECT_GT(vm.SmoothedHarmonics(), 0.9f);
+    EXPECT_GT(vm.SmoothedCutoff(), 0.85f);
+}
+
+// Smoothing must not make a knob feel laggy: 20 ms is the target.
+TEST(VoiceManager, ControlSmoothingReachesHalfwayWithinAboutTwentyMilliseconds)
+{
+    VoiceManager vm;
+    vm.Init(kSr, kBlock);
+    Patch p;
+    p.harmonics = 0.f;
+    vm.ApplyPatch(p);
+    float buf[kBlock];
+    for(int i = 0; i < 50; i++)
+        vm.Render(buf, kBlock);
+
+    p.harmonics = 1.f;
+    vm.ApplyPatch(p);
+    int blocks = 0;
+    while(vm.SmoothedHarmonics() < 0.5f && blocks < 200)
+    {
+        vm.Render(buf, kBlock);
+        blocks++;
+    }
+    EXPECT_GT(blocks, 3) << "too abrupt to be smoothing";
+    EXPECT_LT(blocks, 40) << "a knob that takes this long feels laggy";
+}
