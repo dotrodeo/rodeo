@@ -54,8 +54,12 @@ static constexpr float  kSampleRate = 48000.f;
 // first ends up running at the other's speed -- which is what stopped the hub
 // answering here (the OLED's default is 400 kHz; the hub contract boots at
 // 100 kHz). Promote both together once the populated bus is validated.
+// 400 kHz: the hub contract's "promote once the populated bus is validated"
+// step, taken 2026-09-23 with all five encoders and the OLED live. It matters
+// because the display's bus time is what starves the panel -- a full frame is
+// ~25 ms here against ~100 ms at 100 kHz.
 static constexpr I2CHandle::Config::Speed kI2cSpeed
-    = I2CHandle::Config::Speed::I2C_100KHZ;
+    = I2CHandle::Config::Speed::I2C_400KHZ;
 
 // Space's buffers and ReverbSc (~396 KB) in SDRAM; the reverb is constructed
 // after hw.Init() brings the SDRAM up.
@@ -297,18 +301,22 @@ static void ApplyPatch()
 }
 
 /** Services the panel and MIDI. Also handed to the OLED driver as its yield, so
- *  a screen refresh does not stall the panel.
+ *  a screen refresh does not stall the pots or MIDI.
  *
- *  Polling the hub from here is safe and intended: the transport yields BETWEEN
- *  complete page transactions, not inside one, and a full frame at 100 kHz is
- *  ~100 ms -- long enough to miss detents if the hub went unpolled. (This file
- *  used to skip the hub during a redraw, on a misreading of where the yield
- *  happens.) Deliberately no logging here: PrintLine can block. */
+ *  THE HUB IS NOT POLLED DURING A FRAME. Those are I2C transactions on the bus
+ *  the display is using, and nesting them risks leaving a device holding the
+ *  bus -- which wedges the panel for good while audio, running in the
+ *  interrupt, carries on none the wiser. Nothing is lost by waiting: the hub
+ *  ACCUMULATES deltas and LATCHES presses, so a ~25 ms gap costs no input.
+ *  The ADC is on SPI and MIDI on a UART, so both are safe here.
+ *  Deliberately no logging: PrintLine can block. */
+static bool g_in_oled = false;
+
 static void PumpIo()
 {
     if(g_have_adc)
         adc.Update();
-    if(g_have_hub)
+    if(g_have_hub && !g_in_oled)
         encoders.Update();
     if(midi)
     {
@@ -383,7 +391,38 @@ static void DrawScreen(float load)
     display.SetCursor(128 - 6 * 4, 54);
     display.WriteString(load_str, Font_6x8, true);
 
+    g_in_oled = true;
     display.Update(); // pages out, PumpIo() between each
+    g_in_oled = false;
+}
+
+/** What the screen currently depends on, folded into one value: redrawing only
+ *  when this changes keeps the bus idle while nothing is moving, which is what
+ *  leaves room for the hub. */
+static uint32_t ScreenSignature(const DisplayState& d, float load)
+{
+    uint32_t h = 2166136261u;
+    auto     mix = [&h](uint32_t v) { h = (h ^ v) * 16777619u; };
+    auto     mix_ptr
+        = [&mix](const char* p) { mix(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(p))); };
+    mix_ptr(d.engine);
+    mix_ptr(d.voice_mode);
+    mix(static_cast<uint32_t>(d.voices_active));
+    mix(static_cast<uint32_t>(d.voices_max));
+    for(int s = 0; s < fx::TextureChain::kNumSlots; s++)
+    {
+        mix_ptr(d.slot_type[s]);
+        mix(d.slot_bypass[s] ? 1u : 0u);
+    }
+    mix(d.freeze ? 1u : 0u);
+    mix(d.shift ? 1u : 0u);
+    mix_ptr(d.param);
+    mix(static_cast<uint32_t>(d.value * 255.f)); // a pixel's worth of the bar
+    mix(static_cast<uint32_t>(d.pickup_hint + 2));
+    mix(d.show_value ? 1u : 0u);
+    mix_ptr(d.message);
+    mix(static_cast<uint32_t>(load)); // whole percent
+    return h;
 }
 
 /** Bring-up dump: what the panel hardware actually reads.
@@ -463,6 +502,32 @@ static void DumpPanel()
         }
         hw.PrintLine("%s", line.Cstr());
     }
+}
+
+/** Heartbeat on the hub, so a wedged bus reports itself instead of looking like
+ *  a frozen panel. Two bytes every half second; if three in a row fail, the I2C
+ *  peripheral is re-initialised and the hub re-probed. Whether that clears a
+ *  real wedge depends on what is holding the bus -- but the count in the status
+ *  line says it happened, which is the part that was missing. */
+static uint32_t g_bus_recoveries = 0;
+static int      g_hb_fails       = 0;
+
+static void BusHeartbeat()
+{
+    if(!g_have_hub)
+        return;
+    uint8_t who = 0;
+    if(dbg_hub.ReadReg(RODEO_HUB_REG_WHO_AM_I, &who) && who == 0x9E)
+    {
+        g_hb_fails = 0;
+        return;
+    }
+    if(++g_hb_fails < 3)
+        return;
+    g_hb_fails = 0;
+    g_bus_recoveries++;
+    dbg_i2c.Init(rodeo::EncoderHub::DefaultI2cConfig(kI2cSpeed));
+    dbg_hub.Init(&dbg_i2c, 0x30);
 }
 
 static void WaitBlocks(uint32_t n)
@@ -557,7 +622,8 @@ int main(void)
 
     hw.StartAudio(AudioCallback);
 
-    uint32_t last_apply = 0, last_print = 0, last_draw = 0;
+    uint32_t last_apply = 0, last_print = 0, last_draw = 0, last_sig = 0, loops = 0,
+             last_hb = 0;
     while(1)
     {
         PumpIo();
@@ -606,11 +672,25 @@ int main(void)
 
         // A full frame at 100 kHz is ~100 ms of bus time, so redraw at ~8 fps
         // and leave the bus free for the hub in between.
-        if(g_have_oled && g_blocks - last_draw >= 120)
+        // Redraw when the screen would actually differ, at up to ~25 fps, plus
+        // a heartbeat every second so the load figure stays honest. Idle costs
+        // the bus nothing, which is what keeps the encoders responsive.
+        if(g_blocks - last_hb >= 500)
         {
-            last_draw = g_blocks;
+            last_hb = g_blocks;
+            BusHeartbeat();
+        }
+
+        if(g_have_oled && g_blocks - last_draw >= 40)
+        {
             ui.Refresh(voices);
-            DrawScreen(g_last_load);
+            const uint32_t sig = ScreenSignature(ui.display(), g_last_load);
+            if(sig != last_sig || g_blocks - last_draw >= 1000)
+            {
+                last_sig  = sig;
+                last_draw = g_blocks;
+                DrawScreen(g_last_load);
+            }
         }
 
         if(g_blocks - last_print >= 2000) // every 2 s
@@ -627,7 +707,7 @@ int main(void)
             const float chain_cost = CostModel::ChainCost(chain);
             const float predicted
                 = CostModel::PredictLoad(patch.engine, voices.ActiveVoices(), chain_cost);
-            hw.PrintLine("%s %s | voices %d/%d | chain %s+%s+%s+%s | load %d%% (predicted %d%%)",
+            hw.PrintLine("%s %s | voices %d/%d | chain %s+%s+%s+%s | load %d%% (predicted %d%%) | loop %dHz | bus fixes %d",
                          EngineName(patch.engine),
                          VoiceModeName(patch.voice_mode),
                          voices.ActiveVoices(),
@@ -637,8 +717,12 @@ int main(void)
                          TextureChain::TypeName(2, chain.GetType(2)),
                          TextureChain::TypeName(3, chain.GetType(3)),
                          static_cast<int>(load),
-                         static_cast<int>(predicted));
+                         static_cast<int>(predicted),
+                         static_cast<int>(loops / 2), // over the 2 s window
+                         static_cast<int>(g_bus_recoveries));
+            loops = 0;
         }
+        loops++;
         hw.SetLed(voices.ActiveVoices() > 0);
 
     }
