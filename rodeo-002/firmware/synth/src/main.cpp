@@ -35,6 +35,7 @@
 #include "voice.h"
 
 // Platform drivers (rodeo-motherboard/firmware/common).
+#include "encoder_hub.h"
 #include "oled_ssd130x_bulk.h"
 #include "rodeo_adc.h"
 #include "rodeo_encoders.h"
@@ -84,6 +85,15 @@ Ui                 ui;
 PanelPots          pots; // conditioning, incl. cables built the wrong way
 
 bool g_have_adc = false, g_have_hub = false, g_have_oled = false;
+
+// A second view of hub 0 for bring-up: RodeoEncoders keeps its hubs private, and
+// what matters here is what the HUB itself reports rather than what the scanner
+// cached. SW_STATE (0x19) is the useful register -- a live level, NOT
+// read-to-clear -- so watching it while pressing an encoder says whether the hub
+// sees the switch at all. Shares I2C1 like everything else.
+I2CHandle         dbg_i2c;
+rodeo::EncoderHub dbg_hub;
+bool              g_have_dbg_hub = false;
 
 // The Ui owns the patch; these are just names for it, so the MIDI CC layer and
 // the panel write the same fields.
@@ -411,6 +421,26 @@ static void DumpPanel()
             hw.PrintLine("%s", line.Cstr());
         }
     }
+    if(g_have_dbg_hub)
+    {
+        // Straight from the hub: identity, what it says it has, and the live
+        // switch levels. If pressing an encoder never moves sw, the hub is not
+        // seeing that switch and the fault is between hub and encoder.
+        uint8_t fw = 0, caps = 0, status = 0, count = 0, sw_lo = 0, sw_hi = 0;
+        dbg_hub.ReadReg(RODEO_HUB_REG_FW_VERSION, &fw);
+        dbg_hub.ReadReg(RODEO_HUB_REG_CAPABILITIES, &caps);
+        dbg_hub.ReadReg(RODEO_HUB_REG_STATUS, &status);
+        dbg_hub.ReadReg(RODEO_HUB_REG_ENC_COUNT, &count);
+        dbg_hub.ReadReg(RODEO_HUB_REG_SW_STATE_LO, &sw_lo);
+        dbg_hub.ReadReg(RODEO_HUB_REG_SW_STATE_HI, &sw_hi);
+        hw.PrintLine("HUB fw=%d caps=%d status=%d enc_count=%d sw=%d/%d",
+                     static_cast<int>(fw),
+                     static_cast<int>(caps),
+                     static_cast<int>(status),
+                     static_cast<int>(count),
+                     static_cast<int>(sw_lo),
+                     static_cast<int>(sw_hi));
+    }
     if(g_have_hub)
     {
         // ALL NINE hub slots, not just the five the panel uses: if an encoder
@@ -466,6 +496,11 @@ int main(void)
 
     if(g_have_hub)
     {
+        // Diagnostic view of the same hub, on the same bus and speed.
+        I2CHandle::Config dbg_cfg = rodeo::EncoderHub::DefaultI2cConfig(kI2cSpeed);
+        if(dbg_i2c.Init(dbg_cfg) == I2CHandle::Result::OK)
+            g_have_dbg_hub = dbg_hub.Init(&dbg_i2c, 0x30);
+
         OledDisplayType::Config ocfg;
         auto& tcfg                     = ocfg.driver_config.transport_config;
         tcfg.i2c_address               = 0x3C;
