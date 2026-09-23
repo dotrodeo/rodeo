@@ -47,6 +47,15 @@ using fx::TextureChain;
 static constexpr size_t kBlockSize  = 48;
 static constexpr float  kSampleRate = 48000.f;
 
+// ONE BUS, ONE SPEED. RodeoEncoders and the OLED transport each own an
+// I2CHandle, but libDaisy keeps one impl per peripheral, so both drive I2C1 and
+// THE LAST Init() WINS on speed. They must agree, or whichever was configured
+// first ends up running at the other's speed -- which is what stopped the hub
+// answering here (the OLED's default is 400 kHz; the hub contract boots at
+// 100 kHz). Promote both together once the populated bus is validated.
+static constexpr I2CHandle::Config::Speed kI2cSpeed
+    = I2CHandle::Config::Speed::I2C_100KHZ;
+
 // Space's buffers and ReverbSc (~396 KB) in SDRAM; the reverb is constructed
 // after hw.Init() brings the SDRAM up.
 float DSY_SDRAM_BSS g_grain_l[Space::kGrainLen];
@@ -277,21 +286,19 @@ static void ApplyPatch()
     chain.SetVolume(globals.volume);
 }
 
-/** Services the panel and MIDI. Also handed to the OLED driver as its yield,
- *  so a screen refresh never stalls the knobs (the transport hands control back
- *  between pages).
+/** Services the panel and MIDI. Also handed to the OLED driver as its yield, so
+ *  a screen refresh does not stall the panel.
  *
- *  The encoder hub is NOT polled from inside a screen transfer: it shares the
- *  I2C bus with the OLED, and slipping a hub read between the OLED's pages
- *  would interleave two transactions on one bus. The ADC is on SPI and MIDI on
- *  a UART, so both are safe to pump here. */
-static bool g_in_oled = false;
-
+ *  Polling the hub from here is safe and intended: the transport yields BETWEEN
+ *  complete page transactions, not inside one, and a full frame at 100 kHz is
+ *  ~100 ms -- long enough to miss detents if the hub went unpolled. (This file
+ *  used to skip the hub during a redraw, on a misreading of where the yield
+ *  happens.) Deliberately no logging here: PrintLine can block. */
 static void PumpIo()
 {
     if(g_have_adc)
         adc.Update();
-    if(g_have_hub && !g_in_oled)
+    if(g_have_hub)
         encoders.Update();
     if(midi)
     {
@@ -366,9 +373,7 @@ static void DrawScreen(float load)
     display.SetCursor(128 - 6 * 4, 54);
     display.WriteString(load_str, Font_6x8, true);
 
-    g_in_oled = true;
-    display.Update();
-    g_in_oled = false;
+    display.Update(); // pages out, PumpIo() between each
 }
 
 /** Bring-up dump: what the panel hardware actually reads.
@@ -456,6 +461,7 @@ int main(void)
     // the OLED depends on it being plugged in.
     rodeo::RodeoEncoders::Config enc_cfg;
     enc_cfg.hub_mask = 0x01;
+    enc_cfg.speed    = kI2cSpeed;
     g_have_hub       = encoders.Init(enc_cfg);
 
     if(g_have_hub)
@@ -463,8 +469,10 @@ int main(void)
         OledDisplayType::Config ocfg;
         auto& tcfg                     = ocfg.driver_config.transport_config;
         tcfg.i2c_address               = 0x3C;
+        tcfg.i2c_config.periph         = I2CHandle::Config::Peripheral::I2C_1;
         tcfg.i2c_config.pin_config.scl = seed::D11;
         tcfg.i2c_config.pin_config.sda = seed::D12;
+        tcfg.i2c_config.speed          = kI2cSpeed; // same bus, same speed
         display.Init(ocfg);
         display.Fill(false);
         display.Update();
@@ -545,7 +553,9 @@ int main(void)
             ApplyPatch();
         }
 
-        if(g_have_oled && g_blocks - last_draw >= 40) // ~25 fps
+        // A full frame at 100 kHz is ~100 ms of bus time, so redraw at ~8 fps
+        // and leave the bus free for the hub in between.
+        if(g_have_oled && g_blocks - last_draw >= 120)
         {
             last_draw = g_blocks;
             ui.Refresh(voices);
