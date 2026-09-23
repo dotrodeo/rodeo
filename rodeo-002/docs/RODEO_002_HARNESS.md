@@ -150,3 +150,22 @@ For the encoders: turning one should name an effect type, a tap should strike
 the slot through, and holding SPACE for over half a second should show `FREEZE`.
 Holding MAIN should show `SHIFT`, after which the pots address their shift-layer
 parameters.
+
+## Symptoms seen on first assembly (2026-09-23)
+
+Kept because each of these took a while to pin down, and each has a signature
+that identifies it immediately next time.
+
+| Symptom | Cause |
+|---|---|
+| Pots read 0.30–3.30 V instead of 0.00–3.00 V, never reaching zero | Analog run built with a **straight** cable: supply and ground swapped. Direction is unaffected. **Handled in firmware** (`panel_pot.h` detects it — a correct satellite cannot exceed ~3.05 V — and rescales), so these cables can stay. |
+| One channel pegged at exactly 0.00 V through a full sweep | Dead pot (confirmed by moving that satellite to another connector). Not pickup, not calibration: no signal at all. |
+| **Turning** an encoder registers as a **tap on that same encoder**, and no counts | Encoder run built with a **reversed** cable. It lands the encoder's B line on the hub's S pin, so every detent looks like a button press, while the encoder's common sits on a pulled-up input instead of ground so quadrature cannot work. **Not fixable in firmware** — rebuild the cable straight. |
+| Occasional taps on slots with nothing plugged in | Floating inputs. The hub's pins are inputs with pull-ups polled at 1 kHz; unused slots wander. Harmless. |
+| Hub answers I²C but reports no encoder activity at all | Check the encoder runs first (above). The hub's own `SW_STATE` register is the arbiter: it is the hub MCU's view of its pins, so nothing on the Daisy side can fake it. |
+| `panel: ... encoder hub NO | OLED NO`, screen dark, pots seem dead | The I²C run to the hub. The OLED is only initialised when the hub answers, because on Rev-A the hub carries the bus pull-ups. Reseat that cable; a power cycle cleared it once. |
+
+**Two diagnostics earn their keep here.** The synth's serial dump prints each pot's
+true voltage beside its control value and the hub's own registers every 2 s; and
+the startup banner carries the build date and time, because a flash that
+silently did not take is otherwise indistinguishable from a firmware bug.
