@@ -78,6 +78,10 @@ Every encoder is physically adjacent to the one pot it pairs with, and nothing i
 
 ## Analog — 16 pots, 8 per ADC chip (J6–J13, J18–J25)
 
+> Wiring it? [`RODEO_002_HARNESS.md`](RODEO_002_HARNESS.md) is the build sheet:
+> the same map as a plug-in checklist, with cable types and what to look for on
+> the screen as each run goes in.
+
 **Rows 1–2 are on U3, rows 3–4 are on U4, eight pots each** (revised 2026-09-21). The two chips
 convert in parallel, so the scan rate is set by whichever carries more channels: 8 per chip
 reads each pot every ~9.3 ms, **~108 Hz per pot** at the platform's default 1000 SPS
