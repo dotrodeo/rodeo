@@ -14,7 +14,7 @@ firmware that reads it** (`rodeo-002/firmware/synth/src/main.cpp`, `kPotChannel`
 and `kEncoderSlot`). If this and the control map ever disagree, the control map
 wins and the firmware is wrong.
 
-## Pots — 16 runs, REVERSED cables
+## Pots — 16 runs, REVERSED cables (straight also works — see below)
 
 Panel positions read left-to-right, top-to-bottom; R1C1 is top-left.
 
@@ -109,10 +109,15 @@ the truth.
 satellite connectors horizontal, so the ribbon lands mirrored even on a correct
 cable. Ohm out pin 1 at both ends.
 
-* **Pots need REVERSED cables** (pin 1 → last pin). The satellite is pinned
-  `GND / signal / supply-in`, the mirror of the motherboard. Built straight,
-  nothing is damaged — everything on the board is passive — but **the pot reads
-  backwards**, which looks exactly like a firmware sign bug.
+* **Pots are spec'd REVERSED** (pin 1 → last pin): the satellite is pinned
+  `GND / signal / supply-in`, the mirror of the motherboard. **Built straight,
+  the firmware copes** — measured on this panel 2026-09-23. Nothing is damaged
+  (the satellite is passive); supply and ground swap, so the travel becomes
+  0.30–3.30 V instead of 0.00–3.00 V. `panel_pot.h` detects that (a correct
+  satellite cannot read above ~3.05 V through its 1 kΩ resistor) and rescales.
+  **Direction is unaffected** — that depends on the pot's pin orientation, not
+  on the cable, and on this panel it reads correctly either way. The dump marks
+  a rescaled channel with `S`.
 * **Encoders and I²C need STRAIGHT cables.** A reversed I²C cable grounds SCL,
   ties SDA to 3V3 and back-powers the hub through its SDA pin: the whole bus
   dies, OLED included. A reversed encoder cable simply never counts.
@@ -134,8 +139,9 @@ Then, per pot:
    by channel as you plug them in.
 2. **Turn the pot.** The screen should name the parameter from the table above.
    A different name means the cable is on the wrong connector.
-3. **Turn it up.** The value bar should fill. If it empties, that run was built
-   straight instead of reversed.
+3. **Turn it up.** The value bar should fill. If it empties, that pot's own
+   orientation is reversed — not the cable; see the note on straight cables
+   above.
 4. **The bar may not move at all at first** — that is pickup, not a fault. The
    pot has to reach the value the patch already holds; the screen shows `UP` or
    `DN` for which way to turn.
