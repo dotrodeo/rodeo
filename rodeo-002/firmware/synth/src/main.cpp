@@ -111,6 +111,16 @@ static const uint8_t kPotChannel[Ui::kNumPots]
 // Panel encoder -> hub slot. The API is 0-based; panel encoders 1-5 are the
 // hub's slots 1-5 (connectors J3-J7).
 static const uint8_t kEncoderSlot[5] = {0, 1, 2, 3, 4};
+
+// BRING-UP WORKAROUND, 2026-09-23: the pot on J25 -- Space Mix -- is dead. It
+// reads 0.00 V at every position. (The faulty pot came off R3C4; it was moved
+// here while proving the fault was the pot and not the channel, so the dead
+// CHANNEL is J25 whatever the panel labels say.) Because the patch default is
+// also 0, pickup catches it immediately and the pot then holds the mix at zero,
+// which makes the whole Space slot untestable. Hold it at full instead.
+// REMOVE once the pot is replaced.
+static constexpr bool  kPinSpaceMix   = true;
+static constexpr float kSpaceMixValue = 1.f;
 VoiceManager    voices;
 TextureChain    chain;
 EngineId        current_engine = EngineId::kVirtualAnalog;
@@ -614,6 +624,9 @@ int main(void)
                  g_have_oled ? "yes" : "NO");
     if(!g_have_hub)
         hw.PrintLine("  (no hub: Rev-A hubs carry the I2C pull-ups, so no OLED either)");
+    if(kPinSpaceMix)
+        hw.PrintLine("NOTE: Space Mix pinned to %d%% -- its pot (R4C4 / J25) is dead",
+                     static_cast<int>(kSpaceMixValue * 100.f));
     hw.PrintLine("MIDI IN on the TRS jack. Every panel parameter is also on CC:");
     hw.PrintLine("  70-85  main layer, panel order (70 harmonics .. 85 space mix)");
     hw.PrintLine("  90-105 shift layer, same order (90 env>timbre .. 105 space damp)");
@@ -645,6 +658,10 @@ int main(void)
             }
         if(g_have_adc || g_have_hub)
             g_discrete_changed |= ui.Update(in);
+
+        // Applied after the Ui, so the dead pot cannot put it back to zero.
+        if(kPinSpaceMix)
+            patch.amount[TextureChain::kSpace] = kSpaceMixValue;
 
         // An engine swap rebuilds every voice, so the callback is kept out of
         // the voices while it happens.
