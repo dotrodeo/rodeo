@@ -389,7 +389,9 @@ static void DumpPanel()
             {
                 const uint8_t ch = kPotChannel[row * 4 + col];
                 line.Append(" J");
-                line.AppendInt(6 + (ch < 12 ? ch : ch + 6)); // ch->connector
+                // ch -> connector is uniform across both chips: J(6+ch).
+                // ch0=J6 .. ch11=J17, ch12=J18 .. ch23=J29.
+                line.AppendInt(6 + ch);
                 line.Append("=");
                 line.AppendFloat(adc.GetVolts(ch), 2);
                 line.Append("V/");
