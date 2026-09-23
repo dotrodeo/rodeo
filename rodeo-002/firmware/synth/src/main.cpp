@@ -539,7 +539,10 @@ int main(void)
 
     hw.StartLog(false);
     System::Delay(1000);
-    hw.PrintLine("=== rodeo-002 synth ===");
+    // Build stamp: without it a flash that silently did not take looks exactly
+    // like a firmware bug, which cost a round of hardware debugging on
+    // 2026-09-23. Compare this against when you built.
+    hw.PrintLine("=== rodeo-002 synth === built %s %s", __DATE__, __TIME__);
     hw.PrintLine("panel: pots %s | encoder hub %s | OLED %s",
                  g_have_adc ? "yes" : "NO",
                  g_have_hub ? "yes" : "NO",
