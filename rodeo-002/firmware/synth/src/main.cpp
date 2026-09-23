@@ -369,6 +369,49 @@ static void DrawScreen(float load)
     g_in_oled = false;
 }
 
+/** Bring-up dump: what the panel hardware actually reads.
+ *
+ *  GetVolts is the TRUE measured voltage -- never span-corrected -- so it says
+ *  whether a floor or ceiling is in the wiring or in the software. GetNorm is
+ *  the control value after span calibration. If volts reaches ~0.00 but norm
+ *  does not reach 0.00, the span is at fault; if neither does, it is the
+ *  hardware. Pot order is panel order (R1C1..R4C4). */
+static void DumpPanel()
+{
+    if(g_have_adc)
+    {
+        for(int row = 0; row < 4; row++)
+        {
+            FixedCapStr<128> line("POT R");
+            line.AppendInt(row + 1);
+            line.Append(":");
+            for(int col = 0; col < 4; col++)
+            {
+                const uint8_t ch = kPotChannel[row * 4 + col];
+                line.Append(" J");
+                line.AppendInt(6 + (ch < 12 ? ch : ch + 6)); // ch->connector
+                line.Append("=");
+                line.AppendFloat(adc.GetVolts(ch), 2);
+                line.Append("V/");
+                line.AppendFloat(adc.GetNorm(ch), 2);
+            }
+            hw.PrintLine("%s", line.Cstr());
+        }
+    }
+    if(g_have_hub)
+    {
+        FixedCapStr<128> line("ENC pos:");
+        for(int e = 0; e < 5; e++)
+        {
+            line.Append(" ");
+            line.AppendInt(static_cast<int>(encoders.GetPosition(0, kEncoderSlot[e])));
+            if(encoders.IsPressed(0, kEncoderSlot[e]))
+                line.Append("*");
+        }
+        hw.PrintLine("%s", line.Cstr());
+    }
+}
+
 static void WaitBlocks(uint32_t n)
 {
     const uint32_t start = g_blocks;
@@ -504,6 +547,7 @@ int main(void)
             g_busy_ticks  = 0;
             g_busy_blocks = 0;
             g_last_load            = load;
+            DumpPanel();
             const float chain_cost = CostModel::ChainCost(chain);
             const float predicted
                 = CostModel::PredictLoad(patch.engine, voices.ActiveVoices(), chain_cost);
