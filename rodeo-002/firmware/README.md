@@ -8,7 +8,7 @@ here just points `RODEO_ROOT` back at that tree.
 |---|---|
 | `common/` | **Shared code**, header-only and host-compilable: the voice engines (`engines.h`), the voices and allocation (`voice.h`), what a patch holds (`patch.h`), the measured costs behind the voice cap (`cost_model.h`), the four texture-chain slots (`fx_*.h`), the chain (`texture_chain.h`) and helpers (`dsp_util.h`) — plus `app.mk`, the build rules every app includes. |
 | `tests/` | Host-side GoogleTest for `common/`, against the real vendored DaisySP: every effect type at every corner must stay finite, bounded, quiet after the input stops, transparent at zero, and audible at full; plus a fuzz test that twiddles the whole chain at random. `make test`. |
-| `synth/` | **The instrument.** MIDI in → voices → texture chain → audio out, with polyphony capped from the measured cost model. The panel is not wired yet, so its parameters are on MIDI CC in the meantime (map below). |
+| `synth/` | **The instrument.** MIDI in → voices → texture chain → audio out, with the panel (16 pots, 5 encoders, OLED) and polyphony capped from the measured cost model. Every panel parameter is also on MIDI CC. |
 | `bench_voices/` | CPU benchmark: the cost of every effect type, then voices per engine with the worst-case chain running. |
 | `bench_space/` | Space-slot profiler (~40 s): splits Space's cost into ReverbSc, shimmer, pre-delay, grain engine (cost per grain) and running-at-mix-0, to decide which optimisation pays. |
 
@@ -141,8 +141,18 @@ type changes, so an expensive Space type costs voices. The serial log prints the
 count next to the measured and predicted load — if those two drift apart, the
 cost table is stale and the benchmarks need re-running.
 
-Until the panel is wired, every parameter it will own is on MIDI CC, laid out in
-panel order so the mapping is easy to remember:
+**Panel hardware is optional and probed at startup** — pots (ADC over SPI),
+encoder hub (I²C @0x30) and OLED (I²C @0x3C) are each used only if they answer,
+so the same build runs on a bare board. The startup log says what it found.
+**Rev-A bus rule: the hub carries the I²C pull-ups**, so with no hub plugged in
+the OLED cannot work either.
+
+The screen shows the engine, voice mode and voice count, the four slot types
+(bypassed ones struck through), the parameter you last touched with its value
+and — when a pot has not caught its stored value yet — which way to turn to
+catch it, plus shift/freeze and the measured load.
+
+Every panel parameter is also on MIDI CC, laid out in panel order:
 
 | CC | What |
 |---|---|

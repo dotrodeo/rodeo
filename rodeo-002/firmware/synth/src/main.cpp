@@ -1,11 +1,17 @@
 // rodeo-002 — the instrument. MIDI in, voices, texture chain, audio out.
 //
-// FIRST PLAYABLE BUILD. The panel is not wired yet, so every parameter the
-// panel will own is driven over MIDI CC in the meantime (map printed at
-// startup, and listed below). When the pots and encoders arrive they write the
-// same Patch fields, and this CC layer stays as a remote control.
-//
 //   MIDI IN (TRS, USART1) -> VoiceManager -> TextureChain -> LINE OUT
+//   16 pots (ADS114S08 x2, SPI) + 5 encoders (hub @0x30, I2C) -> Ui -> Patch
+//   OLED (SSD1309 @0x3C, the same I2C bus) <- DisplayState
+//
+// Every panel parameter is ALSO on MIDI CC (map printed at startup), which is
+// how the instrument was played before the panel existed and is still useful as
+// a remote control.
+//
+// HARDWARE IS OPTIONAL: each of the ADC, the hub and the OLED is probed at
+// startup and simply left out if it does not answer, so this runs on a bare
+// board. Note the Rev-A bus rule -- the HUB carries the I2C pull-ups, so with
+// no hub plugged in the OLED cannot work either.
 //
 // Polyphony is not fixed: CostModel recomputes it from the measured cost table
 // whenever the engine or a slot's type changes, so choosing Reverb can cost
@@ -24,7 +30,13 @@
 #include "cost_model.h"
 #include "patch.h"
 #include "texture_chain.h"
+#include "ui.h"
 #include "voice.h"
+
+// Platform drivers (rodeo-motherboard/firmware/common).
+#include "oled_ssd130x_bulk.h"
+#include "rodeo_adc.h"
+#include "rodeo_encoders.h"
 
 using namespace daisy;
 using namespace rodeo002;
@@ -50,12 +62,32 @@ alignas(daisysp::ReverbSc) static uint8_t DSY_SDRAM_BSS
 // memory to matter.
 alignas(MidiUartHandler) static uint8_t DSY_SDRAM_BSS g_midi_mem[sizeof(MidiUartHandler)];
 
-DaisySeed        hw;
-MidiUartHandler* midi = nullptr;
+using OledDisplayType
+    = OledDisplay<SSD130xDriver<128, 64, rodeo::Ssd130xI2cBulkTransport>>;
+
+DaisySeed          hw;
+MidiUartHandler*   midi = nullptr;
+rodeo::RodeoAdc    adc;
+rodeo::RodeoEncoders encoders;
+OledDisplayType    display;
+Ui                 ui;
+
+bool g_have_adc = false, g_have_hub = false, g_have_oled = false;
+
+// The Ui owns the patch; these are just names for it, so the MIDI CC layer and
+// the panel write the same fields.
+Patch&   patch   = ui.mutable_patch();
+Globals& globals = ui.mutable_globals();
+
+// Panel pot -> ADC channel (control map: rows 1-2 on U3 ch0-7, rows 3-4 on U4
+// ch12-19, which is the 8+8 split that doubled the scan rate).
+static const uint8_t kPotChannel[Ui::kNumPots]
+    = {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 16, 17, 18, 19};
+// Panel encoder -> hub slot. The API is 0-based; panel encoders 1-5 are the
+// hub's slots 1-5 (connectors J3-J7).
+static const uint8_t kEncoderSlot[5] = {0, 1, 2, 3, 4};
 VoiceManager    voices;
 TextureChain    chain;
-Patch           patch;
-Globals         globals;
 EngineId        current_engine = EngineId::kVirtualAnalog;
 
 volatile bool     g_voices_locked = false; // engine swap in progress
@@ -63,6 +95,7 @@ volatile uint32_t g_blocks        = 0;
 volatile uint32_t g_busy_ticks    = 0;
 volatile uint32_t g_busy_blocks   = 0;
 static uint32_t   g_block_ticks   = 1;
+static float      g_last_load     = 0.f; // for the screen's footer
 
 static float g_mix[kBlockSize];
 
@@ -115,6 +148,8 @@ static int   Step(uint8_t v, int n) { return (static_cast<int>(v) * n) / 128; }
 
 static void HandleCc(uint8_t cc, uint8_t value)
 {
+    // A CC moved a parameter out from under the pots: they must catch up again.
+    ui.DropPickup();
     const float f = Norm(value);
     switch(cc)
     {
@@ -240,6 +275,100 @@ static void ApplyPatch()
     chain.SetVolume(globals.volume);
 }
 
+/** Services the panel and MIDI. Also handed to the OLED driver as its yield,
+ *  so a screen refresh never stalls the knobs (the transport hands control back
+ *  between pages).
+ *
+ *  The encoder hub is NOT polled from inside a screen transfer: it shares the
+ *  I2C bus with the OLED, and slipping a hub read between the OLED's pages
+ *  would interleave two transactions on one bus. The ADC is on SPI and MIDI on
+ *  a UART, so both are safe to pump here. */
+static bool g_in_oled = false;
+
+static void PumpIo()
+{
+    if(g_have_adc)
+        adc.Update();
+    if(g_have_hub && !g_in_oled)
+        encoders.Update();
+    if(midi)
+    {
+        midi->Listen();
+        while(midi->HasEvents())
+            HandleMidi(midi->PopEvent());
+    }
+}
+
+/** 128x64: a header line, the four slots, the parameter readout, a footer. */
+static void DrawScreen(float load)
+{
+    const DisplayState& d = ui.display();
+    display.Fill(false);
+
+    // Header: engine, voice mode, voices in use.
+    FixedCapStr<32> line(d.engine);
+    line.Append(" ");
+    line.Append(d.voice_mode);
+    display.SetCursor(0, 0);
+    display.WriteString(line, Font_6x8, true);
+    FixedCapStr<8> voices_str("");
+    voices_str.AppendInt(d.voices_active);
+    voices_str.Append("/");
+    voices_str.AppendInt(d.voices_max);
+    display.SetCursor(128 - 6 * 3, 0);
+    display.WriteString(voices_str, Font_6x8, true);
+    display.DrawLine(0, 9, 127, 9, true);
+
+    // The chain: four slot names, bypassed ones struck through.
+    for(int s = 0; s < fx::TextureChain::kNumSlots; s++)
+    {
+        const uint8_t x = static_cast<uint8_t>(s * 32);
+        FixedCapStr<8> name("");
+        for(int i = 0; i < 5 && d.slot_type[s][i]; i++)
+            name.Append(d.slot_type[s] + i, 1);
+        display.SetCursor(x + 1, 12);
+        display.WriteString(name, Font_4x6, true);
+        if(d.slot_bypass[s])
+            display.DrawLine(x + 1, 15, x + 29, 15, true);
+    }
+
+    // The parameter last touched, with its value as a bar.
+    if(d.show_value)
+    {
+        display.SetCursor(0, 24);
+        display.WriteString(d.param, Font_7x10, true);
+        const uint8_t w = static_cast<uint8_t>(d.value * 124.f);
+        display.DrawRect(0, 38, 127, 48, true);
+        if(w > 1)
+            display.DrawRect(2, 40, static_cast<uint8_t>(2 + w), 46, true, true);
+        // Pickup: which way to turn to catch the stored value.
+        if(d.pickup_hint != 0)
+        {
+            display.SetCursor(100, 24);
+            display.WriteString(d.pickup_hint > 0 ? "UP" : "DN", Font_7x10, true);
+        }
+    }
+
+    // Footer: shift, freeze, a message, and the measured load.
+    FixedCapStr<32> foot("");
+    if(d.shift)
+        foot.Append("SHIFT ");
+    if(d.freeze)
+        foot.Append("FREEZE ");
+    foot.Append(d.message);
+    display.SetCursor(0, 54);
+    display.WriteString(foot, Font_6x8, true);
+    FixedCapStr<8> load_str("");
+    load_str.AppendInt(static_cast<int>(load));
+    load_str.Append("%");
+    display.SetCursor(128 - 6 * 4, 54);
+    display.WriteString(load_str, Font_6x8, true);
+
+    g_in_oled = true;
+    display.Update();
+    g_in_oled = false;
+}
+
 static void WaitBlocks(uint32_t n)
 {
     const uint32_t start = g_blocks;
@@ -256,7 +385,38 @@ int main(void)
     daisysp::ReverbSc* reverb = new(g_reverb_mem) daisysp::ReverbSc();
     chain.Init(kSampleRate, {g_grain_l, g_grain_r, g_pre_l, g_pre_r, reverb});
     voices.Init(kSampleRate);
+    ui.Init(patch, globals);
     ApplyPatch();
+
+    // --- panel hardware, each optional ---------------------------------
+    // Pots: only the 16 the panel uses are scanned, which is what keeps the
+    // per-pot rate at ~108 Hz (control map, *Analog*).
+    rodeo::RodeoAdc::Config adc_cfg;
+    adc_cfg.populated_mask = 0;
+    for(int i = 0; i < Ui::kNumPots; i++)
+        adc_cfg.populated_mask |= (1u << kPotChannel[i]);
+    g_have_adc = adc.Init(adc_cfg);
+
+    // Encoders: hub 0 at 0x30. On Rev-A the hub also anchors the I2C bus, so
+    // the OLED depends on it being plugged in.
+    rodeo::RodeoEncoders::Config enc_cfg;
+    enc_cfg.hub_mask = 0x01;
+    g_have_hub       = encoders.Init(enc_cfg);
+
+    if(g_have_hub)
+    {
+        OledDisplayType::Config ocfg;
+        auto& tcfg                     = ocfg.driver_config.transport_config;
+        tcfg.i2c_address               = 0x3C;
+        tcfg.i2c_config.pin_config.scl = seed::D11;
+        tcfg.i2c_config.pin_config.sda = seed::D12;
+        display.Init(ocfg);
+        display.Fill(false);
+        display.Update();
+        g_have_oled = rodeo::OledLinkOk();
+        // The OLED yields mid-transfer so the panel stays responsive.
+        rodeo::SetOledYield(PumpIo);
+    }
 
     g_block_ticks = static_cast<uint32_t>(
         static_cast<uint64_t>(System::GetTickFreq()) * kBlockSize / 48000u);
@@ -269,7 +429,13 @@ int main(void)
     hw.StartLog(false);
     System::Delay(1000);
     hw.PrintLine("=== rodeo-002 synth ===");
-    hw.PrintLine("MIDI IN on the TRS jack. Panel not wired yet -- CC map:");
+    hw.PrintLine("panel: pots %s | encoder hub %s | OLED %s",
+                 g_have_adc ? "yes" : "NO",
+                 g_have_hub ? "yes" : "NO",
+                 g_have_oled ? "yes" : "NO");
+    if(!g_have_hub)
+        hw.PrintLine("  (no hub: Rev-A hubs carry the I2C pull-ups, so no OLED either)");
+    hw.PrintLine("MIDI IN on the TRS jack. Every panel parameter is also on CC:");
     hw.PrintLine("  70-85  main layer, panel order (70 harmonics .. 85 space mix)");
     hw.PrintLine("  90-105 shift layer, same order (90 env>timbre .. 105 space damp)");
     hw.PrintLine("  110 engine  111-114 slot types  115 voice mode  116 freeze");
@@ -277,12 +443,25 @@ int main(void)
 
     hw.StartAudio(AudioCallback);
 
-    uint32_t last_apply = 0, last_print = 0;
+    uint32_t last_apply = 0, last_print = 0, last_draw = 0;
     while(1)
     {
-        midi->Listen();
-        while(midi->HasEvents())
-            HandleMidi(midi->PopEvent());
+        PumpIo();
+
+        // --- the panel ---------------------------------------------------
+        UiInput in;
+        in.now_ms = System::GetNow();
+        if(g_have_adc)
+            for(int i = 0; i < Ui::kNumPots; i++)
+                in.pot[i] = adc.GetNorm(kPotChannel[i]);
+        if(g_have_hub)
+            for(int e = 0; e < 5; e++)
+            {
+                in.enc_delta[e] = encoders.GetDelta(0, kEncoderSlot[e]);
+                in.enc_held[e]  = encoders.IsPressed(0, kEncoderSlot[e]);
+            }
+        if(g_have_adc || g_have_hub)
+            g_discrete_changed |= ui.Update(in);
 
         // An engine swap rebuilds every voice, so the callback is kept out of
         // the voices while it happens.
@@ -308,6 +487,13 @@ int main(void)
             ApplyPatch();
         }
 
+        if(g_have_oled && g_blocks - last_draw >= 40) // ~25 fps
+        {
+            last_draw = g_blocks;
+            ui.Refresh(voices);
+            DrawScreen(g_last_load);
+        }
+
         if(g_blocks - last_print >= 2000) // every 2 s
         {
             last_print            = g_blocks;
@@ -317,6 +503,7 @@ int main(void)
                                          : 0.f;
             g_busy_ticks  = 0;
             g_busy_blocks = 0;
+            g_last_load            = load;
             const float chain_cost = CostModel::ChainCost(chain);
             const float predicted
                 = CostModel::PredictLoad(patch.engine, voices.ActiveVoices(), chain_cost);
@@ -333,5 +520,6 @@ int main(void)
                          static_cast<int>(predicted));
         }
         hw.SetLed(voices.ActiveVoices() > 0);
+
     }
 }
