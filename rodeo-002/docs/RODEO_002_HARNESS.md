@@ -79,8 +79,16 @@ one end's pin 1 against the other end's pin 1:
 * **beeps → straight (1:1)** — what the encoders and I²C need;
 * **silent, but beeps against pin 4 → reversed** — what the pots want.
 
-**The visual rule.** Hold each connector the same way — **contacts facing you,
-cable running away from you** — and read the wire colours left to right:
+**Do not sort them by eye, and do not trust the packaging.** Vendors sell these
+as "same direction" / "identical" / "1:1" versus "reverse direction" /
+"opposite direction" / "reverse-side-head", and on 2026-09-23 a bag labelled
+*reverse direction* turned out to be electrically 1:1 — it worked on an encoder
+run, which needs 1:1. A "contacts on the same face" heuristic is no better: it
+describes how the ribbon looks, and which pin lands where flips with how you
+hold the two ends. **Meter it, or match it against a cable known to work.**
+
+For reference only, the colour check (hold each connector the same way —
+contacts facing you, cable running away — and read left to right):
 
 ```
 STRAIGHT                              REVERSED
@@ -94,14 +102,16 @@ STRAIGHT                              REVERSED
    same order at both ends                mirrored
 ```
 
-Equivalently, and how they are sold: a **straight** cable has its exposed metal
-contacts on the **same face** of the ribbon at both ends; a **reversed** one has
-them on opposite faces. Off-the-shelf **Qwiic / STEMMA QT cables are straight**,
-so they drop straight into the encoder and I²C runs.
+Off-the-shelf **Qwiic / STEMMA QT cables are 1:1**, so they drop straight into
+the encoder and I²C runs — a known-good reference worth keeping on the bench.
 
-The catch is that holding the two ends *the same way* is the part people get
-wrong — see below for why the colours on the board will tell you the opposite of
-the truth.
+**Which run needs which**, by electrical mapping rather than by name:
+
+| Run | Needs | Because |
+|---|---|---|
+| Encoders (hub J3–J11 ↔ satellite J1) | **1:1** | both ends are pinned A/B/S/GND |
+| I²C (motherboard J42 ↔ hub J1/J2) | **1:1** | both ends GND/VDD/SDA/SCL |
+| Pots (motherboard J6–J29 ↔ satellite J1) | **crossed** | satellite is `GND/signal/supply`, the mirror of the motherboard |
 
 ## Cable types, and what the wrong one does
 
