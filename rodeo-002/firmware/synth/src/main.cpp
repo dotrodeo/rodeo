@@ -28,6 +28,7 @@
 #include "daisysp.h"
 
 #include "cost_model.h"
+#include "panel_pot.h"
 #include "patch.h"
 #include "texture_chain.h"
 #include "ui.h"
@@ -71,6 +72,7 @@ rodeo::RodeoAdc    adc;
 rodeo::RodeoEncoders encoders;
 OledDisplayType    display;
 Ui                 ui;
+PanelPots          pots; // conditioning, incl. cables built the wrong way
 
 bool g_have_adc = false, g_have_hub = false, g_have_oled = false;
 
@@ -395,19 +397,26 @@ static void DumpPanel()
                 line.Append("=");
                 line.AppendFloat(adc.GetVolts(ch), 2);
                 line.Append("V/");
-                line.AppendFloat(adc.GetNorm(ch), 2);
+                line.AppendFloat(pots.Normalize(row * 4 + col,
+                                                adc.GetVolts(ch)),
+                                 2);
+                if(pots.IsInverted(row * 4 + col))
+                    line.Append("R"); // straight cable, read in reverse
             }
             hw.PrintLine("%s", line.Cstr());
         }
     }
     if(g_have_hub)
     {
-        FixedCapStr<128> line("ENC pos:");
-        for(int e = 0; e < 5; e++)
+        // ALL NINE hub slots, not just the five the panel uses: if an encoder
+        // is on the wrong connector its counts show up here instead of where
+        // they are expected. Slot N = hub connector J(N+3); * = pressed.
+        FixedCapStr<128> line("ENC J3..J11:");
+        for(int slot = 0; slot < 9; slot++)
         {
             line.Append(" ");
-            line.AppendInt(static_cast<int>(encoders.GetPosition(0, kEncoderSlot[e])));
-            if(encoders.IsPressed(0, kEncoderSlot[e]))
+            line.AppendInt(static_cast<int>(encoders.GetPosition(0, static_cast<uint8_t>(slot))));
+            if(encoders.IsPressed(0, static_cast<uint8_t>(slot)))
                 line.Append("*");
         }
         hw.PrintLine("%s", line.Cstr());
@@ -431,6 +440,7 @@ int main(void)
     chain.Init(kSampleRate, {g_grain_l, g_grain_r, g_pre_l, g_pre_r, reverb});
     voices.Init(kSampleRate);
     ui.Init(patch, globals);
+    pots.Init();
     ApplyPatch();
 
     // --- panel hardware, each optional ---------------------------------
@@ -498,7 +508,10 @@ int main(void)
         in.now_ms = System::GetNow();
         if(g_have_adc)
             for(int i = 0; i < Ui::kNumPots; i++)
-                in.pot[i] = adc.GetNorm(kPotChannel[i]);
+                // The TRUE voltage, conditioned here: PanelPots learns each
+                // channel's travel and detects a straight-built cable (which
+                // reads backwards and never reaches zero).
+                in.pot[i] = pots.Normalize(i, adc.GetVolts(kPotChannel[i]));
         if(g_have_hub)
             for(int e = 0; e < 5; e++)
             {
