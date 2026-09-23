@@ -67,6 +67,42 @@ Hub slots 6–9 (J8–J11) stay empty.
 the I²C pull-ups — the motherboard has none and the display module has none — so
 no hub means no I²C at all, and the screen stays dark.
 
+## Telling a straight cable from a reversed one
+
+Both ends of an encoder run are pinned the same way -- hub `J3` and satellite
+`J1` are both **1=A, 2=B, 3=S, 4=GND** -- so the run needs a **1:1 cable, pin 1
+to pin 1**.
+
+**The test that cannot lie.** Unplug the cable, set a meter to continuity, probe
+one end's pin 1 against the other end's pin 1:
+
+* **beeps → straight (1:1)** — what the encoders and I²C need;
+* **silent, but beeps against pin 4 → reversed** — what the pots want.
+
+**The visual rule.** Hold each connector the same way — **contacts facing you,
+cable running away from you** — and read the wire colours left to right:
+
+```
+STRAIGHT                              REVERSED
+ end A            end B                end A            end B
+ ┌─────────┐      ┌─────────┐          ┌─────────┐      ┌─────────┐
+ │ 1 2 3 4 │======│ 1 2 3 4 │          │ 1 2 3 4 │======│ 1 2 3 4 │
+ │ blk red │      │ blk red │          │ blk red │      │ ylw wht │
+ │ wht ylw │      │ wht ylw │          │ wht ylw │      │ red blk │
+ └─────────┘      └─────────┘          └─────────┘      └─────────┘
+   A B S GND        A B S GND            A B S GND        GND S B A
+   same order at both ends                mirrored
+```
+
+Equivalently, and how they are sold: a **straight** cable has its exposed metal
+contacts on the **same face** of the ribbon at both ends; a **reversed** one has
+them on opposite faces. Off-the-shelf **Qwiic / STEMMA QT cables are straight**,
+so they drop straight into the encoder and I²C runs.
+
+The catch is that holding the two ends *the same way* is the part people get
+wrong — see below for why the colours on the board will tell you the opposite of
+the truth.
+
 ## Cable types, and what the wrong one does
 
 **Never judge a cable by wire colour.** Motherboard connectors are vertical and
