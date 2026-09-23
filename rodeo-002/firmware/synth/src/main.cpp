@@ -421,19 +421,26 @@ static void DumpPanel()
             hw.PrintLine("%s", line.Cstr());
         }
     }
-    if(g_have_dbg_hub)
+    if(g_have_hub)
     {
-        // Straight from the hub: identity, what it says it has, and the live
-        // switch levels. If pressing an encoder never moves sw, the hub is not
-        // seeing that switch and the fault is between hub and encoder.
-        uint8_t fw = 0, caps = 0, status = 0, count = 0, sw_lo = 0, sw_hi = 0;
+        // Straight from the hub. ReadReg does not depend on the probe having
+        // succeeded, so this runs either way and prints whether each read was
+        // ACKed -- a probe that fails while the scanner's identical probe
+        // succeeded is itself the finding, and silently skipping the block (as
+        // this did) hid it.
+        uint8_t who = 0, fw = 0, caps = 0, status = 0, count = 0, sw_lo = 0, sw_hi = 0;
+        const bool ok_who = dbg_hub.ReadReg(RODEO_HUB_REG_WHO_AM_I, &who);
         dbg_hub.ReadReg(RODEO_HUB_REG_FW_VERSION, &fw);
         dbg_hub.ReadReg(RODEO_HUB_REG_CAPABILITIES, &caps);
         dbg_hub.ReadReg(RODEO_HUB_REG_STATUS, &status);
         dbg_hub.ReadReg(RODEO_HUB_REG_ENC_COUNT, &count);
-        dbg_hub.ReadReg(RODEO_HUB_REG_SW_STATE_LO, &sw_lo);
-        dbg_hub.ReadReg(RODEO_HUB_REG_SW_STATE_HI, &sw_hi);
-        hw.PrintLine("HUB fw=%d caps=%d status=%d enc_count=%d sw=%d/%d",
+        const bool ok_sw = dbg_hub.ReadReg(RODEO_HUB_REG_SW_STATE_LO, &sw_lo)
+                           && dbg_hub.ReadReg(RODEO_HUB_REG_SW_STATE_HI, &sw_hi);
+        hw.PrintLine("HUB probe=%s read=%s/%s who=%d fw=%d caps=%d status=%d n=%d sw=%d/%d",
+                     g_have_dbg_hub ? "ok" : "FAIL",
+                     ok_who ? "ok" : "ERR",
+                     ok_sw ? "ok" : "ERR",
+                     static_cast<int>(who),
                      static_cast<int>(fw),
                      static_cast<int>(caps),
                      static_cast<int>(status),
@@ -496,10 +503,16 @@ int main(void)
 
     if(g_have_hub)
     {
-        // Diagnostic view of the same hub, on the same bus and speed.
-        I2CHandle::Config dbg_cfg = rodeo::EncoderHub::DefaultI2cConfig(kI2cSpeed);
-        if(dbg_i2c.Init(dbg_cfg) == I2CHandle::Result::OK)
-            g_have_dbg_hub = dbg_hub.Init(&dbg_i2c, 0x30);
+        // Diagnostic view of the same hub, on the same bus and speed. Both
+        // outcomes are reported rather than gating the dump, because "the
+        // scanner's probe worked and a second identical one did not" is itself
+        // worth knowing.
+        I2CHandle::Config      dbg_cfg = rodeo::EncoderHub::DefaultI2cConfig(kI2cSpeed);
+        const I2CHandle::Result dbg_r  = dbg_i2c.Init(dbg_cfg);
+        g_have_dbg_hub                 = dbg_hub.Init(&dbg_i2c, 0x30);
+        hw.PrintLine("dbg hub: i2c init %s, probe %s",
+                     dbg_r == I2CHandle::Result::OK ? "ok" : "ERR",
+                     g_have_dbg_hub ? "ok" : "FAIL");
 
         OledDisplayType::Config ocfg;
         auto& tcfg                     = ocfg.driver_config.transport_config;
