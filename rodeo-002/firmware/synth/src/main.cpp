@@ -400,8 +400,8 @@ static void DumpPanel()
                 line.AppendFloat(pots.Normalize(row * 4 + col,
                                                 adc.GetVolts(ch)),
                                  2);
-                if(pots.IsInverted(row * 4 + col))
-                    line.Append("R"); // straight cable, read in reverse
+                if(pots.IsSupplySwapped(row * 4 + col))
+                    line.Append("S"); // supply/ground swapped: rescaled here
             }
             hw.PrintLine("%s", line.Cstr());
         }
