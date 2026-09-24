@@ -423,6 +423,41 @@ static void PumpIo()
     }
 }
 
+// --- where everything sits, 128x64 ---------------------------------------
+//
+// Named and checked rather than scattered as literals: the screen is 64 rows
+// and every one of them is spoken for, so an overlap is a drawing bug that only
+// shows up on hardware. The static_asserts below are what make the compiler
+// find it instead.
+namespace layout
+{
+constexpr int kRows = 64;
+
+constexpr int kHeaderTop = 0, kHeaderBot = 8;  // preset name, mode, voices
+constexpr int kRuleY     = 9;                  // the line under it
+constexpr int kSlotTop = 11, kSlotBot = 18;    // the four slot names
+constexpr int kBodyTop = 20, kBodyBot = 62;    // scope, readouts, meter
+
+// With a readout on screen the body splits three ways.
+constexpr int kStripBot  = 46;                 // scope strip ends
+constexpr int kValueY    = 48;                 // name and percentage (6x8)
+constexpr int kMeterTop = 57, kMeterBot = kBodyBot;
+constexpr int kChoiceY   = 51;                 // "Filter: Band pass" (6x8)
+// The envelope keeps the whole body; the message box floats over the strip.
+constexpr int kEnvTop = 30, kEnvBot = kBodyBot;
+constexpr int kMsgTop = 32, kMsgBot = 45;
+
+static_assert(kHeaderBot < kRuleY, "header runs into its rule");
+static_assert(kRuleY < kSlotTop, "rule runs into the slot row");
+static_assert(kSlotBot < kBodyTop, "slot row runs into the body");
+static_assert(kStripBot < kValueY, "scope strip runs into the value line");
+static_assert(kValueY + 8 <= kMeterTop, "value line runs into the meter");
+static_assert(kChoiceY + 8 <= kRows, "the choice line falls off the screen");
+static_assert(kMeterBot < kRows, "the meter falls off the screen");
+static_assert(kEnvBot + 1 < kRows, "the envelope baseline falls off the screen");
+static_assert(kMsgTop >= kBodyTop && kMsgBot <= kStripBot, "the message box is not over the strip");
+} // namespace layout
+
 /** The output as a triggered scope, in whatever space the readout leaves. */
 static void DrawScope(int y0, int y1)
 {
@@ -437,7 +472,7 @@ static void DrawScope(int y0, int y1)
  *  says what the sound will do, and 124 pixels cannot hold seconds anyway. */
 static void DrawEnvelope(const DisplayState& d)
 {
-    const int y_top = 32, y_base = 52;
+    const int y_top = layout::kEnvTop, y_base = layout::kEnvBot;
     const int h     = y_base - y_top;
     const int wa    = 4 + static_cast<int>(d.env[0] * 30.f);
     const int wd    = 4 + static_cast<int>(d.env[1] * 30.f);
@@ -478,20 +513,26 @@ static void DrawScreen()
     // mode in three letters, and the voices in use. The ENGINE is not here any
     // more -- it announces itself when you turn to it, and the preset's name is
     // the more useful thing to have in front of you.
+    // SHIFT inverts the header rather than spending a line on the word. It is
+    // a held state, so it wants to be unmissable and to cost nothing: the
+    // bottom of the screen is worth more as waveform.
+    const bool inv = d.shift;
+    if(inv)
+        display.DrawRect(0, layout::kHeaderTop, 127, layout::kHeaderBot, true, true);
     FixedCapStr<20> line(d.preset_name);
     if(d.preset_dirty)
         line.Append("*");
     display.SetCursor(0, 0);
-    display.WriteString(line, Font_6x8, true);
+    display.WriteString(line, Font_6x8, !inv);
     display.SetCursor(128 - 6 * 7, 0);
-    display.WriteString(d.voice_short, Font_6x8, true);
+    display.WriteString(d.voice_short, Font_6x8, !inv);
     FixedCapStr<8> voices_str("");
     voices_str.AppendInt(d.voices_active);
     voices_str.Append("/");
     voices_str.AppendInt(d.voices_max);
     display.SetCursor(128 - 6 * 3, 0);
-    display.WriteString(voices_str, Font_6x8, true);
-    display.DrawLine(0, 9, 127, 9, true);
+    display.WriteString(voices_str, Font_6x8, !inv);
+    display.DrawLine(0, layout::kRuleY, 127, layout::kRuleY, true);
 
     // The chain: four slot names, bypassed ones struck through.
     for(int s = 0; s < fx::TextureChain::kNumSlots; s++)
@@ -500,19 +541,31 @@ static void DrawScreen()
         FixedCapStr<8> name("");
         for(int i = 0; i < 5 && d.slot_type[s][i]; i++)
             name.Append(d.slot_type[s] + i, 1);
+        // FREEZE belongs to Space, so it is shown ON Space rather than as a
+        // word somewhere else.
+        const bool frozen = d.freeze && s == fx::TextureChain::kSpace;
+        if(frozen)
+            display.DrawRect(x, layout::kSlotTop, static_cast<uint8_t>(x + 31),
+                             layout::kSlotBot, true, true);
         display.SetCursor(x + 1, 12);
-        display.WriteString(name, Font_4x6, true);
+        display.WriteString(name, Font_4x6, !frozen);
         if(d.slot_bypass[s])
-            display.DrawLine(x + 1, 15, x + 29, 15, true);
+            display.DrawLine(x + 1, 15, x + 29, 15, !frozen);
     }
 
     // The middle of the screen belongs to the sound, and to whatever you are
     // changing about it -- both at once, so you can watch the shape move as you
     // turn. The scope is a strip above the readout when there is a readout, and
     // takes the whole space when there is not.
+    // THE BODY RUNS TO THE BOTTOM. There was a text line reserved down here for
+    // shift, freeze and messages, empty in almost every frame; those have moved
+    // onto the things they describe, and the waveform got the space. The strip
+    // above a readout is now 27 rows where it was 18, and with nothing on
+    // screen the scope has all 43.
     const bool envelope = d.readout == Readout::kEnvelope;
     if(!d.browser_open && !envelope)
-        DrawScope(20, d.readout == Readout::kNone ? 52 : 37);
+        DrawScope(layout::kBodyTop,
+                  d.readout == Readout::kNone ? layout::kBodyBot : layout::kStripBot);
 
     switch(d.readout)
     {
@@ -525,20 +578,20 @@ static void DrawScreen()
             FixedCapStr<32> choice(d.param);
             choice.Append(": ");
             choice.Append(d.choice);
-            display.SetCursor(0, 42);
+            display.SetCursor(0, layout::kChoiceY);
             display.WriteString(choice, Font_6x8, true);
             break;
         }
 
         case Readout::kEnvelope:
-            display.SetCursor(0, 22);
+            display.SetCursor(0, layout::kBodyTop);
             display.WriteString(d.param, Font_6x8, true);
             DrawEnvelope(d);
             break;
 
         default:
         {
-            display.SetCursor(0, 40);
+            display.SetCursor(0, layout::kValueY);
             display.WriteString(d.param, Font_6x8, true);
             // The number, because a bar says roughly and a knob deserves
             // exactly. Pickup puts which way to turn in front of it: the value
@@ -549,13 +602,14 @@ static void DrawScreen()
             pct.AppendInt(static_cast<int>(d.value * 100.f + 0.5f));
             pct.Append("%");
             const int w_px = 6 * static_cast<int>(pct.Size());
-            display.SetCursor(static_cast<uint8_t>(128 - w_px), 40);
+            display.SetCursor(static_cast<uint8_t>(128 - w_px), layout::kValueY);
             display.WriteString(pct, Font_6x8, true);
 
             const uint8_t w = static_cast<uint8_t>(d.value * 124.f);
-            display.DrawRect(0, 48, 127, 52, true);
+            display.DrawRect(0, layout::kMeterTop, 127, layout::kMeterBot, true);
             if(w > 1)
-                display.DrawRect(2, 49, static_cast<uint8_t>(2 + w), 51, true, true);
+                display.DrawRect(2, layout::kMeterTop + 1, static_cast<uint8_t>(2 + w),
+                                 layout::kMeterBot - 1, true, true);
             break;
         }
     }
@@ -582,21 +636,29 @@ static void DrawScreen()
                             true);
     }
 
-    // Footer: shift, freeze, a message, and the measured load.
-    FixedCapStr<32> foot("");
-    if(d.shift)
-        foot.Append("SHIFT ");
-    if(d.freeze)
-        foot.Append("FREEZE ");
-    if(d.pending[0] && !d.browser_open)
+    // Messages and a pending hold are moments, not states, so they appear over
+    // what is there and then go away again -- rather than a line held empty for
+    // them all the time.
+    if(!d.browser_open && (d.pending[0] || d.message[0]))
     {
-        foot.Append(">");
-        foot.Append(d.pending);
-        foot.Append(" ");
+        FixedCapStr<32> msg("");
+        if(d.pending[0])
+        {
+            msg.Append("HOLD: ");
+            msg.Append(d.pending);
+        }
+        else
+            msg.Append(d.message);
+        const int w  = 6 * static_cast<int>(msg.Size()) + 7;
+        const int x0 = w >= 128 ? 0 : (128 - w) / 2;
+        const int x1 = x0 + w > 127 ? 127 : x0 + w;
+        display.DrawRect(static_cast<uint8_t>(x0), layout::kMsgTop, static_cast<uint8_t>(x1),
+                         layout::kMsgBot, false, true);
+        display.DrawRect(static_cast<uint8_t>(x0), layout::kMsgTop, static_cast<uint8_t>(x1),
+                         layout::kMsgBot, true);
+        display.SetCursor(static_cast<uint8_t>(x0 + 4), layout::kMsgTop + 3);
+        display.WriteString(msg, Font_6x8, true);
     }
-    foot.Append(d.message);
-    display.SetCursor(0, 54);
-    display.WriteString(foot, Font_6x8, true);
 
     g_in_oled = true;
     display.Update(); // pages out, PumpIo() between each

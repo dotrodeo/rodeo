@@ -244,12 +244,19 @@ encoder polling — a full frame at 400 kHz is ~23 ms.
 
 **Layout as built (2026-09-24):**
 
-| Row | Holds |
+| Rows | Holds |
 |---|---|
-| Header | **Preset name**, `*` if the patch has changed since it was loaded · voice mode in three letters · voices in use |
-| Slots | The four slot types, bypassed ones struck through |
-| Readout | Whatever was last touched — **see below** |
-| Footer | Shift · freeze · `>GESTURE` when a hold is about to fire · messages |
+| 0–8 | **Preset name**, `*` if the patch has changed since it was loaded · voice mode in three letters · voices in use. **Inverted while SHIFT is held.** |
+| 11–18 | The four slot types, bypassed ones struck through. **The Space cell inverts when frozen.** |
+| 20–62 | The body: scope, readout and meter — **see below** |
+
+**Nothing is held in reserve at the bottom.** There used to be a text line for shift, freeze and
+messages, empty in almost every frame while the waveform was squeezed into eighteen rows. Those
+moved onto the things they describe — shift inverts the header, freeze inverts the Space cell —
+and messages float over the scope for the second or so they last. The waveform got the space:
+27 rows above a readout where it had 18, and all 43 with nothing on screen. The row positions
+are named constants with `static_assert`s between them, because every one of 64 rows is spoken
+for and an overlap is a bug that only shows up on hardware.
 
 **The engine is not on the header.** The preset name is the more useful thing to have in front
 of you, and the engine announces itself as a message when you turn MAIN onto it.
@@ -266,7 +273,7 @@ in `common/scope.h`, where it is tested.
 
 | When | Shows |
 |---|---|
-| A continuous pot | Scope strip, then its name, **the value as a percentage**, and a bar. Pickup puts `UP`/`DN` in front of the number — the value shown is the one being chased, not the one the pot is at. |
+| A continuous pot | Scope strip (rows 20–46), then its name and **the value as a percentage** (48), and the meter (57–62). Pickup puts `UP`/`DN` in front of the number — the value shown is the one being chased, not the one the pot is at. |
 | A **stepped** pot (filter type, LFO destination) | Scope strip, then `Name: Choice` spelled out. A bar says nothing about *which* destination. |
 | An **envelope** pot (attack, decay, sustain, release) | **The whole ADSR shape** — the scope stands aside, because the envelope is the picture worth seeing |
 | **Nothing, for over a second** | The scope alone, in the full space |
