@@ -120,3 +120,137 @@ TEST(PanelPots, UnsweptChannelsStillProduceSomethingSensible)
         EXPECT_LE(n, 1.f);
     }
 }
+
+// ------------------------------------------------- LEARNED ENDS, AND KEEPING THEM
+//
+// Reported from hardware 2026-09-24: "once in a while, after a full sweep, a pot
+// still won't go to zero." The nominal travel is only a guess -- component
+// tolerance moves both ends, and a channel that only ever widened from the guess
+// could never reach 0 or 1 if its real travel was narrower than nominal.
+
+TEST(PanelPots, ToleranceAtEitherEndStillReachesZeroAndOne)
+{
+    // A -20% pot is the worst case: correctly wired it tops out at 2.75 V
+    // instead of 3.00, and swapped it bottoms out at 0.37 V instead of 0.30.
+    // Both used to leave the knob short of an end.
+    for(float rpot : {8000.f, 10000.f, 12000.f})
+    {
+        PanelPots p;
+        p.Init();
+        Sweep(p, 0, CorrectWiring, rpot);
+        Sweep(p, 1, SupplySwapped, rpot);
+        SCOPED_TRACE(testing::Message() << "rpot " << rpot);
+        EXPECT_LE(p.Normalize(0, CorrectWiring(0.f, rpot)), 0.001f);
+        EXPECT_GE(p.Normalize(0, CorrectWiring(1.f, rpot)), 0.999f);
+        EXPECT_LE(p.Normalize(1, SupplySwapped(0.f, rpot)), 0.001f);
+        EXPECT_GE(p.Normalize(1, SupplySwapped(1.f, rpot)), 0.999f);
+        EXPECT_TRUE(p.IsCalibrated(0));
+        EXPECT_TRUE(p.IsCalibrated(1));
+    }
+}
+
+// The learned ends must not be believed before there is anything to believe:
+// a knob nudged across the middle of its travel must keep the nominal mapping,
+// or a small wiggle would make a quarter-turn read as the whole range.
+TEST(PanelPots, APartialSweepDoesNotBecomeTheWholeRange)
+{
+    PanelPots p;
+    p.Init();
+    for(int i = 4; i <= 12; i++) // 0.2 .. 0.6 of the travel
+        p.Normalize(0, CorrectWiring(static_cast<float>(i) / 20.f));
+    EXPECT_FALSE(p.IsCalibrated(0));
+    EXPECT_NEAR(p.Normalize(0, CorrectWiring(0.6f)), 0.6f, 0.05f)
+        << "a partial sweep was mistaken for the full travel";
+    EXPECT_NEAR(p.Normalize(0, CorrectWiring(0.2f)), 0.2f, 0.05f);
+}
+
+TEST(PanelPots, CalibrationSurvivesAnExportAndImport)
+{
+    PanelPots p;
+    p.Init();
+    Sweep(p, 0, CorrectWiring, 8000.f);
+    Sweep(p, 1, SupplySwapped, 12000.f);
+    PanelPots::Calibration c;
+    p.Export(c);
+
+    PanelPots q; // a fresh boot
+    q.Init();
+    ASSERT_TRUE(q.Import(c));
+    EXPECT_TRUE(q.IsCalibrated(0));
+    EXPECT_TRUE(q.IsSupplySwapped(1)) << "the wiring verdict has to come back too";
+    // The ends must be reachable immediately, with no sweep after the reboot.
+    EXPECT_LE(q.Normalize(0, CorrectWiring(0.f, 8000.f)), 0.001f);
+    EXPECT_GE(q.Normalize(0, CorrectWiring(1.f, 8000.f)), 0.999f);
+    EXPECT_LE(q.Normalize(1, SupplySwapped(0.f, 12000.f)), 0.001f);
+    EXPECT_GE(q.Normalize(1, SupplySwapped(1.f, 12000.f)), 0.999f);
+}
+
+TEST(PanelPots, ImportRejectsWhatIsNotOurs)
+{
+    PanelPots p;
+    p.Init();
+    PanelPots::Calibration c;
+    p.Export(c);
+
+    PanelPots::Calibration bad = c;
+    bad.magic = 0xDEADBEEFu; // erased or never written
+    EXPECT_FALSE(p.Import(bad));
+    bad         = c;
+    bad.version = PanelPots::kVersion + 1; // a later firmware's layout
+    EXPECT_FALSE(p.Import(bad));
+}
+
+// A corrupt endpoint must not be able to make a knob unusable: the channel
+// falls back to the nominal range and re-learns.
+TEST(PanelPots, ImportIgnoresImpossibleEndpoints)
+{
+    PanelPots p;
+    p.Init();
+    PanelPots::Calibration c;
+    p.Export(c);
+    c.lo[0] = 2.9f; // inverted
+    c.hi[0] = 0.1f;
+    c.lo[1] = 0.f;
+    c.hi[1] = 47.f; // not a voltage this hardware can make
+    ASSERT_TRUE(p.Import(c));
+    EXPECT_FALSE(p.IsCalibrated(0));
+    EXPECT_FALSE(p.IsCalibrated(1));
+    for(float v = 0.f; v <= 3.3f; v += 0.1f)
+        for(int ch = 0; ch < 2; ch++)
+        {
+            const float n = p.Normalize(ch, v);
+            EXPECT_GE(n, 0.f);
+            EXPECT_LE(n, 1.f);
+        }
+}
+
+// The revision is what tells the firmware a flash write has earned itself, so
+// it must move when something is learned and hold still when nothing is.
+TEST(PanelPots, RevisionMovesOnlyWhenSomethingIsLearned)
+{
+    PanelPots p;
+    p.Init();
+    Sweep(p, 0, CorrectWiring);
+    const uint32_t after_sweep = p.Revision();
+    EXPECT_GT(after_sweep, 0u);
+
+    for(int i = 0; i <= 20; i++) // the same sweep again: nothing new
+        p.Normalize(0, CorrectWiring(static_cast<float>(i) / 20.f));
+    EXPECT_EQ(p.Revision(), after_sweep) << "re-sweeping the same pot wants a flash write";
+
+    p.Normalize(0, CorrectWiring(0.f) - 0.05f); // a new low end
+    EXPECT_GT(p.Revision(), after_sweep);
+}
+
+TEST(PanelPots, ForgetStartsAChannelOver)
+{
+    PanelPots p;
+    p.Init();
+    Sweep(p, 0, SupplySwapped);
+    ASSERT_TRUE(p.IsCalibrated(0));
+    ASSERT_TRUE(p.IsSupplySwapped(0));
+    p.Forget(0); // a satellite has been swapped out
+    EXPECT_FALSE(p.IsCalibrated(0));
+    EXPECT_FALSE(p.IsSupplySwapped(0)) << "the wiring belongs to the old satellite";
+    EXPECT_NEAR(p.Normalize(0, CorrectWiring(0.5f)), 0.5f, 0.05f);
+}

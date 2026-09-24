@@ -374,8 +374,19 @@ and runs it from there, which is also fast memory, so DSP cost should carry over
 * **Install the bootloader once** (`make program-boot`). After that, updates are `make
   program-dfu` into the bootloader: tap RESET, then tap BOOT while the LED pulses to hold it
   in DFU indefinitely. The BOOT button no longer has to be held through a reset.
-* **Program image and presets share the 8 MB QSPI** (7.75 MB usable above the bootloader's
-  reserved region). Plenty for both.
+* **Program image, calibration and presets share the 8 MB QSPI** (7.75 MB usable above the
+  bootloader's reserved region). Plenty for all three. The map so far, with erases at 64 KB so
+  each tenant gets its own 64 KB boundary:
+
+  | Offset | What |
+  |---|---|
+  | `0x000000`–`0x03FFFF` | Reserved by the bootloader — do not touch |
+  | `0x040000`– | Program image (an SRAM build cannot exceed 480 KB) |
+  | `0x780000` | **Panel pot calibration** (`PanelPots::Calibration`, ~140 B) |
+  | `0x790000`– | Free — where presets and gestures go |
+
+  Calibration lives far past the program on purpose: a reflash rewrites only the image, so the
+  learned pot travel survives a firmware update as well as a power cycle.
 * **Re-run `bench_voices` under `BOOT_SRAM` once** (`make APP_TYPE=BOOT_SRAM`) to confirm the
   benchmark numbers carry over before relying on them in that mode.
 * **Licence: the rodeo-002 firmware is always open source** (Derek, 2026-09-21), so the LGPL

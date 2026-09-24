@@ -155,6 +155,18 @@ Then, per pot:
 4. **The bar may not move at all at first** — that is pickup, not a fault. The
    pot has to reach the value the patch already holds; the screen shows `UP` or
    `DN` for which way to turn.
+5. **Sweep it end to end, once.** The nominal travel is only a guess —
+   component tolerance moves both ends, so a pot that has not been swept can
+   stop a percent or two short of 0 or 1. One full sweep replaces the guess
+   with that pot's own ends, and the result is **saved to flash**, so it only
+   has to be done once per pot, not once per power-up. The serial dump marks a
+   swept channel `C` and an unswept one `-`.
+
+**If you change a satellite**, its stored travel belongs to the pot that left.
+**Hold the MAIN encoder while powering up** to clear the calibration for all
+sixteen and sweep them again; the startup log says `panel cal: CLEARED` when it
+has. Calibration is written about four seconds after the last thing it learns,
+so finish sweeping before cutting the power — the log prints `panel cal: saved`.
 
 For the encoders: turning one should name an effect type, a tap should strike
 the slot through, and holding SPACE for over half a second should show `FREEZE`.

@@ -26,6 +26,7 @@
 
 #include "daisy_seed.h"
 #include "daisysp.h"
+#include "util/PersistentStorage.h"
 
 #include "cost_model.h"
 #include "panel_pot.h"
@@ -88,6 +89,25 @@ OledDisplayType    display;
 Ui                 ui;
 PanelPots          pots; // conditioning, incl. cables built the wrong way
 
+// --- panel calibration, kept in QSPI ---------------------------------------
+//
+// Learning each pot's true travel takes a sweep of all sixteen, and doing that
+// at every power-up is not a reasonable thing to ask (2026-09-24). The chip is
+// 8 MB: the bootloader leaves the first four 64 KB sectors alone and stores the
+// program from 0x90040000, and an SRAM build cannot exceed 480 KB, so a sector
+// 7.5 MB in is clear of both by a wide margin, and a reflash does not touch it.
+// Erases are 64 KB, so anything stored later -- presets -- needs its own 64 KB
+// boundary rather than a place beside this.
+static constexpr uint32_t kCalStoreOffset = 0x780000u;
+/** Quiet time after the last thing learned before the calibration is written.
+ *  A block erase stalls the main loop for a good fraction of a second, so it
+ *  waits until the knob has stopped moving. Audio is unaffected: it runs from
+ *  the audio interrupt, which the erase does not block. */
+static constexpr uint32_t kCalSettleMs = 4000;
+PersistentStorage<PanelPots::Calibration> cal_store(hw.qspi);
+static uint32_t g_cal_revision = 0, g_cal_changed_ms = 0;
+static bool     g_cal_dirty    = false;
+
 bool g_have_adc = false, g_have_hub = false, g_have_oled = false;
 
 // A second view of hub 0 for bring-up: RodeoEncoders keeps its hubs private, and
@@ -121,6 +141,13 @@ static const uint8_t kEncoderSlot[5] = {0, 1, 2, 3, 4};
 // REMOVE once the pot is replaced.
 static constexpr bool  kPinSpaceMix   = true;
 static constexpr float kSpaceMixValue = 0.5f;
+/** Panel index of that pot (R4C4), and the travel that says a live pot is on
+ *  the end of it. A dead channel reads one voltage for ever; anything with a
+ *  tenth of a volt of movement in it is a working pot, so the pin lets go by
+ *  itself once one is fitted -- no reflash to undo a workaround. */
+static constexpr int   kSpaceMixPot     = 15;
+static constexpr float kPotAliveVolts   = 0.1f;
+static bool            g_space_mix_pinned = kPinSpaceMix;
 VoiceManager    voices;
 TextureChain    chain;
 EngineId        current_engine = EngineId::kVirtualAnalog;
@@ -466,6 +493,10 @@ static void DumpPanel()
                                  2);
                 if(pots.IsSupplySwapped(row * 4 + col))
                     line.Append("S"); // supply/ground swapped: rescaled here
+                if(pots.IsCalibrated(row * 4 + col))
+                    line.Append("C"); // swept: mapped from its own ends
+                else
+                    line.Append("-"); // never swept: still on the nominal range
             }
             hw.PrintLine("%s", line.Cstr());
         }
@@ -576,6 +607,37 @@ int main(void)
     enc_cfg.speed    = kI2cSpeed;
     g_have_hub       = encoders.Init(enc_cfg);
 
+    // Panel calibration: restored from flash, or thrown away if MAIN is held
+    // down at power-up -- the gesture for a satellite that has been changed,
+    // whose stored travel belongs to the pot that left.
+    {
+        PanelPots::Calibration defaults;
+        pots.Export(defaults); // nothing learned yet: the shape of a blank store
+        cal_store.Init(defaults, kCalStoreOffset);
+        bool clear = false;
+        if(g_have_hub)
+        {
+            for(int i = 0; i < 8; i++) // the hub polls at 1 kHz; give it a few
+            {
+                encoders.Update();
+                System::Delay(5);
+            }
+            clear = encoders.IsPressed(0, kEncoderSlot[4]); // MAIN
+        }
+        if(clear)
+        {
+            pots.Forget();
+            encoders.PopPress(0, kEncoderSlot[4]); // not a gesture as well
+            g_cal_dirty      = true;
+            g_cal_changed_ms = System::GetNow();
+        }
+        else
+        {
+            pots.Import(cal_store.GetSettings());
+        }
+        g_cal_revision = pots.Revision();
+    }
+
     if(g_have_hub)
     {
         // Diagnostic view of the same hub, on the same bus and speed. Both
@@ -624,9 +686,26 @@ int main(void)
                  g_have_oled ? "yes" : "NO");
     if(!g_have_hub)
         hw.PrintLine("  (no hub: Rev-A hubs carry the I2C pull-ups, so no OLED either)");
-    if(kPinSpaceMix)
-        hw.PrintLine("NOTE: Space Mix pinned to %d%% -- its pot (R4C4 / J25) is dead",
+    if(g_space_mix_pinned)
+        hw.PrintLine("NOTE: Space Mix pinned to %d%% until its pot (R4C4 / J25) shows travel",
                      static_cast<int>(kSpaceMixValue * 100.f));
+    {
+        int calibrated = 0;
+        for(int i = 0; i < Ui::kNumPots; i++)
+            if(pots.IsCalibrated(i))
+                calibrated++;
+        if(g_cal_dirty)
+            hw.PrintLine("panel cal: CLEARED (MAIN held at boot) -- sweep every pot end to end");
+        else
+            hw.PrintLine("panel cal: %d/%d pots restored from flash (%s)",
+                         calibrated,
+                         Ui::kNumPots,
+                         cal_store.GetState() == PersistentStorage<PanelPots::Calibration>::State::USER
+                             ? "saved"
+                             : "never saved");
+        hw.PrintLine("  a pot that will not reach 0 or 1 has not been swept yet: turn it");
+        hw.PrintLine("  end to end once. Hold MAIN while powering up to clear the lot.");
+    }
     hw.PrintLine("MIDI IN on the TRS jack. Every panel parameter is also on CC:");
     hw.PrintLine("  70-85  main layer, panel order (70 harmonics .. 85 space mix)");
     hw.PrintLine("  90-105 shift layer, same order (90 env>timbre .. 105 space damp)");
@@ -660,8 +739,40 @@ int main(void)
             g_discrete_changed |= ui.Update(in);
 
         // Applied after the Ui, so the dead pot cannot put it back to zero.
-        if(kPinSpaceMix)
-            patch.amount[TextureChain::kSpace] = kSpaceMixValue;
+        // Released for good the moment that channel shows real travel, which a
+        // dead one never does; pickup then holds the value until the knob
+        // reaches it, so nothing jumps.
+        if(g_space_mix_pinned)
+        {
+            if(pots.SpanSeen(kSpaceMixPot) > kPotAliveVolts)
+            {
+                g_space_mix_pinned = false;
+                hw.PrintLine("Space Mix pot is alive -- pin released, the knob has it now");
+            }
+            else
+                patch.amount[TextureChain::kSpace] = kSpaceMixValue;
+        }
+
+        // Calibration is learned by turning the knobs, so it is written a few
+        // seconds after the last thing it learned: never mid-sweep, and never
+        // from the audio callback. The erase stalls this loop, not the audio.
+        if(pots.Revision() != g_cal_revision)
+        {
+            g_cal_revision   = pots.Revision();
+            g_cal_changed_ms = in.now_ms;
+            g_cal_dirty      = true;
+        }
+        else if(g_cal_dirty && in.now_ms - g_cal_changed_ms > kCalSettleMs)
+        {
+            g_cal_dirty = false;
+            pots.Export(cal_store.GetSettings());
+            cal_store.Save(); // no-op if nothing actually differs
+            int calibrated = 0;
+            for(int i = 0; i < Ui::kNumPots; i++)
+                if(pots.IsCalibrated(i))
+                    calibrated++;
+            hw.PrintLine("panel cal: saved, %d/%d pots swept", calibrated, Ui::kNumPots);
+        }
 
         // An engine swap rebuilds every voice, so the callback is kept out of
         // the voices while it happens.
