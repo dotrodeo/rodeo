@@ -612,3 +612,143 @@ TEST(Chain, SpaceTypeChangeKeepsTheDry)
     EXPECT_GT(lo, 0.25f * 0.75f - 0.01f);
     EXPECT_EQ(rig.chain->GetType(TextureChain::kSpace), Space::kCloud);
 }
+
+// ---------------------------------------------------- DC IN THE FEEDBACK
+//
+// Reported from hardware 2026-09-23: "some settings of reverb and drive seem to
+// cause an oversaturation and the audio eventually cuts out, but it does come
+// back when you lower the settings." Two separate faults, both here.
+//
+// The cut-out is DC. The voices carry a small offset (~-0.04 measured, ordinary
+// for asymmetric and sync'd oscillators) and Space feeds itself back, so the
+// offset is amplified by ~1/(1-decay) -- about 100x in the reverb at full
+// decay. The output walks onto the limiter and STAYS there: a constant -1.0 has
+// no AC left, and the Seed's line out is AC-coupled, so it is heard as silence
+// until the feedback comes down and the offset decays.
+
+namespace
+{
+// A chord carrying a DC offset, played as repeated notes -- what the voices
+// actually deliver, rather than a continuous tone, which rings a reverb's modes
+// far harder than anything playable. Returns the mean, peak and rms of the last
+// `measure` seconds, and how often the output crossed its own slow-moving
+// average: a railed output never does.
+struct Settled
+{
+    double mean = 0.0;
+    float  peak = 0.f;
+    double rms  = 0.0;
+    long   crossings = 0;
+};
+
+Settled RunOffsetTone(TextureChain& chain, float seconds, float measure = 1.f)
+{
+    const size_t total   = static_cast<size_t>(kSr * seconds);
+    const size_t from    = total - static_cast<size_t>(kSr * measure);
+    float        l[kBlock], r[kBlock];
+    const float  kHz[3] = {110.f, 164.81f, 261.63f};
+    float        ph[3]   = {0.f, 0.f, 0.f};
+    float        avg = 0.f, prev = 0.f;
+    Settled      s;
+    for(size_t i = 0; i + kBlock <= total; i += kBlock)
+    {
+        for(size_t j = 0; j < kBlock; j++)
+        {
+            // A note every 500 ms, decaying: the envelope keeps the average
+            // input where playing keeps it.
+            const float t   = static_cast<float>((i + j) % size_t(kSr / 2)) / kSr;
+            const float env = expf(-6.f * t);
+            float       x   = 0.f;
+            for(int k = 0; k < 3; k++)
+            {
+                ph[k] += kHz[k] / kSr;
+                if(ph[k] >= 1.f)
+                    ph[k] -= 1.f;
+                x += sinf(kTwoPi * ph[k]);
+            }
+            l[j] = r[j] = env * (0.3f * x / 3.f - 0.04f); // offset, as a voice has
+        }
+        chain.ProcessBlock(l, r, kBlock);
+        for(size_t j = 0; j < kBlock; j++)
+        {
+            if(i + j < from)
+                continue;
+            s.mean += l[j];
+            s.rms += double(l[j]) * l[j];
+            s.peak = fmaxf(s.peak, fabsf(l[j]));
+            avg += (l[j] - avg) * 0.0005f;
+            const float ac = l[j] - avg;
+            if((ac > 0.f) != (prev > 0.f))
+                s.crossings++;
+            prev = ac;
+        }
+    }
+    const double n = kSr * measure;
+    s.mean /= n;
+    s.rms = sqrt(s.rms / n);
+    return s;
+}
+
+void SetUpReverb(TextureChain& chain, float feedback, float shimmer)
+{
+    chain.SetType(TextureChain::kSpace, Space::kReverb);
+    chain.SetAmount(TextureChain::kSpace, 1.f); // full wet: worst case
+    chain.SetBypass(TextureChain::kSpace, false);
+    chain.SnapToTargets();
+    chain.space().SetFeedback(feedback);
+    chain.space().SetGrain(shimmer);
+    chain.space().SetTime(0.3f);
+}
+} // namespace
+
+TEST(Space, ReverbDoesNotRailOnAnOffsetInputAtFullDecay)
+{
+    for(float shimmer : {0.f, 0.8f})
+    {
+        ChainRig rig;
+        SetUpReverb(*rig.chain, 1.f, shimmer);
+        const Settled s = RunOffsetTone(*rig.chain, 15.f);
+        SCOPED_TRACE(testing::Message() << "shimmer " << shimmer);
+        EXPECT_LT(fabs(s.mean), 0.02) << "the offset is being integrated";
+        EXPECT_LT(s.peak, 0.99f) << "pinned against the limiter";
+        EXPECT_GT(s.crossings, 100) << "no zero crossings left: the output is a rail";
+    }
+}
+
+// The granular types feed back too (0.95 at most), so the same applies.
+TEST(Space, GranularTypesDoNotIntegrateAnOffsetEither)
+{
+    for(int t : {Space::kEcho, Space::kCloud, Space::kReverse, Space::kWash})
+    {
+        ChainRig rig;
+        rig.chain->SetType(TextureChain::kSpace, t);
+        rig.chain->SetAmount(TextureChain::kSpace, 1.f);
+        rig.chain->SetBypass(TextureChain::kSpace, false);
+        rig.chain->SnapToTargets();
+        rig.chain->space().SetFeedback(1.f);
+        rig.chain->space().SetTime(0.2f);
+        const Settled s = RunOffsetTone(*rig.chain, 12.f);
+        SCOPED_TRACE(Space::TypeName(t));
+        EXPECT_LT(fabs(s.mean), 0.02) << "the offset is being integrated";
+        EXPECT_GT(s.crossings, 100) << "no zero crossings left: the output is a rail";
+    }
+}
+
+// The other half of the same report: a longer decay must not mean a louder
+// reverb. A feedback network's steady-state level goes as 1/sqrt(1 - decay), so
+// without compensation a held chord at full decay arrived several times over
+// full scale and sat on the limiter. The input trim tracks the decay instead.
+TEST(Space, DecayLengthensTheTailWithoutRaisingTheLevel)
+{
+    double rms[3];
+    int    i = 0;
+    for(float fb : {0.f, 0.5f, 1.f})
+    {
+        ChainRig rig;
+        SetUpReverb(*rig.chain, fb, 0.f);
+        rms[i++] = RunOffsetTone(*rig.chain, 12.f).rms;
+    }
+    EXPECT_GT(rms[0], 0.01) << "no wet signal to speak of at the short end";
+    EXPECT_LT(rms[2], rms[0] * 2.0) << "the decay knob is working as a volume knob";
+    EXPECT_GT(rms[2], rms[0] * 0.5) << "long decays have gone quiet instead";
+}

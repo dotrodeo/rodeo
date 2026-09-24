@@ -194,6 +194,21 @@ turns the grain engine into a shimmer: grains pitched by the grain-pitch pot, fe
 reverb. It is the only type that runs the granular engine *and* a reverb together, so it is
 the one to watch on the budget.
 
+**Two rules the feedback types have to obey** — both learned from hardware on 2026-09-23, where
+long decays "oversaturated and the audio eventually cut out, coming back when you lower the
+settings":
+
+* **No DC goes into a feedback loop.** The voices carry a small offset (~-0.04 measured, which
+  is ordinary for asymmetric and sync'd oscillators) and every Space type feeds itself back —
+  ReverbSc's DC gain is near 1/(1 - 0.99) = 100x at full decay, the granular types' about 20x.
+  The offset walks the output onto the limiter and holds it at a constant -1.0, which has no AC
+  left in it; since the Seed's line out is AC-coupled, that is *heard as silence*. Space blocks
+  DC on its effect input and again on the reverb's input, where the shimmer loop makes its own.
+  The dry path is deliberately not blocked, so the chain stays transparent at zero.
+* **A longer decay must not be a louder reverb.** A feedback network's steady-state level goes
+  as 1/sqrt(1 - decay), so the reverb's input trim tracks the decay instead of being fixed. The
+  decay knob then lengthens the tail without acting as a volume control.
+
 **Measured on hardware, 2026-09-21, re-measured 2026-09-22 after optimisation.** Load added by
 each type at its heaviest settings, over an all-bypassed baseline, under the bootloader.
 Measurement note: these figures come from raw timer ticks. libDaisy's `CpuLoadMeter` reported

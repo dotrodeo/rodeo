@@ -66,6 +66,10 @@ class Space
     static constexpr size_t kGrainLen = size_t(1) << 18;
     /** Reverb pre-delay buffer: 1 << 15 samples, 683 ms (Time maxes at 500). */
     static constexpr size_t kPreLen = size_t(1) << 15;
+    /** Reverb input trim at the SHORTEST decay; longer decays scale it down
+     *  (see rev_in). Chosen on the host so that a full-wet sustained chord
+     *  matches the dry level it replaces rather than sitting far below it. */
+    static constexpr float kRevInput = 1.75f;
 
     struct Buffers
     {
@@ -138,6 +142,11 @@ class Space
         spawn_countdown_ = 1;
         rev_out_[0] = rev_out_[1] = 0.f;
         shim_ref_ = shim_env_ = 0.f;
+        for(int c = 0; c < 2; c++)
+        {
+            dc_in_[c].Reset();
+            dc_rev_[c].Reset();
+        }
     }
 
     /** Snap the dry/wet/input smoothers to their targets -- for the chain's
@@ -478,8 +487,18 @@ class Space
     void Run(float* l, float* r, size_t n)
     {
         // Reverb: feedback is the decay; frozen, it holds and takes no input.
+        const float decay = freeze_ ? 0.999f : 0.6f + 0.39f * feedback_;
         if(T == kReverb)
-            buf_.reverb->SetFeedback(freeze_ ? 0.999f : 0.6f + 0.39f * feedback_);
+            buf_.reverb->SetFeedback(decay);
+        // A LONGER DECAY IS A LOUDER REVERB unless the input pays for it: the
+        // steady-state level of a feedback network goes as 1/sqrt(1 - decay),
+        // so a sustained chord at full decay arrived several times over full
+        // scale and sat on the output limiter -- the "oversaturation" reported
+        // from hardware on 2026-09-23. Normalising by that same factor holds
+        // the wet level roughly constant as the knob lengthens the tail, which
+        // is what turning a DECAY control should do. Referenced to the shortest
+        // decay so the bottom of the knob is unchanged.
+        const float rev_in = kRevInput * sqrtf((1.f - decay) / 0.4f);
         const float fb = feedback_ * 0.95f;
         // Wash: Grain is the diffusion coefficient.
         const float diffusion = 0.3f + 0.4f * grain_;
@@ -490,8 +509,20 @@ class Space
             const float dry_g = dry_.Next();
             const float wet_g = wet_.Next();
             const float in_g  = input_.Next() * (freeze_ ? 0.f : 1.f);
-            const float in_l  = l[i] * in_g;
-            const float in_r  = r[i] * in_g;
+            // DC IN IS DC AMPLIFIED, so none gets into the loops. The voices
+            // carry a small offset -- ~-0.04 measured, ordinary for asymmetric
+            // and sync'd oscillators -- and every Space type feeds itself back:
+            // ReverbSc at full decay has a DC gain near 1/(1-0.99) = 100x and
+            // the granular types about 20x. On hardware (2026-09-23) that
+            // walked the output down onto the limiter at a constant -1.0. A
+            // railed output has no AC left in it and the Seed's line out is
+            // AC-coupled, so it is heard as the AUDIO CUTTING OUT, and it comes
+            // back only once the feedback is lowered and the offset decays.
+            // Blocked HERE, on the effect input, rather than at the chain's
+            // input: the dry path past this slot stays bit-exact, so the chain
+            // is still transparent with everything at zero.
+            const float in_l  = dc_in_[0].Process(l[i] * in_g);
+            const float in_r  = dc_in_[1].Process(r[i] * in_g);
 
             if(--spawn_countdown_ <= 0)
             {
@@ -534,9 +565,7 @@ class Space
                 const size_t rd
                     = (pre_write_ - static_cast<size_t>(pre_delay)) & kPreMask;
                 pre_write_ = (pre_write_ + 1) & kPreMask;
-                // Input at half level: at maximum decay ReverbSc accumulates a
-                // loud input to ~3.5x full scale (host-measured, noise burst).
-                const float dl = buf_.pre_l[rd] * 0.5f, dr = buf_.pre_r[rd] * 0.5f;
+                const float dl = buf_.pre_l[rd], dr = buf_.pre_r[rd];
 
                 // SHIMMER IS BOUNDED BY THE DRY INPUT, NOT BY A GAIN SETTING.
                 // A fixed feed is unstable: ReverbSc's broadband gain is modest
@@ -562,8 +591,20 @@ class Space
                 // the shimmer is already bounded by the dry level, dividing by
                 // (1 + grain) keeps the total at or below dry alone.
                 const float share = 1.f / (1.f + grain_);
-                buf_.reverb->Process((dl + gl * shimmer) * share,
-                                     (dr + gr * shimmer) * share,
+
+                // DC-BLOCK WHAT GOES IN. The shimmer is a window-and-transpose
+                // of the reverb's own output fed back into it, and a grain
+                // window leaves an offset behind: measured on the host, shimmer
+                // 0.8 walked the tail to -0.35 DC at feedback 0.6 and pinned it
+                // at the -1.0 rail at full feedback -- silence, because the
+                // line out is AC-coupled (2026-09-23). With no shimmer the same
+                // reverb is clean at every feedback, so the loop is the source.
+                // ReverbSc has no blocker of its own and a DC gain near 100x at
+                // full decay, so the block belongs here, on its input.
+                // rev_in trims the WHOLE input, shimmer included: trimming only
+                // the dry left the shimmer to dominate at long decays.
+                buf_.reverb->Process(dc_rev_[0].Process((dl + gl * shimmer) * share * rev_in),
+                                     dc_rev_[1].Process((dr + gr * shimmer) * share * rev_in),
                                      &rev_out_[0],
                                      &rev_out_[1]);
                 wl      = rev_out_[0];
@@ -630,6 +671,8 @@ class Space
     int      n_grains_           = 0;
     float    window_[kWindowLen]  = {};
     float    rev_out_[2]          = {};
+    DcBlocker dc_in_[2];  // effect input; the dry path bypasses it
+    DcBlocker dc_rev_[2]; // reverb input; the shimmer loop makes its own DC
     float    shim_ref_ = 0.f, shim_env_ = 0.f;
     float    shim_ref_rel_ = 0.f, shim_env_atk_ = 0.f, shim_env_rel_ = 0.f;
     Smoother dry_, wet_, input_;
