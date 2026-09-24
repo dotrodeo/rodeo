@@ -155,18 +155,26 @@ Then, per pot:
 4. **The bar may not move at all at first** — that is pickup, not a fault. The
    pot has to reach the value the patch already holds; the screen shows `UP` or
    `DN` for which way to turn.
-5. **Sweep it end to end, once.** The nominal travel is only a guess —
-   component tolerance moves both ends, so a pot that has not been swept can
-   stop a percent or two short of 0 or 1. One full sweep replaces the guess
-   with that pot's own ends, and the result is **saved to flash**, so it only
-   has to be done once per pot, not once per power-up. The serial dump marks a
-   swept channel `C` and an unswept one `-`.
+5. **There is nothing to calibrate.** Each wiring's travel is fixed in the
+   firmware and inset by a small dead zone, so every pot within tolerance
+   reaches a true 0 and a true 1 on its first turn. The cost is about twelve
+   degrees of dead travel at each stop, which is the deliberate trade: full
+   access to the value range beats a perfectly fitted one.
 
-**If you change a satellite**, its stored travel belongs to the pot that left.
-**Hold the MAIN encoder while powering up** to clear the calibration for all
-sixteen and sweep them again; the startup log says `panel cal: CLEARED` when it
-has. Calibration is written about four seconds after the last thing it learns,
-so finish sweeping before cutting the power — the log prints `panel cal: saved`.
+**Calibration by measurement was tried and removed (2026-09-24).** Learning each
+channel's real endpoints is the obvious improvement and it was worse on
+hardware: a learned end is only as good as the worst sample ever taken, so one
+reading from a settling ADC or a dry joint moved it for good, and *"all but one
+is unable to reach 0"*. Persisting it to flash made that permanent. The fixed
+ranges have no state to rot.
+
+**The one thing still stored is the wiring** — which runs were built straight —
+because that is a fact about the cable, not a measurement. It is worked out the
+first time a pot is turned fully up (nothing but a swapped run can read above
+3.15 V, and it takes several readings in a row, so a spike cannot set it) and
+then written to flash. **If you change a satellite or a cable, hold the MAIN
+encoder while powering up** to clear it; the log says `panel wiring: CLEARED`,
+and turning each pot fully up once re-establishes it.
 
 For the encoders: turning one should name an effect type, a tap should strike
 the slot through, and holding SPACE for over half a second should show `FREEZE`.

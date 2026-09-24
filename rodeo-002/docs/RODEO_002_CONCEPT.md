@@ -382,11 +382,14 @@ and runs it from there, which is also fast memory, so DSP cost should carry over
   |---|---|
   | `0x000000`–`0x03FFFF` | Reserved by the bootloader — do not touch |
   | `0x040000`– | Program image (an SRAM build cannot exceed 480 KB) |
-  | `0x780000` | **Panel pot calibration** (`PanelPots::Calibration`, ~140 B) |
+  | `0x780000` | **Panel wiring map** (`PanelPots::Calibration`, ~12 B — which analog runs were built straight) |
   | `0x790000`– | Free — where presets and gestures go |
 
-  Calibration lives far past the program on purpose: a reflash rewrites only the image, so the
-  learned pot travel survives a firmware update as well as a power cycle.
+  It lives far past the program on purpose: a reflash rewrites only the image, so what is stored
+  survives a firmware update as well as a power cycle. **Pot travel is not stored, because it is
+  not measured** — the ranges are fixed per wiring and inset by a dead zone (see the harness doc,
+  *Bringing it up*). Learning them was tried on 2026-09-24 and removed: a learned endpoint is
+  only as good as the worst sample ever taken, and persisting it made one bad sample permanent.
 * **Re-run `bench_voices` under `BOOT_SRAM` once** (`make APP_TYPE=BOOT_SRAM`) to confirm the
   benchmark numbers carry over before relying on them in that mode.
 * **Licence: the rodeo-002 firmware is always open source** (Derek, 2026-09-21), so the LGPL

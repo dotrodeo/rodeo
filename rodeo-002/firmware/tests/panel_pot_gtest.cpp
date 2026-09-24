@@ -1,11 +1,17 @@
-// Pot conditioning, including the analog runs built with straight cables --
-// the state the panel arrived in on 2026-09-23.
+// Pot conditioning: the fixed travel of each wiring, mapped to 0..1.
 //
-// Correct wiring sweeps 0.00 -> ~3.00 V; a supply-swapped run sweeps
-// 0.30 -> 3.30 V. Both must give a control value that runs 0 -> 1 with the
-// knob, WITHOUT flipping direction: swapping supply and ground changes the
-// range, not which way the pot reads. Getting that wrong made every knob on the
-// panel run backwards.
+// Correct wiring sweeps 0.00 -> ~3.00 V; a supply-swapped run (a straight cable
+// on an analog run, which is how this panel was built) sweeps 0.30 -> 3.30 V.
+// Both must give a control value that runs 0 -> 1 with the knob, WITHOUT
+// flipping direction: swapping supply and ground changes the range, not which
+// way the pot reads. Getting that wrong made every knob on the panel run
+// backwards (2026-09-23).
+//
+// The ranges are FIXED, inset by a dead zone, rather than learned from what the
+// channel has seen. Learning was tried and was worse on hardware (2026-09-24):
+// a learned endpoint is only as good as the worst sample ever taken, so one
+// reading from a settling ADC or a bad joint moved an end for good. Most of
+// what follows is there to keep that from coming back.
 
 #include "gtest/gtest.h"
 
@@ -27,13 +33,13 @@ float SupplySwapped(float pos, float rpot = 10000.f)
     return bottom + pos * (3.3f - bottom);                // same direction
 }
 
-// Sweep the knob end to end so the channel learns its travel.
-void Sweep(PanelPots& p, int ch, float (*wiring)(float, float), float rpot = 10000.f)
+// Turn the knob fully up and leave it there, which is what makes a straight
+// cable visible: nothing else can read above 3.15 V. The panel samples at
+// ~108 Hz, so resting at a position is many readings, not one.
+void ShowTheTop(PanelPots& p, int ch, float (*wiring)(float, float), float rpot = 10000.f)
 {
-    for(int i = 0; i <= 20; i++)
-        p.Normalize(ch, wiring(static_cast<float>(i) / 20.f, rpot));
-    for(int i = 20; i >= 0; i--)
-        p.Normalize(ch, wiring(static_cast<float>(i) / 20.f, rpot));
+    for(int i = 0; i < 10; i++)
+        p.Normalize(ch, wiring(1.f, rpot));
 }
 } // namespace
 
@@ -41,49 +47,95 @@ TEST(PanelPots, CorrectWiringTracksTheKnob)
 {
     PanelPots p;
     p.Init();
-    Sweep(p, 0, CorrectWiring);
     EXPECT_FALSE(p.IsSupplySwapped(0));
-    EXPECT_NEAR(p.Normalize(0, CorrectWiring(0.f)), 0.f, 0.02f);
-    EXPECT_NEAR(p.Normalize(0, CorrectWiring(0.5f)), 0.5f, 0.05f);
-    EXPECT_NEAR(p.Normalize(0, CorrectWiring(1.f)), 1.f, 0.02f);
+    EXPECT_NEAR(p.Normalize(0, CorrectWiring(0.5f)), 0.5f, 0.02f);
+    EXPECT_LE(p.Normalize(0, CorrectWiring(0.f)), 0.f);
+    EXPECT_GE(p.Normalize(0, CorrectWiring(1.f)), 1.f);
 }
 
 TEST(PanelPots, SupplySwappedIsDetectedAndCorrected)
 {
     PanelPots p;
     p.Init();
-    Sweep(p, 1, SupplySwapped);
+    ShowTheTop(p, 1, SupplySwapped);
     EXPECT_TRUE(p.IsSupplySwapped(1)) << "3.30 V is impossible when wired correctly";
     // The knob, not the voltage, is what must run 0 -> 1.
-    EXPECT_NEAR(p.Normalize(1, SupplySwapped(0.f)), 0.f, 0.02f);
-    EXPECT_NEAR(p.Normalize(1, SupplySwapped(0.5f)), 0.5f, 0.05f);
-    EXPECT_NEAR(p.Normalize(1, SupplySwapped(1.f)), 1.f, 0.02f);
+    EXPECT_LE(p.Normalize(1, SupplySwapped(0.f)), 0.f);
+    EXPECT_NEAR(p.Normalize(1, SupplySwapped(0.5f)), 0.5f, 0.02f);
+    EXPECT_GE(p.Normalize(1, SupplySwapped(1.f)), 1.f);
 }
 
-TEST(PanelPots, BothEndsAreReachableWithEitherWiring)
+// The one Derek asked for: every pot in tolerance reaches a true 0 and a true 1,
+// on either wiring, with no calibration step of any kind.
+TEST(PanelPots, EveryToleranceReachesBothEndsWithNoCalibration)
+{
+    for(float rpot : {8000.f, 10000.f, 12000.f}) // a 10k pot at +/-20%
+    {
+        PanelPots p;
+        p.Init();
+        ShowTheTop(p, 1, SupplySwapped, rpot);
+        SCOPED_TRACE(testing::Message() << "rpot " << rpot);
+        EXPECT_FLOAT_EQ(p.Normalize(0, CorrectWiring(0.f, rpot)), 0.f);
+        EXPECT_FLOAT_EQ(p.Normalize(0, CorrectWiring(1.f, rpot)), 1.f);
+        EXPECT_FLOAT_EQ(p.Normalize(1, SupplySwapped(0.f, rpot)), 0.f);
+        EXPECT_FLOAT_EQ(p.Normalize(1, SupplySwapped(1.f, rpot)), 1.f);
+    }
+}
+
+// What the dead zone costs, stated as a number so a change to it is visible:
+// the knob must be off its stop by less than a tenth of its travel before the
+// value moves, and the middle of the knob must still be the middle of the range.
+TEST(PanelPots, TheDeadZoneIsSmallAndTheMiddleIsUnmoved)
 {
     PanelPots p;
     p.Init();
-    Sweep(p, 0, CorrectWiring);
-    Sweep(p, 1, SupplySwapped);
-    // The complaint that started this: pots that could not reach 0.
-    EXPECT_LE(p.Normalize(0, CorrectWiring(0.f)), 0.001f);
-    EXPECT_LE(p.Normalize(1, SupplySwapped(0.f)), 0.001f);
-    EXPECT_GE(p.Normalize(0, CorrectWiring(1.f)), 0.999f);
-    EXPECT_GE(p.Normalize(1, SupplySwapped(1.f)), 0.999f);
+    float leaves_zero = 1.f, reaches_one = 0.f;
+    for(int i = 0; i <= 100; i++)
+    {
+        const float pos = static_cast<float>(i) / 100.f;
+        const float n   = p.Normalize(0, CorrectWiring(pos));
+        if(n > 0.f && pos < leaves_zero)
+            leaves_zero = pos;
+        if(n >= 1.f && pos < reaches_one)
+            reaches_one = pos;
+    }
+    EXPECT_LT(leaves_zero, 0.1f) << "too much of the knob does nothing at the bottom";
+    EXPECT_NEAR(p.Normalize(0, CorrectWiring(0.5f)), 0.5f, 0.02f);
+}
+
+// THE 2026-09-24 REGRESSION. A channel that once read something silly -- a
+// settling ADC, a satellite being plugged in, a dry joint -- must map exactly as
+// it did before. When the range was learned, that one reading moved the end of
+// it for good and the pot could no longer reach zero.
+TEST(PanelPots, AStraySampleDoesNotMoveTheRange)
+{
+    PanelPots clean, poisoned;
+    clean.Init();
+    poisoned.Init();
+    ShowTheTop(clean, 0, SupplySwapped);
+    ShowTheTop(poisoned, 0, SupplySwapped);
+
+    poisoned.Normalize(0, 0.f);    // a dead reading, as a bad joint gives
+    poisoned.Normalize(0, 0.007f); // and a nearly-dead one
+    for(int i = 0; i <= 20; i++)
+    {
+        const float v = SupplySwapped(static_cast<float>(i) / 20.f);
+        EXPECT_FLOAT_EQ(poisoned.Normalize(0, v), clean.Normalize(0, v))
+            << "a stray sample changed the mapping, at " << v << " V";
+    }
+    EXPECT_FLOAT_EQ(poisoned.Normalize(0, SupplySwapped(0.f)), 0.f)
+        << "the pot can no longer reach zero";
 }
 
 TEST(PanelPots, DirectionIsNeverFlipped)
 {
     PanelPots p;
     p.Init();
-    // Both wirings must RISE with the knob. The bug this pins made every pot on
-    // the panel run backwards.
+    ShowTheTop(p, 1, SupplySwapped);
     for(int ch = 0; ch < 2; ch++)
     {
-        auto wiring = ch == 0 ? CorrectWiring : SupplySwapped;
-        Sweep(p, ch, wiring);
-        float last = -1.f;
+        auto  wiring = ch == 0 ? CorrectWiring : SupplySwapped;
+        float last   = -1.f;
         for(int i = 0; i <= 10; i++)
         {
             const float n = p.Normalize(ch, wiring(static_cast<float>(i) / 10.f, 10000.f));
@@ -93,96 +145,52 @@ TEST(PanelPots, DirectionIsNeverFlipped)
     }
 }
 
+// The wiring verdict is permanent and stored, so a lone spike must not set it.
+TEST(PanelPots, ALoneSpikeIsNotAWiringVerdict)
+{
+    PanelPots p;
+    p.Init();
+    for(int i = 0; i < 20; i++)
+    {
+        p.Normalize(0, CorrectWiring(0.9f));
+        p.Normalize(0, 3.29f); // one bad sample among good ones
+    }
+    EXPECT_FALSE(p.IsSupplySwapped(0)) << "a spike between good readings set the wiring";
+    EXPECT_NEAR(p.Normalize(0, CorrectWiring(1.f)), 1.f, 0.001f);
+}
+
 TEST(PanelPots, PotToleranceDoesNotFlipTheVerdict)
 {
     PanelPots p;
     p.Init();
     // +20% pot, the highest a correct satellite can read: 3.3 * 12/13 = 3.046 V.
-    Sweep(p, 2, CorrectWiring, 12000.f);
+    ShowTheTop(p, 2, CorrectWiring, 12000.f);
     EXPECT_FALSE(p.IsSupplySwapped(2)) << "a +20% pot must not look like bad wiring";
-    EXPECT_NEAR(p.Normalize(2, CorrectWiring(1.f, 12000.f)), 1.f, 0.02f);
     // -20% pot on a straight cable still reads well above the threshold.
     PanelPots q;
     q.Init();
-    Sweep(q, 3, SupplySwapped, 8000.f);
+    ShowTheTop(q, 3, SupplySwapped, 8000.f);
     EXPECT_TRUE(q.IsSupplySwapped(3));
 }
 
-TEST(PanelPots, UnsweptChannelsStillProduceSomethingSensible)
+TEST(PanelPots, WiringSurvivesAnExportAndImport)
 {
     PanelPots p;
     p.Init();
-    // Before any sweep, the nominal travel is assumed -- no wild values.
-    for(float v = 0.f; v <= 3.3f; v += 0.1f)
-    {
-        const float n = p.Normalize(4, v);
-        EXPECT_GE(n, 0.f);
-        EXPECT_LE(n, 1.f);
-    }
-}
-
-// ------------------------------------------------- LEARNED ENDS, AND KEEPING THEM
-//
-// Reported from hardware 2026-09-24: "once in a while, after a full sweep, a pot
-// still won't go to zero." The nominal travel is only a guess -- component
-// tolerance moves both ends, and a channel that only ever widened from the guess
-// could never reach 0 or 1 if its real travel was narrower than nominal.
-
-TEST(PanelPots, ToleranceAtEitherEndStillReachesZeroAndOne)
-{
-    // A -20% pot is the worst case: correctly wired it tops out at 2.75 V
-    // instead of 3.00, and swapped it bottoms out at 0.37 V instead of 0.30.
-    // Both used to leave the knob short of an end.
-    for(float rpot : {8000.f, 10000.f, 12000.f})
-    {
-        PanelPots p;
-        p.Init();
-        Sweep(p, 0, CorrectWiring, rpot);
-        Sweep(p, 1, SupplySwapped, rpot);
-        SCOPED_TRACE(testing::Message() << "rpot " << rpot);
-        EXPECT_LE(p.Normalize(0, CorrectWiring(0.f, rpot)), 0.001f);
-        EXPECT_GE(p.Normalize(0, CorrectWiring(1.f, rpot)), 0.999f);
-        EXPECT_LE(p.Normalize(1, SupplySwapped(0.f, rpot)), 0.001f);
-        EXPECT_GE(p.Normalize(1, SupplySwapped(1.f, rpot)), 0.999f);
-        EXPECT_TRUE(p.IsCalibrated(0));
-        EXPECT_TRUE(p.IsCalibrated(1));
-    }
-}
-
-// The learned ends must not be believed before there is anything to believe:
-// a knob nudged across the middle of its travel must keep the nominal mapping,
-// or a small wiggle would make a quarter-turn read as the whole range.
-TEST(PanelPots, APartialSweepDoesNotBecomeTheWholeRange)
-{
-    PanelPots p;
-    p.Init();
-    for(int i = 4; i <= 12; i++) // 0.2 .. 0.6 of the travel
-        p.Normalize(0, CorrectWiring(static_cast<float>(i) / 20.f));
-    EXPECT_FALSE(p.IsCalibrated(0));
-    EXPECT_NEAR(p.Normalize(0, CorrectWiring(0.6f)), 0.6f, 0.05f)
-        << "a partial sweep was mistaken for the full travel";
-    EXPECT_NEAR(p.Normalize(0, CorrectWiring(0.2f)), 0.2f, 0.05f);
-}
-
-TEST(PanelPots, CalibrationSurvivesAnExportAndImport)
-{
-    PanelPots p;
-    p.Init();
-    Sweep(p, 0, CorrectWiring, 8000.f);
-    Sweep(p, 1, SupplySwapped, 12000.f);
+    ShowTheTop(p, 1, SupplySwapped);
+    ShowTheTop(p, 5, SupplySwapped);
     PanelPots::Calibration c;
     p.Export(c);
 
     PanelPots q; // a fresh boot
     q.Init();
     ASSERT_TRUE(q.Import(c));
-    EXPECT_TRUE(q.IsCalibrated(0));
-    EXPECT_TRUE(q.IsSupplySwapped(1)) << "the wiring verdict has to come back too";
-    // The ends must be reachable immediately, with no sweep after the reboot.
-    EXPECT_LE(q.Normalize(0, CorrectWiring(0.f, 8000.f)), 0.001f);
-    EXPECT_GE(q.Normalize(0, CorrectWiring(1.f, 8000.f)), 0.999f);
-    EXPECT_LE(q.Normalize(1, SupplySwapped(0.f, 12000.f)), 0.001f);
-    EXPECT_GE(q.Normalize(1, SupplySwapped(1.f, 12000.f)), 0.999f);
+    EXPECT_TRUE(q.IsSupplySwapped(1));
+    EXPECT_TRUE(q.IsSupplySwapped(5));
+    EXPECT_FALSE(q.IsSupplySwapped(0));
+    // And the swapped channel is right from the first reading, with no turn.
+    EXPECT_FLOAT_EQ(q.Normalize(1, SupplySwapped(0.f)), 0.f);
+    EXPECT_FLOAT_EQ(q.Normalize(1, SupplySwapped(1.f)), 1.f);
 }
 
 TEST(PanelPots, ImportRejectsWhatIsNotOurs)
@@ -193,64 +201,32 @@ TEST(PanelPots, ImportRejectsWhatIsNotOurs)
     p.Export(c);
 
     PanelPots::Calibration bad = c;
-    bad.magic = 0xDEADBEEFu; // erased or never written
+    bad.magic                  = 0xDEADBEEFu; // erased, or never written
     EXPECT_FALSE(p.Import(bad));
     bad         = c;
-    bad.version = PanelPots::kVersion + 1; // a later firmware's layout
+    bad.version = 1; // the version that stored learned endpoints
     EXPECT_FALSE(p.Import(bad));
-}
-
-// A corrupt endpoint must not be able to make a knob unusable: the channel
-// falls back to the nominal range and re-learns.
-TEST(PanelPots, ImportIgnoresImpossibleEndpoints)
-{
-    PanelPots p;
-    p.Init();
-    PanelPots::Calibration c;
-    p.Export(c);
-    c.lo[0] = 2.9f; // inverted
-    c.hi[0] = 0.1f;
-    c.lo[1] = 0.f;
-    c.hi[1] = 47.f; // not a voltage this hardware can make
-    ASSERT_TRUE(p.Import(c));
-    EXPECT_FALSE(p.IsCalibrated(0));
-    EXPECT_FALSE(p.IsCalibrated(1));
-    for(float v = 0.f; v <= 3.3f; v += 0.1f)
-        for(int ch = 0; ch < 2; ch++)
-        {
-            const float n = p.Normalize(ch, v);
-            EXPECT_GE(n, 0.f);
-            EXPECT_LE(n, 1.f);
-        }
-}
-
-// The revision is what tells the firmware a flash write has earned itself, so
-// it must move when something is learned and hold still when nothing is.
-TEST(PanelPots, RevisionMovesOnlyWhenSomethingIsLearned)
-{
-    PanelPots p;
-    p.Init();
-    Sweep(p, 0, CorrectWiring);
-    const uint32_t after_sweep = p.Revision();
-    EXPECT_GT(after_sweep, 0u);
-
-    for(int i = 0; i <= 20; i++) // the same sweep again: nothing new
-        p.Normalize(0, CorrectWiring(static_cast<float>(i) / 20.f));
-    EXPECT_EQ(p.Revision(), after_sweep) << "re-sweeping the same pot wants a flash write";
-
-    p.Normalize(0, CorrectWiring(0.f) - 0.05f); // a new low end
-    EXPECT_GT(p.Revision(), after_sweep);
 }
 
 TEST(PanelPots, ForgetStartsAChannelOver)
 {
     PanelPots p;
     p.Init();
-    Sweep(p, 0, SupplySwapped);
-    ASSERT_TRUE(p.IsCalibrated(0));
+    ShowTheTop(p, 0, SupplySwapped);
     ASSERT_TRUE(p.IsSupplySwapped(0));
-    p.Forget(0); // a satellite has been swapped out
-    EXPECT_FALSE(p.IsCalibrated(0));
-    EXPECT_FALSE(p.IsSupplySwapped(0)) << "the wiring belongs to the old satellite";
-    EXPECT_NEAR(p.Normalize(0, CorrectWiring(0.5f)), 0.5f, 0.05f);
+    p.Forget(0); // a satellite or cable has been changed
+    EXPECT_FALSE(p.IsSupplySwapped(0)) << "the wiring belongs to the run that left";
+    EXPECT_NEAR(p.Normalize(0, CorrectWiring(0.5f)), 0.5f, 0.02f);
+}
+
+TEST(PanelPots, UnsweptChannelsStillProduceSomethingSensible)
+{
+    PanelPots p;
+    p.Init();
+    for(float v = 0.f; v <= 3.3f; v += 0.1f)
+    {
+        const float n = p.Normalize(4, v);
+        EXPECT_GE(n, 0.f);
+        EXPECT_LE(n, 1.f);
+    }
 }

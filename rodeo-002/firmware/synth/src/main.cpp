@@ -493,10 +493,6 @@ static void DumpPanel()
                                  2);
                 if(pots.IsSupplySwapped(row * 4 + col))
                     line.Append("S"); // supply/ground swapped: rescaled here
-                if(pots.IsCalibrated(row * 4 + col))
-                    line.Append("C"); // swept: mapped from its own ends
-                else
-                    line.Append("-"); // never swept: still on the nominal range
             }
             hw.PrintLine("%s", line.Cstr());
         }
@@ -607,9 +603,9 @@ int main(void)
     enc_cfg.speed    = kI2cSpeed;
     g_have_hub       = encoders.Init(enc_cfg);
 
-    // Panel calibration: restored from flash, or thrown away if MAIN is held
-    // down at power-up -- the gesture for a satellite that has been changed,
-    // whose stored travel belongs to the pot that left.
+    // Panel wiring map: restored from flash, or thrown away if MAIN is held
+    // down at power-up -- the gesture for a satellite or cable that has been
+    // changed, whose stored verdict belongs to the run that left.
     {
         PanelPots::Calibration defaults;
         pots.Export(defaults); // nothing learned yet: the shape of a blank store
@@ -690,21 +686,21 @@ int main(void)
         hw.PrintLine("NOTE: Space Mix pinned to %d%% until its pot (R4C4 / J25) shows travel",
                      static_cast<int>(kSpaceMixValue * 100.f));
     {
-        int calibrated = 0;
+        int swapped = 0;
         for(int i = 0; i < Ui::kNumPots; i++)
-            if(pots.IsCalibrated(i))
-                calibrated++;
+            if(pots.IsSupplySwapped(i))
+                swapped++;
         if(g_cal_dirty)
-            hw.PrintLine("panel cal: CLEARED (MAIN held at boot) -- sweep every pot end to end");
+            hw.PrintLine("panel wiring: CLEARED (MAIN held at boot) -- turn each pot fully up once");
         else
-            hw.PrintLine("panel cal: %d/%d pots restored from flash (%s)",
-                         calibrated,
+            hw.PrintLine("panel wiring: %d/%d runs supply-swapped, from flash (%s)",
+                         swapped,
                          Ui::kNumPots,
                          cal_store.GetState() == PersistentStorage<PanelPots::Calibration>::State::USER
                              ? "saved"
                              : "never saved");
-        hw.PrintLine("  a pot that will not reach 0 or 1 has not been swept yet: turn it");
-        hw.PrintLine("  end to end once. Hold MAIN while powering up to clear the lot.");
+        hw.PrintLine("  ranges are fixed, not calibrated: every pot reaches 0 and 1 on the");
+        hw.PrintLine("  first turn, with a few degrees of dead travel at each stop.");
     }
     hw.PrintLine("MIDI IN on the TRS jack. Every panel parameter is also on CC:");
     hw.PrintLine("  70-85  main layer, panel order (70 harmonics .. 85 space mix)");
@@ -725,9 +721,9 @@ int main(void)
         in.now_ms = System::GetNow();
         if(g_have_adc)
             for(int i = 0; i < Ui::kNumPots; i++)
-                // The TRUE voltage, conditioned here: PanelPots learns each
-                // channel's travel and detects a straight-built cable (which
-                // reads backwards and never reaches zero).
+                // The TRUE voltage, conditioned here: PanelPots maps each
+                // wiring's fixed travel onto 0..1 and detects a straight-built
+                // analog run, whose range is shifted.
                 in.pot[i] = pots.Normalize(i, adc.GetVolts(kPotChannel[i]));
         if(g_have_hub)
             for(int e = 0; e < 5; e++)
@@ -753,9 +749,9 @@ int main(void)
                 patch.amount[TextureChain::kSpace] = kSpaceMixValue;
         }
 
-        // Calibration is learned by turning the knobs, so it is written a few
-        // seconds after the last thing it learned: never mid-sweep, and never
-        // from the audio callback. The erase stalls this loop, not the audio.
+        // The wiring map is worked out by turning the knobs, so it is written a
+        // few seconds after the last verdict changed -- never from the audio
+        // callback. The erase stalls this loop, not the audio.
         if(pots.Revision() != g_cal_revision)
         {
             g_cal_revision   = pots.Revision();
@@ -767,11 +763,12 @@ int main(void)
             g_cal_dirty = false;
             pots.Export(cal_store.GetSettings());
             cal_store.Save(); // no-op if nothing actually differs
-            int calibrated = 0;
+            int swapped = 0;
             for(int i = 0; i < Ui::kNumPots; i++)
-                if(pots.IsCalibrated(i))
-                    calibrated++;
-            hw.PrintLine("panel cal: saved, %d/%d pots swept", calibrated, Ui::kNumPots);
+                if(pots.IsSupplySwapped(i))
+                    swapped++;
+            hw.PrintLine("panel wiring: saved, %d/%d runs supply-swapped",
+                         swapped, Ui::kNumPots);
         }
 
         // An engine swap rebuilds every voice, so the callback is kept out of
