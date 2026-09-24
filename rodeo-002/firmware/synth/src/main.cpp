@@ -120,7 +120,7 @@ static const uint8_t kEncoderSlot[5] = {0, 1, 2, 3, 4};
 // which makes the whole Space slot untestable. Hold it at full instead.
 // REMOVE once the pot is replaced.
 static constexpr bool  kPinSpaceMix   = true;
-static constexpr float kSpaceMixValue = 1.f;
+static constexpr float kSpaceMixValue = 0.5f;
 VoiceManager    voices;
 TextureChain    chain;
 EngineId        current_engine = EngineId::kVirtualAnalog;
