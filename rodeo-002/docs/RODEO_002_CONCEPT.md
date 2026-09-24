@@ -348,6 +348,21 @@ gestures would take ~3.5 MB of the QSPI (which also holds the program image — 
 platform*). Storing only the pots that actually moved makes a
 typical gesture far smaller.
 
+**Built 2026-09-24** (`common/preset.h`, `common/factory_presets.h`): **16 slots**, eight of
+them factory sounds, browsed and loaded from MAIN exactly as the control map describes. What is
+not built yet: **gestures** (the recorder itself does not exist) and **naming** — a panel with
+no buttons cannot spell, so a saved slot names itself `User N` until there is a UI that can.
+Sixteen slots rather than sixty-four because that is what the browser can turn through
+comfortably; the sector holds far more when gestures need it.
+
+**Engines are stored by a stable id, never by enum position.** Dropping an engine renumbers
+every engine after it, which would silently turn every saved patch into a different sound. Each
+engine has a number assigned once in `preset.h` and never reused; a preset naming an engine the
+firmware no longer has loads as virtual-analog **and says so**, rather than pretending. Every
+other stored enum is range-checked on load, so an old or corrupt bank cannot produce a patch
+that indexes past a table. No factory preset uses Grainlet, Particle, String or Karplus, so
+dropping those (under consideration, 2026-09-24) orphans nothing.
+
 **Physical-position problem:** pots hold their last physical position, so after a preset load
 (and after every shift-layer release) the panel disagrees with the patch. Every pot therefore
 uses **pickup** — a pot is inert until it crosses the stored value. This applies to the main
@@ -383,7 +398,8 @@ and runs it from there, which is also fast memory, so DSP cost should carry over
   | `0x000000`–`0x03FFFF` | Reserved by the bootloader — do not touch |
   | `0x040000`– | Program image (an SRAM build cannot exceed 480 KB) |
   | `0x780000` | **Panel wiring map** (`PanelPots::Calibration`, ~12 B — which analog runs were built straight) |
-  | `0x790000`– | Free — where presets and gestures go |
+  | `0x790000` | **Preset bank** (`PresetBank`, 16 slots, 2.6 KB) |
+  | `0x7A0000`– | Free — where gestures go |
 
   It lives far past the program on purpose: a reflash rewrites only the image, so what is stored
   survives a firmware update as well as a power cycle. **Pot travel is not stored, because it is

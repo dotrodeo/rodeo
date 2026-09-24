@@ -6,6 +6,7 @@
 
 #include "gtest/gtest.h"
 
+#include "factory_presets.h"
 #include "ui.h"
 
 using namespace rodeo002;
@@ -214,4 +215,155 @@ TEST(Ui, DisplayReportsEngineVoicesAndSlots)
     EXPECT_STREQ(d.slot_type[fx::TextureChain::kSpace],
                  fx::TextureChain::TypeName(fx::TextureChain::kSpace,
                                             r.ui.patch().type[fx::TextureChain::kSpace]));
+}
+
+// ------------------------------------------------------- PRESET BROWSER
+//
+// The instrument's one modal state, so the rules matter: MAIN's turn browses
+// instead of choosing an engine, its tap loads, its long-press saves (the one
+// place long-press does not mean gesture), and anything else closes it without
+// loading. The Ui only ASKS -- the app does the flash work.
+
+namespace
+{
+void Tap(Rig& r)
+{
+    r.HoldMain(true);
+    r.Tick();
+    r.HoldMain(false);
+    r.Tick();
+}
+void LongPress(Rig& r)
+{
+    r.HoldMain(true);
+    r.Tick();                      // the press starts at this pass's clock
+    r.Tick(Ui::kLongPressMs + 50); // still held, while time passes
+    r.HoldMain(false);
+    r.Tick();
+}
+} // namespace
+
+TEST(Ui, TappingMainOpensTheBrowserAndAsksForNothingYet)
+{
+    Rig r;
+    EXPECT_FALSE(r.ui.BrowserOpen());
+    Tap(r);
+    EXPECT_TRUE(r.ui.BrowserOpen());
+    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
+    EXPECT_TRUE(r.ui.display().browser_open);
+}
+
+TEST(Ui, TurningMainInTheBrowserBrowsesInsteadOfChangingTheEngine)
+{
+    Rig            r;
+    const EngineId before = r.ui.patch().engine;
+    Tap(r);
+    r.Turn(kMain, 1);
+    r.Turn(kMain, 1);
+    EXPECT_EQ(r.ui.display().browser_slot, 2);
+    EXPECT_EQ(r.ui.patch().engine, before) << "browsing changed the engine";
+    // And it wraps rather than sticking at an end.
+    for(int i = 0; i < PresetBank::kNumSlots; i++)
+        r.Turn(kMain, -1);
+    EXPECT_EQ(r.ui.display().browser_slot, 2);
+}
+
+TEST(Ui, TappingInTheBrowserAsksToLoadTheHighlightedSlot)
+{
+    Rig r;
+    Tap(r); // open
+    r.Turn(kMain, 1);
+    r.Turn(kMain, 1);
+    r.Turn(kMain, 1);
+    Tap(r); // load
+    const PresetRequest req = r.ui.TakePresetRequest();
+    EXPECT_EQ(req.action, PresetAction::kLoad);
+    EXPECT_EQ(req.slot, 3);
+    EXPECT_FALSE(r.ui.BrowserOpen()) << "the browser stays open after loading";
+    // And the request is one-shot.
+    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
+}
+
+TEST(Ui, LongPressingInTheBrowserSavesRatherThanRecordingAGesture)
+{
+    Rig r;
+    Tap(r);
+    r.Turn(kMain, 1);
+    LongPress(r);
+    const PresetRequest req = r.ui.TakePresetRequest();
+    EXPECT_EQ(req.action, PresetAction::kSave);
+    EXPECT_EQ(req.slot, 1);
+    EXPECT_FALSE(r.ui.BrowserOpen());
+}
+
+// Outside the browser a long-press is the gesture recorder, not a save.
+TEST(Ui, LongPressOutsideTheBrowserAsksForNoPresetAtAll)
+{
+    Rig r;
+    LongPress(r);
+    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
+    EXPECT_FALSE(r.ui.BrowserOpen());
+}
+
+TEST(Ui, TouchingAnythingElseClosesTheBrowserWithoutLoading)
+{
+    {
+        Rig r;
+        Tap(r);
+        ASSERT_TRUE(r.ui.BrowserOpen());
+        r.MovePot(0, 0.9f);
+        EXPECT_FALSE(r.ui.BrowserOpen()) << "a pot did not close it";
+        EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
+    }
+    {
+        Rig r;
+        Tap(r);
+        ASSERT_TRUE(r.ui.BrowserOpen());
+        r.Turn(0, 1); // a slot encoder
+        EXPECT_FALSE(r.ui.BrowserOpen()) << "a slot encoder did not close it";
+        EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
+    }
+}
+
+TEST(Ui, TheBrowserClosesItselfIfNothingHappens)
+{
+    Rig r;
+    Tap(r);
+    ASSERT_TRUE(r.ui.BrowserOpen());
+    r.Tick(Ui::kBrowserIdleMs - 100);
+    EXPECT_TRUE(r.ui.BrowserOpen()) << "closed too early";
+    r.Tick(200);
+    EXPECT_FALSE(r.ui.BrowserOpen());
+    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
+}
+
+// MAIN held IS shift. Holding it to reach a pot must not open the browser when
+// it is let go -- the same rule that keeps shift from firing the long-press.
+TEST(Ui, UsingMainAsShiftDoesNotOpenTheBrowser)
+{
+    Rig r;
+    r.HoldMain(true);
+    r.Tick();
+    r.MovePot(0, 0.9f); // the other hand, on a shift-layer parameter
+    r.HoldMain(false);
+    r.Tick();
+    EXPECT_FALSE(r.ui.BrowserOpen());
+    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
+}
+
+// Names come from the bank the app owns; without one the browser still works.
+TEST(Ui, TheBrowserShowsTheNameOfTheHighlightedSlot)
+{
+    Rig               r;
+    static PresetBank bank;
+    BuildFactoryBank(bank);
+    r.ui.SetBank(&bank);
+    Tap(r);
+    r.Tick();
+    EXPECT_STREQ(r.ui.display().browser_name, bank.slot[0].name);
+    EXPECT_TRUE(r.ui.display().browser_used);
+    for(int i = 0; i < PresetBank::kNumSlots - 1; i++)
+        r.Turn(kMain, 1);
+    r.Tick();
+    EXPECT_FALSE(r.ui.display().browser_used) << "the last slot ships empty";
 }

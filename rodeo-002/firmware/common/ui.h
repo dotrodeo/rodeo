@@ -13,6 +13,14 @@
 //     destination.
 //   * Master volume is global, is never stored in a preset, and never waits for
 //     pickup -- it is the physical output level.
+//   * The PRESET BROWSER is modal, and is the instrument's one modal exception:
+//     while it is open MAIN's turn browses slots, its tap loads and its
+//     long-press saves. That is acceptable only because the browser is on
+//     screen the whole time it applies. Anything else touched closes it without
+//     loading, as does five seconds of nothing.
+//
+// The Ui does not touch flash. Loading and saving are REQUESTS the app picks up
+// with TakePresetRequest(), so all of this stays testable on the host.
 
 #pragma once
 
@@ -20,6 +28,7 @@
 
 #include "cost_model.h"
 #include "patch.h"
+#include "preset.h"
 #include "texture_chain.h"
 #include "voice.h"
 
@@ -95,6 +104,25 @@ struct DisplayState
     /** A one-shot line for things the panel can't show otherwise. */
     const char* message    = "";
     uint32_t    message_ms = 0;
+    // --- preset browser, while it is open --------------------------------
+    bool        browser_open = false;
+    int         browser_slot = 0;
+    const char* browser_name = "";
+    bool        browser_used = false;
+};
+
+/** What the panel is asking the app to do with the preset store. */
+enum class PresetAction
+{
+    kNone = 0,
+    kLoad,
+    kSave
+};
+
+struct PresetRequest
+{
+    PresetAction action = PresetAction::kNone;
+    int          slot   = 0;
 };
 
 class Ui
@@ -103,6 +131,9 @@ class Ui
     static constexpr int      kNumPots      = 16;
     static constexpr int      kMainEncoder  = 4; // the isolated one, hub slot 5
     static constexpr uint32_t kLongPressMs  = 600;
+    /** The browser closes itself after this long untouched, so the instrument
+     *  never sits in a mode nobody meant to be in. */
+    static constexpr uint32_t kBrowserIdleMs = 5000;
     static constexpr uint32_t kPopupMs      = 1200;
     static constexpr float    kPickupEps    = 0.01f;
     /** Below this a pot counts as still: ADC noise must not look like a turn. */
@@ -115,6 +146,19 @@ class Ui
         // Nothing is caught until each pot is moved to where the patch says.
         DropPickup();
     }
+
+    /** The bank, for slot names on screen. The app owns it; the Ui only reads
+     *  it, and works (nameless) without one. */
+    void SetBank(const PresetBank* b) { bank_ = b; }
+
+    /** The pending load/save, cleared by reading it. */
+    PresetRequest TakePresetRequest()
+    {
+        const PresetRequest r = request_;
+        request_              = PresetRequest{};
+        return r;
+    }
+    bool BrowserOpen() const { return browser_open_; }
 
     const Patch&   patch() const { return patch_; }
     const Globals& globals() const { return globals_; }
@@ -160,6 +204,8 @@ class Ui
             {
                 if(shift_ && e != kMainEncoder)
                     touched_while_held_ = true;
+                if(e != kMainEncoder)
+                    CloseBrowser(in.now_ms);
                 discrete_changed |= TurnEncoder(e, d, shift_, in.now_ms);
             }
             // Slot encoders: tap = bypass, and SPACE's long-press = freeze.
@@ -177,6 +223,8 @@ class Ui
                         Post(patch_.freeze ? "FREEZE" : "unfreeze", in.now_ms);
                     }
                 }
+                if(in.enc_held[e] && !enc_held_[e])
+                    CloseBrowser(in.now_ms);
                 if(!in.enc_held[e] && enc_held_[e])
                 {
                     if(!enc_long_[e])
@@ -195,8 +243,25 @@ class Ui
         if(!shift && main_held_)
         {
             const uint32_t held = in.now_ms - press_start_ms_;
+            const bool     long_press = held >= kLongPressMs;
             if(!touched_while_held_)
-                Post(held >= kLongPressMs ? "Gesture: not yet" : "Presets: not yet", in.now_ms);
+            {
+                if(browser_open_)
+                {
+                    // The one modal exception: in here, long-press is SAVE.
+                    request_.action = long_press ? PresetAction::kSave : PresetAction::kLoad;
+                    request_.slot   = browser_slot_;
+                    browser_open_   = false;
+                }
+                else if(long_press)
+                    Post("Gesture: not yet", in.now_ms);
+                else
+                {
+                    browser_open_     = true;
+                    browser_ms_       = in.now_ms;
+                    browser_opened_ms_ = in.now_ms;
+                }
+            }
         }
         main_held_ = shift;
 
@@ -214,8 +279,15 @@ class Ui
         if(touched_ms_ && in.now_ms - touched_ms_ > kPopupMs)
             display_.show_value = false;
 
-        display_.shift  = shift_;
-        display_.freeze = patch_.freeze;
+        if(browser_open_ && in.now_ms - browser_ms_ > kBrowserIdleMs)
+            browser_open_ = false;
+
+        display_.shift        = shift_;
+        display_.freeze       = patch_.freeze;
+        display_.browser_open = browser_open_;
+        display_.browser_slot = browser_slot_;
+        display_.browser_name = bank_ ? bank_->slot[browser_slot_].name : "";
+        display_.browser_used = bank_ ? bank_->slot[browser_slot_].used != 0 : false;
         return discrete_changed;
     }
 
@@ -242,6 +314,12 @@ class Ui
         return static_cast<ParamId>(pot + (shift ? kNumPots : 0));
     }
 
+    void CloseBrowser(uint32_t now)
+    {
+        if(browser_open_ && now != browser_opened_ms_)
+            browser_open_ = false;
+    }
+
     void Post(const char* msg, uint32_t now)
     {
         display_.message    = msg;
@@ -252,6 +330,14 @@ class Ui
     {
         if(e == kMainEncoder)
         {
+            if(browser_open_ && !shift)
+            {
+                // Browsing, not choosing an engine.
+                const int n   = PresetBank::kNumSlots;
+                browser_slot_ = (browser_slot_ + (delta > 0 ? 1 : -1) + n) % n;
+                browser_ms_   = now;
+                return false;
+            }
             if(shift)
             {
                 // Push-turn: voice mode. (Holding MAIN and turning MAIN.)
@@ -311,6 +397,10 @@ class Ui
 
         if(moved && shift_)
             touched_while_held_ = true;
+        // A pot moving closes the browser -- but not in the same pass that
+        // opened it, since the hand that released MAIN may still be on a knob.
+        if(moved && browser_open_ && now != browser_opened_ms_)
+            browser_open_ = false;
 
         if(ParamIsGlobal(p))
         {
@@ -461,7 +551,12 @@ class Ui
     uint32_t     enc_press_ms_[5]      = {};
     uint32_t     press_start_ms_       = 0;
     uint32_t     touched_ms_           = 0;
-    bool         shift_                = false;
+    const PresetBank* bank_ = nullptr;
+    PresetRequest     request_;
+    bool     browser_open_ = false;
+    int      browser_slot_ = 0;
+    uint32_t browser_ms_ = 0, browser_opened_ms_ = 0;
+    bool     shift_ = false;
     bool         main_held_            = false;
     bool         touched_while_held_   = false;
     bool         primed_               = false;

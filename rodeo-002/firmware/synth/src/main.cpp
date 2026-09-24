@@ -29,6 +29,7 @@
 #include "util/PersistentStorage.h"
 
 #include "cost_model.h"
+#include "factory_presets.h"
 #include "panel_pot.h"
 #include "patch.h"
 #include "texture_chain.h"
@@ -107,6 +108,17 @@ static constexpr uint32_t kCalSettleMs = 4000;
 PersistentStorage<PanelPots::Calibration> cal_store(hw.qspi);
 static uint32_t g_cal_revision = 0, g_cal_changed_ms = 0;
 static bool     g_cal_dirty    = false;
+
+// --- the preset bank, its own 64 KB sector -------------------------------
+// 2.6 KB of it is used; the sector is its own because an erase takes the whole
+// 64 KB with it, and saving a preset must not disturb the wiring map.
+static constexpr uint32_t kPresetStoreOffset = 0x790000u;
+PersistentStorage<PresetBank> preset_store(hw.qspi);
+// The factory copy is read once, at startup, to seed the store -- so it lives
+// in SDRAM rather than spending a third copy of the bank in DTCM. (The store's
+// own two copies, defaults and live, are unavoidable and stay in DTCM, where
+// the browser reads them.)
+static PresetBank DSY_SDRAM_BSS g_factory_bank;
 
 bool g_have_adc = false, g_have_hub = false, g_have_oled = false;
 
@@ -413,6 +425,24 @@ static void DrawScreen(float load)
         }
     }
 
+    // The browser takes the screen while it is open: it is the instrument's one
+    // modal state, so it has to be unmistakable.
+    if(d.browser_open)
+    {
+        display.DrawRect(0, 20, 127, 52, false, true); // clear what is under it
+        display.DrawRect(0, 20, 127, 52, true);
+        FixedCapStr<24> head("PRESET ");
+        head.AppendInt(d.browser_slot + 1);
+        head.Append("/");
+        head.AppendInt(PresetBank::kNumSlots);
+        display.SetCursor(4, 23);
+        display.WriteString(head, Font_6x8, true);
+        display.SetCursor(4, 33);
+        display.WriteString(d.browser_used ? d.browser_name : "-- empty --", Font_7x10, true);
+        display.SetCursor(4, 44);
+        display.WriteString("tap load  hold save", Font_4x6, true);
+    }
+
     // Footer: shift, freeze, a message, and the measured load.
     FixedCapStr<32> foot("");
     if(d.shift)
@@ -442,6 +472,7 @@ static uint32_t ScreenSignature(const DisplayState& d, float load)
     auto     mix = [&h](uint32_t v) { h = (h ^ v) * 16777619u; };
     auto     mix_ptr
         = [&mix](const char* p) { mix(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(p))); };
+    mix(d.browser_open ? 0x8000u + static_cast<uint32_t>(d.browser_slot) : 0u);
     mix_ptr(d.engine);
     mix_ptr(d.voice_mode);
     mix(static_cast<uint32_t>(d.voices_active));
@@ -634,6 +665,17 @@ int main(void)
         g_cal_revision = pots.Revision();
     }
 
+    // The preset bank. The factory sounds are the store's defaults, so an
+    // instrument that has never been saved to still boots with something to
+    // play, and an erased store comes back with them rather than empty slots.
+    {
+        BuildFactoryBank(g_factory_bank);
+        preset_store.Init(g_factory_bank, kPresetStoreOffset);
+        if(!preset_store.GetSettings().Valid())
+            preset_store.GetSettings() = g_factory_bank; // older layout, or corrupt
+        ui.SetBank(&preset_store.GetSettings());
+    }
+
     if(g_have_hub)
     {
         // Diagnostic view of the same hub, on the same bus and speed. Both
@@ -769,6 +811,46 @@ int main(void)
                     swapped++;
             hw.PrintLine("panel wiring: saved, %d/%d runs supply-swapped",
                          swapped, Ui::kNumPots);
+        }
+
+        // --- preset load / save -----------------------------------------
+        // Both are done here, never in the callback: a save erases a 64 KB
+        // sector, which stalls this loop for a fraction of a second.
+        {
+            const PresetRequest req = ui.TakePresetRequest();
+            PresetBank&         bank = preset_store.GetSettings();
+            if(req.action == PresetAction::kLoad)
+            {
+                const StoredPreset& sp = bank.slot[req.slot];
+                if(!sp.used)
+                    hw.PrintLine("preset %d: empty slot, nothing loaded", req.slot + 1);
+                else
+                {
+                    bool engine_known = true;
+                    PresetToPatch(sp, patch, &engine_known);
+                    // The pots are wherever the last patch left them, so every
+                    // one of them has to be caught again before it takes hold.
+                    ui.DropPickup();
+                    g_discrete_changed = true;
+                    hw.PrintLine("preset %d loaded: %s%s",
+                                 req.slot + 1,
+                                 sp.name,
+                                 engine_known
+                                     ? ""
+                                     : "  (WARNING: its engine is gone from this build;"
+                                       " using virtual-analog)");
+                }
+            }
+            else if(req.action == PresetAction::kSave)
+            {
+                // No text entry on a panel with no buttons, so slots name
+                // themselves. Renaming waits for a UI that can spell.
+                FixedCapStr<16> name("User ");
+                name.AppendInt(req.slot + 1);
+                PatchToPreset(patch, name.Cstr(), bank.slot[req.slot]);
+                preset_store.Save();
+                hw.PrintLine("preset %d saved: %s", req.slot + 1, bank.slot[req.slot].name);
+            }
         }
 
         // An engine swap rebuilds every voice, so the callback is kept out of

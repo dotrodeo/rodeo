@@ -63,6 +63,18 @@ class TextureChain
             default: return Space::kNumTypes;
         }
     }
+    /** How many options that slot's shift+turn cycles through. Companion to
+     *  NumTypes, and what range-checks a stored preset's option value. */
+    static int NumOptions(int s)
+    {
+        switch(s)
+        {
+            case kCharacter: return Character::kNumOptions;
+            case kMovement: return Movement::kNumOptions;
+            case kTexture: return Texture::kNumOptions;
+            default: return Space::kNumOptions;
+        }
+    }
     static const char* TypeName(int s, int t)
     {
         switch(s)

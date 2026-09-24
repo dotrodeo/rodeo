@@ -6,7 +6,7 @@ here just points `RODEO_ROOT` back at that tree.
 
 | App | What it is |
 |---|---|
-| `common/` | **Shared code**, header-only and host-compilable: the voice engines (`engines.h`), the voices and allocation (`voice.h`), what a patch holds (`patch.h`), the measured costs behind the voice cap (`cost_model.h`), the four texture-chain slots (`fx_*.h`), the chain (`texture_chain.h`) and helpers (`dsp_util.h`) — plus `app.mk`, the build rules every app includes. |
+| `common/` | **Shared code**, header-only and host-compilable: the voice engines (`engines.h`), the voices and allocation (`voice.h`), what a patch holds (`patch.h`), how a patch is stored and the factory bank (`preset.h`, `factory_presets.h`), the measured costs behind the voice cap (`cost_model.h`), the four texture-chain slots (`fx_*.h`), the chain (`texture_chain.h`) and helpers (`dsp_util.h`) — plus `app.mk`, the build rules every app includes. |
 | `tests/` | Host-side GoogleTest for `common/`, against the real vendored DaisySP: every effect type at every corner must stay finite, bounded, quiet after the input stops, transparent at zero, and audible at full; plus a fuzz test that twiddles the whole chain at random. `make test`. |
 | `synth/` | **The instrument.** MIDI in → voices → texture chain → audio out, with the panel (16 pots, 5 encoders, OLED) and polyphony capped from the measured cost model. Every panel parameter is also on MIDI CC. |
 | `bench_voices/` | CPU benchmark: the cost of every effect type, then voices per engine with the worst-case chain running. |

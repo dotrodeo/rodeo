@@ -178,7 +178,7 @@ bottom; the isolated encoder under the OLED is slot 5. Slots 6–9 unpopulated.
 * Encoder satellites take **straight** cables (`A / B / S / GND` both ends).
 * Direction follows the hub's `CONFIG.ENC_DIR_INVERT`.
 
-### Preset browser (decided 2026-09-21)
+### Preset browser (decided 2026-09-21, built 2026-09-24)
 
 Tapping MAIN opens it, and **while it is open MAIN's controls mean something else** — the OLED
 says so for as long as it is open:
@@ -189,6 +189,10 @@ says so for as long as it is open:
 | Tap MAIN | **Load** the highlighted preset and close |
 | Long-press MAIN | **Save** to the highlighted slot and close |
 | Touch any other control, or 5 s idle | **Close without loading** |
+
+**As built:** 16 slots, 8 of them factory sounds; an empty slot shows `-- empty --` and will not
+load, but can be saved into. A saved slot is named `User N` — naming needs a text entry this
+panel cannot offer. Loading drops pickup on every pot, so nothing jumps.
 
 Long-press means *gesture* everywhere else and *save* here. That is the one modal exception on
 the instrument, and it is acceptable only because the browser is on screen whenever it applies.
