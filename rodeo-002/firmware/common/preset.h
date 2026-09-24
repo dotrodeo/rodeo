@@ -292,4 +292,29 @@ struct PresetBank
     bool operator!=(const PresetBank& o) const { return !(*this == o); }
 };
 
+/** Copy any preset the bank does not have into the empty slots. Returns how
+ *  many were filled.
+ *
+ *  This is how new factory sounds reach an instrument that has already been
+ *  saved to. The defaults in flash are only written while the store has never
+ *  been used, so after the first save a later firmware's factory bank would
+ *  otherwise never be seen. Nothing that is already there is touched -- an
+ *  occupied slot is left exactly as it is, whether it holds a factory sound or
+ *  one of yours. The only thing it cannot tell is a slot deliberately left
+ *  empty from one that has never been filled, and it will fill it; there is no
+ *  gesture for emptying a slot, so today that cannot arise. */
+inline int FillEmptySlots(PresetBank& bank, const PresetBank& factory)
+{
+    if(!bank.Valid() || !factory.Valid())
+        return 0;
+    int filled = 0;
+    for(int i = 0; i < PresetBank::kNumSlots; i++)
+        if(!bank.slot[i].used && factory.slot[i].used)
+        {
+            bank.slot[i] = factory.slot[i];
+            filled++;
+        }
+    return filled;
+}
+
 } // namespace rodeo002

@@ -17,7 +17,7 @@
 
 namespace rodeo002
 {
-/** Fill `b` with the factory bank: eight sounds, eight empty slots. */
+/** Fill `b` with the factory bank: sixteen sounds, one per slot. */
 inline void BuildFactoryBank(PresetBank& b)
 {
     // Every byte set, including the header's own: the bank is compared byte for
@@ -222,6 +222,183 @@ inline void BuildFactoryBank(PresetBank& b)
         p.space_grain                     = 0.70f;
         p.grain_spread                    = 0.75f;
         add("Freeze Cloud", p);
+    }
+
+    // 9. Hard sync, hit short. Harmonics is the sync sweep on this engine, so
+    //    it is the knob that makes this one move.
+    {
+        Patch p;
+        p.engine     = EngineId::kVirtualAnalog;
+        p.harmonics  = 0.55f;
+        p.timbre     = 0.40f;
+        p.cutoff     = 0.80f;
+        p.resonance  = 0.25f;
+        p.attack     = 0.00f;
+        p.decay      = 0.25f;
+        p.sustain    = 0.15f;
+        p.release    = 0.18f;
+        p.filter_env = 0.70f;
+        p.type[TextureChain::kCharacter]   = Character::kDrive;
+        p.amount[TextureChain::kCharacter] = 0.35f;
+        p.type[TextureChain::kSpace]       = Space::kEcho;
+        p.amount[TextureChain::kSpace]     = 0.30f;
+        p.space_time                       = 0.24f;
+        p.space_feedback                   = 0.40f;
+        add("Sync Stab", p);
+    }
+
+    // 10. Hold one note and leave the room.
+    {
+        Patch p;
+        p.engine     = EngineId::kHarmonic;
+        p.voice_mode = VoiceMode::kUnison;
+        p.spread     = 0.55f;
+        p.harmonics  = 0.55f;
+        p.cutoff     = 0.50f;
+        p.attack     = 0.70f;
+        p.sustain    = 1.00f;
+        p.release    = 0.90f;
+        p.lfo_dest   = LfoDest::kMorph;
+        p.lfo_rate   = 0.08f;
+        p.lfo_depth  = 0.35f;
+        p.type[TextureChain::kSpace]   = Space::kWash;
+        p.amount[TextureChain::kSpace] = 0.65f;
+        p.space_time                   = 0.80f;
+        p.space_feedback               = 0.75f;
+        p.space_grain                  = 0.70f;
+        add("Wash Drone", p);
+    }
+
+    // 11. Every note answers itself backwards.
+    {
+        Patch p;
+        p.engine    = EngineId::kFm2;
+        p.harmonics = 0.35f;
+        p.timbre    = 0.35f;
+        p.cutoff    = 0.75f;
+        p.attack    = 0.02f;
+        p.decay     = 0.40f;
+        p.sustain   = 0.40f;
+        p.release   = 0.35f;
+        p.type[TextureChain::kSpace]   = Space::kReverse;
+        p.amount[TextureChain::kSpace] = 0.55f;
+        p.space_time                   = 0.45f;
+        p.space_feedback               = 0.45f;
+        p.space_grain                  = 0.50f;
+        add("Reverse Keys", p);
+    }
+
+    // 12. Struck and dusty: the noise floor is part of the instrument.
+    {
+        Patch p;
+        p.engine    = EngineId::kZOsc;
+        p.harmonics = 0.30f;
+        p.morph     = 0.35f;
+        p.cutoff    = 0.70f;
+        p.attack    = 0.00f;
+        p.decay     = 0.55f;
+        p.sustain   = 0.10f;
+        p.release   = 0.55f;
+        p.type[TextureChain::kTexture]    = Texture::kDust;
+        p.amount[TextureChain::kTexture]  = 0.35f;
+        p.type[TextureChain::kSpace]      = Space::kReverb;
+        p.amount[TextureChain::kSpace]    = 0.45f;
+        p.secondary[TextureChain::kSpace] = 0.50f; // damp
+        p.space_time                      = 0.20f;
+        p.space_feedback                  = 0.55f;
+        p.space_grain                     = 0.00f; // no shimmer: just the room
+        add("Dust Piano", p);
+    }
+
+    // 13. One voice, low, folded until it buzzes.
+    {
+        Patch p;
+        p.engine     = EngineId::kVirtualAnalog;
+        p.voice_mode = VoiceMode::kMono;
+        p.glide      = 0.08f;
+        p.harmonics  = 0.20f;
+        p.cutoff     = 0.35f;
+        p.resonance  = 0.35f;
+        p.filter_env = 0.80f;
+        p.attack     = 0.00f;
+        p.decay      = 0.30f;
+        p.sustain    = 0.45f;
+        p.release    = 0.15f;
+        p.type[TextureChain::kCharacter]      = Character::kFold;
+        p.amount[TextureChain::kCharacter]    = 0.40f;
+        p.secondary[TextureChain::kCharacter] = 0.40f;
+        add("Fold Bass", p);
+    }
+
+    // 14. Vowels, moving slowly, in a wide room.
+    {
+        Patch p;
+        p.engine    = EngineId::kFormant;
+        p.timbre    = 0.45f;
+        p.morph     = 0.60f;
+        p.spread    = 0.40f;
+        p.cutoff    = 0.65f;
+        p.attack    = 0.25f;
+        p.sustain   = 0.85f;
+        p.release   = 0.55f;
+        p.lfo_dest  = LfoDest::kTimbre;
+        p.lfo_rate  = 0.20f;
+        p.lfo_depth = 0.30f;
+        p.type[TextureChain::kMovement]      = Movement::kChorus;
+        p.amount[TextureChain::kMovement]    = 0.40f;
+        p.secondary[TextureChain::kMovement] = 0.30f;
+        p.type[TextureChain::kSpace]         = Space::kWash;
+        p.amount[TextureChain::kSpace]       = 0.45f;
+        p.space_time                         = 0.55f;
+        p.space_feedback                     = 0.50f;
+        add("Vowel Pad", p);
+    }
+
+    // 15. Plucked, then squashed flat -- the compressor is the sound.
+    {
+        Patch p;
+        p.engine    = EngineId::kVariableSaw;
+        p.timbre    = 0.65f;
+        p.cutoff    = 0.70f;
+        p.resonance = 0.20f;
+        p.attack    = 0.00f;
+        p.decay     = 0.20f;
+        p.sustain   = 0.05f;
+        p.release   = 0.25f;
+        p.type[TextureChain::kTexture]     = Texture::kSquash;
+        p.amount[TextureChain::kTexture]   = 0.60f;
+        p.secondary[TextureChain::kTexture] = 0.55f;
+        p.type[TextureChain::kSpace]       = Space::kEcho;
+        p.amount[TextureChain::kSpace]     = 0.40f;
+        p.space_time                       = 0.33f;
+        p.space_feedback                   = 0.50f;
+        p.space_grain                      = 0.35f;
+        add("Squash Pluck", p);
+    }
+
+    // 16. Nothing sits still: phaser under a cloud, both drifting.
+    {
+        Patch p;
+        p.engine    = EngineId::kHarmonic;
+        p.harmonics = 0.45f;
+        p.spread    = 0.30f;
+        p.cutoff    = 0.60f;
+        p.attack    = 0.35f;
+        p.sustain   = 0.90f;
+        p.release   = 0.70f;
+        p.lfo_dest  = LfoDest::kCutoff;
+        p.lfo_rate  = 0.12f;
+        p.lfo_depth = 0.40f;
+        p.type[TextureChain::kMovement]      = Movement::kPhaser;
+        p.amount[TextureChain::kMovement]    = 0.50f;
+        p.secondary[TextureChain::kMovement] = 0.15f;
+        p.type[TextureChain::kSpace]         = Space::kCloud;
+        p.amount[TextureChain::kSpace]       = 0.55f;
+        p.space_time                         = 0.65f;
+        p.space_feedback                     = 0.60f;
+        p.space_grain                        = 0.45f;
+        p.grain_spread                       = 0.65f;
+        add("Phase Drift", p);
     }
 }
 

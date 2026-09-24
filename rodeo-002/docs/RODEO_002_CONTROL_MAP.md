@@ -197,8 +197,9 @@ says so for as long as it is open:
 decide which slot to save to let the browser close under a finger that was already holding the
 encoder down, and the long-press then meant *gesture* instead of *save* (2026-09-24).
 
-**As built:** 16 slots, 8 of them factory sounds; an empty slot shows `-- empty --` and will not
-load, but can be saved into. A saved slot is named `User N` — naming needs a text entry this
+**As built:** 16 slots, **all sixteen shipping a factory sound**. An empty slot shows
+`-- empty --` and will not load, but can be saved into — so saving now means choosing a factory
+sound to replace, and there is no restore gesture yet. A saved slot is named `User N` — naming needs a text entry this
 panel cannot offer. Loading drops pickup on every pot, so nothing jumps.
 
 Long-press means *gesture* everywhere else and *save* here. That is the one modal exception on
@@ -254,7 +255,7 @@ encoder polling — a full frame at 400 kHz is ~23 ms.
 messages, empty in almost every frame while the waveform was squeezed into eighteen rows. Those
 moved onto the things they describe — shift inverts the header, freeze inverts the Space cell —
 and messages float over the scope for the second or so they last. The waveform got the space:
-27 rows above a readout where it had 18, and all 43 with nothing on screen. The row positions
+27 rows where it had 18, the same height whether or not a readout is under it. The row positions
 are named constants with `static_assert`s between them, because every one of 64 rows is spoken
 for and an overlap is a bug that only shows up on hardware.
 
@@ -276,7 +277,7 @@ in `common/scope.h`, where it is tested.
 | A continuous pot | Scope strip (rows 20–46), then its name and **the value as a percentage** (48), and the meter (57–62). Pickup puts `UP`/`DN` in front of the number — the value shown is the one being chased, not the one the pot is at. |
 | A **stepped** pot (filter type, LFO destination) | Scope strip, then `Name: Choice` spelled out. A bar says nothing about *which* destination. |
 | An **envelope** pot (attack, decay, sustain, release) | **The whole ADSR shape** — the scope stands aside, because the envelope is the picture worth seeing |
-| **Nothing, for over a second** | The scope alone, in the full space |
+| **Nothing, for over a second** | The scope alone. **The rows below stay reserved**, so the waveform is always the same height — a scope that resizes as a popup comes and goes is harder to read than a smaller one that holds still. |
 
 **Two redraw paces, because the two things change for different reasons.** Anything the panel
 did redraws as soon as it happens, up to ~25 fps — that is a knob feeling responsive. The scope

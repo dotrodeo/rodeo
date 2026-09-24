@@ -354,8 +354,17 @@ what tells you the patch has drifted since. Slot 1 if nothing has been chosen ye
 written to its own sector a few seconds after it changes, never the instant a preset is chosen:
 the write is a 64 KB erase.
 
-**Built 2026-09-24** (`common/preset.h`, `common/factory_presets.h`): **16 slots**, eight of
-them factory sounds, browsed and loaded from MAIN exactly as the control map describes. What is
+**Built 2026-09-24** (`common/preset.h`, `common/factory_presets.h`): **16 slots, all sixteen
+shipping a factory sound**, browsed and loaded from MAIN exactly as the control map describes.
+Saving therefore means replacing one, and there is no restore gesture yet — worth adding, along
+with more slots, before the bank starts feeling crowded.
+
+**New factory sounds reach an instrument that has already been saved to by filling its empty
+slots at boot** (`FillEmptySlots`). The store's defaults are only written while it has never
+been used, so after a first save a later firmware's bank would otherwise never be seen. Nothing
+already in a slot is touched, whether factory or yours. The one thing it cannot tell is a slot
+deliberately emptied from one never filled — there is no gesture for emptying a slot, so that
+cannot arise today, but it is a constraint on adding one. What is
 not built yet: **gestures** (the recorder itself does not exist) and **naming** — a panel with
 no buttons cannot spell, so a saved slot names itself `User N` until there is a UI that can.
 Sixteen slots rather than sixty-four because that is what the browser can turn through

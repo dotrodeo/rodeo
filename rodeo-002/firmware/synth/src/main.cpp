@@ -190,6 +190,7 @@ VoiceManager    voices;
 TextureChain    chain;
 EngineId        current_engine = EngineId::kVirtualAnalog;
 static int      g_boot_preset       = -1;
+static int      g_slots_filled      = 0;
 static bool     g_boot_engine_known = true;
 
 volatile bool     g_voices_locked = false; // engine swap in progress
@@ -562,10 +563,13 @@ static void DrawScreen()
     // onto the things they describe, and the waveform got the space. The strip
     // above a readout is now 27 rows where it was 18, and with nothing on
     // screen the scope has all 43.
+    // ALWAYS THE SAME HEIGHT. The rows under the strip stay reserved whether or
+    // not there is a readout in them, so the waveform never changes size under
+    // you (Derek, 2026-09-24) -- a scope that resizes as a popup comes and goes
+    // is harder to read than a smaller one that holds still.
     const bool envelope = d.readout == Readout::kEnvelope;
     if(!d.browser_open && !envelope)
-        DrawScope(layout::kBodyTop,
-                  d.readout == Readout::kNone ? layout::kBodyBot : layout::kStripBot);
+        DrawScope(layout::kBodyTop, layout::kStripBot);
 
     switch(d.readout)
     {
@@ -883,6 +887,11 @@ int main(void)
         preset_store.Init(g_factory_bank, kPresetStoreOffset);
         if(!preset_store.GetSettings().Valid())
             preset_store.GetSettings() = g_factory_bank; // older layout, or corrupt
+        // New factory sounds reach an instrument that has already been saved to
+        // by filling its empty slots. Nothing already there is touched.
+        g_slots_filled = FillEmptySlots(preset_store.GetSettings(), g_factory_bank);
+        if(g_slots_filled)
+            preset_store.Save();
         ui.SetBank(&preset_store.GetSettings());
 
         // Boot into whatever was last loaded -- as STORED, so power-up is
@@ -961,6 +970,8 @@ int main(void)
     if(g_space_mix_pinned)
         hw.PrintLine("NOTE: Space Mix pinned to %d%% until its pot (R4C4 / J25) shows travel",
                      static_cast<int>(kSpaceMixValue * 100.f));
+    if(g_slots_filled)
+        hw.PrintLine("presets: %d empty slot(s) filled from the factory bank", g_slots_filled);
     if(g_boot_preset >= 0)
         hw.PrintLine("preset %d loaded at boot: %s%s",
                      g_boot_preset + 1,

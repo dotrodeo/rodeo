@@ -204,7 +204,9 @@ TEST(Preset, TheFactoryBankIsValidAndLoadable)
             EXPECT_LT(p.option[k], fx::TextureChain::NumOptions(k));
         }
     }
-    EXPECT_GE(used, 8) << "the factory bank should ship some sounds";
+    // +0 so this does not odr-use the constexpr member, which C++14 would want
+    // an out-of-line definition for.
+    EXPECT_EQ(used, PresetBank::kNumSlots + 0) << "every slot should ship a sound";
 }
 
 // Derek is weighing up dropping these four (2026-09-24). No factory preset may
@@ -250,4 +252,50 @@ TEST(Preset, AnOlderOrEmptyBankIsNotMistakenForOurs)
     BuildFactoryBank(b);
     b.magic = 0xFFFFFFFFu; // erased flash
     EXPECT_FALSE(b.Valid());
+}
+
+// New factory sounds have to reach an instrument that has already been saved to.
+// The store's defaults are only written while it has never been used, so after
+// the first save a later firmware's bank would otherwise never be seen.
+TEST(Preset, EmptySlotsAreFilledFromTheFactoryWithoutTouchingAnythingElse)
+{
+    PresetBank factory;
+    BuildFactoryBank(factory);
+
+    // A bank as it might be found in flash: an older firmware's first eight,
+    // one slot saved by hand, the rest never filled.
+    PresetBank stored;
+    BuildFactoryBank(stored);
+    for(int i = 8; i < PresetBank::kNumSlots; i++)
+        stored.slot[i].used = 0;
+    Patch mine;
+    mine.cutoff = 0.321f;
+    PatchToPreset(mine, "Mine", stored.slot[9]);
+
+    const int filled = FillEmptySlots(stored, factory);
+    EXPECT_EQ(filled, PresetBank::kNumSlots - 9) << "every empty slot should be filled";
+
+    // What was there is untouched -- the saved one above all.
+    EXPECT_STREQ(stored.slot[9].name, "Mine");
+    Patch back;
+    PresetToPatch(stored.slot[9], back);
+    EXPECT_FLOAT_EQ(back.cutoff, 0.321f);
+    for(int i = 0; i < 8; i++)
+        EXPECT_STREQ(stored.slot[i].name, factory.slot[i].name) << "slot " << i;
+    // ...and the new sounds arrived.
+    EXPECT_STREQ(stored.slot[10].name, factory.slot[10].name);
+    EXPECT_TRUE(stored.slot[15].used);
+
+    // Running it again changes nothing: it is not a restore.
+    EXPECT_EQ(FillEmptySlots(stored, factory), 0);
+}
+
+TEST(Preset, FillingRefusesABankItDoesNotUnderstand)
+{
+    PresetBank factory, stored;
+    BuildFactoryBank(factory);
+    BuildFactoryBank(stored);
+    stored.slot[3].used = 0;
+    stored.magic        = 0xFFFFFFFFu; // erased
+    EXPECT_EQ(FillEmptySlots(stored, factory), 0);
 }

@@ -365,7 +365,14 @@ TEST(Ui, TheBrowserShowsTheNameOfTheHighlightedSlot)
     for(int i = 0; i < PresetBank::kNumSlots - 1; i++)
         r.Turn(kMain, 1);
     r.Tick();
-    EXPECT_FALSE(r.ui.display().browser_used) << "the last slot ships empty";
+    EXPECT_STREQ(r.ui.display().browser_name, bank.slot[PresetBank::kNumSlots - 1].name);
+    EXPECT_TRUE(r.ui.display().browser_used) << "every slot ships a sound now";
+
+    // An emptied slot still reports itself as empty, so the browser can say so
+    // and refuse to load it.
+    bank.slot[PresetBank::kNumSlots - 1].used = 0;
+    r.Tick();
+    EXPECT_FALSE(r.ui.display().browser_used);
 }
 
 // Both of these come straight off hardware, 2026-09-24: "holding MAIN while on
