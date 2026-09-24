@@ -474,3 +474,118 @@ TEST(Ui, AHoldAnnouncesWhatReleasingWillDo)
     r.Tick();
     EXPECT_STREQ(r.ui.display().pending, "");
 }
+
+// ------------------------------------------------------ WHAT THE SCREEN SAYS
+//
+// The readout is not always a number. A stepped pot is a choice and has to name
+// it; an envelope segment is part of a shape, so the shape is what to draw; and
+// when nothing has been touched the space belongs to the scope.
+
+TEST(Ui, AContinuousPotAsksForABar)
+{
+    Rig r;
+    r.MovePot(0, 0.8f); // Harmonics
+    EXPECT_EQ(r.ui.display().readout, Readout::kBar);
+    EXPECT_STREQ(r.ui.display().param, "Harmonics");
+}
+
+TEST(Ui, ASteppedPotNamesItsChoiceInsteadOfShowingAMeter)
+{
+    Rig r;
+    r.HoldMain(true); // the shift layer, where the stepped pots live
+    r.Tick();
+    r.MovePot(4, 0.95f); // filter type
+    EXPECT_EQ(r.ui.display().readout, Readout::kChoice);
+    EXPECT_STREQ(r.ui.display().param, "Filter");
+    EXPECT_STREQ(r.ui.display().choice, FilterTypeName(r.ui.patch().filter));
+    EXPECT_STRNE(r.ui.display().choice, "");
+
+    r.MovePot(6, 0.05f); // LFO destination
+    EXPECT_EQ(r.ui.display().readout, Readout::kChoice);
+    EXPECT_STREQ(r.ui.display().choice, LfoDestName(r.ui.patch().lfo_dest));
+}
+
+TEST(Ui, AnEnvelopePotAsksForTheWholeEnvelope)
+{
+    Rig r;
+    r.MovePot(8, 0.4f); // attack
+    const DisplayState& d = r.ui.display();
+    EXPECT_EQ(d.readout, Readout::kEnvelope);
+    EXPECT_EQ(d.env_moving, 0) << "attack is the first segment";
+    EXPECT_FLOAT_EQ(d.env[0], r.ui.patch().attack);
+    EXPECT_FLOAT_EQ(d.env[1], r.ui.patch().decay);
+    EXPECT_FLOAT_EQ(d.env[2], r.ui.patch().sustain);
+    EXPECT_FLOAT_EQ(d.env[3], r.ui.patch().release);
+
+    r.MovePot(9, 0.6f); // release
+    EXPECT_EQ(d.readout, Readout::kEnvelope);
+    EXPECT_EQ(d.env_moving, 3);
+
+    // Decay and sustain live on the shift layer and belong to the same picture.
+    r.HoldMain(true);
+    r.Tick();
+    r.MovePot(8, 0.55f); // decay
+    EXPECT_EQ(d.readout, Readout::kEnvelope);
+    EXPECT_EQ(d.env_moving, 1);
+}
+
+TEST(Ui, TheReadoutGivesTheSpaceBackWhenNothingIsTouched)
+{
+    Rig r;
+    r.MovePot(0, 0.8f);
+    ASSERT_NE(r.ui.display().readout, Readout::kNone);
+    r.Tick(Ui::kPopupMs + 100);
+    EXPECT_EQ(r.ui.display().readout, Readout::kNone) << "the scope never gets the screen";
+    EXPECT_FALSE(r.ui.display().show_value);
+}
+
+// The * in the header. It has to mean exactly "a save would change something".
+TEST(Ui, ThePresetIsCleanWhenLoadedAndDirtyOnceAKnobTakesHold)
+{
+    Rig               r;
+    static PresetBank bank;
+    BuildFactoryBank(bank);
+    r.ui.SetBank(&bank);
+
+    Patch p;
+    PresetToPatch(bank.slot[1], p); // "Chroma Pad"
+    r.ui.mutable_patch() = p;
+    r.ui.NotePresetLoaded(bank.slot[1]);
+    r.ui.DropPickup();
+    r.Tick();
+    EXPECT_FALSE(r.ui.PresetDirty());
+    EXPECT_STREQ(r.ui.display().preset_name, bank.slot[1].name);
+    EXPECT_FALSE(r.ui.display().preset_dirty);
+
+    // Pickup means an untouched pot changes nothing, so the patch stays clean
+    // even as the panel is swept past values it does not own yet.
+    r.MovePot(0, 0.02f);
+    EXPECT_TRUE(r.ui.PresetDirty()) << "a pot that caught its value did not count";
+
+    // Saving makes the patch the preset again.
+    PatchToPreset(r.ui.patch(), bank.slot[1].name, bank.slot[1]);
+    r.ui.NotePresetLoaded(bank.slot[1]);
+    r.Tick();
+    EXPECT_FALSE(r.ui.PresetDirty());
+    EXPECT_FALSE(r.ui.display().preset_dirty);
+}
+
+TEST(Ui, AnUntouchedPanelNeverMarksThePresetDirty)
+{
+    Rig               r;
+    static PresetBank bank;
+    BuildFactoryBank(bank);
+    Patch p;
+    PresetToPatch(bank.slot[2], p);
+    r.ui.mutable_patch() = p;
+    r.ui.NotePresetLoaded(bank.slot[2]);
+    r.ui.DropPickup();
+    for(int i = 0; i < 200; i++)
+    {
+        // Pots sitting still, dithering, exactly as hardware delivers them.
+        for(int k = 0; k < Ui::kNumPots; k++)
+            r.in.pot[k] = 0.5f + ((i % 2) ? 0.002f : -0.002f);
+        r.Tick();
+    }
+    EXPECT_FALSE(r.ui.PresetDirty()) << "dither alone marked the patch modified";
+}

@@ -348,6 +348,12 @@ gestures would take ~3.5 MB of the QSPI (which also holds the program image — 
 platform*). Storing only the pots that actually moved makes a
 typical gesture far smaller.
 
+**The instrument boots into the preset it was left on**, as STORED — unsaved edits are
+discarded (Derek, 2026-09-24), so power-up is always a known-good sound and the header's `*` is
+what tells you the patch has drifted since. Slot 1 if nothing has been chosen yet. The slot is
+written to its own sector a few seconds after it changes, never the instant a preset is chosen:
+the write is a 64 KB erase.
+
 **Built 2026-09-24** (`common/preset.h`, `common/factory_presets.h`): **16 slots**, eight of
 them factory sounds, browsed and loaded from MAIN exactly as the control map describes. What is
 not built yet: **gestures** (the recorder itself does not exist) and **naming** — a panel with
@@ -399,7 +405,8 @@ and runs it from there, which is also fast memory, so DSP cost should carry over
   | `0x040000`– | Program image (an SRAM build cannot exceed 480 KB) |
   | `0x780000` | **Panel wiring map** (`PanelPots::Calibration`, ~12 B — which analog runs were built straight) |
   | `0x790000` | **Preset bank** (`PresetBank`, 16 slots, 2.6 KB) |
-  | `0x7A0000`– | Free — where gestures go |
+  | `0x7A0000` | **Instrument state** (the preset slot to boot into) |
+  | `0x7B0000`– | Free — where gestures go |
 
   It lives far past the program on purpose: a reflash rewrites only the image, so what is stored
   survives a firmware update as well as a power cycle. **Pot travel is not stored, because it is

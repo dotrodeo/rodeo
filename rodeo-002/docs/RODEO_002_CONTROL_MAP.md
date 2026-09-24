@@ -239,10 +239,38 @@ not lost. Long-press and tap are distinguished master-side from the live level.
 
 ## OLED — SSD1309 128×64 @ `0x3C`
 
-Feedback only, sharing I²C1/J42 with the hub. Shows: engine name, the four slot types and
-their bypass states, the parameter being touched (with its value and pickup indicator), freeze
-state, voice mode, preset name. Partial/low-rate refresh, interleaved with encoder polling —
-a full frame at 400 kHz is ~23 ms.
+Feedback only, sharing I²C1/J42 with the hub. Partial/low-rate refresh, interleaved with
+encoder polling — a full frame at 400 kHz is ~23 ms.
+
+**Layout as built (2026-09-24):**
+
+| Row | Holds |
+|---|---|
+| Header | **Preset name**, `*` if the patch has changed since it was loaded · voice mode in three letters · voices in use |
+| Slots | The four slot types, bypassed ones struck through |
+| Readout | Whatever was last touched — **see below** |
+| Footer | Shift · freeze · `>GESTURE` when a hold is about to fire · messages |
+
+**The engine is not on the header.** The preset name is the more useful thing to have in front
+of you, and the engine announces itself as a message when you turn MAIN onto it.
+
+**The readout is not always a meter.** What a parameter *is* decides how it is shown:
+
+| When | Shows |
+|---|---|
+| A continuous pot | Its name and a value bar, as before |
+| A **stepped** pot (filter type, LFO destination) | Its name and **the choice it landed on**, spelled out. A bar says nothing about *which* destination. |
+| An **envelope** pot (attack, decay, sustain, release) | **The whole ADSR shape**, with the segment being moved drawn twice so it stands out |
+| **Nothing, for over a second** | **A triggered scope of the output.** It redraws at ~10 fps and only when the picture would differ, so silence and held notes cost nothing, and it stops the instant any control is touched. Triggering on a rising zero crossing is what stops a held note crawling sideways. |
+
+**There is no CPU meter.** It was a bring-up instrument and the serial log still prints the
+measured load beside the predicted one, which is where that comparison belongs.
+
+**A pot must move ~0.6% of its travel to count as moved at all**, measured against the value it
+last wrote rather than the previous sample. Without that, a pot resting within pickup range of
+its stored value catches, then writes its own dither into the patch for ever — enough to mark a
+preset modified with nobody touching the panel. Measuring against the last write is what lets a
+slow turn still land.
 
 ### Settings pages
 

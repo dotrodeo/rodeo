@@ -120,6 +120,31 @@ PersistentStorage<PresetBank> preset_store(hw.qspi);
 // the browser reads them.)
 static PresetBank DSY_SDRAM_BSS g_factory_bank;
 
+// --- what the instrument was doing last -----------------------------------
+// Only the preset slot, for now: the synth boots back into the sound it was
+// left on. Its own sector, because it is written on a different schedule from
+// the bank -- every preset change, rather than every save.
+struct InstrumentState
+{
+    uint32_t magic;
+    uint16_t version;
+    uint16_t last_preset;
+    uint32_t reserved;
+
+    bool operator==(const InstrumentState& o) const
+    {
+        return magic == o.magic && version == o.version
+               && last_preset == o.last_preset && reserved == o.reserved;
+    }
+    bool operator!=(const InstrumentState& o) const { return !(*this == o); }
+};
+static constexpr uint32_t kStateMagic       = 0x52325354u; // "R2ST"
+static constexpr uint16_t kStateVersion     = 1;
+static constexpr uint32_t kStateStoreOffset = 0x7A0000u;
+PersistentStorage<InstrumentState> state_store(hw.qspi);
+static uint32_t g_state_changed_ms = 0;
+static bool     g_state_dirty      = false;
+
 bool g_have_adc = false, g_have_hub = false, g_have_oled = false;
 
 // A second view of hub 0 for bring-up: RodeoEncoders keeps its hubs private, and
@@ -163,6 +188,8 @@ static bool            g_space_mix_pinned = kPinSpaceMix;
 VoiceManager    voices;
 TextureChain    chain;
 EngineId        current_engine = EngineId::kVirtualAnalog;
+static int      g_boot_preset       = -1;
+static bool     g_boot_engine_known = true;
 
 volatile bool     g_voices_locked = false; // engine swap in progress
 volatile uint32_t g_blocks        = 0;
@@ -172,6 +199,17 @@ static uint32_t   g_block_ticks   = 1;
 static float      g_last_load     = 0.f; // for the screen's footer
 
 static float g_mix[kBlockSize];
+
+// --- scope capture -------------------------------------------------------
+// The output, decimated into a ring the screen can draw. Written from the
+// audio callback, read from the main loop: one writer, one reader, and a torn
+// sample is a pixel, so no locking. int8 because the display has two colours --
+// 192 bytes rather than 768.
+static constexpr int      kScopeLen   = 192; // 128 drawn, the rest for triggering
+static constexpr int      kScopeDecim = 8;   // 6 kHz: ~32 ms across the screen
+static volatile int8_t    g_scope[kScopeLen];
+static volatile uint16_t  g_scope_write = 0;
+static int                g_scope_phase = 0;
 
 void AudioCallback(AudioHandle::InputBuffer  in,
                    AudioHandle::OutputBuffer out,
@@ -188,6 +226,18 @@ void AudioCallback(AudioHandle::InputBuffer  in,
     for(size_t i = 0; i < size; i++)
         out[0][i] = out[1][i] = g_mix[i];
     chain.ProcessBlock(out[0], out[1], size);
+
+    for(size_t i = 0; i < size; i++)
+    {
+        if(++g_scope_phase >= kScopeDecim)
+        {
+            g_scope_phase   = 0;
+            float v         = out[0][i] * 127.f;
+            v               = v > 127.f ? 127.f : (v < -127.f ? -127.f : v);
+            g_scope[g_scope_write] = static_cast<int8_t>(v);
+            g_scope_write = static_cast<uint16_t>((g_scope_write + 1) % kScopeLen);
+        }
+    }
 
     g_busy_ticks += System::GetTick() - t0;
     g_busy_blocks++;
@@ -326,6 +376,19 @@ static void HandleMidi(MidiEvent m) // libDaisy's accessors are non-const
     }
 }
 
+/** Note the slot to boot into next time. Deferred like the wiring map: the
+ *  write is a 64 KB erase, and there is no reason to stall the panel with one
+ *  the instant a preset is chosen. */
+static void RememberPreset(int slot, uint32_t now)
+{
+    InstrumentState& st = state_store.GetSettings();
+    if(st.last_preset == static_cast<uint16_t>(slot))
+        return;
+    st.last_preset     = static_cast<uint16_t>(slot);
+    g_state_dirty      = true;
+    g_state_changed_ms = now;
+}
+
 /** Push the patch into the voices and the chain. Control rate. */
 static void ApplyPatch()
 {
@@ -375,18 +438,90 @@ static void PumpIo()
     }
 }
 
+/** The output as a triggered scope, in the readout's space. Triggering on a
+ *  rising zero crossing is what stops a steady note from crawling sideways. */
+static void DrawScope()
+{
+    int8_t         buf[kScopeLen];
+    const uint16_t w = g_scope_write; // one writer, one reader
+    for(int i = 0; i < kScopeLen; i++)
+        buf[i] = g_scope[(w + i) % kScopeLen]; // oldest first
+
+    int start = 0;
+    for(int i = 1; i < kScopeLen - 128; i++)
+        if(buf[i - 1] <= 0 && buf[i] > 0)
+        {
+            start = i;
+            break;
+        }
+
+    const int cy   = 38;
+    int       prev = cy - buf[start] * 13 / 127;
+    for(int x = 1; x < 128; x++)
+    {
+        const int y = cy - buf[start + x] * 13 / 127;
+        display.DrawLine(static_cast<uint8_t>(x - 1),
+                         static_cast<uint8_t>(prev),
+                         static_cast<uint8_t>(x),
+                         static_cast<uint8_t>(y),
+                         true);
+        prev = y;
+    }
+}
+
+/** The envelope the moving segment belongs to, with that segment picked out.
+ *  Times are drawn to a fixed budget rather than to scale: the shape is what
+ *  says what the sound will do, and 124 pixels cannot hold seconds anyway. */
+static void DrawEnvelope(const DisplayState& d)
+{
+    const int y_top = 32, y_base = 52;
+    const int h     = y_base - y_top;
+    const int wa    = 4 + static_cast<int>(d.env[0] * 30.f);
+    const int wd    = 4 + static_cast<int>(d.env[1] * 30.f);
+    const int hold  = 16;
+    const int wr    = 4 + static_cast<int>(d.env[3] * 30.f);
+    const int y_sus = y_base - static_cast<int>(d.env[2] * static_cast<float>(h));
+
+    int x[5], y[5];
+    x[0] = 2;            y[0] = y_base;
+    x[1] = x[0] + wa;    y[1] = y_top;
+    x[2] = x[1] + wd;    y[2] = y_sus;
+    x[3] = x[2] + hold;  y[3] = y_sus;
+    x[4] = x[3] + wr;    y[4] = y_base;
+
+    for(int i = 0; i < 4; i++)
+    {
+        // The segment being moved is drawn twice, a pixel apart: on a 1-bit
+        // display that is the only "highlight" available.
+        const bool moving = (d.env_moving == 2 ? (i == 2) : (i == d.env_moving));
+        display.DrawLine(static_cast<uint8_t>(x[i]), static_cast<uint8_t>(y[i]),
+                         static_cast<uint8_t>(x[i + 1]), static_cast<uint8_t>(y[i + 1]), true);
+        if(moving)
+            display.DrawLine(static_cast<uint8_t>(x[i]), static_cast<uint8_t>(y[i] - 1),
+                             static_cast<uint8_t>(x[i + 1]), static_cast<uint8_t>(y[i + 1] - 1),
+                             true);
+    }
+    display.DrawLine(0, static_cast<uint8_t>(y_base + 1), 127,
+                     static_cast<uint8_t>(y_base + 1), true);
+}
+
 /** 128x64: a header line, the four slots, the parameter readout, a footer. */
-static void DrawScreen(float load)
+static void DrawScreen()
 {
     const DisplayState& d = ui.display();
     display.Fill(false);
 
-    // Header: engine, voice mode, voices in use.
-    FixedCapStr<32> line(d.engine);
-    line.Append(" ");
-    line.Append(d.voice_mode);
+    // Header: the preset you are in, whether you have changed it, the voice
+    // mode in three letters, and the voices in use. The ENGINE is not here any
+    // more -- it announces itself when you turn to it, and the preset's name is
+    // the more useful thing to have in front of you.
+    FixedCapStr<20> line(d.preset_name);
+    if(d.preset_dirty)
+        line.Append("*");
     display.SetCursor(0, 0);
     display.WriteString(line, Font_6x8, true);
+    display.SetCursor(128 - 6 * 7, 0);
+    display.WriteString(d.voice_short, Font_6x8, true);
     FixedCapStr<8> voices_str("");
     voices_str.AppendInt(d.voices_active);
     voices_str.Append("/");
@@ -408,21 +543,48 @@ static void DrawScreen(float load)
             display.DrawLine(x + 1, 15, x + 29, 15, true);
     }
 
-    // The parameter last touched, with its value as a bar.
-    if(d.show_value)
+    // The middle of the screen belongs to whatever you last touched -- and when
+    // that is nothing, to the sound itself.
+    switch(d.readout)
     {
-        display.SetCursor(0, 24);
-        display.WriteString(d.param, Font_7x10, true);
-        const uint8_t w = static_cast<uint8_t>(d.value * 124.f);
-        display.DrawRect(0, 38, 127, 48, true);
-        if(w > 1)
-            display.DrawRect(2, 40, static_cast<uint8_t>(2 + w), 46, true, true);
-        // Pickup: which way to turn to catch the stored value.
-        if(d.pickup_hint != 0)
-        {
-            display.SetCursor(100, 24);
-            display.WriteString(d.pickup_hint > 0 ? "UP" : "DN", Font_7x10, true);
-        }
+        // Nothing touched: the space belongs to the sound. (Not while the
+        // browser is up -- it covers this area anyway.)
+        case Readout::kNone:
+            if(!d.browser_open)
+                DrawScope();
+            break;
+
+        case Readout::kChoice:
+            // A stepped pot is a choice: name it. A meter here would say
+            // nothing about WHICH destination you landed on.
+            display.SetCursor(0, 24);
+            display.WriteString(d.param, Font_6x8, true);
+            display.SetCursor(0, 36);
+            display.WriteString(d.choice, Font_7x10, true);
+            break;
+
+        case Readout::kEnvelope:
+            display.SetCursor(0, 22);
+            display.WriteString(d.param, Font_6x8, true);
+            DrawEnvelope(d);
+            break;
+
+        default:
+            display.SetCursor(0, 24);
+            display.WriteString(d.param, Font_7x10, true);
+            {
+                const uint8_t w = static_cast<uint8_t>(d.value * 124.f);
+                display.DrawRect(0, 38, 127, 48, true);
+                if(w > 1)
+                    display.DrawRect(2, 40, static_cast<uint8_t>(2 + w), 46, true, true);
+            }
+            break;
+    }
+    // Pickup: which way to turn to catch the stored value.
+    if(d.readout != Readout::kNone && d.pickup_hint != 0)
+    {
+        display.SetCursor(104, 24);
+        display.WriteString(d.pickup_hint > 0 ? "UP" : "DN", Font_7x10, true);
     }
 
     // The browser takes the screen while it is open: it is the instrument's one
@@ -462,11 +624,6 @@ static void DrawScreen(float load)
     foot.Append(d.message);
     display.SetCursor(0, 54);
     display.WriteString(foot, Font_6x8, true);
-    FixedCapStr<8> load_str("");
-    load_str.AppendInt(static_cast<int>(load));
-    load_str.Append("%");
-    display.SetCursor(128 - 6 * 4, 54);
-    display.WriteString(load_str, Font_6x8, true);
 
     g_in_oled = true;
     display.Update(); // pages out, PumpIo() between each
@@ -476,7 +633,17 @@ static void DrawScreen(float load)
 /** What the screen currently depends on, folded into one value: redrawing only
  *  when this changes keeps the bus idle while nothing is moving, which is what
  *  leaves room for the hub. */
-static uint32_t ScreenSignature(const DisplayState& d, float load)
+/** A cheap digest of what the scope would draw, so a still picture -- silence,
+ *  or a held note between redraws -- costs the bus nothing. */
+static uint32_t ScopeHash()
+{
+    uint32_t h = 2166136261u;
+    for(int i = 0; i < kScopeLen; i += 3)
+        h = (h ^ static_cast<uint8_t>(g_scope[i])) * 16777619u;
+    return h;
+}
+
+static uint32_t ScreenSignature(const DisplayState& d, uint32_t extra)
 {
     uint32_t h = 2166136261u;
     auto     mix = [&h](uint32_t v) { h = (h ^ v) * 16777619u; };
@@ -500,7 +667,14 @@ static uint32_t ScreenSignature(const DisplayState& d, float load)
     mix(static_cast<uint32_t>(d.pickup_hint + 2));
     mix(d.show_value ? 1u : 0u);
     mix_ptr(d.message);
-    mix(static_cast<uint32_t>(load)); // whole percent
+    mix_ptr(d.preset_name);
+    mix(d.preset_dirty ? 1u : 0u);
+    mix(static_cast<uint32_t>(d.readout));
+    mix_ptr(d.choice);
+    for(int i = 0; i < 4; i++)
+        mix(static_cast<uint32_t>(d.env[i] * 255.f));
+    mix(static_cast<uint32_t>(d.env_moving + 2));
+    mix(extra);
     return h;
 }
 
@@ -685,6 +859,30 @@ int main(void)
         if(!preset_store.GetSettings().Valid())
             preset_store.GetSettings() = g_factory_bank; // older layout, or corrupt
         ui.SetBank(&preset_store.GetSettings());
+
+        // Boot into whatever was last loaded -- as STORED, so power-up is
+        // always a known-good sound and the screen's * is what tells you the
+        // patch has drifted since (Derek, 2026-09-24). Slot 1 if nothing has
+        // been chosen yet, or if the stored choice is out of range.
+        InstrumentState defaults{kStateMagic, kStateVersion, 0, 0};
+        state_store.Init(defaults, kStateStoreOffset);
+        InstrumentState& st = state_store.GetSettings();
+        if(st.magic != kStateMagic || st.version != kStateVersion
+           || st.last_preset >= PresetBank::kNumSlots)
+            st = defaults;
+        const StoredPreset& boot = preset_store.GetSettings().slot[st.last_preset];
+        if(boot.used)
+        {
+            bool known = true;
+            PresetToPatch(boot, patch, &known);
+            ui.NotePresetLoaded(boot);
+            ui.DropPickup();
+            current_engine = patch.engine;
+            voices.SetEngine(patch.engine);
+            ApplyPatch();
+            g_boot_preset       = static_cast<int>(st.last_preset);
+            g_boot_engine_known = known;
+        }
     }
 
     if(g_have_hub)
@@ -738,6 +936,13 @@ int main(void)
     if(g_space_mix_pinned)
         hw.PrintLine("NOTE: Space Mix pinned to %d%% until its pot (R4C4 / J25) shows travel",
                      static_cast<int>(kSpaceMixValue * 100.f));
+    if(g_boot_preset >= 0)
+        hw.PrintLine("preset %d loaded at boot: %s%s",
+                     g_boot_preset + 1,
+                     preset_store.GetSettings().slot[g_boot_preset].name,
+                     g_boot_engine_known ? "" : "  (its engine is gone; using virtual-analog)");
+    else
+        hw.PrintLine("no preset loaded at boot (slot 1 is empty)");
     {
         int swapped = 0;
         for(int i = 0; i < Ui::kNumPots; i++)
@@ -823,6 +1028,11 @@ int main(void)
             hw.PrintLine("panel wiring: saved, %d/%d runs supply-swapped",
                          swapped, Ui::kNumPots);
         }
+        if(g_state_dirty && in.now_ms - g_state_changed_ms > kCalSettleMs)
+        {
+            g_state_dirty = false;
+            state_store.Save();
+        }
 
         // --- preset load / save -----------------------------------------
         // Both are done here, never in the callback: a save erases a 64 KB
@@ -842,6 +1052,8 @@ int main(void)
                     // The pots are wherever the last patch left them, so every
                     // one of them has to be caught again before it takes hold.
                     ui.DropPickup();
+                    ui.NotePresetLoaded(sp);
+                    RememberPreset(req.slot, in.now_ms);
                     g_discrete_changed = true;
                     hw.PrintLine("preset %d loaded: %s%s",
                                  req.slot + 1,
@@ -860,6 +1072,10 @@ int main(void)
                 name.AppendInt(req.slot + 1);
                 PatchToPreset(patch, name.Cstr(), bank.slot[req.slot]);
                 preset_store.Save();
+                // Saving makes the patch the preset: no longer modified, and
+                // this is the slot to come back to next time.
+                ui.NotePresetLoaded(bank.slot[req.slot]);
+                RememberPreset(req.slot, in.now_ms);
                 hw.PrintLine("preset %d saved: %s", req.slot + 1, bank.slot[req.slot].name);
             }
         }
@@ -899,15 +1115,24 @@ int main(void)
             BusHeartbeat();
         }
 
-        if(g_have_oled && g_blocks - last_draw >= 40)
+        // The scope is the only thing that redraws without being asked, so it
+        // sets its own, slower pace: ~10 fps costs about a quarter of the bus
+        // while nothing else is happening, and stops dead the moment a control
+        // is touched. Anything else still redraws at up to ~25 fps, and only
+        // when the picture would actually differ.
+        ui.Refresh(voices);
+        const bool     scope_idle = ui.display().readout == Readout::kNone
+                                && !ui.display().browser_open;
+        const uint32_t interval   = scope_idle ? 100 : 40;
+        if(g_have_oled && g_blocks - last_draw >= interval)
         {
-            ui.Refresh(voices);
-            const uint32_t sig = ScreenSignature(ui.display(), g_last_load);
+            const uint32_t sig
+                = ScreenSignature(ui.display(), scope_idle ? ScopeHash() : 0u);
             if(sig != last_sig || g_blocks - last_draw >= 1000)
             {
                 last_sig  = sig;
                 last_draw = g_blocks;
-                DrawScreen(g_last_load);
+                DrawScreen();
             }
         }
 

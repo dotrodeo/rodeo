@@ -37,6 +37,17 @@ inline const char* VoiceModeName(VoiceMode m)
     }
 }
 
+/** Three letters, for the header, where the preset's name has the room. */
+inline const char* VoiceModeShort(VoiceMode m)
+{
+    switch(m)
+    {
+        case VoiceMode::kPoly: return "POL";
+        case VoiceMode::kMono: return "MON";
+        default: return "UNI";
+    }
+}
+
 /** LFO destinations -- one LFO, one destination (no mod matrix). */
 enum class LfoDest
 {
@@ -69,6 +80,16 @@ enum class FilterType
     kHighPass,
     kCount
 };
+
+inline const char* FilterTypeName(FilterType f)
+{
+    switch(f)
+    {
+        case FilterType::kLowPass: return "Low pass";
+        case FilterType::kBandPass: return "Band pass";
+        default: return "High pass";
+    }
+}
 
 struct Patch
 {

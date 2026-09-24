@@ -85,10 +85,22 @@ struct UiInput
     uint32_t now_ms       = 0;
 };
 
+/** What the big readout is showing. A value is not always a number: a stepped
+ *  pot is a choice and should say which one, and the envelope is a shape. */
+enum class Readout
+{
+    kNone = 0,  // nothing recent: the app puts the scope here
+    kBar,       // a continuous value
+    kChoice,    // a stepped pot: name the step, do not draw a meter
+    kEnvelope   // an ADSR segment: draw the envelope it belongs to
+};
+
 struct DisplayState
 {
-    const char* engine     = "";
-    const char* voice_mode = "";
+    const char* engine      = "";
+    const char* voice_mode  = "";
+    /** Three letters, for the header, where the preset's name has the room. */
+    const char* voice_short = "";
     int         voices_active = 0;
     int         voices_max    = 0;
     const char* slot_type[fx::TextureChain::kNumSlots] = {"", "", "", ""};
@@ -99,6 +111,15 @@ struct DisplayState
     const char* param      = "";
     float       value      = 0.f;
     bool        show_value = false;
+    Readout     readout    = Readout::kNone;
+    /** kChoice: which step the pot is on, by name. */
+    const char* choice     = "";
+    /** kEnvelope: the whole shape, and which segment is moving (0=A 1=D 2=S 3=R). */
+    float       env[4]     = {0.f, 0.f, 0.f, 0.f};
+    int         env_moving = -1;
+    // --- the preset this patch came from ---------------------------------
+    const char* preset_name  = "--";
+    bool        preset_dirty = false;
     /** 0 when the pot is in control; -1/+1 means turn down/up to catch it. */
     int         pickup_hint = 0;
     /** A one-shot line for things the panel can't show otherwise. */
@@ -139,8 +160,14 @@ class Ui
     static constexpr uint32_t kBrowserIdleMs = 5000;
     static constexpr uint32_t kPopupMs      = 1200;
     static constexpr float    kPickupEps    = 0.01f;
-    /** Below this a pot counts as still, for the readout on screen. */
-    static constexpr float    kMoveEps      = 0.002f;
+    /** Below this a pot counts as still. Measured against the value the pot
+     *  last WROTE, not the previous sample, which is the difference between
+     *  ignoring dither and accumulating it: a pot resting within pickup range
+     *  of its stored value would otherwise catch, then write its own noise into
+     *  the patch for ever -- enough to mark a preset modified with nobody
+     *  touching the panel. A slow turn still lands, because the reference only
+     *  moves when a write happens. */
+    static constexpr float    kMoveEps      = 0.006f;
     /** How far a pot must travel to count as DELIBERATELY turned: enough to
      *  disqualify a MAIN press as a shift, or to close the browser. Measured
      *  from where the pot was when the press began, so a slow turn still counts
@@ -159,6 +186,35 @@ class Ui
     /** The bank, for slot names on screen. The app owns it; the Ui only reads
      *  it, and works (nameless) without one. */
     void SetBank(const PresetBank* b) { bank_ = b; }
+
+    /** Remember what was loaded, so the screen can name it and say whether the
+     *  patch has drifted from it. The app calls this after a load AND after a
+     *  save, since a save makes the patch the preset. */
+    void NotePresetLoaded(const StoredPreset& s)
+    {
+        loaded_       = s;
+        have_loaded_  = true;
+    }
+
+    /** True when the live patch no longer matches what was loaded. Compared
+     *  through the stored form, so it asks exactly the question a save would
+     *  answer -- no field can drift out of the comparison without also drifting
+     *  out of the file format. */
+    bool PresetDirty() const
+    {
+        if(!have_loaded_)
+            return false;
+        StoredPreset now;
+        PatchToPreset(patch_, loaded_.name, now);
+        now.used            = loaded_.used;
+        const uint8_t* a    = reinterpret_cast<const uint8_t*>(&now);
+        const uint8_t* b    = reinterpret_cast<const uint8_t*>(&loaded_);
+        for(size_t i = 0; i < sizeof(StoredPreset); i++)
+            if(a[i] != b[i])
+                return true;
+        return false;
+    }
+    const char* PresetName() const { return have_loaded_ ? loaded_.name : "--"; }
 
     /** The pending load/save, cleared by reading it. */
     PresetRequest TakePresetRequest()
@@ -292,7 +348,10 @@ class Ui
             display_.message_ms = 0;
         }
         if(touched_ms_ && in.now_ms - touched_ms_ > kPopupMs)
+        {
             display_.show_value = false;
+            display_.readout    = Readout::kNone;
+        }
 
         if(browser_open_ && in.now_ms - browser_ms_ > kBrowserIdleMs)
             browser_open_ = false;
@@ -310,6 +369,8 @@ class Ui
         display_.browser_slot = browser_slot_;
         display_.browser_name = bank_ ? bank_->slot[browser_slot_].name : "";
         display_.browser_used = bank_ ? bank_->slot[browser_slot_].used != 0 : false;
+        display_.preset_name  = PresetName();
+        display_.preset_dirty = PresetDirty();
         return discrete_changed;
     }
 
@@ -318,6 +379,7 @@ class Ui
     {
         display_.engine        = EngineName(patch_.engine);
         display_.voice_mode    = VoiceModeName(patch_.voice_mode);
+        display_.voice_short   = VoiceModeShort(patch_.voice_mode);
         display_.voices_active = voices.ActiveVoices();
         display_.voices_max    = voices.GetMaxVoices();
         for(int s = 0; s < fx::TextureChain::kNumSlots; s++)
@@ -440,11 +502,16 @@ class Ui
 
         if(ParamIsGlobal(p))
         {
-            // Master volume never waits for pickup.
-            WriteParam(p, value);
+            // Master volume never waits for pickup, but it is still only
+            // written when it actually moves.
             last_pot_[pot] = value;
-            if(moved)
-                NoteTouch(p, value, 0, now);
+            if(!primed_ || fabsf(value - written_[index]) > kMoveEps)
+            {
+                written_[index] = value;
+                WriteParam(p, value);
+                if(primed_)
+                    NoteTouch(p, value, 0, now);
+            }
             return false;
         }
 
@@ -453,7 +520,12 @@ class Ui
             const bool crossed
                 = (last - stored) * (value - stored) <= 0.f && fabsf(value - last) > 1e-6f;
             if(crossed || fabsf(value - stored) < kPickupEps)
+            {
                 caught_[index] = true;
+                // The parameter keeps the value it already had: catching a pot
+                // must not, by itself, change the sound.
+                written_[index] = stored;
+            }
             else
             {
                 last_pot_[pot] = value;
@@ -464,9 +536,12 @@ class Ui
         }
 
         last_pot_[pot] = value;
-        WriteParam(p, value);
-        if(moved)
+        if(fabsf(value - written_[index]) > kMoveEps)
+        {
+            written_[index] = value;
+            WriteParam(p, value);
             NoteTouch(p, value, 0, now);
+        }
         return false;
     }
 
@@ -476,7 +551,51 @@ class Ui
         display_.value       = value;
         display_.pickup_hint = hint;
         display_.show_value  = true;
-        touched_ms_          = now ? now : 1;
+        display_.readout     = ReadoutFor(p);
+        display_.choice      = ChoiceName(p);
+        if(display_.readout == Readout::kEnvelope)
+        {
+            display_.env[0]     = patch_.attack;
+            display_.env[1]     = patch_.decay;
+            display_.env[2]     = patch_.sustain;
+            display_.env[3]     = patch_.release;
+            display_.env_moving = EnvSegment(p);
+        }
+        else
+            display_.env_moving = -1;
+        touched_ms_ = now ? now : 1;
+    }
+
+    /** A stepped pot is a choice, not a quantity: showing it as a bar says
+     *  nothing about which destination you landed on. An envelope segment is
+     *  part of a shape, so the shape is what to draw. */
+    static Readout ReadoutFor(ParamId p)
+    {
+        if(ParamSteps(p) > 0)
+            return Readout::kChoice;
+        return EnvSegment(p) >= 0 ? Readout::kEnvelope : Readout::kBar;
+    }
+
+    static int EnvSegment(ParamId p)
+    {
+        switch(p)
+        {
+            case ParamId::kAttack: return 0;
+            case ParamId::kDecay: return 1;
+            case ParamId::kSustain: return 2;
+            case ParamId::kRelease: return 3;
+            default: return -1;
+        }
+    }
+
+    const char* ChoiceName(ParamId p) const
+    {
+        switch(p)
+        {
+            case ParamId::kFilterType: return FilterTypeName(patch_.filter);
+            case ParamId::kLfoDest: return LfoDestName(patch_.lfo_dest);
+            default: return "";
+        }
     }
 
     float ReadParam(ParamId p) const
@@ -587,6 +706,11 @@ class Ui
     uint32_t     enc_press_ms_[5]      = {};
     uint32_t     press_start_ms_       = 0;
     uint32_t     touched_ms_           = 0;
+    /** The value each parameter last took from its pot: the reference the
+     *  movement deadband is measured against. */
+    float written_[kNumPots * 2] = {};
+    StoredPreset loaded_ = {};
+    bool         have_loaded_ = false;
     float watch_lo_[kNumPots] = {}, watch_hi_[kNumPots] = {};
     const PresetBank* bank_ = nullptr;
     PresetRequest     request_;
