@@ -260,3 +260,53 @@ TEST(VoiceManager, ControlSmoothingReachesHalfwayWithinAboutTwentyMilliseconds)
     EXPECT_GT(blocks, 3) << "too abrupt to be smoothing";
     EXPECT_LT(blocks, 40) << "a knob that takes this long feels laggy";
 }
+
+// The LFO is ticked once per block, so the block rate is its sample rate.
+// Initialised at the AUDIO rate it advanced 1/48th as far per tick as it
+// thought it was: "20 Hz" measured 0.45 Hz on the host, which is why the LFO
+// felt stuck in the mud at every setting (2026-09-24).
+namespace
+{
+double LfoHz(float rate, float seconds = 4.f)
+{
+    VoiceManager vm;
+    vm.Init(kSr, kBlock);
+    Patch p;
+    p.lfo_rate  = rate;
+    p.lfo_depth = 1.f;
+    p.lfo_dest  = LfoDest::kCutoff;
+    vm.ApplyPatch(p);
+    vm.NoteOn(60, 0.8f);
+    float  buf[kBlock];
+    int    crossings = 0;
+    float  prev      = 0.f;
+    size_t blocks    = static_cast<size_t>(kSr * seconds) / kBlock;
+    for(size_t i = 0; i < blocks; i++)
+    {
+        vm.Render(buf, kBlock);
+        const float v = vm.LfoValue();
+        if(i > 0 && (v > 0.f) != (prev > 0.f))
+            crossings++;
+        prev = v;
+    }
+    return crossings / 2.0 / static_cast<double>(seconds);
+}
+} // namespace
+
+TEST(VoiceManager, TheLfoRunsAtTheRateItClaims)
+{
+    // Top of the range: 40 Hz, which the 1 kHz block rate samples 25 times a
+    // cycle. Counting whole cycles over four seconds is coarse, hence the 10%.
+    EXPECT_NEAR(LfoHz(1.f), 40.0, 4.0);
+    // ...and it is still a slow LFO at the bottom.
+    EXPECT_LT(LfoHz(0.f, 20.f), 0.2);
+}
+
+TEST(VoiceManager, TheLfoRateKnobIsMonotonic)
+{
+    const double a = LfoHz(0.25f);
+    const double b = LfoHz(0.6f);
+    const double c = LfoHz(1.f);
+    EXPECT_LT(a, b);
+    EXPECT_LT(b, c);
+}

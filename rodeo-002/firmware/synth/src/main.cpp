@@ -210,6 +210,7 @@ static constexpr int      kScopeDecim = 8;   // 6 kHz: ~32 ms across the screen
 static volatile int8_t    g_scope[kScopeLen];
 static volatile uint16_t  g_scope_write = 0;
 static int                g_scope_phase = 0;
+static float              g_scope_gain  = 13.f / 127.f; // unity until measured
 
 void AudioCallback(AudioHandle::InputBuffer  in,
                    AudioHandle::OutputBuffer out,
@@ -455,11 +456,30 @@ static void DrawScope()
             break;
         }
 
+    // NORMALISED to the height available: a quiet patch is as readable as a
+    // loud one, which is the whole point of having a scope on a 20-pixel strip.
+    // The gain follows the signal over a few frames rather than snapping, so a
+    // decaying note does not pump, and it will not amplify silence into a
+    // display of its own noise -- below kScopeFloor the trace just stays small,
+    // which is the honest picture.
+    static constexpr int kScopeFloor = 4; // of 127: about -30 dB
+    static constexpr int kScopeAmp   = 13;
+    int                  peak        = 0;
+    for(int i = 0; i < 128; i++)
+    {
+        const int a = buf[start + i] < 0 ? -buf[start + i] : buf[start + i];
+        if(a > peak)
+            peak = a;
+    }
+    const float target = static_cast<float>(kScopeAmp)
+                         / static_cast<float>(peak > kScopeFloor ? peak : 127);
+    g_scope_gain += (target - g_scope_gain) * 0.4f;
+
     const int cy   = 38;
-    int       prev = cy - buf[start] * 13 / 127;
+    int       prev = cy - static_cast<int>(buf[start] * g_scope_gain);
     for(int x = 1; x < 128; x++)
     {
-        const int y = cy - buf[start + x] * 13 / 127;
+        const int y = cy - static_cast<int>(buf[start + x] * g_scope_gain);
         display.DrawLine(static_cast<uint8_t>(x - 1),
                          static_cast<uint8_t>(prev),
                          static_cast<uint8_t>(x),
@@ -640,6 +660,9 @@ static uint32_t ScopeHash()
     uint32_t h = 2166136261u;
     for(int i = 0; i < kScopeLen; i += 3)
         h = (h ^ static_cast<uint8_t>(g_scope[i])) * 16777619u;
+    // The gain is still converging even when the samples repeat, and it changes
+    // the picture, so it belongs in the test for "would this look different".
+    h = (h ^ static_cast<uint32_t>(g_scope_gain * 512.f)) * 16777619u;
     return h;
 }
 

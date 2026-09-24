@@ -169,10 +169,17 @@ is unable to reach 0"*. Persisting it to flash made that permanent. The fixed
 ranges have no state to rot.
 
 **The one thing still stored is the wiring** — which runs were built straight —
-because that is a fact about the cable, not a measurement. It is worked out the
-first time a pot is turned fully up (nothing but a swapped run can read above
-3.15 V, and it takes several readings in a row, so a spike cannot set it) and
-then written to flash. **If you change a satellite or a cable, hold the MAIN
+because that is a fact about the cable, not a measurement. **Either stop proves
+it:** only a swapped run can read above 3.15 V, and only a correct one can read
+below 0.20 V, in both cases for several readings in a row so a spike cannot set
+it. The verdict is then written to flash.
+
+**Until a run proves itself it is treated as neither**, and mapped so that both
+wirings reach a true 0 and 1 — at the cost of more dead travel than either needs.
+Assuming correct wiring instead is what broke pickup on 2026-09-24: a swapped pot
+read 0.065 at its stop rather than 0, so any parameter sitting at 0 could never
+be caught and the screen showed `DN` for ever. Turning each pot to either stop
+once clears it for good. **If you change a satellite or a cable, hold the MAIN
 encoder while powering up** to clear it; the log says `panel wiring: CLEARED`,
 and turning each pot fully up once re-establishes it.
 

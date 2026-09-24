@@ -41,16 +41,71 @@ void ShowTheTop(PanelPots& p, int ch, float (*wiring)(float, float), float rpot 
     for(int i = 0; i < 10; i++)
         p.Normalize(ch, wiring(1.f, rpot));
 }
+
+// Turned fully DOWN: only a correctly wired run can reach 0 V.
+void ShowTheBottom(PanelPots& p, int ch, float (*wiring)(float, float), float rpot = 10000.f)
+{
+    for(int i = 0; i < 10; i++)
+        p.Normalize(ch, wiring(0.f, rpot));
+}
 } // namespace
 
 TEST(PanelPots, CorrectWiringTracksTheKnob)
 {
     PanelPots p;
     p.Init();
+    ShowTheBottom(p, 0, CorrectWiring); // proves the wiring
     EXPECT_FALSE(p.IsSupplySwapped(0));
+    EXPECT_TRUE(p.WiringKnown(0));
     EXPECT_NEAR(p.Normalize(0, CorrectWiring(0.5f)), 0.5f, 0.02f);
     EXPECT_LE(p.Normalize(0, CorrectWiring(0.f)), 0.f);
     EXPECT_GE(p.Normalize(0, CorrectWiring(1.f)), 1.f);
+}
+
+// THE 2026-09-24 PICKUP FAULT. Before either end has been reached the wiring is
+// unproven -- and it used to be ASSUMED correct, which left a swapped pot
+// reading 0.065 at its stop. A parameter sitting at 0 could then never be
+// caught: the screen said DN for ever and the knob did nothing. Both wirings
+// must reach a true 0 and 1 with nothing proven either way.
+TEST(PanelPots, AnUnprovenRunStillReachesBothEnds)
+{
+    for(float rpot : {8000.f, 10000.f, 12000.f})
+        for(int wiring = 0; wiring < 2; wiring++)
+        {
+            auto      w = wiring == 0 ? CorrectWiring : SupplySwapped;
+            PanelPots p;
+            p.Init();
+            ASSERT_FALSE(p.WiringKnown(0));
+            SCOPED_TRACE(testing::Message()
+                         << (wiring ? "supply-swapped" : "correct") << " rpot " << rpot);
+            EXPECT_FLOAT_EQ(p.Normalize(0, w(0.f, rpot)), 0.f)
+                << "a parameter at 0 can never be picked up";
+            EXPECT_FLOAT_EQ(p.Normalize(0, w(1.f, rpot)), 1.f)
+                << "a parameter at 1 can never be picked up";
+        }
+}
+
+// Reaching either stop proves the wiring, and the mapping then tightens.
+TEST(PanelPots, EitherEndProvesTheWiring)
+{
+    PanelPots p;
+    p.Init();
+    ShowTheBottom(p, 0, CorrectWiring); // only correct wiring reaches 0 V
+    EXPECT_TRUE(p.WiringKnown(0));
+    EXPECT_FALSE(p.IsSupplySwapped(0));
+
+    PanelPots q;
+    q.Init();
+    ShowTheTop(q, 0, SupplySwapped); // only a swapped run reaches 3.3 V
+    EXPECT_TRUE(q.WiringKnown(0));
+    EXPECT_TRUE(q.IsSupplySwapped(0));
+
+    // Mid-travel proves nothing: both wirings can produce it.
+    PanelPots r;
+    r.Init();
+    for(int i = 0; i < 50; i++)
+        r.Normalize(0, 1.5f);
+    EXPECT_FALSE(r.WiringKnown(0));
 }
 
 TEST(PanelPots, SupplySwappedIsDetectedAndCorrected)
@@ -73,6 +128,7 @@ TEST(PanelPots, EveryToleranceReachesBothEndsWithNoCalibration)
     {
         PanelPots p;
         p.Init();
+        ShowTheBottom(p, 0, CorrectWiring, rpot);
         ShowTheTop(p, 1, SupplySwapped, rpot);
         SCOPED_TRACE(testing::Message() << "rpot " << rpot);
         EXPECT_FLOAT_EQ(p.Normalize(0, CorrectWiring(0.f, rpot)), 0.f);
@@ -114,6 +170,7 @@ TEST(PanelPots, AStraySampleDoesNotMoveTheRange)
     poisoned.Init();
     ShowTheTop(clean, 0, SupplySwapped);
     ShowTheTop(poisoned, 0, SupplySwapped);
+    poisoned.Normalize(0, SupplySwapped(0.5f)); // mid-travel, proving nothing
 
     poisoned.Normalize(0, 0.f);    // a dead reading, as a bad joint gives
     poisoned.Normalize(0, 0.007f); // and a nearly-dead one
@@ -131,6 +188,7 @@ TEST(PanelPots, DirectionIsNeverFlipped)
 {
     PanelPots p;
     p.Init();
+    ShowTheBottom(p, 0, CorrectWiring);
     ShowTheTop(p, 1, SupplySwapped);
     for(int ch = 0; ch < 2; ch++)
     {
@@ -155,6 +213,7 @@ TEST(PanelPots, ALoneSpikeIsNotAWiringVerdict)
         p.Normalize(0, CorrectWiring(0.9f));
         p.Normalize(0, 3.29f); // one bad sample among good ones
     }
+    ShowTheBottom(p, 0, CorrectWiring);
     EXPECT_FALSE(p.IsSupplySwapped(0)) << "a spike between good readings set the wiring";
     EXPECT_NEAR(p.Normalize(0, CorrectWiring(1.f)), 1.f, 0.001f);
 }
@@ -204,7 +263,7 @@ TEST(PanelPots, ImportRejectsWhatIsNotOurs)
     bad.magic                  = 0xDEADBEEFu; // erased, or never written
     EXPECT_FALSE(p.Import(bad));
     bad         = c;
-    bad.version = 1; // the version that stored learned endpoints
+    bad.version = 2; // the version that treated unproven wiring as correct
     EXPECT_FALSE(p.Import(bad));
 }
 
@@ -216,7 +275,7 @@ TEST(PanelPots, ForgetStartsAChannelOver)
     ASSERT_TRUE(p.IsSupplySwapped(0));
     p.Forget(0); // a satellite or cable has been changed
     EXPECT_FALSE(p.IsSupplySwapped(0)) << "the wiring belongs to the run that left";
-    EXPECT_NEAR(p.Normalize(0, CorrectWiring(0.5f)), 0.5f, 0.02f);
+    EXPECT_FALSE(p.WiringKnown(0));
 }
 
 TEST(PanelPots, UnsweptChannelsStillProduceSomethingSensible)

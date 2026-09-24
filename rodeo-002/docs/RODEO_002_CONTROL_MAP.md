@@ -261,7 +261,7 @@ of you, and the engine announces itself as a message when you turn MAIN onto it.
 | A continuous pot | Its name and a value bar, as before |
 | A **stepped** pot (filter type, LFO destination) | Its name and **the choice it landed on**, spelled out. A bar says nothing about *which* destination. |
 | An **envelope** pot (attack, decay, sustain, release) | **The whole ADSR shape**, with the segment being moved drawn twice so it stands out |
-| **Nothing, for over a second** | **A triggered scope of the output.** It redraws at ~10 fps and only when the picture would differ, so silence and held notes cost nothing, and it stops the instant any control is touched. Triggering on a rising zero crossing is what stops a held note crawling sideways. |
+| **Nothing, for over a second** | **A triggered scope of the output**, normalised to fill the height so a quiet patch reads as well as a loud one (the gain follows over a few frames rather than snapping, and will not amplify silence into a picture of its own noise). It redraws at ~10 fps and only when the picture would differ, so silence and held notes cost nothing, and it stops the instant any control is touched. Triggering on a rising zero crossing is what stops a held note crawling sideways. |
 
 **There is no CPU meter.** It was a bring-up instrument and the serial log still prints the
 measured load beside the predicted one, which is where that comparison belongs.

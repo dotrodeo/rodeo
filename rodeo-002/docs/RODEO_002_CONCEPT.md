@@ -369,6 +369,11 @@ other stored enum is range-checked on load, so an old or corrupt bank cannot pro
 that indexes past a table. No factory preset uses Grainlet, Particle, String or Karplus, so
 dropping those (under consideration, 2026-09-24) orphans nothing.
 
+**LFO rate: 0.05–40 Hz** (2026-09-24). It is ticked once per block, so the block rate is its
+sample rate — initialised at the audio rate instead, it ran 48× slow and a nominal 20 Hz
+measured 0.45 Hz on the host. Saved presets keep their stored 0–1 knob position, so their LFOs
+now run at the speed they were always meant to.
+
 **Physical-position problem:** pots hold their last physical position, so after a preset load
 (and after every shift-layer release) the panel disagrees with the patch. Every pot therefore
 uses **pickup** — a pot is inert until it crosses the stored value. This applies to the main

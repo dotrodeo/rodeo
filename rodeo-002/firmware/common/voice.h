@@ -57,7 +57,11 @@ class VoiceManager
         sm_cutoff_.Init(block_rate, kSmoothSeconds, 0.8f);
         sm_resonance_.Init(block_rate, kSmoothSeconds, 0.2f);
         sm_spread_.Init(block_rate, kSmoothSeconds, 0.f);
-        lfo_.Init(sample_rate);
+        // ONCE PER BLOCK IS ITS SAMPLE RATE. Initialised at the audio rate it
+        // advanced 1/48th as far per tick as it thought, so "20 Hz" was really
+        // 0.42 Hz -- measured on the host, 2026-09-24, and the reason the LFO
+        // felt stuck in the mud at every setting.
+        lfo_.Init(block_rate);
         for(int v = 0; v < kMaxVoices; v++)
         {
             Voice& x = voices_[v];
@@ -105,7 +109,10 @@ class VoiceManager
     void ApplyPatch(const Patch& p)
     {
         patch_ = p;
-        lfo_.SetFreq(ExpMap(p.lfo_rate, 0.05f, 20.f));
+        // Up to 40 Hz: fast enough for the buzzing, sideband end of modulation
+        // rather than only slow sweeps. The block rate is 1 kHz, so even the top
+        // of the range is 25 ticks a cycle.
+        lfo_.SetFreq(ExpMap(p.lfo_rate, 0.05f, 40.f));
         lfo_.SetShape(p.lfo_shape);
         for(int v = 0; v < kMaxVoices; v++)
         {
