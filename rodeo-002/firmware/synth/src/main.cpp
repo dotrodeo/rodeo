@@ -31,6 +31,7 @@
 #include "cost_model.h"
 #include "factory_presets.h"
 #include "panel_pot.h"
+#include "scope.h"
 #include "patch.h"
 #include "texture_chain.h"
 #include "ui.h"
@@ -200,17 +201,9 @@ static float      g_last_load     = 0.f; // for the screen's footer
 
 static float g_mix[kBlockSize];
 
-// --- scope capture -------------------------------------------------------
-// The output, decimated into a ring the screen can draw. Written from the
-// audio callback, read from the main loop: one writer, one reader, and a torn
-// sample is a pixel, so no locking. int8 because the display has two colours --
-// 192 bytes rather than 768.
-static constexpr int      kScopeLen   = 192; // 128 drawn, the rest for triggering
-static constexpr int      kScopeDecim = 8;   // 6 kHz: ~32 ms across the screen
-static volatile int8_t    g_scope[kScopeLen];
-static volatile uint16_t  g_scope_write = 0;
-static int                g_scope_phase = 0;
-static float              g_scope_gain  = 13.f / 127.f; // unity until measured
+// The output as a picture; the triggering, normalising and clamping all live
+// in scope.h, where they can be tested.
+static Scope g_scope;
 
 void AudioCallback(AudioHandle::InputBuffer  in,
                    AudioHandle::OutputBuffer out,
@@ -229,16 +222,7 @@ void AudioCallback(AudioHandle::InputBuffer  in,
     chain.ProcessBlock(out[0], out[1], size);
 
     for(size_t i = 0; i < size; i++)
-    {
-        if(++g_scope_phase >= kScopeDecim)
-        {
-            g_scope_phase   = 0;
-            float v         = out[0][i] * 127.f;
-            v               = v > 127.f ? 127.f : (v < -127.f ? -127.f : v);
-            g_scope[g_scope_write] = static_cast<int8_t>(v);
-            g_scope_write = static_cast<uint16_t>((g_scope_write + 1) % kScopeLen);
-        }
-    }
+        g_scope.Push(out[0][i]);
 
     g_busy_ticks += System::GetTick() - t0;
     g_busy_blocks++;
@@ -439,54 +423,13 @@ static void PumpIo()
     }
 }
 
-/** The output as a triggered scope, in the readout's space. Triggering on a
- *  rising zero crossing is what stops a steady note from crawling sideways. */
-static void DrawScope()
+/** The output as a triggered scope, in whatever space the readout leaves. */
+static void DrawScope(int y0, int y1)
 {
-    int8_t         buf[kScopeLen];
-    const uint16_t w = g_scope_write; // one writer, one reader
-    for(int i = 0; i < kScopeLen; i++)
-        buf[i] = g_scope[(w + i) % kScopeLen]; // oldest first
-
-    int start = 0;
-    for(int i = 1; i < kScopeLen - 128; i++)
-        if(buf[i - 1] <= 0 && buf[i] > 0)
-        {
-            start = i;
-            break;
-        }
-
-    // NORMALISED to the height available: a quiet patch is as readable as a
-    // loud one, which is the whole point of having a scope on a 20-pixel strip.
-    // The gain follows the signal over a few frames rather than snapping, so a
-    // decaying note does not pump, and it will not amplify silence into a
-    // display of its own noise -- below kScopeFloor the trace just stays small,
-    // which is the honest picture.
-    static constexpr int kScopeFloor = 4; // of 127: about -30 dB
-    static constexpr int kScopeAmp   = 13;
-    int                  peak        = 0;
-    for(int i = 0; i < 128; i++)
-    {
-        const int a = buf[start + i] < 0 ? -buf[start + i] : buf[start + i];
-        if(a > peak)
-            peak = a;
-    }
-    const float target = static_cast<float>(kScopeAmp)
-                         / static_cast<float>(peak > kScopeFloor ? peak : 127);
-    g_scope_gain += (target - g_scope_gain) * 0.4f;
-
-    const int cy   = 38;
-    int       prev = cy - static_cast<int>(buf[start] * g_scope_gain);
-    for(int x = 1; x < 128; x++)
-    {
-        const int y = cy - static_cast<int>(buf[start + x] * g_scope_gain);
-        display.DrawLine(static_cast<uint8_t>(x - 1),
-                         static_cast<uint8_t>(prev),
-                         static_cast<uint8_t>(x),
-                         static_cast<uint8_t>(y),
-                         true);
-        prev = y;
-    }
+    uint8_t y[Scope::kWidth];
+    g_scope.Trace(y0, y1, y);
+    for(int x = 1; x < Scope::kWidth; x++)
+        display.DrawLine(static_cast<uint8_t>(x - 1), y[x - 1], static_cast<uint8_t>(x), y[x], true);
 }
 
 /** The envelope the moving segment belongs to, with that segment picked out.
@@ -563,25 +506,29 @@ static void DrawScreen()
             display.DrawLine(x + 1, 15, x + 29, 15, true);
     }
 
-    // The middle of the screen belongs to whatever you last touched -- and when
-    // that is nothing, to the sound itself.
+    // The middle of the screen belongs to the sound, and to whatever you are
+    // changing about it -- both at once, so you can watch the shape move as you
+    // turn. The scope is a strip above the readout when there is a readout, and
+    // takes the whole space when there is not.
+    const bool envelope = d.readout == Readout::kEnvelope;
+    if(!d.browser_open && !envelope)
+        DrawScope(20, d.readout == Readout::kNone ? 52 : 37);
+
     switch(d.readout)
     {
-        // Nothing touched: the space belongs to the sound. (Not while the
-        // browser is up -- it covers this area anyway.)
-        case Readout::kNone:
-            if(!d.browser_open)
-                DrawScope();
-            break;
+        case Readout::kNone: break; // the scope has it
 
         case Readout::kChoice:
+        {
             // A stepped pot is a choice: name it. A meter here would say
             // nothing about WHICH destination you landed on.
-            display.SetCursor(0, 24);
-            display.WriteString(d.param, Font_6x8, true);
-            display.SetCursor(0, 36);
-            display.WriteString(d.choice, Font_7x10, true);
+            FixedCapStr<32> choice(d.param);
+            choice.Append(": ");
+            choice.Append(d.choice);
+            display.SetCursor(0, 42);
+            display.WriteString(choice, Font_6x8, true);
             break;
+        }
 
         case Readout::kEnvelope:
             display.SetCursor(0, 22);
@@ -590,21 +537,27 @@ static void DrawScreen()
             break;
 
         default:
-            display.SetCursor(0, 24);
-            display.WriteString(d.param, Font_7x10, true);
-            {
-                const uint8_t w = static_cast<uint8_t>(d.value * 124.f);
-                display.DrawRect(0, 38, 127, 48, true);
-                if(w > 1)
-                    display.DrawRect(2, 40, static_cast<uint8_t>(2 + w), 46, true, true);
-            }
+        {
+            display.SetCursor(0, 40);
+            display.WriteString(d.param, Font_6x8, true);
+            // The number, because a bar says roughly and a knob deserves
+            // exactly. Pickup puts which way to turn in front of it: the value
+            // shown is the one being chased, not the one the pot is at.
+            FixedCapStr<12> pct("");
+            if(d.pickup_hint != 0)
+                pct.Append(d.pickup_hint > 0 ? "UP " : "DN ");
+            pct.AppendInt(static_cast<int>(d.value * 100.f + 0.5f));
+            pct.Append("%");
+            const int w_px = 6 * static_cast<int>(pct.Size());
+            display.SetCursor(static_cast<uint8_t>(128 - w_px), 40);
+            display.WriteString(pct, Font_6x8, true);
+
+            const uint8_t w = static_cast<uint8_t>(d.value * 124.f);
+            display.DrawRect(0, 48, 127, 52, true);
+            if(w > 1)
+                display.DrawRect(2, 49, static_cast<uint8_t>(2 + w), 51, true, true);
             break;
-    }
-    // Pickup: which way to turn to catch the stored value.
-    if(d.readout != Readout::kNone && d.pickup_hint != 0)
-    {
-        display.SetCursor(104, 24);
-        display.WriteString(d.pickup_hint > 0 ? "UP" : "DN", Font_7x10, true);
+        }
     }
 
     // The browser takes the screen while it is open: it is the instrument's one
@@ -653,19 +606,6 @@ static void DrawScreen()
 /** What the screen currently depends on, folded into one value: redrawing only
  *  when this changes keeps the bus idle while nothing is moving, which is what
  *  leaves room for the hub. */
-/** A cheap digest of what the scope would draw, so a still picture -- silence,
- *  or a held note between redraws -- costs the bus nothing. */
-static uint32_t ScopeHash()
-{
-    uint32_t h = 2166136261u;
-    for(int i = 0; i < kScopeLen; i += 3)
-        h = (h ^ static_cast<uint8_t>(g_scope[i])) * 16777619u;
-    // The gain is still converging even when the samples repeat, and it changes
-    // the picture, so it belongs in the test for "would this look different".
-    h = (h ^ static_cast<uint32_t>(g_scope_gain * 512.f)) * 16777619u;
-    return h;
-}
-
 static uint32_t ScreenSignature(const DisplayState& d, uint32_t extra)
 {
     uint32_t h = 2166136261u;
@@ -992,7 +932,7 @@ int main(void)
     hw.StartAudio(AudioCallback);
 
     uint32_t last_apply = 0, last_print = 0, last_draw = 0, last_sig = 0, loops = 0,
-             last_hb = 0;
+             last_hb = 0, last_scope = 0;
     while(1)
     {
         PumpIo();
@@ -1138,23 +1078,28 @@ int main(void)
             BusHeartbeat();
         }
 
-        // The scope is the only thing that redraws without being asked, so it
-        // sets its own, slower pace: ~10 fps costs about a quarter of the bus
-        // while nothing else is happening, and stops dead the moment a control
-        // is touched. Anything else still redraws at up to ~25 fps, and only
-        // when the picture would actually differ.
+        // TWO PACES, because the two things on screen change for different
+        // reasons. Anything the panel did redraws as soon as it happened, at up
+        // to ~25 fps -- that is a knob feeling responsive. The scope changes
+        // constantly on its own, so BY ITSELF it redraws at ~10 fps. Turning a
+        // knob therefore costs no more bus than it already did: the frame was
+        // going out anyway, and a frame is the same 1024 bytes whatever is
+        // drawn in it. Only a scope moving under a still panel is rate-limited.
         ui.Refresh(voices);
-        const bool     scope_idle = ui.display().readout == Readout::kNone
-                                && !ui.display().browser_open;
-        const uint32_t interval   = scope_idle ? 100 : 40;
-        if(g_have_oled && g_blocks - last_draw >= interval)
+        const DisplayState& ds = ui.display();
+        const bool          scope_on
+            = !ds.browser_open && ds.readout != Readout::kEnvelope;
+        if(g_have_oled && g_blocks - last_draw >= 40)
         {
-            const uint32_t sig
-                = ScreenSignature(ui.display(), scope_idle ? ScopeHash() : 0u);
-            if(sig != last_sig || g_blocks - last_draw >= 1000)
+            const uint32_t sig        = ScreenSignature(ds, 0u); // all but the scope
+            const bool     ui_changed = sig != last_sig;
+            const bool     scope_due
+                = scope_on && g_blocks - last_draw >= 100 && g_scope.Hash() != last_scope;
+            if(ui_changed || scope_due || g_blocks - last_draw >= 1000)
             {
-                last_sig  = sig;
-                last_draw = g_blocks;
+                last_sig   = sig;
+                last_scope = scope_on ? g_scope.Hash() : 0u;
+                last_draw  = g_blocks;
                 DrawScreen();
             }
         }

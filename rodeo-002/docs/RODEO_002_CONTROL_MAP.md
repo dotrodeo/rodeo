@@ -254,14 +254,28 @@ encoder polling — a full frame at 400 kHz is ~23 ms.
 **The engine is not on the header.** The preset name is the more useful thing to have in front
 of you, and the engine announces itself as a message when you turn MAIN onto it.
 
+**The scope is almost always on**, so you can watch the waveform change shape as you turn a
+knob. It takes the whole readout area when nothing else is on screen, and a strip above the
+value when something is. It is normalised to whatever region it is given — a quiet patch reads
+as well as a loud one — triggered on a rising zero crossing so a held note stands still, and
+clamped to its box, because the gain trails the signal and the display's coordinates are
+unsigned: an unclamped overshoot wraps and paints a band across the screen. All of that lives
+in `common/scope.h`, where it is tested.
+
 **The readout is not always a meter.** What a parameter *is* decides how it is shown:
 
 | When | Shows |
 |---|---|
-| A continuous pot | Its name and a value bar, as before |
-| A **stepped** pot (filter type, LFO destination) | Its name and **the choice it landed on**, spelled out. A bar says nothing about *which* destination. |
-| An **envelope** pot (attack, decay, sustain, release) | **The whole ADSR shape**, with the segment being moved drawn twice so it stands out |
-| **Nothing, for over a second** | **A triggered scope of the output**, normalised to fill the height so a quiet patch reads as well as a loud one (the gain follows over a few frames rather than snapping, and will not amplify silence into a picture of its own noise). It redraws at ~10 fps and only when the picture would differ, so silence and held notes cost nothing, and it stops the instant any control is touched. Triggering on a rising zero crossing is what stops a held note crawling sideways. |
+| A continuous pot | Scope strip, then its name, **the value as a percentage**, and a bar. Pickup puts `UP`/`DN` in front of the number — the value shown is the one being chased, not the one the pot is at. |
+| A **stepped** pot (filter type, LFO destination) | Scope strip, then `Name: Choice` spelled out. A bar says nothing about *which* destination. |
+| An **envelope** pot (attack, decay, sustain, release) | **The whole ADSR shape** — the scope stands aside, because the envelope is the picture worth seeing |
+| **Nothing, for over a second** | The scope alone, in the full space |
+
+**Two redraw paces, because the two things change for different reasons.** Anything the panel
+did redraws as soon as it happens, up to ~25 fps — that is a knob feeling responsive. The scope
+moves constantly on its own, so *by itself* it redraws at ~10 fps. Turning a knob therefore
+costs no more bus than it already did: the frame was going out anyway, and a frame is the same
+1024 bytes whatever is drawn in it. Only a scope moving under a still panel is rate-limited.
 
 **There is no CPU meter.** It was a bring-up instrument and the serial log still prints the
 measured load beside the predicted one, which is where that comparison belongs.
