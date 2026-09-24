@@ -165,7 +165,10 @@ bottom; the isolated encoder under the OLED is slot 5. Slots 6–9 unpopulated.
   and so is a long-press — without this rule, holding shift for more than 600 ms while reaching
   for a pot would fire the long-press action. On release: if any pot or encoder moved while MAIN
   was down, the press was a shift and does nothing; otherwise it is a tap (< 600 ms) or a
-  long-press (≥ 600 ms). Once a clean hold passes 600 ms the OLED shows what releasing will do,
+  long-press (≥ 600 ms). **"Moved" means DELIBERATELY moved** — 3% of travel from where the pot
+  sat when the press began, not pass-to-pass movement. On hardware 0.3% of dither was enough to
+  disqualify a press and silently swallow a save (2026-09-24). Measuring from the start of the
+  press means a slow turn still counts while dither never does. Once a clean hold passes 600 ms the OLED shows what releasing will do,
   so the pending action is never invisible. Slot encoders 1–4 are never shift, so their own
   long-press (Freeze) can fire at the threshold without waiting for release.
 * **Voice mode is constrained by the engine** (concept doc, *Voice modes*). Modal is Mono
@@ -189,6 +192,10 @@ says so for as long as it is open:
 | Tap MAIN | **Load** the highlighted preset and close |
 | Long-press MAIN | **Save** to the highlighted slot and close |
 | Touch any other control, or 5 s idle | **Close without loading** |
+
+**The idle timer stops while MAIN is held.** A press is activity: without this, pausing to
+decide which slot to save to let the browser close under a finger that was already holding the
+encoder down, and the long-press then meant *gesture* instead of *save* (2026-09-24).
 
 **As built:** 16 slots, 8 of them factory sounds; an empty slot shows `-- empty --` and will not
 load, but can be saved into. A saved slot is named `User N` — naming needs a text entry this

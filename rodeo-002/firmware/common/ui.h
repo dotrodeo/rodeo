@@ -104,6 +104,9 @@ struct DisplayState
     /** A one-shot line for things the panel can't show otherwise. */
     const char* message    = "";
     uint32_t    message_ms = 0;
+    /** What releasing MAIN would do right now, once a clean hold has passed the
+     *  long-press threshold. Empty when a release would do nothing. */
+    const char* pending    = "";
     // --- preset browser, while it is open --------------------------------
     bool        browser_open = false;
     int         browser_slot = 0;
@@ -136,8 +139,14 @@ class Ui
     static constexpr uint32_t kBrowserIdleMs = 5000;
     static constexpr uint32_t kPopupMs      = 1200;
     static constexpr float    kPickupEps    = 0.01f;
-    /** Below this a pot counts as still: ADC noise must not look like a turn. */
+    /** Below this a pot counts as still, for the readout on screen. */
     static constexpr float    kMoveEps      = 0.002f;
+    /** How far a pot must travel to count as DELIBERATELY turned: enough to
+     *  disqualify a MAIN press as a shift, or to close the browser. Measured
+     *  from where the pot was when the press began, so a slow turn still counts
+     *  while dither never does -- 3% of travel is about 9 degrees, and on
+     *  hardware 0.3% of dither was enough to swallow a save (2026-09-24). */
+    static constexpr float    kTurnEps      = 0.03f;
 
     void Init(const Patch& p, const Globals& g)
     {
@@ -185,9 +194,14 @@ class Ui
         const bool shift = in.enc_held[kMainEncoder];
         if(shift && !shift_)
         {
-            press_start_ms_ = in.now_ms;
+            press_start_ms_     = in.now_ms;
             touched_while_held_ = false;
+            ResetTurnWatch(in); // dither from here on is not a turn
         }
+        // A press IS activity: the browser must not time out from under a
+        // finger that is holding MAIN down to save.
+        if(browser_open_ && shift)
+            browser_ms_ = in.now_ms;
         if(shift != shift_)
         {
             shift_ = shift;
@@ -257,9 +271,10 @@ class Ui
                     Post("Gesture: not yet", in.now_ms);
                 else
                 {
-                    browser_open_     = true;
-                    browser_ms_       = in.now_ms;
+                    browser_open_      = true;
+                    browser_ms_        = in.now_ms;
                     browser_opened_ms_ = in.now_ms;
+                    ResetTurnWatch(in);
                 }
             }
         }
@@ -281,6 +296,13 @@ class Ui
 
         if(browser_open_ && in.now_ms - browser_ms_ > kBrowserIdleMs)
             browser_open_ = false;
+
+        // A clean hold past the threshold announces itself, so the pending
+        // action is never invisible (control map). Without this, a press that
+        // had been disqualified looked exactly like one that had not.
+        display_.pending = "";
+        if(shift_ && !touched_while_held_ && in.now_ms - press_start_ms_ >= kLongPressMs)
+            display_.pending = browser_open_ ? "SAVE" : "GESTURE";
 
         display_.shift        = shift_;
         display_.freeze       = patch_.freeze;
@@ -312,6 +334,12 @@ class Ui
     static ParamId PotParam(int pot, bool shift)
     {
         return static_cast<ParamId>(pot + (shift ? kNumPots : 0));
+    }
+
+    void ResetTurnWatch(const UiInput& in)
+    {
+        for(int i = 0; i < kNumPots; i++)
+            watch_lo_[i] = watch_hi_[i] = in.pot[i];
     }
 
     void CloseBrowser(uint32_t now)
@@ -395,11 +423,19 @@ class Ui
         const float   last   = primed_ ? last_pot_[pot] : value;
         const bool    moved  = primed_ && fabsf(value - last) > kMoveEps;
 
-        if(moved && shift_)
+        // Deliberate movement is measured from where the pot was when the
+        // press began, not pass to pass: dither stays inside a narrow band for
+        // ever, while even a slow turn widens it.
+        if(value < watch_lo_[pot])
+            watch_lo_[pot] = value;
+        if(value > watch_hi_[pot])
+            watch_hi_[pot] = value;
+        const bool turned = (watch_hi_[pot] - watch_lo_[pot]) > kTurnEps;
+        if(turned && shift_)
             touched_while_held_ = true;
-        // A pot moving closes the browser -- but not in the same pass that
+        // A turned pot closes the browser -- but not in the same pass that
         // opened it, since the hand that released MAIN may still be on a knob.
-        if(moved && browser_open_ && now != browser_opened_ms_)
+        if(turned && browser_open_ && now != browser_opened_ms_)
             browser_open_ = false;
 
         if(ParamIsGlobal(p))
@@ -551,6 +587,7 @@ class Ui
     uint32_t     enc_press_ms_[5]      = {};
     uint32_t     press_start_ms_       = 0;
     uint32_t     touched_ms_           = 0;
+    float watch_lo_[kNumPots] = {}, watch_hi_[kNumPots] = {};
     const PresetBank* bank_ = nullptr;
     PresetRequest     request_;
     bool     browser_open_ = false;

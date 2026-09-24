@@ -367,3 +367,110 @@ TEST(Ui, TheBrowserShowsTheNameOfTheHighlightedSlot)
     r.Tick();
     EXPECT_FALSE(r.ui.display().browser_used) << "the last slot ships empty";
 }
+
+// Both of these come straight off hardware, 2026-09-24: "holding MAIN while on
+// an empty slot doesn't seem to save."
+
+// The browser's idle timer used to keep running while MAIN was held down, so
+// pausing to decide which slot to use lost the browser mid-press -- and the
+// long-press then meant gesture instead of save.
+TEST(Ui, PausingBeforeTheSaveDoesNotLoseTheBrowser)
+{
+    Rig r;
+    Tap(r);
+    r.Turn(kMain, 1);
+    ASSERT_TRUE(r.ui.BrowserOpen());
+    for(int i = 0; i < 12; i++) // six seconds of deciding
+        r.Tick(500);
+    ASSERT_FALSE(r.ui.BrowserOpen()) << "it should still close when untouched";
+
+    // ...and once a hold starts, the timer must not run out underneath it.
+    Tap(r); // open again
+    r.HoldMain(true);
+    r.Tick();
+    for(int i = 0; i < 20; i++) // ten seconds of holding
+        r.Tick(500);
+    r.HoldMain(false);
+    r.Tick();
+    const PresetRequest req = r.ui.TakePresetRequest();
+    EXPECT_EQ(req.action, PresetAction::kSave) << "the browser timed out mid-press";
+}
+
+// A pot that is merely dithering is not a pot that was touched. 0.3% of travel
+// was enough to disqualify the press and swallow the save.
+TEST(Ui, PotDitherDuringAHoldDoesNotSwallowTheSave)
+{
+    Rig r;
+    Tap(r);
+    ASSERT_TRUE(r.ui.BrowserOpen());
+    r.HoldMain(true);
+    r.Tick();
+    for(int i = 0; i < 70; i++)
+    {
+        r.in.pot[3] = 0.5f + ((i % 2) ? 0.003f : -0.003f);
+        r.Tick(10);
+    }
+    r.HoldMain(false);
+    r.Tick();
+    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kSave);
+}
+
+// ...but a pot that really was turned still means the press was a shift. This
+// is the rule the dither fix must not trample.
+TEST(Ui, ADeliberateTurnDuringAHoldIsStillAShift)
+{
+    Rig r;
+    Tap(r);
+    ASSERT_TRUE(r.ui.BrowserOpen());
+    r.HoldMain(true);
+    r.Tick();
+    r.MovePot(3, 0.75f); // a quarter turn, while holding
+    r.Tick(Ui::kLongPressMs + 50);
+    r.HoldMain(false);
+    r.Tick();
+    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone)
+        << "a real turn should have made that press a shift";
+}
+
+// Even a slow turn has to count: the watch measures from where the pot was when
+// the press began, so creeping past the threshold is still a turn.
+TEST(Ui, ASlowTurnDuringAHoldCountsToo)
+{
+    Rig r;
+    Tap(r);
+    r.HoldMain(true);
+    r.Tick();
+    for(int i = 0; i < 60; i++) // 6% of travel over 600 ms
+    {
+        r.in.pot[3] = 0.5f + 0.001f * static_cast<float>(i);
+        r.Tick(10);
+    }
+    r.HoldMain(false);
+    r.Tick();
+    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
+}
+
+// The press must say what it is going to do before it does it, or a
+// disqualified hold looks exactly like one that will work.
+TEST(Ui, AHoldAnnouncesWhatReleasingWillDo)
+{
+    Rig r;
+    r.HoldMain(true);
+    r.Tick();
+    EXPECT_STREQ(r.ui.display().pending, "") << "announced before the threshold";
+    r.Tick(Ui::kLongPressMs + 50);
+    EXPECT_STREQ(r.ui.display().pending, "GESTURE");
+    r.HoldMain(false);
+    r.Tick();
+
+    Tap(r); // open the browser: the same hold now means save
+    r.HoldMain(true);
+    r.Tick();
+    r.Tick(Ui::kLongPressMs + 50);
+    EXPECT_STREQ(r.ui.display().pending, "SAVE");
+
+    // A hold that has been disqualified says nothing, because it will do nothing.
+    r.MovePot(3, 0.8f);
+    r.Tick();
+    EXPECT_STREQ(r.ui.display().pending, "");
+}

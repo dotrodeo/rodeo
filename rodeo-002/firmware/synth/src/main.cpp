@@ -440,7 +440,11 @@ static void DrawScreen(float load)
         display.SetCursor(4, 33);
         display.WriteString(d.browser_used ? d.browser_name : "-- empty --", Font_7x10, true);
         display.SetCursor(4, 44);
-        display.WriteString("tap load  hold save", Font_4x6, true);
+        // Once a clean hold passes the threshold it says so, rather than
+        // leaving a press that will not fire looking like one that will.
+        display.WriteString(d.pending[0] ? "RELEASE TO SAVE" : "tap load  hold save",
+                            Font_4x6,
+                            true);
     }
 
     // Footer: shift, freeze, a message, and the measured load.
@@ -449,6 +453,12 @@ static void DrawScreen(float load)
         foot.Append("SHIFT ");
     if(d.freeze)
         foot.Append("FREEZE ");
+    if(d.pending[0] && !d.browser_open)
+    {
+        foot.Append(">");
+        foot.Append(d.pending);
+        foot.Append(" ");
+    }
     foot.Append(d.message);
     display.SetCursor(0, 54);
     display.WriteString(foot, Font_6x8, true);
@@ -473,6 +483,7 @@ static uint32_t ScreenSignature(const DisplayState& d, float load)
     auto     mix_ptr
         = [&mix](const char* p) { mix(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(p))); };
     mix(d.browser_open ? 0x8000u + static_cast<uint32_t>(d.browser_slot) : 0u);
+    mix_ptr(d.pending);
     mix_ptr(d.engine);
     mix_ptr(d.voice_mode);
     mix(static_cast<uint32_t>(d.voices_active));
