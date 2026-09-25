@@ -245,8 +245,16 @@ decide which slot to save to let the browser close under a finger that was alrea
 encoder down, and the long-press then meant *gesture* instead of *save* (2026-09-24).
 
 **As built:** 16 slots, **all sixteen shipping a factory sound**. An empty slot shows
-`-- empty --` and will not load, but can be saved into — so saving now means choosing a factory
-sound to replace, and there is no restore gesture yet. A saved slot is named `User N` — naming needs a text entry this
+`-- empty --` and will not load, but can be saved into — so saving means choosing a factory
+sound to replace, and there is no restore gesture yet.
+
+**Saving names the slot first** (built 2026-09-25). After choosing the slot, a tap goes to the
+name: **turn spells the character under the cursor, hold MAIN and turn moves along the name,
+and a tap saves** — the same two axes a settings page uses, so naming needed no gesture of its
+own. It starts from what the slot is already called, so renaming is an edit rather than
+spelling it out again; an empty slot starts from `USER n`, and a name spelled down to nothing
+comes back as that. Upper case only: at six pixels a character the difference between `l` and
+`I` is not worth the extra turning. A saved slot is named `User N` — naming needs a text entry this
 panel cannot offer. Loading drops pickup on every pot, so nothing jumps.
 
 There is no long-press here or anywhere else: you arrive from **Load preset** or **Save

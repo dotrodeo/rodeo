@@ -109,7 +109,8 @@ enum class UiMode
     kLoad,
     kSave,
     kPatchPage,
-    kGlobalPage
+    kGlobalPage,
+    kName
 };
 
 /** The menu, in the order MAIN turns through it. */
@@ -208,6 +209,9 @@ struct DisplayState
     /** "", "ARM", "REC" or "LOOP" -- what the gesture recorder is doing. */
     const char* gesture      = "";
     float       gesture_pos  = 0.f;
+    /** kName: the name being spelled, and which character is being changed. */
+    const char* name_text   = "";
+    int         name_cursor = 0;
     // --- settings pages --------------------------------------------------
     const char* page_item    = "";
     const char* page_value   = "";
@@ -227,7 +231,19 @@ struct PresetRequest
 {
     PresetAction action = PresetAction::kNone;
     int          slot   = 0;
+    /** For a save: what to call it. Points at the Ui's own buffer, which is
+     *  valid until the panel is touched again -- read it when you take the
+     *  request, which is the pass it was made on. */
+    const char*  name   = nullptr;
 };
+
+/** The alphabet a name is spelled from. No lower case: at 6 pixels a character
+ *  on a 128-pixel line, the difference between l and I is not worth the extra
+ *  turning. */
+inline const char* NameAlphabet()
+{
+    return " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-+.";
+}
 
 class Ui
 {
@@ -478,6 +494,8 @@ class Ui
         display_.gesture      = GestureLabel();
         display_.gesture_pos  = gesture_ ? gesture_->position() : 0.f;
         display_.browser_slot = browser_slot_;
+        display_.name_text    = name_buf_;
+        display_.name_cursor  = name_cursor_;
         if(OnPage())
         {
             FormatPageValue(page_index_);
@@ -567,10 +585,24 @@ class Ui
                 break;
 
             case UiMode::kLoad:
+                request_.action = PresetAction::kLoad;
+                request_.slot   = browser_slot_;
+                request_.name   = nullptr;
+                EnterMode(UiMode::kNormal, in);
+                break;
+
+            // Saving names the slot first. A preset you cannot tell apart from
+            // the next one is only half saved.
             case UiMode::kSave:
-                request_.action
-                    = mode_ == UiMode::kLoad ? PresetAction::kLoad : PresetAction::kSave;
-                request_.slot = browser_slot_;
+                StartNaming();
+                EnterMode(UiMode::kName, in);
+                break;
+
+            case UiMode::kName:
+                TrimName();
+                request_.action = PresetAction::kSave;
+                request_.slot   = browser_slot_;
+                request_.name   = name_buf_;
                 EnterMode(UiMode::kNormal, in);
                 break;
 
@@ -579,6 +611,47 @@ class Ui
             default: EnterMode(UiMode::kNormal, in); break;
         }
     }
+
+    static constexpr int kNameLast = StoredPreset::kNameLen - 2;
+
+    /** Start from what the slot is called, so renaming is an edit rather than
+     *  spelling it out again. An empty slot starts from its number. */
+    void StartNaming()
+    {
+        const char* from = nullptr;
+        if(bank_ && bank_->slot[browser_slot_].used)
+            from = bank_->slot[browser_slot_].name;
+        int i = 0;
+        if(from)
+            for(; i <= kNameLast && from[i]; i++)
+                name_buf_[i] = Upper(from[i]);
+        else
+        {
+            char* d = name_buf_;
+            Copy(d, "USER ");
+            Int(d, browser_slot_ + 1);
+            i = static_cast<int>(d - name_buf_);
+        }
+        for(; i <= kNameLast; i++)
+            name_buf_[i] = ' ';
+        name_buf_[kNameLast + 1] = '\0';
+        name_cursor_             = 0;
+    }
+
+    /** Trailing spaces are not part of a name. */
+    void TrimName()
+    {
+        for(int i = kNameLast; i >= 0 && name_buf_[i] == ' '; i--)
+            name_buf_[i] = '\0';
+        if(name_buf_[0] == '\0')
+        {
+            char* d = name_buf_;
+            Copy(d, "USER ");
+            Int(d, browser_slot_ + 1);
+        }
+    }
+
+    static char Upper(char c) { return (c >= 'a' && c <= 'z') ? c - 32 : c; }
 
     bool OnPage() const
     {
@@ -775,6 +848,32 @@ class Ui
                 const int n  = static_cast<int>(MenuItem::kCount);
                 menu_index_  = (menu_index_ + (delta > 0 ? 1 : -1) + n) % n;
                 mode_ms_     = now;
+                return false;
+            }
+            if(mode_ == UiMode::kName)
+            {
+                // Turn spells, hold and turn moves along the name: the same
+                // two axes a settings page uses.
+                if(shift)
+                {
+                    touched_while_held_ = true;
+                    const int c  = name_cursor_ + (delta > 0 ? 1 : -1);
+                    name_cursor_ = c < 0 ? 0 : (c > kNameLast ? kNameLast : c);
+                }
+                else
+                {
+                    const char* a = NameAlphabet();
+                    int         n = 0;
+                    while(a[n])
+                        n++;
+                    int at = 0;
+                    for(int i = 0; i < n; i++)
+                        if(a[i] == name_buf_[name_cursor_])
+                            at = i;
+                    at                       = ((at + (delta > 0 ? 1 : -1)) % n + n) % n;
+                    name_buf_[name_cursor_]  = a[at];
+                }
+                mode_ms_ = now;
                 return false;
             }
             if(OnPage())
@@ -1131,6 +1230,8 @@ class Ui
     VoiceMode poly_before_ = VoiceMode::kPoly;
     bool      had_poly_before_ = false;
     char     page_value_[20] = {};
+    char     name_buf_[StoredPreset::kNameLen] = {};
+    int      name_cursor_ = 0;
     int      browser_slot_ = 0;
     uint32_t mode_ms_ = 0, mode_opened_ms_ = 0;
     bool     shift_ = false;

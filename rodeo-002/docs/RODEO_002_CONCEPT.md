@@ -414,9 +414,8 @@ slots at boot** (`FillEmptySlots`). The store's defaults are only written while 
 been used, so after a first save a later firmware's bank would otherwise never be seen. Nothing
 already in a slot is touched, whether factory or yours. The one thing it cannot tell is a slot
 deliberately emptied from one never filled — there is no gesture for emptying a slot, so that
-cannot arise today, but it is a constraint on adding one. What is
-not built yet: **gestures** (the recorder itself does not exist) and **naming** — a panel with
-no buttons cannot spell, so a saved slot names itself `User N` until there is a UI that can.
+cannot arise today, but it is a constraint on adding one. Gestures and naming are built too (2026-09-25): saving spells a name first, and a take is
+stored per slot.
 Sixteen slots rather than sixty-four because that is what the browser can turn through
 comfortably; the sector holds far more when gestures need it.
 

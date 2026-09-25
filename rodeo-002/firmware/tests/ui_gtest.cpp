@@ -6,6 +6,9 @@
 
 #include "gtest/gtest.h"
 
+#include <cstring>
+#include <string>
+
 #include "factory_presets.h"
 #include "ui.h"
 
@@ -344,6 +347,9 @@ TEST(Ui, LoadAndSaveAreSeparateEntriesAndBothActOnATap)
         OpenMenu(r, MenuItem::kSave);
         ASSERT_EQ(r.ui.Mode(), UiMode::kSave);
         r.Turn(kMain, 1);
+        Tap(r);
+        // Saving names the slot first; the tap after that is the save.
+        ASSERT_EQ(r.ui.Mode(), UiMode::kName);
         Tap(r);
         const PresetRequest req = r.ui.TakePresetRequest();
         EXPECT_EQ(req.action, PresetAction::kSave) << "saving now needs no hold at all";
@@ -804,4 +810,98 @@ TEST(Ui, PolyCannotBeChosenByHandOnAPhysicalModel)
     }
     r.HoldMain(false);
     r.Tick();
+}
+
+// ------------------------------------------------------- NAMING A PRESET
+//
+// The last thing on the panel that could not be done from the panel. Turn
+// spells, hold and turn moves along the name, tap saves -- the same two axes a
+// settings page uses, so it needs no gesture of its own.
+
+TEST(Ui, SavingSpellsANameFirst)
+{
+    Rig               r;
+    static PresetBank bank;
+    BuildFactoryBank(bank);
+    r.ui.SetBank(&bank);
+
+    OpenMenu(r, MenuItem::kSave);
+    Tap(r); // choose slot 1 and go to the name
+    ASSERT_EQ(r.ui.Mode(), UiMode::kName);
+    // It starts from what the slot is already called, so renaming is an edit.
+    EXPECT_EQ(std::string(r.ui.display().name_text).substr(0, 4), "INIT");
+
+    // Turning spells the character under the cursor.
+    r.Turn(kMain, 1);
+    EXPECT_NE(r.ui.display().name_text[0], 'I');
+    const char first = r.ui.display().name_text[0];
+
+    // Holding and turning moves along it, and leaves what was typed alone.
+    r.HoldMain(true);
+    r.Tick();
+    r.Turn(kMain, 1);
+    r.Turn(kMain, 1);
+    r.HoldMain(false);
+    r.Tick();
+    EXPECT_EQ(r.ui.display().name_cursor, 2);
+    EXPECT_EQ(r.ui.display().name_text[0], first);
+
+    r.Turn(kMain, -1); // spell something at the new position
+    Tap(r);
+    const PresetRequest req = r.ui.TakePresetRequest();
+    EXPECT_EQ(req.action, PresetAction::kSave);
+    ASSERT_NE(req.name, nullptr);
+    EXPECT_GT(strlen(req.name), 0u);
+    EXPECT_LT(strlen(req.name), static_cast<size_t>(StoredPreset::kNameLen));
+}
+
+TEST(Ui, AnEmptySlotIsNamedAfterItselfAndAnAllSpaceNameFallsBack)
+{
+    Rig               r;
+    static PresetBank bank;
+    BuildFactoryBank(bank);
+    bank.slot[5].used = 0;
+    r.ui.SetBank(&bank);
+
+    OpenMenu(r, MenuItem::kSave);
+    for(int i = 0; i < 5; i++)
+        r.Turn(kMain, 1);
+    Tap(r);
+    ASSERT_EQ(r.ui.Mode(), UiMode::kName);
+    EXPECT_EQ(std::string(r.ui.display().name_text).substr(0, 6), "USER 6");
+
+    // Spell every character down to a space. A name of nothing is not a name,
+    // so it has to come back as the slot's own.
+    for(int c = 0; c < 6; c++)
+    {
+        if(c > 0) // move along
+        {
+            r.HoldMain(true);
+            r.Tick();
+            r.Turn(kMain, 1);
+            r.HoldMain(false);
+            r.Tick();
+        }
+        for(int guard = 0; r.ui.display().name_text[c] != ' ' && guard < 60; guard++)
+            r.Turn(kMain, -1);
+        ASSERT_EQ(r.ui.display().name_text[c], ' ') << "could not blank character " << c;
+    }
+    Tap(r);
+    const PresetRequest req = r.ui.TakePresetRequest();
+    ASSERT_NE(req.name, nullptr);
+    EXPECT_STREQ(req.name, "USER 6") << "an all-spaces name should fall back to the slot";
+}
+
+TEST(Ui, TouchingSomethingElseAbandonsTheName)
+{
+    Rig               r;
+    static PresetBank bank;
+    BuildFactoryBank(bank);
+    r.ui.SetBank(&bank);
+    OpenMenu(r, MenuItem::kSave);
+    Tap(r);
+    ASSERT_EQ(r.ui.Mode(), UiMode::kName);
+    r.MovePot(0, 0.9f);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
+    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone) << "it saved anyway";
 }

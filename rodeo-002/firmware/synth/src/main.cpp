@@ -814,6 +814,13 @@ static void DrawScreen()
             body.Append(d.menu_item);
             hint = "turn to choose   tap to enter";
         }
+        else if(d.mode == UiMode::kName)
+        {
+            head.Append("NAME ");
+            head.AppendInt(d.browser_slot + 1);
+            body.Append(d.name_text);
+            hint = "turn spells  hold+turn moves  tap saves";
+        }
         else if(d.mode == UiMode::kPatchPage || d.mode == UiMode::kGlobalPage)
         {
             head.Append(d.mode == UiMode::kPatchPage ? "PATCH " : "GLOBAL ");
@@ -840,6 +847,12 @@ static void DrawScreen()
         display.WriteString(body, Font_7x10, true);
         display.SetCursor(4, 44);
         display.WriteString(hint, Font_4x6, true);
+        // The character being spelled, underlined where it sits in the name.
+        if(d.mode == UiMode::kName)
+        {
+            const uint8_t x = static_cast<uint8_t>(4 + d.name_cursor * 7);
+            display.DrawLine(x, 43, static_cast<uint8_t>(x + 6), 43, true);
+        }
     }
 
     // Messages and a pending hold are moments, not states, so they appear over
@@ -1336,11 +1349,11 @@ int main(void)
             }
             else if(req.action == PresetAction::kSave)
             {
-                // No text entry on a panel with no buttons, so slots name
-                // themselves. Renaming waits for a UI that can spell.
-                FixedCapStr<16> name("User ");
-                name.AppendInt(req.slot + 1);
-                PatchToPreset(patch, name.Cstr(), bank.slot[req.slot]);
+                FixedCapStr<16> fallback("User ");
+                fallback.AppendInt(req.slot + 1);
+                PatchToPreset(patch,
+                              req.name && req.name[0] ? req.name : fallback.Cstr(),
+                              bank.slot[req.slot]);
                 preset_store.Save();
                 SaveGestureForSlot(req.slot);
                 // Saving makes the patch the preset: no longer modified, and
