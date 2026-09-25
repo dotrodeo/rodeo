@@ -513,6 +513,27 @@ type, a destination, a page; **PATCH** for a fix.
   with it, and the two would be the same fault wearing different clothes. Worth measuring the
   rail and a channel's readings together before changing any more firmware.
 * **A boot splash** with the RODEO name and the version number.
+* **Factory reset, from the menu** — presets and everything else stored. Four regions to clear:
+  the preset bank back to the factory sixteen (`PersistentStorage::RestoreDefaults`), the
+  instrument state (boot slot, MIDI channels), the panel wiring map, and **all sixteen gesture
+  regions**, which is sixteen 128 KB erases and therefore seconds rather than milliseconds — it
+  should say what it is doing while it does it. Two things to decide first: whether a reset also
+  clears the wiring map (it is a fact about the cables, not a preference, so arguably not), and
+  **how it is confirmed**. The menu has no confirmation pattern yet, and a bare `Factory reset`
+  entry that fires on a tap is a foot-gun; a hold cannot be used for it, because a hold is
+  shift. The likely shape is a value-style item — turn to `YES`, then tap — which reuses the
+  settings-page gesture rather than inventing one. This also closes the gap left when all
+  sixteen slots became factory presets: there is currently no way back.
+* **Eight more slots, empty, for user presets** — 16 factory + 8 user, `kNumSlots` 16 → 24.
+  **Empty rather than copies of Init**: an empty slot shows `-- empty --` and refuses to load,
+  which is honest, whereas a copy of Init looks like a sound someone chose. `FillEmptySlots`
+  composes correctly with that — it only fills where the *factory* bank has a preset, so slots
+  17–24 stay empty rather than being refilled at every boot. Two costs to note: changing
+  `kNumSlots` changes `PresetBank`'s size, so a stored bank is rejected and **a migration is
+  needed or saved presets are lost** (read the 16-slot layout, copy it into the first sixteen);
+  and 24 gesture regions at 128 KB are 3 MB, ending at `0x400000`, still well clear of the
+  stores at `0x780000`. DTCM cost is ~2.6 KB for the two copies the store keeps, against ~21 KB
+  free.
 
 Still deferred by choice: Wavetable and Chord engines, a lighter in-house reverb to replace
 ReverbSc, audio input, more preset slots and banks. Still Derek's to decide: whether Grainlet,
