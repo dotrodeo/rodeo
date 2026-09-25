@@ -232,6 +232,76 @@ the PCB is the source of truth here.
 
 ---
 
+### 4. REV-B REVIEW — audible supply/ground coupling into the audio output
+
+**Symptom** (rodeo-002, 2026-09-24, Derek): a high-pitched hum on the line out
+whenever a MIDI key is held, **stacking with each additional key**. Powered from
+a USB brick.
+
+**It is not the firmware.** Two measurements say so:
+
+* Sustained notes rendered on the host through the whole signal path — voices
+  plus the texture chain, four engines — contain **no component that stays at a
+  fixed frequency when the note changes**, down to -80 dB. Everything moves with
+  the pitch. Rendering at a 16-sample block instead of 48 gives an identical
+  spectrum, so the control grid is not leaking in either.
+* On hardware, **the hum persists with master volume at zero**. Volume is
+  applied in software, so the codec is being fed digital silence while the
+  voices keep running. Whatever is audible is not in the audio data.
+
+**Mechanism — hypothesis, consistent with the evidence but NOT yet scoped.**
+The audio callback does a block's work in a burst and then idles, so the MCU's
+current draw is a **1 kHz pulse train whose amplitude scales with the number of
+voices**. Two paths lead from there to the jack, and this board has both:
+
+* **Through VIN.** `USB-C VBUS → VIN → Daisy pin 39`, and the Seed makes its own
+  analog 3.3 V for the codec from that pin — `3V3_A`/`3V3_D` are outputs, left
+  unconnected here, so the codec's analog rail cannot be fed or filtered
+  externally. The pulsed draw is pulled through the USB cable and brick, whose
+  impedance and regulation bandwidth turn it into ripple on VIN; whatever the
+  Seed's internal LDO does not reject at 1 kHz and its harmonics lands on the
+  codec's analog supply.
+* **Through ground.** The outputs are single-ended and **J5's sleeve is the
+  shared board GND**, the same return carrying ADC SPI bursts, I²C to the hub
+  and OLED, the MIDI opto and the pot supply. Any IR drop between the codec's
+  ground reference and the jack sleeve sits in series with the output signal.
+
+Which path dominates cannot be settled from the firmware side. Both are worth
+addressing and both are cheap.
+
+**Bench tests that apportion the blame before committing to a respin:**
+
+1. **Run from a USB power bank.** A large drop points at the brick and cable
+   impedance rather than the board.
+2. **Tack a 220–470 µF low-ESR cap across VIN/GND at A1.** If that kills it, the
+   fix is local bulk decoupling and nothing more.
+3. **Scope VIN (AC-coupled) at the Seed** while holding one key, then six. Look
+   for ripple at 1 kHz and multiples that grows with voice count.
+4. **Unplug the hub and OLED** (the panel dies, audio does not). Apportions the
+   I²C share of the return current.
+5. Firmware can supply a **constant-CPU-load build** — all eight voices always
+   rendered, unused ones gated silent. If the hum stops tracking the key count,
+   the load → supply path is proven outright.
+
+**For Rev B, review:**
+
+* **Local bulk capacitance at the Seed's VIN/GND pins** — the cheapest and most
+  likely sufficient change. It keeps the 1 kHz pulse loop local instead of
+  letting it run out through the USB cable.
+* **Ground topology around the audio jacks.** Return J4/J5 sleeves to the Seed's
+  ground reference by a dedicated path rather than through the pour that carries
+  ADC, I²C and MIDI return current, and keep those loops away from it.
+* **Output series resistance.** J4 (line in) has 100 Ω per leg; **J5 has none** —
+  tip goes straight to the Daisy pin. A series R (and optionally a shunt cap)
+  gives a defined output impedance and keeps digital hash off the tip. It will
+  not fix supply-borne hum on its own.
+* **A ferrite or LC between the USB connector and VIN**, so the board's pulsed
+  draw is not shared back onto VBUS.
+* Whether a **clean-supply input option** (barrel jack, or documented guidance
+  that the brick's impedance matters) belongs on the board.
+
+---
+
 ## Firmware-relevant summary
 
 * **Blocked by Issue 1:** all ADC bring-up (milestones 1–5, 7) until the SPI
