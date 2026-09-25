@@ -486,9 +486,13 @@ and runs it from there, which is also fast memory, so DSP cost should carry over
 * **The enclosure needs access to the Daisy's own micro-USB** — updates and the debug log both
   go through it, and the panel USB-C is power-only. Derek is designing this into the case.
 
-## v1.0.0 — 2026-09-25
+## rodeo-002 firmware v1.0.0 — 2026-09-25
 
-The first build that is a finished instrument rather than a bring-up: MIDI, eight voices, the
+**Scoped to this instrument.** The repository holds the whole platform — the motherboard, the
+satellites, rodeo-001 — and each versions itself, so tags are written `rodeo-002-v1.0.0` rather
+than `v1.0.0`, which would claim all of it.
+
+The first build of rodeo-002 that is a finished instrument rather than a bring-up: MIDI, eight voices, the
 texture chain, the panel and OLED, sixteen factory presets with naming, the gesture recorder
 with per-slot persistence, settings pages, and CC in and out. Versioned in
 `firmware/common/version.h` and printed in the startup banner.
@@ -498,7 +502,7 @@ format changes in a way a player or a saved preset would notice — a control mo
 has to be re-saved; **MINOR** for something new that takes nothing away — an engine, an effect
 type, a destination, a page; **PATCH** for a fix.
 
-### Backlog after v1.0.0 (Derek, 2026-09-25)
+### Backlog after rodeo-002 v1.0.0 (Derek, 2026-09-25)
 
 * **The menu is awkward to navigate.** Reported as feeling "difficult and inconsistent" in use.
   Worth a design pass rather than a patch — likely candidates are how entering and leaving
