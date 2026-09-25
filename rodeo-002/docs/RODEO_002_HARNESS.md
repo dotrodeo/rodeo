@@ -25,12 +25,12 @@ Panel positions read left-to-right, top-to-bottom; R1C1 is top-left.
 | R1C3 | Morph | LFO rate | **J8** |
 | R1C4 | Character amount | Bias | **J9** |
 | R2C1 | Cutoff | Filter type *(stepped)* | **J10** |
-| R2C2 | Resonance | Filter env amount | **J11** |
-| R2C3 | Spread | LFO dest *(stepped)* | **J12** |
+| R2C2 | Resonance | LFO depth | **J11** |
+| R2C3 | Filter env | LFO dest *(stepped)* | **J12** |
 | R2C4 | Movement amount | Rate | **J13** |
-| R3C1 | Attack | Decay | **J18** |
-| R3C2 | Release | Sustain | **J19** |
-| R3C3 | Master volume *(global)* | LFO depth | **J20** |
+| R3C1 | Attack | Spread | **J18** |
+| R3C2 | Decay *(= release)* | Glide | **J19** |
+| R3C3 | Sustain | Master volume *(global)* | **J20** |
 | R3C4 | Texture amount | Tone | **J21** |
 | R4C1 | Space Time | Grain pitch | **J22** |
 | R4C2 | Space Feedback | Grain spread | **J23** |

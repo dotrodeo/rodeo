@@ -331,6 +331,19 @@ always shows it ("FM · 6 voices"). **The voice count can therefore change when 
 changes.** With Modal dropped, **every remaining engine fits beside every Space type**, so
 there is no unplayable combination to rule on.
 
+## Envelope — ADS (2026-09-24)
+
+One envelope drives amp and filter, and it has **three controls, not four**: Attack, Decay and
+Sustain, with **Decay setting the fall time whether or not the key is still held** (Moog style,
+Derek's call). The expressive range is the same in practice — a separate release is rarely set
+to something very different from the decay — and it buys back a panel slot, which is what let
+the whole envelope come onto the main layer and Filter env come out of the shift layer.
+
+`Patch` and `StoredPreset` keep a `release` field, moved in step with decay by the panel and by
+CC. Nothing reads it: `VoiceManager` takes the release time from `decay`. It is retained so the
+stored format is byte-identical, which means no version bump and no saved preset lost; a later
+firmware could separate the two again the same way.
+
 ## Preset system
 
 Patches in the Daisy's QSPI flash: engine, all pot values (both layers), all four slot types

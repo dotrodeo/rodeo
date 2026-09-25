@@ -98,12 +98,12 @@ Within each chip the grid is read left-to-right, top-to-bottom onto consecutive 
 | 2  | R1C3 | Morph             | LFO rate                 | U3 | AIN2 | J8  |
 | 3  | R1C4 | **Character amt** | Character **Bias**       | U3 | AIN3 | J9  |
 | 4  | R2C1 | Cutoff            | Filter type *(stepped)*  | U3 | AIN4 | J10 |
-| 5  | R2C2 | Resonance         | Filter env amount        | U3 | AIN5 | J11 |
-| 6  | R2C3 | Spread            | **LFO dest** *(stepped)* | U3 | AIN6 | J12 |
+| 5  | R2C2 | Resonance         | LFO depth                | U3 | AIN5 | J11 |
+| 6  | R2C3 | **Filter env**    | **LFO dest** *(stepped)* | U3 | AIN6 | J12 |
 | 7  | R2C4 | **Movement amt**  | Movement **Rate**        | U3 | AIN7 | J13 |
-| 12 | R3C1 | Attack            | Decay                    | U4 | AIN0 | J18 |
-| 13 | R3C2 | Release           | Sustain                  | U4 | AIN1 | J19 |
-| 14 | R3C3 | Master volume *(global)* | LFO depth         | U4 | AIN2 | J20 |
+| 12 | R3C1 | Attack            | Spread                   | U4 | AIN0 | J18 |
+| 13 | R3C2 | Decay *(= release)* | Glide                  | U4 | AIN1 | J19 |
+| 14 | R3C3 | Sustain           | Master volume *(global)* | U4 | AIN2 | J20 |
 | 15 | R3C4 | **Texture amt**   | Texture **Tone**         | U4 | AIN3 | J21 |
 | 16 | R4C1 | Space Time        | Grain pitch              | U4 | AIN4 | J22 |
 | 17 | R4C2 | Space Feedback    | Grain position spread    | U4 | AIN5 | J23 |
@@ -121,7 +121,27 @@ Within each chip the grid is read left-to-right, top-to-bottom onto consecutive 
   list short — Pitch / Timbre / Morph / Cutoff / Amp / Space mix — so the steps stay readable.
 * **Master volume is global and always live.** It is never stored in a preset and never
   waits for pickup — it is the physical output level, and a preset load must not move it
-  (Derek, 2026-09-21).
+  (Derek, 2026-09-21). **It moved behind SHIFT on 2026-09-24**, freeing a main-layer pot; being
+  global, it is live the instant it moves even though it sits on the shift layer.
+
+### Revision, 2026-09-24 — three changes that paid for each other
+
+**The envelope is ADS, Moog style: Decay sets the fall time whether or not the key is still
+held.** That is one knob instead of two for the same expressive range, and it puts the whole
+envelope — Attack, Decay, Sustain — on the **main** layer, where it had been split across both.
+`Patch` keeps a `release` field, moved in step by the panel, so the stored preset format is
+unchanged and a later firmware could separate them again without a version bump.
+
+**Spread moved to the shift layer.** Not a taste judgement: `VoiceManager` passes a detune of
+zero in Poly and Mono and only spreads voices in **Unison**, so the knob is inert in normal
+playing. That is the profile of a shift-layer parameter, not a main one. (If Spread should do
+something polyphonic — per-voice detune or stereo placement — that is a separate change, and it
+would earn its way back.)
+
+**Master volume moved behind SHIFT**, and the freed slots went to **Sustain** and **Filter env**
+— the latter promoted out of the shift layer onto R2C3, beside Cutoff and Resonance, so the
+whole filter is one row. **Glide** takes the last free shift slot; it was previously reachable
+only by loading a preset.
 * **Some parameters live on MAIN's settings pages, not the panel** — the set-once-per-patch
   ones: filter keytrack, glide time, LFO shape, velocity→filter amount and pitch-bend range.
   Keytrack gave its panel position to LFO destination, which is played with rather than set.

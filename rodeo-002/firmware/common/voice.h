@@ -120,7 +120,12 @@ class VoiceManager
             x.env.SetAttackTime(ExpMap(p.attack, 0.001f, 8.f));
             x.env.SetDecayTime(ExpMap(p.decay, 0.005f, 8.f));
             x.env.SetSustainLevel(p.sustain);
-            x.env.SetReleaseTime(ExpMap(p.release, 0.005f, 12.f));
+            // ADS (Derek, 2026-09-24): the Decay knob sets the fall time
+            // whether or not the key is still down, so there is no separate
+            // release. p.release is kept in the patch and moved in step by the
+            // Ui, so the stored format is unchanged and a future firmware can
+            // separate them again without a version bump.
+            x.env.SetReleaseTime(ExpMap(p.decay, 0.005f, 12.f));
         }
         // Targets only: the smoothers walk toward these per block (see Render).
         sm_harmonics_.Set(p.harmonics);

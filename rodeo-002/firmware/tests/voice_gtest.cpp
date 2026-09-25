@@ -55,7 +55,7 @@ TEST(VoiceManager, PlaysAndThenGoesQuiet)
     VoiceManager vm;
     vm.Init(kSr);
     Patch p;
-    p.release = 0.05f;
+    p.decay = 0.05f; // ADS: decay is the release time
     vm.ApplyPatch(p);
     vm.NoteOn(60, 0.8f);
     EXPECT_GT(Render(vm, 0.5f).peak, 0.01f);
@@ -104,7 +104,7 @@ TEST(VoiceManager, SustainPedalHoldsNotesAfterRelease)
     VoiceManager vm;
     vm.Init(kSr);
     Patch p;
-    p.release = 0.02f;
+    p.decay = 0.02f; // ADS: decay is the release time
     vm.ApplyPatch(p);
     vm.SetSustain(true);
     vm.NoteOn(60, 0.8f);
@@ -309,4 +309,30 @@ TEST(VoiceManager, TheLfoRateKnobIsMonotonic)
     const double c = LfoHz(1.f);
     EXPECT_LT(a, b);
     EXPECT_LT(b, c);
+}
+
+// ADS, Moog style (2026-09-24): there is no separate release time. The Decay
+// knob sets the fall whether the key is still held or not, so a short decay has
+// to give a short tail after note-off -- p.release is not consulted at all.
+TEST(VoiceManager, DecayIsTheReleaseTime)
+{
+    for(float decay : {0.05f, 0.9f})
+    {
+        VoiceManager vm;
+        vm.Init(kSr);
+        Patch p;
+        p.decay   = decay;
+        p.sustain = 1.f;             // hold the level so only the tail differs
+        p.release = 1.f;             // must be ignored
+        vm.ApplyPatch(p);
+        vm.NoteOn(60, 0.8f);
+        Render(vm, 0.3f);
+        vm.NoteOff(60);
+        const float tail = Render(vm, 0.5f).tail;
+        SCOPED_TRACE(testing::Message() << "decay " << decay);
+        if(decay < 0.5f)
+            EXPECT_LT(tail, 1e-3f) << "a short decay left a long tail";
+        else
+            EXPECT_GT(tail, 1e-3f) << "a long decay did not";
+    }
 }

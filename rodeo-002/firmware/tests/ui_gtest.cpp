@@ -105,9 +105,18 @@ TEST(Ui, ShiftSwapsTheLayerAndPickupProtectsBothSides)
 TEST(Ui, MasterVolumeIsAlwaysLive)
 {
     Rig r;
-    // Pot 10 is Volume: global, never picked up.
+    // Volume moved behind SHIFT on 2026-09-24, freeing a main-layer pot. It is
+    // still global: live the moment it moves, never waiting for pickup.
+    r.HoldMain(true);
+    r.Tick();
     r.MovePot(10, 0.25f);
     EXPECT_NEAR(r.ui.globals().volume, 0.25f, 1e-5f);
+    // ...and the main layer under it is Sustain, which does wait for pickup.
+    r.HoldMain(false);
+    r.Tick();
+    const float before = r.ui.patch().sustain;
+    r.MovePot(10, 0.26f);
+    EXPECT_NEAR(r.ui.patch().sustain, before, 1e-5f) << "Sustain took hold without pickup";
 }
 
 TEST(Ui, MainEncoderSelectsEngineAndPushTurnSelectsVoiceMode)
@@ -522,18 +531,28 @@ TEST(Ui, AnEnvelopePotAsksForTheWholeEnvelope)
     EXPECT_FLOAT_EQ(d.env[0], r.ui.patch().attack);
     EXPECT_FLOAT_EQ(d.env[1], r.ui.patch().decay);
     EXPECT_FLOAT_EQ(d.env[2], r.ui.patch().sustain);
-    EXPECT_FLOAT_EQ(d.env[3], r.ui.patch().release);
 
-    r.MovePot(9, 0.6f); // release
-    EXPECT_EQ(d.readout, Readout::kEnvelope);
-    EXPECT_EQ(d.env_moving, 3);
-
-    // Decay and sustain live on the shift layer and belong to the same picture.
-    r.HoldMain(true);
-    r.Tick();
-    r.MovePot(8, 0.55f); // decay
+    r.MovePot(9, 0.6f); // decay
     EXPECT_EQ(d.readout, Readout::kEnvelope);
     EXPECT_EQ(d.env_moving, 1);
+
+    r.MovePot(10, 0.3f); // sustain -- all three are on the main layer now
+    EXPECT_EQ(d.readout, Readout::kEnvelope);
+    EXPECT_EQ(d.env_moving, 2);
+}
+
+// ADS, Moog style: Decay is the fall time whether or not the key is still down,
+// so the drawing's release segment follows it and the patch keeps both fields in
+// step -- what a preset stores is what the panel can express.
+TEST(Ui, DecaySetsTheReleaseAsWell)
+{
+    Rig r;
+    r.MovePot(9, 0.2f);  // down across the stored value, so the pot catches
+    r.MovePot(9, 0.62f);
+    EXPECT_NEAR(r.ui.patch().decay, 0.62f, 0.02f);
+    EXPECT_FLOAT_EQ(r.ui.patch().release, r.ui.patch().decay);
+    EXPECT_FLOAT_EQ(r.ui.display().env[3], r.ui.patch().decay)
+        << "the picture shows a release the sound does not have";
 }
 
 TEST(Ui, TheReadoutGivesTheSpaceBackWhenNothingIsTouched)

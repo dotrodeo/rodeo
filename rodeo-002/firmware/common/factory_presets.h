@@ -35,7 +35,13 @@ inline void BuildFactoryBank(PresetBank& b)
     }
 
     int n = 0;
-    auto add = [&](const char* name, const Patch& p) {
+    // Taken by value so the fall time can be normalised: the envelope is ADS
+    // (Derek, 2026-09-24), so decay IS the release, and a preset must not carry
+    // a release the panel cannot express. Where the two used to differ, the
+    // decay below carries whichever mattered more to the sound -- the tail for
+    // the pads, the fall to sustain for the struck ones.
+    auto add = [&](const char* name, Patch p) {
+        p.release = p.decay;
         if(n < PresetBank::kNumSlots)
             PatchToPreset(p, name, b.slot[n++]);
     };
@@ -57,9 +63,8 @@ inline void BuildFactoryBank(PresetBank& b)
         p.cutoff     = 0.55f;
         p.resonance  = 0.15f;
         p.attack     = 0.45f;
-        p.decay      = 0.50f;
+        p.decay      = 0.60f;
         p.sustain    = 0.80f;
-        p.release    = 0.60f;
         p.lfo_dest   = LfoDest::kMorph;
         p.lfo_rate   = 0.15f;
         p.lfo_depth  = 0.25f;
@@ -86,7 +91,6 @@ inline void BuildFactoryBank(PresetBank& b)
         p.attack    = 0.02f;
         p.decay     = 0.35f;
         p.sustain   = 0.35f;
-        p.release   = 0.30f;
         p.type[TextureChain::kCharacter]   = Character::kWarm;
         p.amount[TextureChain::kCharacter] = 0.30f;
         p.type[TextureChain::kTexture]     = Texture::kTape;
@@ -108,8 +112,8 @@ inline void BuildFactoryBank(PresetBank& b)
         p.spread    = 0.30f;
         p.cutoff    = 0.70f;
         p.attack    = 0.30f;
+        p.decay    = 0.50f;
         p.sustain   = 0.85f;
-        p.release   = 0.50f;
         p.type[TextureChain::kCharacter]     = Character::kWarm;
         p.amount[TextureChain::kCharacter]   = 0.35f;
         p.type[TextureChain::kMovement]      = Movement::kVibrato;
@@ -134,9 +138,8 @@ inline void BuildFactoryBank(PresetBank& b)
         p.morph     = 0.60f;
         p.cutoff    = 0.90f;
         p.attack    = 0.00f;
-        p.decay     = 0.50f;
+        p.decay     = 0.60f;
         p.sustain   = 0.20f;
-        p.release   = 0.70f;
         p.type[TextureChain::kSpace]      = Space::kReverb;
         p.amount[TextureChain::kSpace]    = 0.55f;
         p.secondary[TextureChain::kSpace] = 0.35f; // damp
@@ -155,9 +158,8 @@ inline void BuildFactoryBank(PresetBank& b)
         p.cutoff    = 0.60f;
         p.resonance = 0.30f;
         p.attack    = 0.01f;
-        p.decay     = 0.30f;
+        p.decay     = 0.28f;
         p.sustain   = 0.60f;
-        p.release   = 0.20f;
         p.type[TextureChain::kCharacter]     = Character::kFuzz;
         p.amount[TextureChain::kCharacter]   = 0.55f;
         p.secondary[TextureChain::kCharacter] = 0.60f; // bias
@@ -186,9 +188,8 @@ inline void BuildFactoryBank(PresetBank& b)
         p.filter_env    = 0.75f;
         p.vel_to_filter = 0.50f;
         p.attack        = 0.01f;
-        p.decay         = 0.35f;
+        p.decay         = 0.30f;
         p.sustain       = 0.50f;
-        p.release       = 0.20f;
         p.type[TextureChain::kCharacter]   = Character::kDrive;
         p.amount[TextureChain::kCharacter] = 0.45f;
         p.type[TextureChain::kSpace]       = Space::kEcho;
@@ -206,8 +207,8 @@ inline void BuildFactoryBank(PresetBank& b)
         p.spread    = 0.50f;
         p.cutoff    = 0.60f;
         p.attack    = 0.50f;
+        p.decay    = 0.80f;
         p.sustain   = 0.90f;
-        p.release   = 0.80f;
         p.lfo_dest  = LfoDest::kCutoff;
         p.lfo_rate  = 0.10f;
         p.lfo_depth = 0.20f;
@@ -234,9 +235,8 @@ inline void BuildFactoryBank(PresetBank& b)
         p.cutoff     = 0.80f;
         p.resonance  = 0.25f;
         p.attack     = 0.00f;
-        p.decay      = 0.25f;
+        p.decay      = 0.22f;
         p.sustain    = 0.15f;
-        p.release    = 0.18f;
         p.filter_env = 0.70f;
         p.type[TextureChain::kCharacter]   = Character::kDrive;
         p.amount[TextureChain::kCharacter] = 0.35f;
@@ -256,8 +256,8 @@ inline void BuildFactoryBank(PresetBank& b)
         p.harmonics  = 0.55f;
         p.cutoff     = 0.50f;
         p.attack     = 0.70f;
+        p.decay     = 0.90f;
         p.sustain    = 1.00f;
-        p.release    = 0.90f;
         p.lfo_dest   = LfoDest::kMorph;
         p.lfo_rate   = 0.08f;
         p.lfo_depth  = 0.35f;
@@ -277,9 +277,8 @@ inline void BuildFactoryBank(PresetBank& b)
         p.timbre    = 0.35f;
         p.cutoff    = 0.75f;
         p.attack    = 0.02f;
-        p.decay     = 0.40f;
+        p.decay     = 0.38f;
         p.sustain   = 0.40f;
-        p.release   = 0.35f;
         p.type[TextureChain::kSpace]   = Space::kReverse;
         p.amount[TextureChain::kSpace] = 0.55f;
         p.space_time                   = 0.45f;
@@ -298,7 +297,6 @@ inline void BuildFactoryBank(PresetBank& b)
         p.attack    = 0.00f;
         p.decay     = 0.55f;
         p.sustain   = 0.10f;
-        p.release   = 0.55f;
         p.type[TextureChain::kTexture]    = Texture::kDust;
         p.amount[TextureChain::kTexture]  = 0.35f;
         p.type[TextureChain::kSpace]      = Space::kReverb;
@@ -321,9 +319,8 @@ inline void BuildFactoryBank(PresetBank& b)
         p.resonance  = 0.35f;
         p.filter_env = 0.80f;
         p.attack     = 0.00f;
-        p.decay      = 0.30f;
+        p.decay      = 0.25f;
         p.sustain    = 0.45f;
-        p.release    = 0.15f;
         p.type[TextureChain::kCharacter]      = Character::kFold;
         p.amount[TextureChain::kCharacter]    = 0.40f;
         p.secondary[TextureChain::kCharacter] = 0.40f;
@@ -339,8 +336,8 @@ inline void BuildFactoryBank(PresetBank& b)
         p.spread    = 0.40f;
         p.cutoff    = 0.65f;
         p.attack    = 0.25f;
+        p.decay    = 0.55f;
         p.sustain   = 0.85f;
-        p.release   = 0.55f;
         p.lfo_dest  = LfoDest::kTimbre;
         p.lfo_rate  = 0.20f;
         p.lfo_depth = 0.30f;
@@ -362,9 +359,8 @@ inline void BuildFactoryBank(PresetBank& b)
         p.cutoff    = 0.70f;
         p.resonance = 0.20f;
         p.attack    = 0.00f;
-        p.decay     = 0.20f;
+        p.decay     = 0.22f;
         p.sustain   = 0.05f;
-        p.release   = 0.25f;
         p.type[TextureChain::kTexture]     = Texture::kSquash;
         p.amount[TextureChain::kTexture]   = 0.60f;
         p.secondary[TextureChain::kTexture] = 0.55f;
@@ -384,8 +380,8 @@ inline void BuildFactoryBank(PresetBank& b)
         p.spread    = 0.30f;
         p.cutoff    = 0.60f;
         p.attack    = 0.35f;
+        p.decay    = 0.70f;
         p.sustain   = 0.90f;
-        p.release   = 0.70f;
         p.lfo_dest  = LfoDest::kCutoff;
         p.lfo_rate  = 0.12f;
         p.lfo_depth = 0.40f;

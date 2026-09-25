@@ -156,8 +156,8 @@ Every panel parameter is also on MIDI CC, laid out in panel order:
 
 | CC | What |
 |---|---|
-| 70–85 | Main layer, panel order: 70 harmonics, 71 timbre, 72 morph, 73 character amt, 74 cutoff, 75 resonance, 76 spread, 77 movement amt, 78 attack, 79 release, 80 volume, 81 texture amt, 82 space time, 83 space feedback, 84 space grain, 85 space mix |
-| 90–105 | Shift layer, same order: 90 env→timbre, 91 env→morph, 92 LFO rate, 93 character bias, 94 filter type, 95 filter env, 96 LFO dest, 97 movement rate, 98 decay, 99 sustain, 100 LFO depth, 101 texture tone, 102 grain pitch, 103 grain spread, 104 tilt, 105 space damp |
+| 70–85 | Main layer, panel order: 70 harmonics, 71 timbre, 72 morph, 73 character amt, 74 cutoff, 75 resonance, 76 filter env, 77 movement amt, 78 attack, 79 decay *(also sets release)*, 80 sustain, 81 texture amt, 82 space time, 83 space feedback, 84 space grain, 85 space mix |
+| 90–105 | Shift layer, same order: 90 env→timbre, 91 env→morph, 92 LFO rate, 93 character bias, 94 filter type, 95 LFO depth, 96 LFO dest, 97 movement rate, 98 spread, 99 glide, 100 volume, 101 texture tone, 102 grain pitch, 103 grain spread, 104 tilt, 105 space damp |
 | 110–120 | 110 engine · 111–114 slot types · 115 voice mode · 116 freeze · 117–120 slot bypass |
 | 1, 64 | Mod wheel, sustain pedal |
 

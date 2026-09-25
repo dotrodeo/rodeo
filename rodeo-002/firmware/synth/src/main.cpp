@@ -239,13 +239,13 @@ enum : uint8_t
 {
     // main layer, panel order
     kCcHarmonics = 70, kCcTimbre, kCcMorph, kCcCharacterAmt,
-    kCcCutoff, kCcResonance, kCcSpread, kCcMovementAmt,
-    kCcAttack, kCcRelease, kCcVolume, kCcTextureAmt,
+    kCcCutoff, kCcResonance, kCcFilterEnv, kCcMovementAmt,
+    kCcAttack, kCcDecay, kCcSustain, kCcTextureAmt,
     kCcSpaceTime, kCcSpaceFeedback, kCcSpaceGrain, kCcSpaceMix,
     // shift layer, same order
     kCcEnvToTimbre = 90, kCcEnvToMorph, kCcLfoRate, kCcCharacterBias,
-    kCcFilterType, kCcFilterEnv, kCcLfoDest, kCcMovementRate,
-    kCcDecay, kCcSustain, kCcLfoDepth, kCcTextureTone,
+    kCcFilterType, kCcLfoDepth, kCcLfoDest, kCcMovementRate,
+    kCcSpread, kCcGlide, kCcVolume, kCcTextureTone,
     kCcGrainPitch, kCcGrainSpread, kCcTilt, kCcSpaceDamp,
     // discrete
     kCcEngine = 110, kCcCharacterType, kCcMovementType, kCcTextureType, kCcSpaceType,
@@ -275,7 +275,6 @@ static void HandleCc(uint8_t cc, uint8_t value)
         case kCcSpread: patch.spread = f; return;
         case kCcMovementAmt: patch.amount[TextureChain::kMovement] = f; return;
         case kCcAttack: patch.attack = f; return;
-        case kCcRelease: patch.release = f; return;
         case kCcVolume: globals.volume = f; return;
         case kCcTextureAmt: patch.amount[TextureChain::kTexture] = f; return;
         case kCcSpaceTime: patch.space_time = f; return;
@@ -297,7 +296,13 @@ static void HandleCc(uint8_t cc, uint8_t value)
                 = static_cast<LfoDest>(Step(value, static_cast<int>(LfoDest::kCount)));
             return;
         case kCcMovementRate: patch.secondary[TextureChain::kMovement] = f; return;
-        case kCcDecay: patch.decay = f; return;
+        // ADS: one fall time, held or not -- kept in step so the stored patch
+        // says the same thing the panel does.
+        case kCcDecay:
+            patch.decay   = f;
+            patch.release = f;
+            return;
+        case kCcGlide: patch.glide = f; return;
         case kCcSustain: patch.sustain = f; return;
         case kCcLfoDepth: patch.lfo_depth = f; return;
         case kCcTextureTone: patch.secondary[TextureChain::kTexture] = f; return;
@@ -491,8 +496,10 @@ static void DrawEnvelope(const DisplayState& d)
     for(int i = 0; i < 4; i++)
     {
         // The segment being moved is drawn twice, a pixel apart: on a 1-bit
-        // display that is the only "highlight" available.
-        const bool moving = (d.env_moving == 2 ? (i == 2) : (i == d.env_moving));
+        // display that is the only "highlight" available. Decay owns the
+        // release segment as well -- this is an ADS envelope -- so both light
+        // up, which is what that knob does to the sound.
+        const bool moving = i == d.env_moving || (d.env_moving == 1 && i == 3);
         display.DrawLine(static_cast<uint8_t>(x[i]), static_cast<uint8_t>(y[i]),
                          static_cast<uint8_t>(x[i + 1]), static_cast<uint8_t>(y[i + 1]), true);
         if(moving)

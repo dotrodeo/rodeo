@@ -40,13 +40,13 @@ enum class ParamId
 {
     // main layer, pot 0..15
     kHarmonics = 0, kTimbre, kMorph, kCharacterAmt,
-    kCutoff, kResonance, kSpread, kMovementAmt,
-    kAttack, kRelease, kVolume, kTextureAmt,
+    kCutoff, kResonance, kFilterEnv, kMovementAmt,
+    kAttack, kDecay, kSustain, kTextureAmt,
     kSpaceTime, kSpaceFeedback, kSpaceGrain, kSpaceMix,
     // shift layer, same pots
     kEnvToTimbre, kEnvToMorph, kLfoRate, kCharacterBias,
-    kFilterType, kFilterEnv, kLfoDest, kMovementRate,
-    kDecay, kSustain, kLfoDepth, kTextureTone,
+    kFilterType, kLfoDepth, kLfoDest, kMovementRate,
+    kSpread, kGlide, kVolume, kTextureTone,
     kGrainPitch, kGrainSpread, kTilt, kSpaceDamp,
     kCount
 };
@@ -55,10 +55,10 @@ inline const char* ParamName(ParamId p)
 {
     static const char* kNames[] = {
         "Harmonics", "Timbre",    "Morph",     "Character", "Cutoff",    "Resonance",
-        "Spread",    "Movement",  "Attack",    "Release",   "Volume",    "Texture",
+        "Filt env",  "Movement",  "Attack",    "Decay",     "Sustain",   "Texture",
         "Time",      "Feedback",  "Grain",     "Space mix", "Env>Timbre", "Env>Morph",
-        "LFO rate",  "Bias",      "Filter",    "Filt env",  "LFO dest",  "Rate",
-        "Decay",     "Sustain",   "LFO depth", "Tone",      "Pitch",     "Spread",
+        "LFO rate",  "Bias",      "Filter",    "LFO depth", "LFO dest",  "Rate",
+        "Spread",    "Glide",     "Volume",    "Tone",      "Pitch",     "Spread",
         "Tilt",      "Damp"};
     const int i = static_cast<int>(p);
     return (i >= 0 && i < static_cast<int>(ParamId::kCount)) ? kNames[i] : "?";
@@ -558,7 +558,7 @@ class Ui
             display_.env[0]     = patch_.attack;
             display_.env[1]     = patch_.decay;
             display_.env[2]     = patch_.sustain;
-            display_.env[3]     = patch_.release;
+            display_.env[3]     = patch_.decay; // ADS: release follows decay
             display_.env_moving = EnvSegment(p);
         }
         else
@@ -576,6 +576,11 @@ class Ui
         return EnvSegment(p) >= 0 ? Readout::kEnvelope : Readout::kBar;
     }
 
+    /** Which part of the envelope picture a pot is moving. There is no release
+     *  segment of its own: this is an ADS envelope, Moog style, where Decay
+     *  sets the release time as well (Derek, 2026-09-24). Moving Decay
+     *  therefore moves two segments of the drawing, which is exactly what it
+     *  does to the sound. */
     static int EnvSegment(ParamId p)
     {
         switch(p)
@@ -583,7 +588,6 @@ class Ui
             case ParamId::kAttack: return 0;
             case ParamId::kDecay: return 1;
             case ParamId::kSustain: return 2;
-            case ParamId::kRelease: return 3;
             default: return -1;
         }
     }
@@ -609,11 +613,11 @@ class Ui
             case ParamId::kCharacterAmt: return x.amount[fx::TextureChain::kCharacter];
             case ParamId::kCutoff: return x.cutoff;
             case ParamId::kResonance: return x.resonance;
-            case ParamId::kSpread: return x.spread;
+            case ParamId::kFilterEnv: return x.filter_env;
             case ParamId::kMovementAmt: return x.amount[fx::TextureChain::kMovement];
             case ParamId::kAttack: return x.attack;
-            case ParamId::kRelease: return x.release;
-            case ParamId::kVolume: return globals_.volume;
+            case ParamId::kDecay: return x.decay;
+            case ParamId::kSustain: return x.sustain;
             case ParamId::kTextureAmt: return x.amount[fx::TextureChain::kTexture];
             case ParamId::kSpaceTime: return x.space_time;
             case ParamId::kSpaceFeedback: return x.space_feedback;
@@ -625,13 +629,13 @@ class Ui
             case ParamId::kCharacterBias: return x.secondary[fx::TextureChain::kCharacter];
             case ParamId::kFilterType:
                 return StepToPot(static_cast<int>(x.filter), static_cast<int>(FilterType::kCount));
-            case ParamId::kFilterEnv: return x.filter_env;
+            case ParamId::kLfoDepth: return x.lfo_depth;
             case ParamId::kLfoDest:
                 return StepToPot(static_cast<int>(x.lfo_dest), static_cast<int>(LfoDest::kCount));
             case ParamId::kMovementRate: return x.secondary[fx::TextureChain::kMovement];
-            case ParamId::kDecay: return x.decay;
-            case ParamId::kSustain: return x.sustain;
-            case ParamId::kLfoDepth: return x.lfo_depth;
+            case ParamId::kSpread: return x.spread;
+            case ParamId::kGlide: return x.glide;
+            case ParamId::kVolume: return globals_.volume;
             case ParamId::kTextureTone: return x.secondary[fx::TextureChain::kTexture];
             case ParamId::kGrainPitch: return x.grain_pitch;
             case ParamId::kGrainSpread: return x.grain_spread;
@@ -654,7 +658,6 @@ class Ui
             case ParamId::kSpread: x.spread = v; break;
             case ParamId::kMovementAmt: x.amount[fx::TextureChain::kMovement] = v; break;
             case ParamId::kAttack: x.attack = v; break;
-            case ParamId::kRelease: x.release = v; break;
             case ParamId::kVolume: globals_.volume = v; break;
             case ParamId::kTextureAmt: x.amount[fx::TextureChain::kTexture] = v; break;
             case ParamId::kSpaceTime: x.space_time = v; break;
@@ -675,7 +678,14 @@ class Ui
                     = static_cast<LfoDest>(PotToStep(v, static_cast<int>(LfoDest::kCount)));
                 break;
             case ParamId::kMovementRate: x.secondary[fx::TextureChain::kMovement] = v; break;
-            case ParamId::kDecay: x.decay = v; break;
+            // ADS, Moog style: one knob for the fall time, whether the note is
+            // still held or not. The patch keeps both fields in step so that
+            // what a preset stores is what the panel can express.
+            case ParamId::kDecay:
+                x.decay = v;
+                x.release = v;
+                break;
+            case ParamId::kGlide: x.glide = v; break;
             case ParamId::kSustain: x.sustain = v; break;
             case ParamId::kLfoDepth: x.lfo_depth = v; break;
             case ParamId::kTextureTone: x.secondary[fx::TextureChain::kTexture] = v; break;
