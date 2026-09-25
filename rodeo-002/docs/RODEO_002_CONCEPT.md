@@ -344,6 +344,26 @@ CC. Nothing reads it: `VoiceManager` takes the release time from `decay`. It is 
 stored format is byte-identical, which means no version bump and no saved preset lost; a later
 firmware could separate the two again the same way.
 
+**Two rules about starting a voice**, both learned the hard way on 2026-09-24, when Decay at
+zero made the synth "somewhat randomly" stop responding to keypresses in a way no preset change
+could clear:
+
+* **Start a voice by retriggering its envelope, never by the gate alone.** DaisySP's `Adsr`
+  restarts on a rising edge (`gate && !gate_`), and there is no edge when a voice is re-used for
+  the same note or stolen while it is still held -- its gate was already high. The envelope then
+  continues from wherever it was, which is inaudible with a long decay and *silent* with a short
+  one.
+* **A voice is finished only once it has been released and freed**, not merely when it is silent
+  and idle. With sustain at zero the envelope reaches IDLE while the key is still down, so a
+  note-off that skips the voice means the `Adsr` never sees the falling edge and its internal
+  gate flag stays true for ever -- after which no note-on has a rising edge and the voice is
+  dead until reset. A negative note number is the marker for properly wound down; rendering one
+  more block of silence is what earns it.
+
+Mono is exempt from the first rule on purpose: it is legato, so a new note over a held one
+changes pitch without restarting the envelope. `MonoOn` therefore writes the voice directly
+rather than going through `Start()`.
+
 ## Preset system
 
 Patches in the Daisy's QSPI flash: engine, all pot values (both layers), all four slot types
