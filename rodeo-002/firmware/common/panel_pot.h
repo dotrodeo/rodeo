@@ -26,7 +26,23 @@
 // forbids it even for a +20% pot (3.3 * 12/13 = 3.046) -- so anything above
 // kSwappedThreshold is necessarily supply-swapped. A swapped one cannot read
 // below ~0.25 V for the same reason, so anything under kCorrectThreshold is
-// necessarily wired correctly.
+// necessarily wired correctly -- BUT ONLY IF THE READING IS REAL.
+//
+// THE TWO ENDS ARE NOT EQUALLY TRUSTWORTHY, and assuming they were cost a
+// session. The platform's ADC cache is zero-initialised (`rodeo_adc.h`), so
+// every channel reads exactly 0.00 V until its first conversion lands -- and a
+// full 16-channel scan takes ~19 ms while this loop runs at 25 kHz, so at boot
+// each channel is offered as 0.00 V hundreds of times before any real data
+// exists. That looked exactly like proof of correct wiring, latched on every
+// channel at every boot, and overwrote the map restored from flash within
+// milliseconds of restoring it. A supply-swapped pot then mapped its true
+// bottom of 0.30 V to 0.065 and could not reach zero until it was swept to the
+// top, which flipped the verdict back (Derek, 2026-09-25: "I frequently have to
+// re-sweep knobs to them to reach 0").
+//
+// So: a HIGH reading is proof on its own -- nothing unconverted reads 3.3 V --
+// while a LOW reading only counts once the channel has proved it is alive by
+// producing a real reading at some point. An unconverted channel never does.
 //
 // UNTIL ONE OF THEM IS PROVEN, ASSUME NEITHER. Assuming correct wiring is what
 // broke pickup on hardware (2026-09-24): a swapped pot read 0.065 at its stop
@@ -85,8 +101,14 @@ class PanelPots
      *  stop. */
     static constexpr float kDeadZone = 0.04f;
     /** A swapped satellite bottoms out at ~0.25 V even at +20% tolerance
-     *  (3.3 / 13), so anything below this was wired correctly. */
+     *  (3.3 / 13), so anything below this was wired correctly -- provided the
+     *  channel is alive; see kLiveThreshold. */
     static constexpr float kCorrectThreshold = 0.20f;
+    /** A channel has to have been seen above this before a LOW reading is taken
+     *  as evidence of anything. An ADC channel that has not converted yet reads
+     *  exactly 0.00 V and never rises, so it can never clear this bar. Any real
+     *  pot clears it the moment it is turned. */
+    static constexpr float kLiveThreshold = 0.50f;
     /** Consecutive readings past a threshold before the verdict sticks. One
      *  sample is not proof: the verdict is permanent and stored, so a lone
      *  spike must not be able to set it. */
@@ -125,10 +147,12 @@ class PanelPots
         bool operator!=(const Calibration& o) const { return !(*this == o); }
     };
     static constexpr uint32_t kMagic = 0x52325043u; // "R2PC"
-    /** 3: v1 stored learned endpoints, which are gone; v2 knew only "swapped
-     *  or not", with unproven treated as correct. An old store is rejected and
+    /** 4: v1 stored learned endpoints, which are gone; v2 knew only "swapped
+     *  or not", with unproven treated as correct; v3's maps are poisoned --
+     *  every channel in them was marked correctly wired by the zeros an ADC
+     *  channel shows before its first conversion. An old store is rejected and
      *  the wiring proves itself again, which takes one turn to either stop. */
-    static constexpr uint16_t kVersion = 3;
+    static constexpr uint16_t kVersion = 4;
 
     void Init()
     {
@@ -172,8 +196,11 @@ class PanelPots
                 revision_++;
             }
         }
-        else if(volts < kCorrectThreshold)
+        else if(volts < kCorrectThreshold && c.seen_hi > kLiveThreshold)
         {
+            // Only from a channel that has produced a real reading at some
+            // point -- otherwise the zeros a channel shows before its first
+            // conversion would prove it correctly wired, every boot.
             c.high_run = 0;
             if(c.wiring != Wiring::kCorrect && ++c.low_run >= kSwappedConfirm)
             {

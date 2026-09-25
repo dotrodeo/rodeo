@@ -174,6 +174,18 @@ it:** only a swapped run can read above 3.15 V, and only a correct one can read
 below 0.20 V, in both cases for several readings in a row so a spike cannot set
 it. The verdict is then written to flash.
 
+**The two ends are not equally trustworthy.** A high reading is proof on its own
+— nothing that has not converted reads 3.3 V. A low one counts only once the
+channel has been seen above 0.5 V at some point, because **the platform's ADC
+cache is zero-initialised**: every channel reads exactly 0.00 V until its first
+conversion lands, and a full 16-channel scan takes ~19 ms while the panel loop
+runs at 25 kHz. Those zeros looked exactly like proof of correct wiring, so on
+2026-09-25 every channel was being marked correctly wired at every boot —
+overwriting the map that had *just* been restored from flash. A supply-swapped
+pot then mapped its true bottom of 0.30 V to 0.065 and could not reach zero
+until it was swept to the top, which flipped the verdict back. Symptom: *"I
+frequently have to re-sweep knobs to them to reach 0."*
+
 **Until a run proves itself it is treated as neither**, and mapped so that both
 wirings reach a true 0 and 1 — at the cost of more dead travel than either needs.
 Assuming correct wiring instead is what broke pickup on 2026-09-24: a swapped pot

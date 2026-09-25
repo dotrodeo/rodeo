@@ -42,10 +42,15 @@ void ShowTheTop(PanelPots& p, int ch, float (*wiring)(float, float), float rpot 
         p.Normalize(ch, wiring(1.f, rpot));
 }
 
-// Turned fully DOWN: only a correctly wired run can reach 0 V.
+// Turned fully DOWN -- which a real pot arrives at from somewhere. Only a
+// correctly wired run can reach 0 V, but a LOW reading only proves that once
+// the channel has shown it is alive (kLiveThreshold): an ADC channel that has
+// not converted yet also reads 0 V, for ever.
 void ShowTheBottom(PanelPots& p, int ch, float (*wiring)(float, float), float rpot = 10000.f)
 {
-    for(int i = 0; i < 10; i++)
+    for(int i = 10; i >= 0; i--) // swept down from the top
+        p.Normalize(ch, wiring(static_cast<float>(i) / 10.f, rpot));
+    for(int i = 0; i < 10; i++) // and left there
         p.Normalize(ch, wiring(0.f, rpot));
 }
 } // namespace
@@ -145,6 +150,9 @@ TEST(PanelPots, TheDeadZoneIsSmallAndTheMiddleIsUnmoved)
 {
     PanelPots p;
     p.Init();
+    ShowTheBottom(p, 0, CorrectWiring); // a proven run; the unproven mapping is
+                                        // deliberately wider, and is measured in
+                                        // AnUnprovenRunStillReachesBothEnds
     float leaves_zero = 1.f, reaches_one = 0.f;
     for(int i = 0; i <= 100; i++)
     {
@@ -288,4 +296,65 @@ TEST(PanelPots, UnsweptChannelsStillProduceSomethingSensible)
         EXPECT_GE(n, 0.f);
         EXPECT_LE(n, 1.f);
     }
+}
+
+// THE 2026-09-25 FAULT, and the reason a stored wiring map was worthless.
+//
+// The platform's ADC cache is zero-initialised, so every channel reads exactly
+// 0.00 V until its first conversion lands -- hundreds of times over, at boot,
+// because a full scan takes ~19 ms and the panel loop runs at 25 kHz. Those
+// zeros looked exactly like proof of correct wiring, which is what a reading
+// below 0.20 V means from a live channel. Every channel was therefore marked
+// correctly wired at every boot, overwriting the map that had just been
+// restored from flash; a supply-swapped pot then mapped its true bottom of
+// 0.30 V to 0.065 and could not reach zero until it was swept to the top.
+TEST(PanelPots, TheZerosAChannelShowsBeforeItsFirstConversionProveNothing)
+{
+    PanelPots p;
+    p.Init();
+    for(int i = 0; i < 500; i++) // boot: this channel has not converted yet
+        p.Normalize(0, 0.f);
+    EXPECT_FALSE(p.WiringKnown(0)) << "unconverted zeros were taken as a wiring verdict";
+
+    // Now the real pot appears, supply-swapped, sitting at its bottom stop.
+    const float bottom = SupplySwapped(0.f);
+    EXPECT_FLOAT_EQ(p.Normalize(0, bottom), 0.f)
+        << "a supply-swapped pot cannot reach zero after a boot's worth of zeros";
+}
+
+// ...and a restored verdict has to survive those zeros, or persisting it is
+// pointless: the map was being destroyed milliseconds after it was loaded.
+TEST(PanelPots, ARestoredVerdictSurvivesTheBootZeros)
+{
+    PanelPots a;
+    a.Init();
+    ShowTheTop(a, 0, SupplySwapped); // prove it, as a session would
+    PanelPots::Calibration c;
+    a.Export(c);
+
+    PanelPots b; // next power-up
+    b.Init();
+    ASSERT_TRUE(b.Import(c));
+    ASSERT_TRUE(b.IsSupplySwapped(0));
+    for(int i = 0; i < 500; i++) // ...before the ADC has converted anything
+        b.Normalize(0, 0.f);
+    EXPECT_TRUE(b.IsSupplySwapped(0)) << "the boot zeros overwrote the stored verdict";
+    EXPECT_FLOAT_EQ(b.Normalize(0, SupplySwapped(0.f)), 0.f);
+}
+
+// A genuinely correct run must still prove itself -- the fix must not make the
+// low end unusable as evidence, only unusable as evidence from a dead channel.
+TEST(PanelPots, ALiveChannelStillProvesCorrectWiringFromTheLowEnd)
+{
+    PanelPots p;
+    p.Init();
+    // A real correctly-wired pot, swept down from the top and left there: it
+    // has been seen high, so its low end means something.
+    for(int i = 20; i >= 0; i--)
+        p.Normalize(0, CorrectWiring(static_cast<float>(i) / 20.f));
+    for(int i = 0; i < 5; i++)
+        p.Normalize(0, CorrectWiring(0.f));
+    EXPECT_TRUE(p.WiringKnown(0));
+    EXPECT_FALSE(p.IsSupplySwapped(0));
+    EXPECT_FLOAT_EQ(p.Normalize(0, CorrectWiring(1.f)), 1.f);
 }
