@@ -162,6 +162,12 @@ class Lfo
         edge_coeff_ = TimeCoeff(0.001f, sample_rate);
     }
 
+    static const char* ShapeName(int s)
+    {
+        static const char* kNames[kNumShapes] = {"Sine", "Triangle", "Square", "Random"};
+        return (s >= 0 && s < kNumShapes) ? kNames[s] : "?";
+    }
+
     void SetFreq(float hz) { inc_ = hz / sample_rate_; }
     void SetShape(int s) { shape_ = (s >= 0 && s < kNumShapes) ? s : kSine; }
 

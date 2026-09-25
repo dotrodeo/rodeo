@@ -107,7 +107,9 @@ enum class UiMode
     kNormal = 0,
     kMenu,
     kLoad,
-    kSave
+    kSave,
+    kPatchPage,
+    kGlobalPage
 };
 
 /** The menu, in the order MAIN turns through it. */
@@ -116,6 +118,8 @@ enum class MenuItem
     kLoad = 0,
     kSave,
     kGesture,
+    kPatch,
+    kGlobal,
     kCount
 };
 
@@ -125,9 +129,31 @@ inline const char* MenuItemName(MenuItem m)
     {
         case MenuItem::kLoad: return "Load preset";
         case MenuItem::kSave: return "Save preset";
-        default: return "Gesture";
+        case MenuItem::kGesture: return "Gesture";
+        case MenuItem::kPatch: return "Patch settings";
+        default: return "Global settings";
     }
 }
+
+/** The Patch page: the set-once-per-patch values that have no pot of their own.
+ *  They live in `Patch`, so they travel with a preset like everything else. */
+enum class PatchSetting
+{
+    kKeytrack = 0,
+    kVelToFilter,
+    kBendRange,
+    kLfoShape,
+    kCount
+};
+
+/** The Global page: never stored in a preset, by the same rule that keeps the
+ *  MIDI channel and the output level out of one -- a preset that carried the
+ *  MIDI channel could leave the synth deaf to the keyboard. */
+enum class GlobalSetting
+{
+    kMidiChannel = 0,
+    kCount
+};
 
 /** What the big readout is showing. A value is not always a number: a stepped
  *  pot is a choice and should say which one, and the envelope is a shape. */
@@ -182,6 +208,11 @@ struct DisplayState
     /** "", "ARM", "REC" or "LOOP" -- what the gesture recorder is doing. */
     const char* gesture      = "";
     float       gesture_pos  = 0.f;
+    // --- settings pages --------------------------------------------------
+    const char* page_item    = "";
+    const char* page_value   = "";
+    int         page_index   = 0;
+    int         page_count   = 0;
 };
 
 /** What the panel is asking the app to do with the preset store. */
@@ -289,6 +320,10 @@ class Ui
     /** The recorder is owned by the app (its buffer is far too big for DTCM);
      *  the Ui drives it, because the Ui is what knows the parameters. */
     void SetGesture(GestureRecorder* g) { gesture_ = g; }
+
+    /** A parameter's current value, by the same id the pots address it with.
+     *  For the CC layer, which has to send what the panel just did. */
+    float Value(ParamId p) const { return ReadParam(p); }
 
     const Patch&   patch() const { return patch_; }
     const Globals& globals() const { return globals_; }
@@ -443,6 +478,14 @@ class Ui
         display_.gesture      = GestureLabel();
         display_.gesture_pos  = gesture_ ? gesture_->position() : 0.f;
         display_.browser_slot = browser_slot_;
+        if(OnPage())
+        {
+            FormatPageValue(page_index_);
+            display_.page_item  = PageItemName(page_index_);
+            display_.page_value = page_value_;
+            display_.page_index = page_index_;
+            display_.page_count = PageCount();
+        }
         display_.browser_name = bank_ ? bank_->slot[browser_slot_].name : "";
         display_.browser_used = bank_ ? bank_->slot[browser_slot_].used != 0 : false;
         display_.preset_name  = PresetName();
@@ -504,6 +547,14 @@ class Ui
                 {
                     case MenuItem::kLoad: EnterMode(UiMode::kLoad, in); break;
                     case MenuItem::kSave: EnterMode(UiMode::kSave, in); break;
+                    case MenuItem::kPatch:
+                        page_index_ = 0;
+                        EnterMode(UiMode::kPatchPage, in);
+                        break;
+                    case MenuItem::kGlobal:
+                        page_index_ = 0;
+                        EnterMode(UiMode::kGlobalPage, in);
+                        break;
                     default:
                         if(gesture_)
                         {
@@ -522,7 +573,132 @@ class Ui
                 request_.slot = browser_slot_;
                 EnterMode(UiMode::kNormal, in);
                 break;
+
+            // A page has nothing to confirm -- every change has already
+            // happened -- so a tap is simply the way out.
+            default: EnterMode(UiMode::kNormal, in); break;
         }
+    }
+
+    bool OnPage() const
+    {
+        return mode_ == UiMode::kPatchPage || mode_ == UiMode::kGlobalPage;
+    }
+    int PageCount() const
+    {
+        return mode_ == UiMode::kPatchPage ? static_cast<int>(PatchSetting::kCount)
+                                           : static_cast<int>(GlobalSetting::kCount);
+    }
+
+    const char* PageItemName(int i) const
+    {
+        if(mode_ == UiMode::kGlobalPage)
+            return "MIDI channel";
+        switch(static_cast<PatchSetting>(i))
+        {
+            case PatchSetting::kKeytrack: return "Key track";
+            case PatchSetting::kVelToFilter: return "Vel>filter";
+            case PatchSetting::kBendRange: return "Bend range";
+            default: return "LFO shape";
+        }
+    }
+
+    /** Fills page_value_. Formatted by hand: these are the only numbers the
+     *  panel ever spells out, and pulling in a formatter for four of them is
+     *  not a trade worth making on a 128 KB budget. */
+    void FormatPageValue(int i)
+    {
+        char* d = page_value_;
+        if(mode_ == UiMode::kGlobalPage)
+        {
+            if(globals_.midi_channel == 0)
+            {
+                Copy(d, "Omni");
+                return;
+            }
+            Int(d, globals_.midi_channel);
+            return;
+        }
+        switch(static_cast<PatchSetting>(i))
+        {
+            case PatchSetting::kKeytrack:
+            {
+                // Signed: 0.5 is none, either side tracks the keyboard.
+                const int pct = static_cast<int>((patch_.keytrack - 0.5f) * 200.f
+                                                 + (patch_.keytrack >= 0.5f ? 0.5f : -0.5f));
+                if(pct > 0)
+                    *d++ = '+';
+                Int(d, pct);
+                Copy(d, "%");
+                break;
+            }
+            case PatchSetting::kVelToFilter:
+                Int(d, static_cast<int>(patch_.vel_to_filter * 100.f + 0.5f));
+                Copy(d, "%");
+                break;
+            case PatchSetting::kBendRange:
+                Int(d, patch_.bend_range);
+                Copy(d, patch_.bend_range == 1 ? " semitone" : " semitones");
+                break;
+            default: Copy(d, fx::Lfo::ShapeName(patch_.lfo_shape)); break;
+        }
+    }
+
+    void AdjustPage(int i, int dir)
+    {
+        if(mode_ == UiMode::kGlobalPage)
+        {
+            int c = globals_.midi_channel + dir;
+            globals_.midi_channel = c < 0 ? 0 : (c > 16 ? 16 : c);
+            return;
+        }
+        switch(static_cast<PatchSetting>(i))
+        {
+            case PatchSetting::kKeytrack:
+                patch_.keytrack = Clamp01(patch_.keytrack + 0.02f * dir);
+                break;
+            case PatchSetting::kVelToFilter:
+                patch_.vel_to_filter = Clamp01(patch_.vel_to_filter + 0.02f * dir);
+                break;
+            case PatchSetting::kBendRange:
+            {
+                const int b       = patch_.bend_range + dir;
+                patch_.bend_range = b < 0 ? 0 : (b > 24 ? 24 : b);
+                break;
+            }
+            default:
+            {
+                const int n     = fx::Lfo::kNumShapes;
+                patch_.lfo_shape = ((patch_.lfo_shape + dir) % n + n) % n;
+                break;
+            }
+        }
+    }
+
+    static float Clamp01(float v) { return v < 0.f ? 0.f : (v > 1.f ? 1.f : v); }
+    static void  Copy(char*& d, const char* s)
+    {
+        while(*s)
+            *d++ = *s++;
+        *d = '\0';
+    }
+    static void Int(char*& d, int v)
+    {
+        if(v < 0)
+        {
+            *d++ = '-';
+            v    = -v;
+        }
+        char tmp[8];
+        int  n = 0;
+        do
+        {
+            tmp[n++] = static_cast<char>('0' + v % 10);
+            v /= 10;
+        } while(v && n < 7);
+        while(n)
+            *d++ = tmp[--n];
+        *d = '\0';
     }
 
     void EnterMode(UiMode m, const UiInput& in)
@@ -553,6 +729,37 @@ class Ui
             mode_ = UiMode::kNormal;
     }
 
+    /** The physical models cannot carry eight voices, so they are Mono or
+     *  Unison only (concept doc, *Voice modes*). Turning onto one in Poly moves
+     *  the mode rather than letting the engine sound broken, says so, and puts
+     *  the mode back when a polyphonic engine is chosen again -- the engine
+     *  order never changes and nothing is hidden, the instrument just says what
+     *  it did. */
+    static bool EngineIsMonophonic(EngineId e)
+    {
+        return e == EngineId::kString || e == EngineId::kKarplus;
+    }
+
+    void ConstrainVoiceMode(uint32_t now)
+    {
+        if(EngineIsMonophonic(patch_.engine))
+        {
+            if(patch_.voice_mode == VoiceMode::kPoly)
+            {
+                poly_before_       = patch_.voice_mode;
+                had_poly_before_   = true;
+                patch_.voice_mode  = VoiceMode::kMono;
+                Post("Mono: this engine", now);
+            }
+        }
+        else if(had_poly_before_)
+        {
+            had_poly_before_  = false;
+            patch_.voice_mode = poly_before_;
+            Post(VoiceModeName(patch_.voice_mode), now);
+        }
+    }
+
     void Post(const char* msg, uint32_t now)
     {
         display_.message    = msg;
@@ -570,6 +777,24 @@ class Ui
                 mode_ms_     = now;
                 return false;
             }
+            if(OnPage())
+            {
+                // Turn to choose the line, HOLD and turn to change it -- the
+                // same push-turn that picks the voice mode in normal use, so
+                // the page needs no edit mode of its own.
+                if(shift)
+                {
+                    touched_while_held_ = true;
+                    AdjustPage(page_index_, delta > 0 ? 1 : -1);
+                }
+                else
+                {
+                    const int n = PageCount();
+                    page_index_ = (page_index_ + (delta > 0 ? 1 : -1) + n) % n;
+                }
+                mode_ms_ = now;
+                return true;
+            }
             if(BrowserOpen() && !shift)
             {
                 // Browsing slots, not choosing an engine.
@@ -585,6 +810,12 @@ class Ui
                 int m = static_cast<int>(patch_.voice_mode) + (delta > 0 ? 1 : -1);
                 const int n = static_cast<int>(VoiceMode::kCount);
                 patch_.voice_mode = static_cast<VoiceMode>(((m % n) + n) % n);
+                if(EngineIsMonophonic(patch_.engine) && patch_.voice_mode == VoiceMode::kPoly)
+                {
+                    // Skip past Poly rather than offering it and ignoring it.
+                    patch_.voice_mode = delta > 0 ? VoiceMode::kMono : VoiceMode::kUnison;
+                    had_poly_before_  = false;
+                }
                 Post(VoiceModeName(patch_.voice_mode), now);
                 return true;
             }
@@ -592,6 +823,7 @@ class Ui
             const int n = static_cast<int>(EngineId::kCount);
             patch_.engine = static_cast<EngineId>(((eng % n) + n) % n);
             Post(EngineName(patch_.engine), now);
+            ConstrainVoiceMode(now);
             return true;
         }
         if(shift)
@@ -895,6 +1127,10 @@ class Ui
     bool     moved_lane_[kNumPots * 2] = {};
     UiMode   mode_ = UiMode::kNormal;
     int      menu_index_ = 0;
+    int      page_index_ = 0;
+    VoiceMode poly_before_ = VoiceMode::kPoly;
+    bool      had_poly_before_ = false;
+    char     page_value_[20] = {};
     int      browser_slot_ = 0;
     uint32_t mode_ms_ = 0, mode_opened_ms_ = 0;
     bool     shift_ = false;

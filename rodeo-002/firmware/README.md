@@ -161,6 +161,12 @@ Every panel parameter is also on MIDI CC, laid out in panel order:
 | 110–120 | 110 engine · 111–114 slot types · 115 voice mode · 116 freeze · 117–120 slot bypass |
 | 1, 64 | Mod wheel, sustain pedal |
 
+**CC also goes OUT** of the MIDI jack (J3), on the same map: every panel move is sent as the CC
+that would have caused it, so a performance on the knobs can be recorded and played back in.
+One message per 10 ms, round-robin across the parameters — MIDI carries about 330 three-byte
+messages a second and a 32-parameter panel would saturate it otherwise. A single moving knob
+therefore sends ~100 values a second, finer than the pots are scanned.
+
 Memory: 8 voices and the chain leave DTCM at ~76%. libDaisy's MIDI handler
 (~37 KB, a 256-entry event queue) lives in SDRAM — its DMA buffer is elsewhere,
 and MIDI is far too slow for the slower memory to matter.

@@ -507,7 +507,9 @@ and runs it from there, which is also fast memory, so DSP cost should carry over
 4. ~~Texture-slot effect lists~~ **RESOLVED (Derek, 2026-09-21):** see *Effect types* — 5 / 5 /
    5 / 5, printed secondaries Bias / Rate / Tone / Damp, fixed chain order. Every type still
    needs a cost measurement.
-5. MIDI CC in/out map for the pots.
+5. ~~MIDI CC in/out map for the pots~~ **RESOLVED, BUILT 2026-09-25.** In and out share one
+   map (firmware README). Out is throttled to one message per 10 ms, round-robin: MIDI carries
+   ~330 three-byte messages a second and 32 parameters would saturate it.
 6. ~~The real chain's cost~~ **RESOLVED (Derek, 2026-09-22):** grain engine optimised
    (Space types −14 to −23%), worst chain now 35.4%; polyphony cap implemented in
    `cost_model.h`; Modal dropped, which removes the only unplayable combination. **Deferred:**

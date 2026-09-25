@@ -194,17 +194,18 @@ struct InstrumentState
     uint32_t magic;
     uint16_t version;
     uint16_t last_preset;
+    int32_t  midi_channel; // 0 = omni; global, so it lives here and not in a preset
     uint32_t reserved;
 
     bool operator==(const InstrumentState& o) const
     {
-        return magic == o.magic && version == o.version
-               && last_preset == o.last_preset && reserved == o.reserved;
+        return magic == o.magic && version == o.version && last_preset == o.last_preset
+               && midi_channel == o.midi_channel && reserved == o.reserved;
     }
     bool operator!=(const InstrumentState& o) const { return !(*this == o); }
 };
 static constexpr uint32_t kStateMagic       = 0x52325354u; // "R2ST"
-static constexpr uint16_t kStateVersion     = 1;
+static constexpr uint16_t kStateVersion     = 2; // 2 added the MIDI channel
 static constexpr uint32_t kStateStoreOffset = 0x7A0000u;
 PersistentStorage<InstrumentState> state_store(hw.qspi);
 static uint32_t g_state_changed_ms = 0;
@@ -438,6 +439,89 @@ static void HandleMidi(MidiEvent m) // libDaisy's accessors are non-const
             break;
         default: break;
     }
+}
+
+// --- MIDI CC out ---------------------------------------------------------
+//
+// Every panel move goes out of J3 as the same CC that would have caused it, so
+// a take can be recorded and played back into the synth. Deliberately ONE
+// message per pass at 100 Hz: MIDI is 31250 baud, about 330 three-byte messages
+// a second, and a panel with 32 parameters could saturate it in a heartbeat.
+// One knob moving sends ~100 values a second, which is finer than the pots are
+// even scanned; several knobs share that budget round-robin.
+static uint8_t  g_cc_sent[128];
+static bool     g_cc_primed  = false;
+static uint32_t g_cc_last_ms = 0;
+static int      g_cc_scan    = 0;
+
+/** The CC each parameter answers to, and its current 7-bit value. */
+static uint8_t CcForIndex(int i)
+{
+    if(i < Ui::kNumPots * 2)
+        return static_cast<uint8_t>(i < Ui::kNumPots ? kCcHarmonics + i
+                                                     : kCcEnvToTimbre + i - Ui::kNumPots);
+    switch(i - Ui::kNumPots * 2)
+    {
+        case 0: return kCcEngine;
+        case 1: return kCcCharacterType;
+        case 2: return kCcMovementType;
+        case 3: return kCcTextureType;
+        case 4: return kCcSpaceType;
+        case 5: return kCcVoiceMode;
+        case 6: return kCcFreeze;
+        default: return static_cast<uint8_t>(kCcBypassBase + (i - Ui::kNumPots * 2 - 7));
+    }
+}
+static constexpr int kCcWatched = Ui::kNumPots * 2 + 11;
+
+static uint8_t CcValueForIndex(int i)
+{
+    auto step = [](int v, int n) {
+        return static_cast<uint8_t>((v * 127 + (n - 1) / 2) / (n > 1 ? n - 1 : 1));
+    };
+    if(i < Ui::kNumPots * 2)
+        return static_cast<uint8_t>(ui.Value(static_cast<ParamId>(i)) * 127.f + 0.5f);
+    switch(i - Ui::kNumPots * 2)
+    {
+        case 0:
+            return step(static_cast<int>(patch.engine), static_cast<int>(EngineId::kCount));
+        case 1: return step(patch.type[TextureChain::kCharacter], fx::Character::kNumTypes);
+        case 2: return step(patch.type[TextureChain::kMovement], fx::Movement::kNumTypes);
+        case 3: return step(patch.type[TextureChain::kTexture], fx::Texture::kNumTypes);
+        case 4: return step(patch.type[TextureChain::kSpace], fx::Space::kNumTypes);
+        case 5:
+            return step(static_cast<int>(patch.voice_mode), static_cast<int>(VoiceMode::kCount));
+        case 6: return patch.freeze ? 127 : 0;
+        default:
+            return patch.bypass[i - Ui::kNumPots * 2 - 7] ? 127 : 0;
+    }
+}
+
+/** At most one changed value per call, round-robin so no parameter starves. */
+static void SendCcChanges(uint32_t now)
+{
+    if(!midi || now - g_cc_last_ms < 10)
+        return;
+    g_cc_last_ms = now;
+    for(int n = 0; n < kCcWatched; n++)
+    {
+        const int     i  = (g_cc_scan + n) % kCcWatched;
+        const uint8_t cc = CcForIndex(i);
+        const uint8_t v  = CcValueForIndex(i);
+        if(g_cc_primed && v == g_cc_sent[cc])
+            continue;
+        g_cc_sent[cc] = v;
+        g_cc_scan     = i + 1;
+        if(!g_cc_primed)
+            continue; // the first pass only learns where everything is
+        const uint8_t ch  = static_cast<uint8_t>(globals.midi_channel > 0
+                                                     ? globals.midi_channel - 1
+                                                     : 0);
+        uint8_t       msg[3] = {static_cast<uint8_t>(0xB0 | ch), cc, v};
+        midi->SendMessage(msg, 3);
+        return;
+    }
+    g_cc_primed = true;
 }
 
 /** Note the slot to boot into next time. Deferred like the wiring map: the
@@ -730,6 +814,17 @@ static void DrawScreen()
             body.Append(d.menu_item);
             hint = "turn to choose   tap to enter";
         }
+        else if(d.mode == UiMode::kPatchPage || d.mode == UiMode::kGlobalPage)
+        {
+            head.Append(d.mode == UiMode::kPatchPage ? "PATCH " : "GLOBAL ");
+            head.AppendInt(d.page_index + 1);
+            head.Append("/");
+            head.AppendInt(d.page_count);
+            head.Append("  ");
+            head.Append(d.page_item);
+            body.Append(d.page_value);
+            hint = "hold MAIN and turn to change";
+        }
         else
         {
             head.Append(d.mode == UiMode::kLoad ? "LOAD " : "SAVE ");
@@ -1014,12 +1109,14 @@ int main(void)
         // always a known-good sound and the screen's * is what tells you the
         // patch has drifted since (Derek, 2026-09-24). Slot 1 if nothing has
         // been chosen yet, or if the stored choice is out of range.
-        InstrumentState defaults{kStateMagic, kStateVersion, 0, 0};
+        InstrumentState defaults{kStateMagic, kStateVersion, 0, 0, 0};
         state_store.Init(defaults, kStateStoreOffset);
         InstrumentState& st = state_store.GetSettings();
         if(st.magic != kStateMagic || st.version != kStateVersion
-           || st.last_preset >= PresetBank::kNumSlots)
+           || st.last_preset >= PresetBank::kNumSlots || st.midi_channel < 0
+           || st.midi_channel > 16)
             st = defaults;
+        globals.midi_channel = st.midi_channel;
         const StoredPreset& boot = preset_store.GetSettings().slot[st.last_preset];
         if(boot.used)
         {
@@ -1190,11 +1287,19 @@ int main(void)
             hw.PrintLine("panel wiring: saved, %d/%d runs supply-swapped",
                          swapped, Ui::kNumPots);
         }
+        if(state_store.GetSettings().midi_channel != globals.midi_channel)
+        {
+            state_store.GetSettings().midi_channel = globals.midi_channel;
+            g_state_dirty                          = true;
+            g_state_changed_ms                     = in.now_ms;
+        }
         if(g_state_dirty && in.now_ms - g_state_changed_ms > kCalSettleMs)
         {
             g_state_dirty = false;
             state_store.Save();
         }
+
+        SendCcChanges(in.now_ms);
 
         // --- preset load / save -----------------------------------------
         // Both are done here, never in the callback: a save erases a 64 KB

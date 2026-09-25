@@ -662,3 +662,146 @@ TEST(Ui, APotAlreadyTurningRespondsWithoutWaiting)
     }
     EXPECT_GE(responded, 5) << "a turn in progress is being re-confirmed step by step";
 }
+
+// ------------------------------------------------------ SETTINGS PAGES
+//
+// The set-once-per-patch values, which have no pot of their own and until now
+// could only be reached by editing a preset in source. Turn to choose the line,
+// HOLD MAIN and turn to change it -- the same push-turn that picks the voice
+// mode, so a page needs no edit mode of its own.
+
+TEST(Ui, ThePatchPageChangesTheValuesNothingElseCanReach)
+{
+    Rig r;
+    OpenMenu(r, MenuItem::kPatch);
+    ASSERT_EQ(r.ui.Mode(), UiMode::kPatchPage);
+    EXPECT_EQ(r.ui.display().page_count, static_cast<int>(PatchSetting::kCount));
+    EXPECT_STRNE(r.ui.display().page_value, "") << "the page shows no value";
+
+    // Turning alone moves the selection and changes nothing.
+    const float keytrack = r.ui.patch().keytrack;
+    r.Turn(kMain, 1);
+    EXPECT_EQ(r.ui.display().page_index, 1);
+    EXPECT_FLOAT_EQ(r.ui.patch().keytrack, keytrack);
+
+    // Hold and turn: the highlighted line changes.
+    const float vel = r.ui.patch().vel_to_filter;
+    r.HoldMain(true);
+    r.Tick();
+    for(int i = 0; i < 5; i++)
+        r.Turn(kMain, 1);
+    r.HoldMain(false);
+    r.Tick();
+    EXPECT_GT(r.ui.patch().vel_to_filter, vel);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kPatchPage) << "the hold was taken for something else";
+
+    // Bend range and LFO shape, the two that are not percentages.
+    r.Turn(kMain, 1);
+    const int bend = r.ui.patch().bend_range;
+    r.HoldMain(true);
+    r.Tick();
+    r.Turn(kMain, 1);
+    r.HoldMain(false);
+    r.Tick();
+    EXPECT_EQ(r.ui.patch().bend_range, bend + 1);
+
+    r.Turn(kMain, 1);
+    const int shape = r.ui.patch().lfo_shape;
+    r.HoldMain(true);
+    r.Tick();
+    r.Turn(kMain, 1);
+    r.HoldMain(false);
+    r.Tick();
+    EXPECT_NE(r.ui.patch().lfo_shape, shape);
+    EXPECT_LT(r.ui.patch().lfo_shape, fx::Lfo::kNumShapes);
+}
+
+TEST(Ui, TheGlobalPageSetsTheMidiChannel)
+{
+    Rig r;
+    OpenMenu(r, MenuItem::kGlobal);
+    ASSERT_EQ(r.ui.Mode(), UiMode::kGlobalPage);
+    EXPECT_STREQ(r.ui.display().page_value, "Omni") << "0 should read as Omni";
+
+    r.HoldMain(true);
+    r.Tick();
+    r.Turn(kMain, 1);
+    r.HoldMain(false);
+    r.Tick();
+    EXPECT_EQ(r.ui.globals().midi_channel, 1);
+    EXPECT_STREQ(r.ui.display().page_value, "1");
+
+    // It cannot be turned past either end.
+    r.HoldMain(true);
+    r.Tick();
+    for(int i = 0; i < 30; i++)
+        r.Turn(kMain, -1);
+    r.HoldMain(false);
+    r.Tick();
+    EXPECT_EQ(r.ui.globals().midi_channel, 0);
+}
+
+TEST(Ui, ATapLeavesAPageAndTheValuesStay)
+{
+    Rig r;
+    OpenMenu(r, MenuItem::kPatch);
+    r.HoldMain(true);
+    r.Tick();
+    r.Turn(kMain, 1);
+    r.HoldMain(false);
+    r.Tick();
+    const float keytrack = r.ui.patch().keytrack;
+    Tap(r);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
+    EXPECT_FLOAT_EQ(r.ui.patch().keytrack, keytrack) << "leaving a page undid the change";
+}
+
+// ------------------------------------------------ ENGINES THAT CANNOT BE POLY
+//
+// The physical models cannot carry eight voices, so the concept doc restricts
+// them to Mono or Unison. Turning onto one in Poly moves the mode rather than
+// letting the engine sound broken, and puts it back afterwards.
+
+TEST(Ui, TurningOntoAPhysicalModelLeavesPolyAndComesBack)
+{
+    Rig r;
+    ASSERT_EQ(r.ui.patch().voice_mode, VoiceMode::kPoly);
+
+    for(int i = 0; i < static_cast<int>(EngineId::kCount); i++)
+    {
+        if(r.ui.patch().engine == EngineId::kString)
+            break;
+        r.Turn(kMain, 1);
+    }
+    ASSERT_EQ(r.ui.patch().engine, EngineId::kString);
+    EXPECT_EQ(r.ui.patch().voice_mode, VoiceMode::kMono) << "String was left in Poly";
+    EXPECT_STRNE(r.ui.display().message, "") << "the mode changed without saying so";
+
+    r.Turn(kMain, -1); // back to a polyphonic engine
+    EXPECT_NE(r.ui.patch().engine, EngineId::kString);
+    EXPECT_EQ(r.ui.patch().voice_mode, VoiceMode::kPoly) << "Poly was not given back";
+}
+
+TEST(Ui, PolyCannotBeChosenByHandOnAPhysicalModel)
+{
+    Rig r;
+    for(int i = 0; i < static_cast<int>(EngineId::kCount); i++)
+    {
+        if(r.ui.patch().engine == EngineId::kKarplus)
+            break;
+        r.Turn(kMain, 1);
+    }
+    ASSERT_EQ(r.ui.patch().engine, EngineId::kKarplus);
+
+    // Push-turn through every mode: Poly must never be one of them.
+    r.HoldMain(true);
+    r.Tick();
+    for(int i = 0; i < 6; i++)
+    {
+        r.Turn(kMain, 1);
+        EXPECT_NE(r.ui.patch().voice_mode, VoiceMode::kPoly)
+            << "Poly was offered on an engine that cannot do it";
+    }
+    r.HoldMain(false);
+    r.Tick();
+}

@@ -197,11 +197,12 @@ bottom; the isolated encoder under the OLED is slot 5. Slots 6–9 unpopulated.
   press means a slow turn still counts while dither never does. Once a clean hold passes 600 ms the OLED shows what releasing will do,
   so the pending action is never invisible. Slot encoders 1–4 are never shift, so their own
   long-press (Freeze) can fire at the threshold without waiting for release.
-* **Voice mode is constrained by the engine** (concept doc, *Voice modes*). Modal is Mono
-  only; String and Karplus are Mono or Unison-2. Turning MAIN onto one of those engines while
-  in Poly switches the mode to Mono and posts it on the OLED, restoring the previous mode when
-  a polyphonic engine is selected again. Engine order never changes — nothing is hidden or
-  skipped, the instrument just says what it did.
+* **Voice mode is constrained by the engine** (concept doc, *Voice modes*), **built
+  2026-09-25**. String and Karplus are Mono or Unison only (Modal is gone). Turning MAIN onto
+  one of them while in Poly switches the mode to Mono and posts it on the OLED, restoring the
+  previous mode when a polyphonic engine is selected again. Push-turning the mode on such an
+  engine **skips past Poly** rather than offering something that would be ignored. Engine order
+  never changes — nothing is hidden or skipped, the instrument just says what it did.
 * Encoders are incremental, so **all encoder-owned state persists in the patch/flash**
   (engine, slot types, voice mode) — same rule as rodeo-001.
 * Encoder satellites take **straight** cables (`A / B / S / GND` both ends).
@@ -349,15 +350,28 @@ its stored value catches, then writes its own dither into the patch for ever —
 preset modified with nobody touching the panel. Measuring against the last write is what lets a
 slow turn still land.
 
-### Settings pages
+### Settings pages (built 2026-09-25)
 
-Two pages, reached from MAIN. The split between them is what a preset load may and may not
+Two pages, reached from the menu. The split between them is what a preset load may and may not
 touch:
 
 | Page | Holds | Saved |
 |---|---|---|
-| **Patch** | Filter keytrack · glide time · LFO shape · velocity→filter amount · pitch-bend range | with each preset |
-| **Global** | MIDI channel · pot calibration | once, never by a preset |
+| **Patch** | Filter keytrack · velocity→filter amount · pitch-bend range · LFO shape | with each preset |
+| **Global** | MIDI channel | to its own flash region, never to a preset |
+
+**Turn to choose the line, hold MAIN and turn to change it** — the same push-turn that picks the
+voice mode, so a page needs no edit mode of its own and the one press rule still holds. A tap
+leaves; there is nothing to confirm, because the change has already happened. Anything else
+touched closes the page, as does five seconds of nothing.
+
+Glide is not on the Patch page: it has a pot of its own on the shift layer (R3C2), and two
+owners for one value is worse than either. Pot calibration is not there either — there is no
+calibration any more (see the harness doc); the wiring map is cleared by holding MAIN through
+power-up.
+
+**The MIDI channel persists** in the instrument-state region at `0x7A0000`, beside the
+boot preset — global state belongs with global state.
 
 Master volume is also global but lives on its pot. **MIDI channel must never be in a preset** —
 loading one could otherwise leave the synth listening on a channel the keyboard isn't sending
