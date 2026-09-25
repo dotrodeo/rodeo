@@ -323,11 +323,19 @@ class VoiceManager
         }
     }
 
-    void Start(Voice& x, int note, float vel, float detune)
+    /** `legato` means a key was still down when this note arrived, so the voice
+     *  should slide into it. Everything else starts AT pitch.
+     *
+     *  It used to decide that for itself, from whether the voice was silent --
+     *  which is right in Poly, where a new note almost always lands on a free
+     *  voice, and wrong everywhere else. Unison restarts the SAME voices for
+     *  every note, so a voice ringing out its release still counted as sounding
+     *  and every keypress glided in from the last note (Derek, 2026-09-24). A
+     *  stolen Poly voice had the same problem, from an unrelated pitch. */
+    void Start(Voice& x, int note, float vel, float detune, bool legato = false)
     {
         const float freq = daisysp::mtof(static_cast<float>(note));
-        // A voice that is not sounding starts at pitch rather than gliding in.
-        if(!x.gate && !x.env.IsRunning())
+        if(!legato)
             x.glide_freq = freq;
         x.note   = note;
         x.freq   = freq;
@@ -369,12 +377,14 @@ class VoiceManager
 
     void UnisonOn(int note, float vel)
     {
-        // Every available voice on one note, detuned symmetrically.
-        const int n = max_voices_ < kUnisonMax ? max_voices_ : kUnisonMax;
+        // Every available voice on one note, detuned symmetrically. Gliding
+        // only if a key was still down -- the same rule Mono plays by.
+        const bool legato = voices_[0].gate;
+        const int  n      = max_voices_ < kUnisonMax ? max_voices_ : kUnisonMax;
         for(int v = 0; v < n; v++)
         {
             const float spread = n > 1 ? (static_cast<float>(v) / (n - 1)) * 2.f - 1.f : 0.f;
-            Start(voices_[v], note, vel, spread);
+            Start(voices_[v], note, vel, spread, legato);
         }
         for(int v = n; v < kMaxVoices; v++)
             voices_[v].gate = false;

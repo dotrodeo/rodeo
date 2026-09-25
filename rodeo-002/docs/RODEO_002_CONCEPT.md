@@ -373,6 +373,14 @@ Mono is exempt from the first rule on purpose: it is legato, so a new note over 
 changes pitch without restarting the envelope. `MonoOn` therefore writes the voice directly
 rather than going through `Start()`.
 
+**And a third: glide belongs to a note that arrives while a key is still down**, nothing else.
+`Start()` used to decide that from whether the voice was still *sounding*, which is right in
+Poly — where a new note lands on a free voice — and wrong everywhere else. Unison restarts the
+same voices for every note, so one still ringing out its release counted as sounding and every
+keypress glided in from the last (2026-09-24). A stolen Poly voice did the same, from an
+unrelated pitch. The caller now says whether it is legato, and only Unison and Mono ever say
+yes.
+
 ## Preset system
 
 Patches in the Daisy's QSPI flash: engine, all pot values (both layers), all four slot types

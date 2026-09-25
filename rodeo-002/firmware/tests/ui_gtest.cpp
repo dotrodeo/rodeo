@@ -102,21 +102,47 @@ TEST(Ui, ShiftSwapsTheLayerAndPickupProtectsBothSides)
     EXPECT_NEAR(r.ui.patch().harmonics, 0.2f, 1e-5f) << "no jump on shift release";
 }
 
-TEST(Ui, MasterVolumeIsAlwaysLive)
+// Volume is GLOBAL -- never stored in a preset -- but it is not exempt from
+// pickup. It used to be, which was right while it sat on the main layer where
+// the knob's position was always the volume. Behind SHIFT, that same knob's
+// position belongs to Sustain, so going live the instant SHIFT went down jumped
+// the output level to wherever Sustain was sitting (Derek, 2026-09-24).
+TEST(Ui, VolumeWaitsToBeCaughtLikeEverythingElse)
 {
-    Rig r;
-    // Volume moved behind SHIFT on 2026-09-24, freeing a main-layer pot. It is
-    // still global: live the moment it moves, never waiting for pickup.
+    Rig         r;
+    const float before = r.ui.globals().volume;
+
+    // Reaching for SHIFT must not move the output, whatever the knob is on.
+    r.in.pot[10] = 0.2f;
     r.HoldMain(true);
     r.Tick();
-    r.MovePot(10, 0.25f);
-    EXPECT_NEAR(r.ui.globals().volume, 0.25f, 1e-5f);
-    // ...and the main layer under it is Sustain, which does wait for pickup.
-    r.HoldMain(false);
     r.Tick();
-    const float before = r.ui.patch().sustain;
-    r.MovePot(10, 0.26f);
-    EXPECT_NEAR(r.ui.patch().sustain, before, 1e-5f) << "Sustain took hold without pickup";
+    EXPECT_FLOAT_EQ(r.ui.globals().volume, before) << "volume jumped when SHIFT went down";
+
+    // It says which way to turn, and takes hold once the pot crosses it.
+    r.MovePot(10, 0.25f);
+    EXPECT_FLOAT_EQ(r.ui.globals().volume, before);
+    EXPECT_NE(r.ui.display().pickup_hint, 0) << "no UP/DN hint on an uncaught volume";
+    r.MovePot(10, 0.95f); // crosses the stored value
+    r.MovePot(10, 0.6f);
+    EXPECT_NEAR(r.ui.globals().volume, 0.6f, 0.02f);
+}
+
+// ...and it still never travels in a preset.
+TEST(Ui, VolumeIsNotPartOfThePatch)
+{
+    Rig r;
+    r.HoldMain(true);
+    r.Tick();
+    r.MovePot(10, 0.95f);
+    r.MovePot(10, 0.6f);
+    ASSERT_NEAR(r.ui.globals().volume, 0.6f, 0.02f);
+    StoredPreset s;
+    PatchToPreset(r.ui.patch(), "vol", s);
+    Patch back;
+    PresetToPatch(s, back);
+    Globals g;
+    EXPECT_NE(g.volume, r.ui.globals().volume) << "the test is not proving anything";
 }
 
 TEST(Ui, MainEncoderSelectsEngineAndPushTurnSelectsVoiceMode)
@@ -590,4 +616,49 @@ TEST(Ui, AnUntouchedPanelNeverMarksThePresetDirty)
         r.Tick();
     }
     EXPECT_FALSE(r.ui.PresetDirty()) << "dither alone marked the patch modified";
+}
+
+// A pot at rest has to mean it. The ADCs deliver a channel ~108 times a second,
+// so one bad conversion persists across many passes of the main loop -- counting
+// passes would never catch it, and the screen would show a parameter nobody
+// touched (Derek, 2026-09-24: "little ghost UI parameter changes").
+TEST(Ui, AStrayReadingDoesNotMoveAParameterOrClaimTheScreen)
+{
+    Rig         r;
+    r.MovePot(0, 0.2f); // catch Harmonics so it is live
+    const float held = r.ui.patch().harmonics;
+    r.Tick(500);        // and let it settle back to rest
+
+    r.in.pot[0] = 0.9f; // one bad conversion
+    r.Tick(10);
+    r.in.pot[0] = 0.2f; // gone again
+    r.Tick(10);
+    EXPECT_NEAR(r.ui.patch().harmonics, held, 1e-5f) << "a glitch moved the parameter";
+
+    // ...but a hand on the same knob still gets through promptly.
+    r.in.pot[0] = 0.9f;
+    r.Tick(10); // first sighting
+    r.Tick(15);
+    r.Tick(15); // held past the confirm window from that sighting
+    EXPECT_NEAR(r.ui.patch().harmonics, 0.9f, 0.01f) << "a real turn was swallowed";
+}
+
+// Confirming must not make a turn feel stepped: once a pot is moving it keeps
+// responding immediately.
+TEST(Ui, APotAlreadyTurningRespondsWithoutWaiting)
+{
+    Rig r;
+    r.MovePot(0, 0.2f);
+    r.MovePot(0, 0.8f); // in motion now
+    float last = r.ui.patch().harmonics;
+    int   responded = 0;
+    for(int i = 0; i < 10; i++)
+    {
+        r.in.pot[0] = 0.8f - 0.02f * static_cast<float>(i + 1);
+        r.Tick(5); // faster than the confirm window
+        if(fabsf(r.ui.patch().harmonics - last) > 1e-6f)
+            responded++;
+        last = r.ui.patch().harmonics;
+    }
+    EXPECT_GE(responded, 5) << "a turn in progress is being re-confirmed step by step";
 }

@@ -444,3 +444,103 @@ TEST(VoiceManager, RepeatedNotesKeepSoundingWithNoSustain)
         }
     }
 }
+
+// Glide slides into a note that arrives while a key is still down. It must not
+// slide into one that arrives after everything was released -- which is what
+// Unison did, because it restarts the SAME voices for every note and a voice
+// still ringing out its release counted as sounding (Derek, 2026-09-24: "every
+// keypress glides, instead of just legato notes").
+namespace
+{
+// Rough pitch from zero crossings; the patch below is filtered nearly to a sine.
+double StartPitch(VoiceManager& vm, float seconds = 0.06f)
+{
+    const size_t n = static_cast<size_t>(kSr * seconds);
+    float        buf[kBlock];
+    int          crossings = 0;
+    float        prev      = 0.f;
+    for(size_t i = 0; i + kBlock <= n; i += kBlock)
+    {
+        vm.Render(buf, kBlock);
+        for(size_t j = 0; j < kBlock; j++)
+        {
+            if((buf[j] > 0.f) != (prev > 0.f))
+                crossings++;
+            prev = buf[j];
+        }
+    }
+    return crossings / 2.0 / seconds;
+}
+
+void SetUpGlide(VoiceManager& vm, VoiceMode mode)
+{
+    Patch p;
+    p.voice_mode = mode;
+    p.glide      = 0.6f; // slow enough that a glide is unmistakable
+    p.spread     = 0.f;
+    p.harmonics  = 0.f;
+    p.morph      = 0.f;
+    p.cutoff     = 0.25f; // smooth it toward a sine so crossings mean pitch
+    p.attack     = 0.f;
+    p.decay      = 1.f;
+    p.sustain    = 1.f;
+    vm.ApplyPatch(p);
+}
+} // namespace
+
+TEST(VoiceManager, UnisonGlidesOnlyBetweenHeldNotes)
+{
+    // Released, then a new note: it must start AT pitch.
+    {
+        VoiceManager vm;
+        vm.Init(kSr, kBlock);
+        SetUpGlide(vm, VoiceMode::kUnison);
+        vm.NoteOn(48, 0.8f);
+        Render(vm, 0.5f);
+        vm.NoteOff(48);
+        Render(vm, 1.0f); // fully released
+        vm.NoteOn(72, 0.8f);
+        const double hz = StartPitch(vm);
+        EXPECT_GT(hz, 380.0) << "a new note glided in from the last one (" << hz << " Hz)";
+    }
+    // Still held: it must slide.
+    {
+        VoiceManager vm;
+        vm.Init(kSr, kBlock);
+        SetUpGlide(vm, VoiceMode::kUnison);
+        vm.NoteOn(48, 0.8f);
+        Render(vm, 0.5f);
+        vm.NoteOn(72, 0.8f); // legato, over the held note
+        const double hz = StartPitch(vm);
+        EXPECT_LT(hz, 300.0) << "a legato note jumped instead of gliding (" << hz << " Hz)";
+    }
+}
+
+// Mono has always worked this way; this says so, so the Unison fix cannot drift.
+TEST(VoiceManager, MonoGlidesOnlyBetweenHeldNotes)
+{
+    VoiceManager vm;
+    vm.Init(kSr, kBlock);
+    SetUpGlide(vm, VoiceMode::kMono);
+    vm.NoteOn(48, 0.8f);
+    Render(vm, 0.5f);
+    vm.NoteOff(48);
+    Render(vm, 1.0f);
+    vm.NoteOn(72, 0.8f);
+    EXPECT_GT(StartPitch(vm), 380.0);
+}
+
+// A stolen Poly voice had the same fault: it would slide in from whatever note
+// it was playing before, which is never what stealing should sound like.
+TEST(VoiceManager, AStolenPolyVoiceStartsAtPitch)
+{
+    VoiceManager vm;
+    vm.Init(kSr, kBlock);
+    SetUpGlide(vm, VoiceMode::kPoly);
+    vm.SetMaxVoices(1); // the next note must steal
+    vm.NoteOn(48, 0.8f);
+    Render(vm, 0.5f);
+    vm.NoteOn(72, 0.8f);
+    const double hz = StartPitch(vm);
+    EXPECT_GT(hz, 380.0) << "the stolen voice glided in from the note it was playing";
+}

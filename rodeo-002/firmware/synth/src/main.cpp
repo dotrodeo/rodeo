@@ -111,6 +111,7 @@ static constexpr uint32_t kCalSettleMs = 4000;
 PersistentStorage<PanelPots::Calibration> cal_store(hw.qspi);
 static uint32_t g_cal_revision = 0, g_cal_changed_ms = 0;
 static bool     g_cal_dirty    = false;
+static bool     g_cal_restored = false, g_cal_cleared = false;
 
 // --- the preset bank, its own 64 KB sector -------------------------------
 // 2.6 KB of it is used; the sector is its own because an erase takes the whole
@@ -963,16 +964,20 @@ int main(void)
         PanelPots::Calibration defaults;
         pots.Export(defaults); // nothing learned yet: the shape of a blank store
         cal_store.Init(defaults, kCalStoreOffset);
-        bool clear = false;
+        // EVERY SAMPLE, not one. A single stray reading from a hub that has
+        // only just powered up must not wipe the wiring map -- that would look
+        // exactly like a map that never persisted, and it would happen at a
+        // different boot each time.
+        int held = 0;
         if(g_have_hub)
-        {
-            for(int i = 0; i < 8; i++) // the hub polls at 1 kHz; give it a few
+            for(int i = 0; i < 8; i++)
             {
                 encoders.Update();
                 System::Delay(5);
+                if(encoders.IsPressed(0, kEncoderSlot[4])) // MAIN
+                    held++;
             }
-            clear = encoders.IsPressed(0, kEncoderSlot[4]); // MAIN
-        }
+        const bool clear = held == 8;
         if(clear)
         {
             pots.Forget();
@@ -982,8 +987,9 @@ int main(void)
         }
         else
         {
-            pots.Import(cal_store.GetSettings());
+            g_cal_restored = pots.Import(cal_store.GetSettings());
         }
+        g_cal_cleared  = clear;
         g_cal_revision = pots.Revision();
     }
 
@@ -1093,21 +1099,28 @@ int main(void)
     else
         hw.PrintLine("no preset loaded at boot (slot 1 is empty)");
     {
-        int swapped = 0;
+        int known = 0, swapped = 0;
         for(int i = 0; i < Ui::kNumPots; i++)
+        {
+            if(pots.WiringKnown(i))
+                known++;
             if(pots.IsSupplySwapped(i))
                 swapped++;
-        if(g_cal_dirty)
-            hw.PrintLine("panel wiring: CLEARED (MAIN held at boot) -- turn each pot fully up once");
+        }
+        // Said plainly, because two very different things look the same from
+        // the front panel: a wiring map that did not persist, and pickup asking
+        // for every knob after a preset loads.
+        if(g_cal_cleared)
+            hw.PrintLine("panel wiring: CLEARED (MAIN held through the whole boot check)");
+        else if(g_cal_restored)
+            hw.PrintLine("panel wiring: RESTORED from flash -- %d/%d runs known, %d swapped",
+                         known, Ui::kNumPots, swapped);
         else
-            hw.PrintLine("panel wiring: %d/%d runs supply-swapped, from flash (%s)",
-                         swapped,
-                         Ui::kNumPots,
-                         cal_store.GetState() == PersistentStorage<PanelPots::Calibration>::State::USER
-                             ? "saved"
-                             : "never saved");
-        hw.PrintLine("  ranges are fixed, not calibrated: every pot reaches 0 and 1 on the");
-        hw.PrintLine("  first turn, with a few degrees of dead travel at each stop.");
+            hw.PrintLine("panel wiring: NOTHING STORED yet (blank, or an older layout)");
+        hw.PrintLine("  ranges are fixed, never calibrated. A run proves its wiring the first");
+        hw.PrintLine("  time that pot reaches either stop, and that verdict is what persists.");
+        hw.PrintLine("  Knobs inert after boot are PICKUP, not calibration: a pot takes hold");
+        hw.PrintLine("  when it crosses the value the preset loaded, and the screen says UP/DN.");
     }
     hw.PrintLine("MIDI IN on the TRS jack. Every panel parameter is also on CC:");
     hw.PrintLine("  70-85  main layer, panel order (70 harmonics .. 85 space mix)");

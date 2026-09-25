@@ -123,10 +123,12 @@ Within each chip the grid is read left-to-right, top-to-bottom onto consecutive 
   stored in presets by index, so inserting in the middle would silently re-point every saved
   patch. Space mix and Character modulate a chain slot rather than a voice and are applied once
   per audio block (`common/lfo_dest.h`); the rest are applied inside each voice.
-* **Master volume is global and always live.** It is never stored in a preset and never
-  waits for pickup — it is the physical output level, and a preset load must not move it
-  (Derek, 2026-09-21). **It moved behind SHIFT on 2026-09-24**, freeing a main-layer pot; being
-  global, it is live the instant it moves even though it sits on the shift layer.
+* **Master volume is global**: never stored in a preset, so a preset load cannot move it
+  (Derek, 2026-09-21). It moved behind SHIFT on 2026-09-24, freeing a main-layer pot — and **it
+  now waits for pickup like every other pot**. It used to be exempt, which was right while it
+  sat on the main layer where that knob's position *was* the volume; behind SHIFT the same knob
+  belongs to Sustain, so going live the instant SHIFT went down jumped the output level to
+  wherever Sustain happened to be sitting.
 
 ### Revision, 2026-09-24 — three changes that paid for each other
 
@@ -337,8 +339,12 @@ costs no more bus than it already did: the frame was going out anyway, and a fra
 **There is no CPU meter.** It was a bring-up instrument and the serial log still prints the
 measured load beside the predicted one, which is where that comparison belongs.
 
-**A pot must move ~0.6% of its travel to count as moved at all**, measured against the value it
-last wrote rather than the previous sample. Without that, a pot resting within pickup range of
+**A pot must move ~0.6% of its travel AND hold it for ~20 ms to count as moved at all**,
+measured against the value it last wrote rather than the previous sample. The time matters as
+much as the distance: the ADCs deliver a channel ~108 times a second, so one bad conversion
+persists across many passes of the main loop and no amount of counting passes would catch it —
+it showed up as parameters changing on screen that nobody had touched. A pot already in motion
+keeps responding immediately, so a turn never feels stepped. Without that, a pot resting within pickup range of
 its stored value catches, then writes its own dither into the patch for ever — enough to mark a
 preset modified with nobody touching the panel. Measuring against the last write is what lets a
 slow turn still land.

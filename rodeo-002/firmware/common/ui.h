@@ -81,7 +81,15 @@ inline int ParamSteps(ParamId p)
     return 0;
 }
 
-/** Master volume is global and always live -- never stored, never picked up. */
+/** Master volume is GLOBAL -- it is the output level, so it is never stored in
+ *  a preset and a preset load must not move it.
+ *
+ *  It is not exempt from pickup, though it used to be. That was right while it
+ *  sat on the main layer, where the knob's position was always the volume. On
+ *  the shift layer the same knob's position belongs to Sustain, so taking it
+ *  live the instant SHIFT went down jumped the output to wherever Sustain
+ *  happened to be sitting (Derek, 2026-09-24). Now it waits to be caught like
+ *  everything else, and the UP/DN hint says which way. */
 inline bool ParamIsGlobal(ParamId p) { return p == ParamId::kVolume; }
 
 struct UiInput
@@ -209,6 +217,17 @@ class Ui
      *  touching the panel. A slow turn still lands, because the reference only
      *  moves when a write happens. */
     static constexpr float    kMoveEps      = 0.006f;
+    /** A pot at rest must stay past kMoveEps for this long before it counts as
+     *  moved. The ADCs deliver a channel ~108 times a second, so a single bad
+     *  reading persists across many passes of this loop and no amount of
+     *  counting passes would catch it -- it takes time. Two conversions' worth
+     *  is enough to tell a glitch from a hand, and 20 ms before a knob responds
+     *  is not something a hand notices (Derek, 2026-09-24: "little ghost UI
+     *  parameter changes"). */
+    static constexpr uint32_t kMoveConfirmMs = 20;
+    /** Once a pot IS moving it keeps responding immediately for this long, so a
+     *  turn is not re-confirmed step by step and does not feel stepped. */
+    static constexpr uint32_t kMovingMs = 250;
     /** How far a pot must travel to count as DELIBERATELY turned: enough to
      *  disqualify a MAIN press as a shift, or to close the browser. Measured
      *  from where the pot was when the press began, so a slow turn still counts
@@ -631,22 +650,6 @@ class Ui
         if(turned && mode_ != UiMode::kNormal && now != mode_opened_ms_)
             mode_ = UiMode::kNormal;
 
-        if(ParamIsGlobal(p))
-        {
-            // Master volume never waits for pickup, but it is still only
-            // written when it actually moves.
-            last_pot_[pot] = value;
-            if(!primed_ || fabsf(value - written_[index]) > kMoveEps)
-            {
-                written_[index]    = value;
-                moved_lane_[index] = true;
-                WriteParam(p, value);
-                if(primed_)
-                    NoteTouch(p, value, 0, now);
-            }
-            return false;
-        }
-
         if(!caught_[index])
         {
             const bool crossed
@@ -668,7 +671,7 @@ class Ui
         }
 
         last_pot_[pot] = value;
-        if(fabsf(value - written_[index]) > kMoveEps)
+        if(Confirmed(pot, fabsf(value - written_[index]) > kMoveEps, now))
         {
             written_[index] = value;
             // What the PLAYER moved, which is what arms a take, and what takes
@@ -678,6 +681,33 @@ class Ui
             NoteTouch(p, value, 0, now);
         }
         return false;
+    }
+
+    /** Has this pot been away from its written value long enough to believe?
+     *  A pot already in motion is believed at once; one at rest has to hold the
+     *  deviation for kMoveConfirmMs, which is what a stray conversion cannot. */
+    bool Confirmed(int pot, bool away, uint32_t now)
+    {
+        if(!away)
+        {
+            move_since_[pot] = 0;
+            return false;
+        }
+        if(moving_until_[pot] && now < moving_until_[pot])
+        {
+            moving_until_[pot] = now + kMovingMs;
+            return true;
+        }
+        if(move_since_[pot] == 0)
+        {
+            move_since_[pot] = now ? now : 1;
+            return false;
+        }
+        if(now - move_since_[pot] < kMoveConfirmMs)
+            return false;
+        move_since_[pot]   = 0;
+        moving_until_[pot] = now + kMovingMs;
+        return true;
     }
 
     void NoteTouch(ParamId p, float value, int hint, uint32_t now)
@@ -856,6 +886,7 @@ class Ui
     float written_[kNumPots * 2] = {};
     StoredPreset loaded_ = {};
     bool         have_loaded_ = false;
+    uint32_t move_since_[kNumPots] = {}, moving_until_[kNumPots] = {};
     float watch_lo_[kNumPots] = {}, watch_hi_[kNumPots] = {};
     const PresetBank* bank_ = nullptr;
     PresetRequest     request_;
