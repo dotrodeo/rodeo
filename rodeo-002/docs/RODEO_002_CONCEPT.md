@@ -331,6 +331,15 @@ always shows it ("FM · 6 voices"). **The voice count can therefore change when 
 changes.** With Modal dropped, **every remaining engine fits beside every Space type**, so
 there is no unplayable combination to rule on.
 
+### Engine quirk worth knowing: virtual-analog Timbre at morph 0.5
+
+`VariableShapeOscillator` crossfades two waveshapes, and **at exactly morph 0.5 the pulse width
+cancels out** — measured on the host, bit-identical output for pulse widths 0.2 and 0.8, while
+morph 0 or 1 gives ~0.85 relative divergence from the same change. Timbre drives pulse width on
+that engine, so at the midpoint the Timbre knob does nothing whatsoever. It is the oscillator's
+behaviour rather than a bug in the mapping, but it is invisible and it makes a knob look broken,
+so the **Init** preset sits at morph 0.35 rather than 0.5.
+
 ## Envelope — ADS (2026-09-24)
 
 One envelope drives amp and filter, and it has **three controls, not four**: Attack, Decay and

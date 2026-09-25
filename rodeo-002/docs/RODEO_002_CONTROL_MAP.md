@@ -117,8 +117,12 @@ Within each chip the grid is read left-to-right, top-to-bottom onto consecutive 
   labels are **Bias / Rate / Tone / Damp** — each true for every effect type in that slot
   (concept doc, *Effect types*), which is what makes them printable.
 * **Two shift positions are enums, read as stepped pots** (the platform already has stepped-pot
-  logic in `pot_ui.h`): **Filter type** (LP / BP / HP) and **LFO dest**. Keep the destination
-  list short — Pitch / Timbre / Morph / Cutoff / Amp / Space mix — so the steps stay readable.
+  logic in `pot_ui.h`): **Filter type** (LP / BP / HP) and **LFO dest**. The destinations, in the
+  order the pot steps through them: **Pitch · Timbre · Morph · Cutoff · Amp · Space mix ·
+  Harmonics · Resonance · Character** (2026-09-24). **New ones go on the end** — the value is
+  stored in presets by index, so inserting in the middle would silently re-point every saved
+  patch. Space mix and Character modulate a chain slot rather than a voice and are applied once
+  per audio block (`common/lfo_dest.h`); the rest are applied inside each voice.
 * **Master volume is global and always live.** It is never stored in a preset and never
   waits for pickup — it is the physical output level, and a preset load must not move it
   (Derek, 2026-09-21). **It moved behind SHIFT on 2026-09-24**, freeing a main-layer pot; being
@@ -267,7 +271,7 @@ encoder polling — a full frame at 400 kHz is ~23 ms.
 
 | Rows | Holds |
 |---|---|
-| 0–8 | **Preset name**, `*` if the patch has changed since it was loaded · voice mode in three letters · voices in use. **Inverted while SHIFT is held.** |
+| 0–8 | **Preset name**, `*` if the patch has changed since it was loaded · voice mode in three letters · voices in use. **Inverted while SHIFT is held**, and the name is replaced by `TURN: MODE` — holding MAIN and turning it chooses the voice mode, and that is the only moment the hint applies. |
 | 11–18 | The four slot types, bypassed ones struck through. **The Space cell inverts when frozen.** |
 | 20–62 | The body: scope, readout and meter — **see below** |
 
