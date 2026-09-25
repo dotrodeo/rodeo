@@ -979,3 +979,29 @@ TEST(Ui, TheMidiOutChannelIsSeparateFromTheInputChannelAndHasNoOmni)
     EXPECT_EQ(r.ui.globals().midi_out_channel, 1) << "output cannot be Omni";
     EXPECT_EQ(r.ui.globals().midi_channel, 0) << "the input channel moved with it";
 }
+
+// Turning onto a physical model posts two things at once: the engine's name,
+// and the fact that the voice mode had to move. With one slot the second
+// overwrote the first, so you could not see which engine you had turned onto
+// (Derek, 2026-09-25). They have separate slots and separate places on screen.
+TEST(Ui, AConstraintNoticeDoesNotHideTheEngineYouTurnedOnto)
+{
+    Rig r;
+    for(int i = 0; i < static_cast<int>(EngineId::kCount); i++)
+    {
+        if(r.ui.patch().engine == EngineId::kString)
+            break;
+        r.Turn(kMain, 1);
+    }
+    ASSERT_EQ(r.ui.patch().engine, EngineId::kString);
+    ASSERT_EQ(r.ui.patch().voice_mode, VoiceMode::kMono);
+
+    EXPECT_STREQ(r.ui.display().message, EngineName(EngineId::kString))
+        << "the engine name was overwritten by the notice";
+    EXPECT_STRNE(r.ui.display().notice, "") << "the mode changed without saying so";
+
+    // Both expire on their own.
+    r.Tick(Ui::kPopupMs + 100);
+    EXPECT_STREQ(r.ui.display().message, "");
+    EXPECT_STREQ(r.ui.display().notice, "");
+}

@@ -200,6 +200,14 @@ struct DisplayState
     /** A one-shot line for things the panel can't show otherwise. */
     const char* message    = "";
     uint32_t    message_ms = 0;
+    /** A SECOND one-shot line, for something the instrument did on its own
+     *  rather than something you did. It has its own slot because the two
+     *  arrive together: turning onto a physical-model engine posts the engine's
+     *  name AND the fact that the voice mode had to move, and with one slot the
+     *  second overwrote the first -- so you could not see which engine you had
+     *  turned onto (Derek, 2026-09-25). Drawn away from the message. */
+    const char* notice     = "";
+    uint32_t    notice_ms  = 0;
     /** What releasing MAIN would do right now, once a clean hold has passed the
      *  long-press threshold. Empty when a release would do nothing. */
     const char* pending    = "";
@@ -471,6 +479,11 @@ class Ui
         {
             display_.message    = "";
             display_.message_ms = 0;
+        }
+        if(display_.notice_ms && in.now_ms - display_.notice_ms > kPopupMs)
+        {
+            display_.notice    = "";
+            display_.notice_ms = 0;
         }
         if(touched_ms_ && in.now_ms - touched_ms_ > kPopupMs)
         {
@@ -852,14 +865,14 @@ class Ui
                 poly_before_       = patch_.voice_mode;
                 had_poly_before_   = true;
                 patch_.voice_mode  = VoiceMode::kMono;
-                Post("Mono: this engine", now);
+                PostNotice("MONO: THIS ENGINE", now);
             }
         }
         else if(had_poly_before_)
         {
             had_poly_before_  = false;
             patch_.voice_mode = poly_before_;
-            Post(VoiceModeName(patch_.voice_mode), now);
+            PostNotice("POLY RESTORED", now);
         }
     }
 
@@ -867,6 +880,13 @@ class Ui
     {
         display_.message    = msg;
         display_.message_ms = now ? now : 1;
+    }
+
+    /** For what the instrument decided, as opposed to what you asked for. */
+    void PostNotice(const char* msg, uint32_t now)
+    {
+        display_.notice    = msg;
+        display_.notice_ms = now ? now : 1;
     }
 
     bool TurnEncoder(int e, int16_t delta, bool shift, uint32_t now)

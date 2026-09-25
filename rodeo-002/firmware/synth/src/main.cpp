@@ -32,6 +32,7 @@
 #include "factory_presets.h"
 #include "gesture_store.h"
 #include "lfo_dest.h"
+#include "version.h"
 #include "panel_pot.h"
 #include "scope.h"
 #include "patch.h"
@@ -695,9 +696,13 @@ static void DrawScreen()
     // screen and the gesture nobody can guess is the most useful: holding MAIN
     // and turning it chooses the voice mode, which is shown to the right, so
     // the hint and its result are on the same line.
-    FixedCapStr<20> line("");
+    FixedCapStr<22> line("");
     if(inv)
         line.Append("TURN: MODE");
+    else if(d.notice[0])
+        // What the instrument did on its own, where it cannot cover what you
+        // did: the engine you just turned onto is in the middle of the screen.
+        line.Append(d.notice);
     else
     {
         line.Append(d.preset_name);
@@ -926,6 +931,7 @@ static uint32_t ScreenSignature(const DisplayState& d, uint32_t extra)
     mix(static_cast<uint32_t>(d.pickup_hint + 2));
     mix(d.show_value ? 1u : 0u);
     mix_ptr(d.message);
+    mix_ptr(d.notice);
     mix_ptr(d.preset_name);
     mix(d.preset_dirty ? 1u : 0u);
     mix(static_cast<uint32_t>(d.readout));
@@ -1201,7 +1207,10 @@ int main(void)
     // Build stamp: without it a flash that silently did not take looks exactly
     // like a firmware bug, which cost a round of hardware debugging on
     // 2026-09-23. Compare this against when you built.
-    hw.PrintLine("=== rodeo-002 synth === built %s %s", __DATE__, __TIME__);
+    hw.PrintLine("=== rodeo-002 synth v%s === built %s %s",
+                 kVersionString,
+                 __DATE__,
+                 __TIME__);
     hw.PrintLine("panel: pots %s | encoder hub %s | OLED %s",
                  g_have_adc ? "yes" : "NO",
                  g_have_hub ? "yes" : "NO",

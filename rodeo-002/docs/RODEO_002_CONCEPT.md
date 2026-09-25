@@ -486,6 +486,34 @@ and runs it from there, which is also fast memory, so DSP cost should carry over
 * **The enclosure needs access to the Daisy's own micro-USB** — updates and the debug log both
   go through it, and the panel USB-C is power-only. Derek is designing this into the case.
 
+## v1.0.0 — 2026-09-25
+
+The first build that is a finished instrument rather than a bring-up: MIDI, eight voices, the
+texture chain, the panel and OLED, sixteen factory presets with naming, the gesture recorder
+with per-slot persistence, settings pages, and CC in and out. Versioned in
+`firmware/common/version.h` and printed in the startup banner.
+
+**Semantic versioning**, which for an instrument means: **MAJOR** when the panel or a stored
+format changes in a way a player or a saved preset would notice — a control moving, a bank that
+has to be re-saved; **MINOR** for something new that takes nothing away — an engine, an effect
+type, a destination, a page; **PATCH** for a fix.
+
+### Backlog after v1.0.0 (Derek, 2026-09-25)
+
+* **The menu is awkward to navigate.** Reported as feeling "difficult and inconsistent" in use.
+  Worth a design pass rather than a patch — likely candidates are how entering and leaving
+  nest, and that a page and the menu answer the same gestures differently.
+* **Occasional ghost UI updates remain**, less often than before the 20 ms confirm window. The
+  open question is whether they share a cause with the load-dependent hum (motherboard
+  `hardware-map.md`, Issue 4) — if the supply dips under CPU load, the ADC's reference dips
+  with it, and the two would be the same fault wearing different clothes. Worth measuring the
+  rail and a channel's readings together before changing any more firmware.
+* **A boot splash** with the RODEO name and the version number.
+
+Still deferred by choice: Wavetable and Chord engines, a lighter in-house reverb to replace
+ReverbSc, audio input, more preset slots and banks. Still Derek's to decide: whether Grainlet,
+Particle, String and Karplus stay.
+
 ## Open questions
 
 1. ~~Gesture recorder~~ **RESOLVED (Derek, 2026-09-21), BUILT 2026-09-24** (`common/gesture.h`).
