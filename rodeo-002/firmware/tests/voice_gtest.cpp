@@ -336,3 +336,111 @@ TEST(VoiceManager, DecayIsTheReleaseTime)
             EXPECT_GT(tail, 1e-3f) << "a long decay did not";
     }
 }
+
+// Reported from hardware 2026-09-24: with Decay at zero the synth "somewhat
+// randomly" stops responding to keypresses, and changing presets does not fix
+// it. The cause is not the decay -- it is that a voice was only ever started by
+// a RISING GATE EDGE. DaisySP's Adsr restarts on `gate && !gate_`, and Start()
+// set x.gate = true without retriggering, so re-using or stealing a voice whose
+// gate was already high left the envelope exactly where it was. With a long
+// decay that is inaudible; with a short one the envelope has already collapsed
+// to zero, so the new note plays at no amplitude at all. It persists across a
+// preset change because it is voice state, not patch state.
+TEST(VoiceManager, RetriggeringAHeldNoteSoundsAgain)
+{
+    VoiceManager vm;
+    vm.Init(kSr, kBlock);
+    Patch p;
+    p.attack  = 0.f;
+    p.decay   = 0.f; // the fall time, and now the release too
+    p.sustain = 0.f; // collapses to silence while the key is still down
+    vm.ApplyPatch(p);
+
+    vm.NoteOn(60, 0.9f);
+    const float first = Render(vm, 0.2f).peak;
+    ASSERT_GT(first, 0.01f) << "the first note never sounded";
+
+    // The same key again, without releasing: the allocator re-uses that voice.
+    vm.NoteOn(60, 0.9f);
+    const float again = Render(vm, 0.2f).peak;
+    EXPECT_GT(again, first * 0.5f) << "the retriggered note was silent";
+}
+
+// The same fault by the other route: every voice busy, so a new note steals one.
+TEST(VoiceManager, AStolenVoiceSoundsAgain)
+{
+    VoiceManager vm;
+    vm.Init(kSr, kBlock);
+    Patch p;
+    p.attack  = 0.f;
+    p.decay   = 0.f;
+    p.sustain = 0.f;
+    vm.ApplyPatch(p);
+    vm.SetMaxVoices(4);
+
+    for(int n = 60; n < 64; n++) // fill the cap, all still held
+        vm.NoteOn(n, 0.9f);
+    Render(vm, 0.2f); // let them all collapse to silence
+
+    vm.NoteOn(72, 0.9f); // must steal one, and must be heard
+    EXPECT_GT(Render(vm, 0.2f).peak, 0.01f) << "the stolen voice never sounded";
+}
+
+// The retrigger above must not reach Mono, which is documented as legato: a new
+// note while one is held changes the pitch and does NOT restart the envelope.
+// MonoOn writes the voice directly rather than going through Start(), and this
+// is what says so.
+TEST(VoiceManager, MonoLegatoDoesNotRestartTheEnvelope)
+{
+    VoiceManager vm;
+    vm.Init(kSr, kBlock);
+    Patch p;
+    p.voice_mode = VoiceMode::kMono;
+    p.attack     = 0.f;
+    p.decay      = 0.f;
+    p.sustain    = 0.f; // the first note blips, then nothing
+    vm.ApplyPatch(p);
+
+    vm.NoteOn(60, 0.9f);
+    ASSERT_GT(Render(vm, 0.2f).peak, 0.01f) << "the first note never sounded";
+    vm.NoteOn(67, 0.9f); // legato, over the held note
+    EXPECT_LT(Render(vm, 0.2f).peak, 0.01f) << "legato retriggered the envelope";
+
+    // ...but a phrase that has ended and starts again does trigger.
+    vm.NoteOff(67);
+    vm.NoteOff(60);
+    Render(vm, 0.2f);
+    vm.NoteOn(62, 0.9f);
+    EXPECT_GT(Render(vm, 0.2f).peak, 0.01f) << "a new phrase did not sound";
+}
+
+// The deeper half of the same fault, and the one that made it look random. With
+// sustain at zero the envelope reaches IDLE while the key is STILL HELD, so the
+// note-off used to skip the voice before DaisySP's Adsr ever saw the falling
+// edge -- leaving its internal gate_ true for ever. Every later note-on then had
+// no rising edge and was silent, in every preset, until the firmware restarted.
+// Playing the same key over and over is what catches it.
+TEST(VoiceManager, RepeatedNotesKeepSoundingWithNoSustain)
+{
+    for(int mode = 0; mode < 2; mode++)
+    {
+        VoiceManager vm;
+        vm.Init(kSr, kBlock);
+        Patch p;
+        p.voice_mode = mode == 0 ? VoiceMode::kPoly : VoiceMode::kMono;
+        p.attack     = 0.f;
+        p.decay      = 0.f; // the whole envelope collapses while the key is down
+        p.sustain    = 0.f;
+        vm.ApplyPatch(p);
+        SCOPED_TRACE(mode == 0 ? "poly" : "mono");
+
+        for(int i = 0; i < 10; i++)
+        {
+            vm.NoteOn(60, 0.9f);
+            const float peak = Render(vm, 0.1f).peak;
+            vm.NoteOff(60);
+            Render(vm, 0.1f);
+            EXPECT_GT(peak, 0.01f) << "note " << i + 1 << " was silent";
+        }
+    }
+}

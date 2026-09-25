@@ -237,7 +237,18 @@ class VoiceManager
         for(int v = 0; v < max_voices_; v++)
         {
             Voice& x = voices_[v];
-            if(!x.gate && !x.env.IsRunning())
+            // A VOICE IS ONLY DONE ONCE IT HAS BEEN RELEASED AND FREED, which
+            // is what `note < 0` marks (see the end of this loop). Skipping on
+            // "silent and not running" alone was a trap: with sustain at zero
+            // the envelope reaches IDLE *while the key is still held*, so the
+            // note-off then skipped the voice entirely, DaisySP's Adsr never
+            // saw the falling edge, and its internal gate_ stayed true for
+            // ever. Every later note-on then had no rising edge and produced
+            // silence -- the "randomly not responding to keypresses" seen on
+            // hardware with Decay at zero (2026-09-24), which no preset change
+            // could clear because it is state inside the envelope. Rendering
+            // one more block of silence is what lets it wind down properly.
+            if(!x.gate && !x.env.IsRunning() && x.note < 0)
                 continue;
 
             // Glide toward the target pitch (mono/unison mostly).
@@ -324,6 +335,17 @@ class VoiceManager
         x.held   = true;
         x.age    = ++clock_;
         x.eng.Trig();
+        // RETRIGGER EXPLICITLY. DaisySP's Adsr only restarts on a rising gate
+        // edge (`gate && !gate_`), and there is no edge when a voice is re-used
+        // for the same note or stolen while it is still held -- its gate was
+        // already high. The envelope then carried on from wherever it was,
+        // which is inaudible with a long decay and completely silent with a
+        // short one, because it had already collapsed to zero. That is the
+        // "randomly not responding to keypresses" seen on hardware with Decay
+        // at zero (2026-09-24); it survived a preset change because it is voice
+        // state, not patch state. Soft, so a stolen voice ramps from where it
+        // is rather than jumping to zero and clicking.
+        x.env.Retrigger(false);
     }
 
     void PolyOn(int note, float vel)
