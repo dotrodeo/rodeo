@@ -13,11 +13,17 @@
 //     destination.
 //   * Master volume is global, is never stored in a preset, and never waits for
 //     pickup -- it is the physical output level.
-//   * The PRESET BROWSER is modal, and is the instrument's one modal exception:
-//     while it is open MAIN's turn browses slots, its tap loads and its
-//     long-press saves. That is acceptable only because the browser is on
-//     screen the whole time it applies. Anything else touched closes it without
-//     loading, as does five seconds of nothing.
+//   * MAIN'S HOLD MEANS SHIFT AND NOTHING ELSE. It used to also resolve, on
+//     release, as a long-press that armed the gesture recorder -- told apart
+//     from a shift only by whether anything else had been touched, which is an
+//     invisible rule at the moment you need it (Derek, 2026-09-24: "that feels
+//     confusing and easy to mess up"). Everything else now hangs off MAIN's
+//     TAP, through a menu, so the only press rule left is: tap acts, hold
+//     shifts.
+//   * The MENU is modal, and the screen says so the whole time it is open.
+//     Turn to choose, tap to enter; anything else touched closes it, as does
+//     five seconds of nothing. Load and Save are separate entries, which is
+//     what let the browser's own long-press-to-save go away.
 //
 // The Ui does not touch flash. Loading and saving are REQUESTS the app picks up
 // with TakePresetRequest(), so all of this stays testable on the host.
@@ -28,6 +34,7 @@
 
 #include "cost_model.h"
 #include "patch.h"
+#include "gesture.h"
 #include "preset.h"
 #include "texture_chain.h"
 #include "voice.h"
@@ -85,6 +92,35 @@ struct UiInput
     uint32_t now_ms       = 0;
 };
 
+/** Where the panel's attention is. Normal is playing; the rest are modal and
+ *  are on screen for as long as they apply. */
+enum class UiMode
+{
+    kNormal = 0,
+    kMenu,
+    kLoad,
+    kSave
+};
+
+/** The menu, in the order MAIN turns through it. */
+enum class MenuItem
+{
+    kLoad = 0,
+    kSave,
+    kGesture,
+    kCount
+};
+
+inline const char* MenuItemName(MenuItem m)
+{
+    switch(m)
+    {
+        case MenuItem::kLoad: return "Load preset";
+        case MenuItem::kSave: return "Save preset";
+        default: return "Gesture";
+    }
+}
+
 /** What the big readout is showing. A value is not always a number: a stepped
  *  pot is a choice and should say which one, and the envelope is a shape. */
 enum class Readout
@@ -128,11 +164,16 @@ struct DisplayState
     /** What releasing MAIN would do right now, once a clean hold has passed the
      *  long-press threshold. Empty when a release would do nothing. */
     const char* pending    = "";
-    // --- preset browser, while it is open --------------------------------
-    bool        browser_open = false;
+    // --- the modal layer -------------------------------------------------
+    UiMode      mode         = UiMode::kNormal;
+    const char* menu_item    = "";
+    int         menu_index   = 0;
     int         browser_slot = 0;
     const char* browser_name = "";
     bool        browser_used = false;
+    /** "", "ARM", "REC" or "LOOP" -- what the gesture recorder is doing. */
+    const char* gesture      = "";
+    float       gesture_pos  = 0.f;
 };
 
 /** What the panel is asking the app to do with the preset store. */
@@ -223,7 +264,12 @@ class Ui
         request_              = PresetRequest{};
         return r;
     }
-    bool BrowserOpen() const { return browser_open_; }
+    UiMode Mode() const { return mode_; }
+    bool   BrowserOpen() const { return mode_ == UiMode::kLoad || mode_ == UiMode::kSave; }
+
+    /** The recorder is owned by the app (its buffer is far too big for DTCM);
+     *  the Ui drives it, because the Ui is what knows the parameters. */
+    void SetGesture(GestureRecorder* g) { gesture_ = g; }
 
     const Patch&   patch() const { return patch_; }
     const Globals& globals() const { return globals_; }
@@ -256,8 +302,8 @@ class Ui
         }
         // A press IS activity: the browser must not time out from under a
         // finger that is holding MAIN down to save.
-        if(browser_open_ && shift)
-            browser_ms_ = in.now_ms;
+        if(mode_ != UiMode::kNormal && shift)
+            mode_ms_ = in.now_ms;
         if(shift != shift_)
         {
             shift_ = shift;
@@ -275,7 +321,7 @@ class Ui
                 if(shift_ && e != kMainEncoder)
                     touched_while_held_ = true;
                 if(e != kMainEncoder)
-                    CloseBrowser(in.now_ms);
+                    CloseMode(in.now_ms);
                 discrete_changed |= TurnEncoder(e, d, shift_, in.now_ms);
             }
             // Slot encoders: tap = bypass, and SPACE's long-press = freeze.
@@ -294,7 +340,7 @@ class Ui
                     }
                 }
                 if(in.enc_held[e] && !enc_held_[e])
-                    CloseBrowser(in.now_ms);
+                    CloseMode(in.now_ms);
                 if(!in.enc_held[e] && enc_held_[e])
                 {
                     if(!enc_long_[e])
@@ -309,30 +355,15 @@ class Ui
             enc_held_[e] = in.enc_held[e];
         }
 
-        // MAIN's press resolves on release, and only if nothing else moved.
+        // MAIN's press resolves on release, and only a TAP does anything: a
+        // hold is shift, always, in every mode. The "nothing else touched"
+        // guard stays, but now it only suppresses an accidental menu rather
+        // than deciding between two different actions.
         if(!shift && main_held_)
         {
             const uint32_t held = in.now_ms - press_start_ms_;
-            const bool     long_press = held >= kLongPressMs;
-            if(!touched_while_held_)
-            {
-                if(browser_open_)
-                {
-                    // The one modal exception: in here, long-press is SAVE.
-                    request_.action = long_press ? PresetAction::kSave : PresetAction::kLoad;
-                    request_.slot   = browser_slot_;
-                    browser_open_   = false;
-                }
-                else if(long_press)
-                    Post("Gesture: not yet", in.now_ms);
-                else
-                {
-                    browser_open_      = true;
-                    browser_ms_        = in.now_ms;
-                    browser_opened_ms_ = in.now_ms;
-                    ResetTurnWatch(in);
-                }
-            }
+            if(!touched_while_held_ && held < kLongPressMs)
+                Tap(in, held);
         }
         main_held_ = shift;
 
@@ -340,6 +371,28 @@ class Ui
         for(int i = 0; i < kNumPots; i++)
             discrete_changed |= UpdatePot(i, in.pot[i], in.now_ms);
         primed_ = true;
+
+        // --- the gesture recorder ----------------------------------------
+        // Driven from here because this is what knows the parameters, at a
+        // fixed rate rather than the loop's: the main loop runs far faster than
+        // the pots are scanned, and a gesture recorded at loop speed would play
+        // back at whatever speed the loop happened to be running at.
+        static_assert(GestureRecorder::kLanes == kNumPots * 2,
+                      "a lane per parameter, both layers");
+        if(gesture_ && in.now_ms - gesture_ms_ >= 1000u / GestureRecorder::kFrameRate)
+        {
+            gesture_ms_ = in.now_ms;
+            float vals[GestureRecorder::kLanes];
+            for(int i = 0; i < GestureRecorder::kLanes; i++)
+                vals[i] = ReadParam(static_cast<ParamId>(i));
+            gesture_->Tick(vals, moved_lane_);
+            if(gesture_->state() == GestureRecorder::State::kPlaying)
+                for(int i = 0; i < GestureRecorder::kLanes; i++)
+                    if(gesture_->in_loop(i) && !gesture_->grabbed(i))
+                        WriteParam(static_cast<ParamId>(i), vals[i]);
+            for(int i = 0; i < GestureRecorder::kLanes; i++)
+                moved_lane_[i] = false;
+        }
 
         // Expire the popup.
         if(display_.message_ms && in.now_ms - display_.message_ms > kPopupMs)
@@ -353,19 +406,23 @@ class Ui
             display_.readout    = Readout::kNone;
         }
 
-        if(browser_open_ && in.now_ms - browser_ms_ > kBrowserIdleMs)
-            browser_open_ = false;
+        if(mode_ != UiMode::kNormal && in.now_ms - mode_ms_ > kBrowserIdleMs)
+            mode_ = UiMode::kNormal;
 
         // A clean hold past the threshold announces itself, so the pending
         // action is never invisible (control map). Without this, a press that
         // had been disqualified looked exactly like one that had not.
+        // Nothing resolves on a long press any more, so there is nothing
+        // pending to announce: holding MAIN is shift and only shift.
         display_.pending = "";
-        if(shift_ && !touched_while_held_ && in.now_ms - press_start_ms_ >= kLongPressMs)
-            display_.pending = browser_open_ ? "SAVE" : "GESTURE";
 
         display_.shift        = shift_;
         display_.freeze       = patch_.freeze;
-        display_.browser_open = browser_open_;
+        display_.mode         = mode_;
+        display_.menu_index   = menu_index_;
+        display_.menu_item    = MenuItemName(static_cast<MenuItem>(menu_index_));
+        display_.gesture      = GestureLabel();
+        display_.gesture_pos  = gesture_ ? gesture_->position() : 0.f;
         display_.browser_slot = browser_slot_;
         display_.browser_name = bank_ ? bank_->slot[browser_slot_].name : "";
         display_.browser_used = bank_ ? bank_->slot[browser_slot_].used != 0 : false;
@@ -404,10 +461,77 @@ class Ui
             watch_lo_[i] = watch_hi_[i] = in.pot[i];
     }
 
-    void CloseBrowser(uint32_t now)
+    /** A tap on MAIN. What it does is whatever the screen is showing. */
+    void Tap(const UiInput& in, uint32_t held)
     {
-        if(browser_open_ && now != browser_opened_ms_)
-            browser_open_ = false;
+        // While a take is recording, a tap closes the loop and nothing else --
+        // that is the one timing-critical action the instrument has. The end is
+        // trimmed back to the moment the press went DOWN, so a loop does not
+        // end late by however long the finger stayed there.
+        if(mode_ == UiMode::kNormal && gesture_
+           && gesture_->state() == GestureRecorder::State::kRecording)
+        {
+            gesture_->Close(held * GestureRecorder::kFrameRate / 1000u);
+            Post("loop closed", in.now_ms);
+            return;
+        }
+
+        switch(mode_)
+        {
+            case UiMode::kNormal: EnterMode(UiMode::kMenu, in); break;
+
+            case UiMode::kMenu:
+                switch(static_cast<MenuItem>(menu_index_))
+                {
+                    case MenuItem::kLoad: EnterMode(UiMode::kLoad, in); break;
+                    case MenuItem::kSave: EnterMode(UiMode::kSave, in); break;
+                    default:
+                        if(gesture_)
+                        {
+                            gesture_->Advance();
+                            Post(GestureLabel(), in.now_ms);
+                        }
+                        EnterMode(UiMode::kNormal, in);
+                        break;
+                }
+                break;
+
+            case UiMode::kLoad:
+            case UiMode::kSave:
+                request_.action
+                    = mode_ == UiMode::kLoad ? PresetAction::kLoad : PresetAction::kSave;
+                request_.slot = browser_slot_;
+                EnterMode(UiMode::kNormal, in);
+                break;
+        }
+    }
+
+    void EnterMode(UiMode m, const UiInput& in)
+    {
+        mode_           = m;
+        mode_ms_        = in.now_ms;
+        mode_opened_ms_ = in.now_ms;
+        ResetTurnWatch(in);
+    }
+
+    const char* GestureLabel() const
+    {
+        if(!gesture_)
+            return "";
+        switch(gesture_->state())
+        {
+            case GestureRecorder::State::kArmed: return "ARM";
+            case GestureRecorder::State::kRecording: return "REC";
+            case GestureRecorder::State::kPlaying: return "LOOP";
+            default: return "";
+        }
+    }
+
+    /** Anything that is not MAIN closes the modal layer, without acting. */
+    void CloseMode(uint32_t now)
+    {
+        if(mode_ != UiMode::kNormal && now != mode_opened_ms_)
+            mode_ = UiMode::kNormal;
     }
 
     void Post(const char* msg, uint32_t now)
@@ -420,12 +544,19 @@ class Ui
     {
         if(e == kMainEncoder)
         {
-            if(browser_open_ && !shift)
+            if(mode_ == UiMode::kMenu && !shift)
             {
-                // Browsing, not choosing an engine.
+                const int n  = static_cast<int>(MenuItem::kCount);
+                menu_index_  = (menu_index_ + (delta > 0 ? 1 : -1) + n) % n;
+                mode_ms_     = now;
+                return false;
+            }
+            if(BrowserOpen() && !shift)
+            {
+                // Browsing slots, not choosing an engine.
                 const int n   = PresetBank::kNumSlots;
                 browser_slot_ = (browser_slot_ + (delta > 0 ? 1 : -1) + n) % n;
-                browser_ms_   = now;
+                mode_ms_      = now;
                 return false;
             }
             if(shift)
@@ -497,8 +628,8 @@ class Ui
             touched_while_held_ = true;
         // A turned pot closes the browser -- but not in the same pass that
         // opened it, since the hand that released MAIN may still be on a knob.
-        if(turned && browser_open_ && now != browser_opened_ms_)
-            browser_open_ = false;
+        if(turned && mode_ != UiMode::kNormal && now != mode_opened_ms_)
+            mode_ = UiMode::kNormal;
 
         if(ParamIsGlobal(p))
         {
@@ -507,7 +638,8 @@ class Ui
             last_pot_[pot] = value;
             if(!primed_ || fabsf(value - written_[index]) > kMoveEps)
             {
-                written_[index] = value;
+                written_[index]    = value;
+                moved_lane_[index] = true;
                 WriteParam(p, value);
                 if(primed_)
                     NoteTouch(p, value, 0, now);
@@ -539,6 +671,9 @@ class Ui
         if(fabsf(value - written_[index]) > kMoveEps)
         {
             written_[index] = value;
+            // What the PLAYER moved, which is what arms a take, and what takes
+            // a parameter back from a loop that is driving it.
+            moved_lane_[index] = true;
             WriteParam(p, value);
             NoteTouch(p, value, 0, now);
         }
@@ -724,9 +859,13 @@ class Ui
     float watch_lo_[kNumPots] = {}, watch_hi_[kNumPots] = {};
     const PresetBank* bank_ = nullptr;
     PresetRequest     request_;
-    bool     browser_open_ = false;
+    GestureRecorder* gesture_ = nullptr;
+    uint32_t gesture_ms_ = 0;
+    bool     moved_lane_[kNumPots * 2] = {};
+    UiMode   mode_ = UiMode::kNormal;
+    int      menu_index_ = 0;
     int      browser_slot_ = 0;
-    uint32_t browser_ms_ = 0, browser_opened_ms_ = 0;
+    uint32_t mode_ms_ = 0, mode_opened_ms_ = 0;
     bool     shift_ = false;
     bool         main_held_            = false;
     bool         touched_while_held_   = false;

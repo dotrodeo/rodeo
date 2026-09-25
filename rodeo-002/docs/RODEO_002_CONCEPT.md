@@ -480,8 +480,13 @@ and runs it from there, which is also fast memory, so DSP cost should carry over
 
 ## Open questions
 
-1. ~~Gesture recorder~~ **RESOLVED (Derek, 2026-09-21):** in, on MAIN's long-press, saved with
-   presets — see the control map. It costs well under 1% CPU; control space was the constraint.
+1. ~~Gesture recorder~~ **RESOLVED (Derek, 2026-09-21), BUILT 2026-09-24** (`common/gesture.h`).
+   It moved off MAIN's long-press onto a menu entry — see the control map — because a hold that
+   sometimes meant shift and sometimes armed a recorder was confusable in both directions.
+   **Still outstanding: gestures are not yet saved with presets.** That needs a stored-format
+   change and therefore a migration, since a bank is version-checked and Derek has saved
+   presets; the QSPI map reserves `0x7B0000` onward for the takes themselves. 32 lanes x 16 s at
+   100 frames a second is ~102 KB per take in SDRAM.
 2. ~~The three physical models miss the 6-voice minimum~~ **RESOLVED (Derek, 2026-09-20):**
    keep them, restricted to Mono/Unison — see Voice modes above.
 3. ~~Panel layout~~ **LOCKED (Derek, 2026-09-20):** 4×4 pots, a column of 4 slot encoders, MAIN

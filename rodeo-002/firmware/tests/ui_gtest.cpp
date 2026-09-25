@@ -147,15 +147,19 @@ TEST(Ui, HoldingShiftDoesNotFireMainsLongPress)
     EXPECT_STREQ(r.ui.display().message, "") << "a shift must not resolve as a press";
 }
 
-TEST(Ui, ACleanHoldAndReleaseResolvesAsALongPress)
+// It used to. Nothing resolves on a long press any more -- a hold is shift, and
+// only shift, which is what stopped it being confusable (2026-09-24).
+TEST(Ui, ACleanHoldAndReleaseDoesNothingAtAll)
 {
     Rig r;
     r.HoldMain(true);
     for(int i = 0; i < 100; i++)
         r.Tick();
+    EXPECT_TRUE(r.ui.display().shift) << "holding MAIN is supposed to be shift";
     r.HoldMain(false); // nothing else touched
     r.Tick();
-    EXPECT_STRNE(r.ui.display().message, "");
+    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
+    EXPECT_STREQ(r.ui.display().pending, "");
 }
 
 TEST(Ui, SlotEncoderTurnsPickTypesAndTapsBypass)
@@ -226,12 +230,13 @@ TEST(Ui, DisplayReportsEngineVoicesAndSlots)
                                             r.ui.patch().type[fx::TextureChain::kSpace]));
 }
 
-// ------------------------------------------------------- PRESET BROWSER
+// ------------------------------------------------------------ THE MENU
 //
-// The instrument's one modal state, so the rules matter: MAIN's turn browses
-// instead of choosing an engine, its tap loads, its long-press saves (the one
-// place long-press does not mean gesture), and anything else closes it without
-// loading. The Ui only ASKS -- the app does the flash work.
+// MAIN's hold is SHIFT and nothing else. Everything else hangs off its TAP,
+// through a modal menu, because a hold that sometimes meant shift and sometimes
+// armed the recorder -- told apart only by whether anything else had been
+// touched -- was invisible at the moment it mattered (Derek, 2026-09-24).
+// The rule left is: tap acts, hold shifts.
 
 namespace
 {
@@ -245,110 +250,110 @@ void Tap(Rig& r)
 void LongPress(Rig& r)
 {
     r.HoldMain(true);
-    r.Tick();                      // the press starts at this pass's clock
-    r.Tick(Ui::kLongPressMs + 50); // still held, while time passes
+    r.Tick();
+    r.Tick(Ui::kLongPressMs + 50);
     r.HoldMain(false);
     r.Tick();
 }
+// Open the menu and enter an entry. The menu remembers where it was left, so
+// this turns to the entry rather than assuming it opens at the first one.
+void OpenMenu(Rig& r, MenuItem item)
+{
+    Tap(r);
+    for(int guard = 0; r.ui.display().menu_index != static_cast<int>(item) && guard < 8; guard++)
+        r.Turn(kMain, 1);
+    Tap(r);
+}
 } // namespace
 
-TEST(Ui, TappingMainOpensTheBrowserAndAsksForNothingYet)
+TEST(Ui, TappingMainOpensTheMenu)
 {
     Rig r;
-    EXPECT_FALSE(r.ui.BrowserOpen());
+    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
     Tap(r);
-    EXPECT_TRUE(r.ui.BrowserOpen());
+    EXPECT_EQ(r.ui.Mode(), UiMode::kMenu);
+    EXPECT_EQ(r.ui.display().mode, UiMode::kMenu);
     EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
-    EXPECT_TRUE(r.ui.display().browser_open);
 }
 
-TEST(Ui, TurningMainInTheBrowserBrowsesInsteadOfChangingTheEngine)
+TEST(Ui, HoldingMainDoesNothingButShift)
+{
+    Rig r;
+    LongPress(r);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal) << "a hold opened something";
+    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
+    EXPECT_STREQ(r.ui.display().pending, "") << "a hold still announces an action";
+}
+
+TEST(Ui, TurningInTheMenuMovesTheSelectionNotTheEngine)
 {
     Rig            r;
     const EngineId before = r.ui.patch().engine;
     Tap(r);
     r.Turn(kMain, 1);
-    r.Turn(kMain, 1);
-    EXPECT_EQ(r.ui.display().browser_slot, 2);
-    EXPECT_EQ(r.ui.patch().engine, before) << "browsing changed the engine";
-    // And it wraps rather than sticking at an end.
-    for(int i = 0; i < PresetBank::kNumSlots; i++)
-        r.Turn(kMain, -1);
-    EXPECT_EQ(r.ui.display().browser_slot, 2);
+    EXPECT_EQ(r.ui.display().menu_index, 1);
+    EXPECT_EQ(r.ui.patch().engine, before) << "browsing the menu changed the engine";
+    // ...and it wraps.
+    for(int i = 0; i < static_cast<int>(MenuItem::kCount); i++)
+        r.Turn(kMain, 1);
+    EXPECT_EQ(r.ui.display().menu_index, 1);
 }
 
-TEST(Ui, TappingInTheBrowserAsksToLoadTheHighlightedSlot)
+TEST(Ui, LoadAndSaveAreSeparateEntriesAndBothActOnATap)
 {
-    Rig r;
-    Tap(r); // open
-    r.Turn(kMain, 1);
-    r.Turn(kMain, 1);
-    r.Turn(kMain, 1);
-    Tap(r); // load
-    const PresetRequest req = r.ui.TakePresetRequest();
-    EXPECT_EQ(req.action, PresetAction::kLoad);
-    EXPECT_EQ(req.slot, 3);
-    EXPECT_FALSE(r.ui.BrowserOpen()) << "the browser stays open after loading";
-    // And the request is one-shot.
-    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
+    {
+        Rig r;
+        OpenMenu(r, MenuItem::kLoad);
+        ASSERT_EQ(r.ui.Mode(), UiMode::kLoad);
+        r.Turn(kMain, 1);
+        r.Turn(kMain, 1);
+        Tap(r);
+        const PresetRequest req = r.ui.TakePresetRequest();
+        EXPECT_EQ(req.action, PresetAction::kLoad);
+        EXPECT_EQ(req.slot, 2);
+        EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
+    }
+    {
+        Rig r;
+        OpenMenu(r, MenuItem::kSave);
+        ASSERT_EQ(r.ui.Mode(), UiMode::kSave);
+        r.Turn(kMain, 1);
+        Tap(r);
+        const PresetRequest req = r.ui.TakePresetRequest();
+        EXPECT_EQ(req.action, PresetAction::kSave) << "saving now needs no hold at all";
+        EXPECT_EQ(req.slot, 1);
+    }
 }
 
-TEST(Ui, LongPressingInTheBrowserSavesRatherThanRecordingAGesture)
-{
-    Rig r;
-    Tap(r);
-    r.Turn(kMain, 1);
-    LongPress(r);
-    const PresetRequest req = r.ui.TakePresetRequest();
-    EXPECT_EQ(req.action, PresetAction::kSave);
-    EXPECT_EQ(req.slot, 1);
-    EXPECT_FALSE(r.ui.BrowserOpen());
-}
-
-// Outside the browser a long-press is the gesture recorder, not a save.
-TEST(Ui, LongPressOutsideTheBrowserAsksForNoPresetAtAll)
-{
-    Rig r;
-    LongPress(r);
-    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
-    EXPECT_FALSE(r.ui.BrowserOpen());
-}
-
-TEST(Ui, TouchingAnythingElseClosesTheBrowserWithoutLoading)
+TEST(Ui, TouchingAnythingElseClosesTheModalLayerWithoutActing)
 {
     {
         Rig r;
         Tap(r);
-        ASSERT_TRUE(r.ui.BrowserOpen());
+        ASSERT_EQ(r.ui.Mode(), UiMode::kMenu);
         r.MovePot(0, 0.9f);
-        EXPECT_FALSE(r.ui.BrowserOpen()) << "a pot did not close it";
-        EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
+        EXPECT_EQ(r.ui.Mode(), UiMode::kNormal) << "a pot did not close the menu";
     }
     {
         Rig r;
-        Tap(r);
-        ASSERT_TRUE(r.ui.BrowserOpen());
+        OpenMenu(r, MenuItem::kLoad);
         r.Turn(0, 1); // a slot encoder
-        EXPECT_FALSE(r.ui.BrowserOpen()) << "a slot encoder did not close it";
+        EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
         EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
     }
 }
 
-TEST(Ui, TheBrowserClosesItselfIfNothingHappens)
+TEST(Ui, TheModalLayerClosesItselfIfNothingHappens)
 {
     Rig r;
     Tap(r);
-    ASSERT_TRUE(r.ui.BrowserOpen());
     r.Tick(Ui::kBrowserIdleMs - 100);
-    EXPECT_TRUE(r.ui.BrowserOpen()) << "closed too early";
+    EXPECT_EQ(r.ui.Mode(), UiMode::kMenu) << "closed too early";
     r.Tick(200);
-    EXPECT_FALSE(r.ui.BrowserOpen());
-    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
 }
 
-// MAIN held IS shift. Holding it to reach a pot must not open the browser when
-// it is let go -- the same rule that keeps shift from firing the long-press.
-TEST(Ui, UsingMainAsShiftDoesNotOpenTheBrowser)
+TEST(Ui, UsingMainAsShiftDoesNotOpenTheMenu)
 {
     Rig r;
     r.HoldMain(true);
@@ -356,139 +361,110 @@ TEST(Ui, UsingMainAsShiftDoesNotOpenTheBrowser)
     r.MovePot(0, 0.9f); // the other hand, on a shift-layer parameter
     r.HoldMain(false);
     r.Tick();
-    EXPECT_FALSE(r.ui.BrowserOpen());
-    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
 }
 
-// Names come from the bank the app owns; without one the browser still works.
+TEST(Ui, PotDitherDuringAPressDoesNotSwallowTheTap)
+{
+    Rig r;
+    r.HoldMain(true);
+    r.Tick();
+    for(int i = 0; i < 20; i++)
+    {
+        r.in.pot[3] = 0.5f + ((i % 2) ? 0.003f : -0.003f);
+        r.Tick(2);
+    }
+    r.HoldMain(false);
+    r.Tick();
+    EXPECT_EQ(r.ui.Mode(), UiMode::kMenu) << "dither made the tap look like a shift";
+}
+
+TEST(Ui, ADeliberateTurnDuringAHoldIsStillAShift)
+{
+    Rig r;
+    r.HoldMain(true);
+    r.Tick();
+    r.MovePot(3, 0.75f); // a quarter turn, while holding
+    r.HoldMain(false);
+    r.Tick();
+    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal)
+        << "a real turn should have made that press a shift";
+}
+
 TEST(Ui, TheBrowserShowsTheNameOfTheHighlightedSlot)
 {
     Rig               r;
     static PresetBank bank;
     BuildFactoryBank(bank);
     r.ui.SetBank(&bank);
-    Tap(r);
+    OpenMenu(r, MenuItem::kLoad);
     r.Tick();
     EXPECT_STREQ(r.ui.display().browser_name, bank.slot[0].name);
     EXPECT_TRUE(r.ui.display().browser_used);
-    for(int i = 0; i < PresetBank::kNumSlots - 1; i++)
-        r.Turn(kMain, 1);
-    r.Tick();
-    EXPECT_STREQ(r.ui.display().browser_name, bank.slot[PresetBank::kNumSlots - 1].name);
-    EXPECT_TRUE(r.ui.display().browser_used) << "every slot ships a sound now";
 
-    // An emptied slot still reports itself as empty, so the browser can say so
-    // and refuse to load it.
-    bank.slot[PresetBank::kNumSlots - 1].used = 0;
+    bank.slot[0].used = 0;
     r.Tick();
     EXPECT_FALSE(r.ui.display().browser_used);
 }
 
-// Both of these come straight off hardware, 2026-09-24: "holding MAIN while on
-// an empty slot doesn't seem to save."
+// ------------------------------------------------------ GESTURE RECORDER
 
-// The browser's idle timer used to keep running while MAIN was held down, so
-// pausing to decide which slot to use lost the browser mid-press -- and the
-// long-press then meant gesture instead of save.
-TEST(Ui, PausingBeforeTheSaveDoesNotLoseTheBrowser)
+TEST(Ui, TheGestureEntryCyclesArmRecordAndClear)
 {
-    Rig r;
-    Tap(r);
-    r.Turn(kMain, 1);
-    ASSERT_TRUE(r.ui.BrowserOpen());
-    for(int i = 0; i < 12; i++) // six seconds of deciding
-        r.Tick(500);
-    ASSERT_FALSE(r.ui.BrowserOpen()) << "it should still close when untouched";
+    Rig             r;
+    GestureRecorder g;
+    std::vector<uint16_t> buf(GestureRecorder::kLanes * GestureRecorder::kMaxFrames);
+    g.Init(buf.data(), GestureRecorder::kMaxFrames);
+    r.ui.SetGesture(&g);
 
-    // ...and once a hold starts, the timer must not run out underneath it.
-    Tap(r); // open again
-    r.HoldMain(true);
-    r.Tick();
-    for(int i = 0; i < 20; i++) // ten seconds of holding
-        r.Tick(500);
-    r.HoldMain(false);
-    r.Tick();
-    const PresetRequest req = r.ui.TakePresetRequest();
-    EXPECT_EQ(req.action, PresetAction::kSave) << "the browser timed out mid-press";
+    OpenMenu(r, MenuItem::kGesture);
+    EXPECT_EQ(g.state(), GestureRecorder::State::kArmed);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal) << "the menu should close behind it";
+
+    // Recording starts on the first pot movement, not on the press.
+    r.Tick(200);
+    EXPECT_EQ(g.state(), GestureRecorder::State::kArmed);
+    r.MovePot(0, 0.2f); // catches, then moves: a real parameter change
+    r.MovePot(0, 0.8f);
+    EXPECT_EQ(g.state(), GestureRecorder::State::kRecording);
+
+    // While recording, a tap closes the loop rather than opening the menu --
+    // the one timing-critical action the instrument has.
+    Tap(r);
+    EXPECT_EQ(g.state(), GestureRecorder::State::kPlaying);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal) << "closing the loop opened the menu";
+
+    // Clearing goes back through the menu, since nothing is time-critical now.
+    OpenMenu(r, MenuItem::kGesture);
+    EXPECT_EQ(g.state(), GestureRecorder::State::kIdle);
 }
 
-// A pot that is merely dithering is not a pot that was touched. 0.3% of travel
-// was enough to disqualify the press and swallow the save.
-TEST(Ui, PotDitherDuringAHoldDoesNotSwallowTheSave)
+TEST(Ui, APlayingLoopDrivesTheParameterItRecorded)
 {
-    Rig r;
-    Tap(r);
-    ASSERT_TRUE(r.ui.BrowserOpen());
-    r.HoldMain(true);
-    r.Tick();
-    for(int i = 0; i < 70; i++)
+    Rig             r;
+    GestureRecorder g;
+    std::vector<uint16_t> buf(GestureRecorder::kLanes * GestureRecorder::kMaxFrames);
+    g.Init(buf.data(), GestureRecorder::kMaxFrames);
+    r.ui.SetGesture(&g);
+
+    OpenMenu(r, MenuItem::kGesture); // arm
+    r.MovePot(0, 0.2f);              // catch Harmonics, then sweep it
+    for(int i = 0; i < 6; i++)
+        r.MovePot(0, i % 2 ? 0.8f : 0.2f);
+    ASSERT_EQ(g.state(), GestureRecorder::State::kRecording);
+    Tap(r); // close
+    ASSERT_EQ(g.state(), GestureRecorder::State::kPlaying);
+    ASSERT_TRUE(g.in_loop(static_cast<int>(ParamId::kHarmonics)));
+
+    // With no hands on the panel, the loop moves the parameter by itself.
+    float lo = 1.f, hi = 0.f;
+    for(int i = 0; i < 200; i++)
     {
-        r.in.pot[3] = 0.5f + ((i % 2) ? 0.003f : -0.003f);
-        r.Tick(10);
+        r.Tick();
+        lo = fminf(lo, r.ui.patch().harmonics);
+        hi = fmaxf(hi, r.ui.patch().harmonics);
     }
-    r.HoldMain(false);
-    r.Tick();
-    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kSave);
-}
-
-// ...but a pot that really was turned still means the press was a shift. This
-// is the rule the dither fix must not trample.
-TEST(Ui, ADeliberateTurnDuringAHoldIsStillAShift)
-{
-    Rig r;
-    Tap(r);
-    ASSERT_TRUE(r.ui.BrowserOpen());
-    r.HoldMain(true);
-    r.Tick();
-    r.MovePot(3, 0.75f); // a quarter turn, while holding
-    r.Tick(Ui::kLongPressMs + 50);
-    r.HoldMain(false);
-    r.Tick();
-    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone)
-        << "a real turn should have made that press a shift";
-}
-
-// Even a slow turn has to count: the watch measures from where the pot was when
-// the press began, so creeping past the threshold is still a turn.
-TEST(Ui, ASlowTurnDuringAHoldCountsToo)
-{
-    Rig r;
-    Tap(r);
-    r.HoldMain(true);
-    r.Tick();
-    for(int i = 0; i < 60; i++) // 6% of travel over 600 ms
-    {
-        r.in.pot[3] = 0.5f + 0.001f * static_cast<float>(i);
-        r.Tick(10);
-    }
-    r.HoldMain(false);
-    r.Tick();
-    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
-}
-
-// The press must say what it is going to do before it does it, or a
-// disqualified hold looks exactly like one that will work.
-TEST(Ui, AHoldAnnouncesWhatReleasingWillDo)
-{
-    Rig r;
-    r.HoldMain(true);
-    r.Tick();
-    EXPECT_STREQ(r.ui.display().pending, "") << "announced before the threshold";
-    r.Tick(Ui::kLongPressMs + 50);
-    EXPECT_STREQ(r.ui.display().pending, "GESTURE");
-    r.HoldMain(false);
-    r.Tick();
-
-    Tap(r); // open the browser: the same hold now means save
-    r.HoldMain(true);
-    r.Tick();
-    r.Tick(Ui::kLongPressMs + 50);
-    EXPECT_STREQ(r.ui.display().pending, "SAVE");
-
-    // A hold that has been disqualified says nothing, because it will do nothing.
-    r.MovePot(3, 0.8f);
-    r.Tick();
-    EXPECT_STREQ(r.ui.display().pending, "");
+    EXPECT_GT(hi - lo, 0.2f) << "the loop is not driving the parameter";
 }
 
 // ------------------------------------------------------ WHAT THE SCREEN SAYS

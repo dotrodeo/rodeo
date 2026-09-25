@@ -122,6 +122,13 @@ PersistentStorage<PresetBank> preset_store(hw.qspi);
 // the browser reads them.)
 static PresetBank DSY_SDRAM_BSS g_factory_bank;
 
+// The gesture recorder's take: 32 lanes x 16 s at its frame rate, ~100 KB, which
+// DTCM does not have and SDRAM will not miss. Nothing reads it in the audio
+// callback, so the slower memory costs nothing.
+static uint16_t DSY_SDRAM_BSS
+    g_gesture_buf[GestureRecorder::kLanes * GestureRecorder::kMaxFrames];
+static GestureRecorder g_gesture;
+
 // --- what the instrument was doing last -----------------------------------
 // Only the preset slot, for now: the synth boots back into the sound it was
 // left on. Its own sector, because it is written on a different schedule from
@@ -555,8 +562,11 @@ static void DrawScreen()
     }
     display.SetCursor(0, 0);
     display.WriteString(line, Font_6x8, !inv);
+    // What the recorder is doing displaces the voice mode while it is doing it:
+    // knowing a take is running matters more than knowing you are in Poly, and
+    // it has to be visible without opening anything.
     display.SetCursor(128 - 6 * 7, 0);
-    display.WriteString(d.voice_short, Font_6x8, !inv);
+    display.WriteString(d.gesture[0] ? d.gesture : d.voice_short, Font_6x8, !inv);
     FixedCapStr<8> voices_str("");
     voices_str.AppendInt(d.voices_active);
     voices_str.Append("/");
@@ -598,7 +608,7 @@ static void DrawScreen()
     // you (Derek, 2026-09-24) -- a scope that resizes as a popup comes and goes
     // is harder to read than a smaller one that holds still.
     const bool envelope = d.readout == Readout::kEnvelope;
-    if(!d.browser_open && !envelope)
+    if(d.mode == UiMode::kNormal && !envelope)
         DrawScope(layout::kBodyTop, layout::kStripBot);
 
     switch(d.readout)
@@ -648,32 +658,42 @@ static void DrawScreen()
         }
     }
 
-    // The browser takes the screen while it is open: it is the instrument's one
-    // modal state, so it has to be unmistakable.
-    if(d.browser_open)
+    // The modal layer takes the screen for as long as it applies, so that what
+    // a tap will do is never a guess.
+    if(d.mode != UiMode::kNormal)
     {
         display.DrawRect(0, 20, 127, 52, false, true); // clear what is under it
         display.DrawRect(0, 20, 127, 52, true);
-        FixedCapStr<24> head("PRESET ");
-        head.AppendInt(d.browser_slot + 1);
-        head.Append("/");
-        head.AppendInt(PresetBank::kNumSlots);
+        FixedCapStr<24> head("");
+        FixedCapStr<24> body("");
+        const char*     hint = "";
+        if(d.mode == UiMode::kMenu)
+        {
+            head.Append("MENU");
+            body.Append(d.menu_item);
+            hint = "turn to choose   tap to enter";
+        }
+        else
+        {
+            head.Append(d.mode == UiMode::kLoad ? "LOAD " : "SAVE ");
+            head.AppendInt(d.browser_slot + 1);
+            head.Append("/");
+            head.AppendInt(PresetBank::kNumSlots);
+            body.Append(d.browser_used ? d.browser_name : "-- empty --");
+            hint = d.mode == UiMode::kLoad ? "tap to load" : "tap to overwrite";
+        }
         display.SetCursor(4, 23);
         display.WriteString(head, Font_6x8, true);
         display.SetCursor(4, 33);
-        display.WriteString(d.browser_used ? d.browser_name : "-- empty --", Font_7x10, true);
+        display.WriteString(body, Font_7x10, true);
         display.SetCursor(4, 44);
-        // Once a clean hold passes the threshold it says so, rather than
-        // leaving a press that will not fire looking like one that will.
-        display.WriteString(d.pending[0] ? "RELEASE TO SAVE" : "tap load  hold save",
-                            Font_4x6,
-                            true);
+        display.WriteString(hint, Font_4x6, true);
     }
 
     // Messages and a pending hold are moments, not states, so they appear over
     // what is there and then go away again -- rather than a line held empty for
     // them all the time.
-    if(!d.browser_open && (d.pending[0] || d.message[0]))
+    if(d.mode == UiMode::kNormal && (d.pending[0] || d.message[0]))
     {
         FixedCapStr<32> msg("");
         if(d.pending[0])
@@ -708,7 +728,9 @@ static uint32_t ScreenSignature(const DisplayState& d, uint32_t extra)
     auto     mix = [&h](uint32_t v) { h = (h ^ v) * 16777619u; };
     auto     mix_ptr
         = [&mix](const char* p) { mix(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(p))); };
-    mix(d.browser_open ? 0x8000u + static_cast<uint32_t>(d.browser_slot) : 0u);
+    mix(static_cast<uint32_t>(d.mode) * 0x1000u + static_cast<uint32_t>(d.browser_slot));
+    mix(static_cast<uint32_t>(d.menu_index));
+    mix_ptr(d.gesture);
     mix_ptr(d.pending);
     mix_ptr(d.engine);
     mix_ptr(d.voice_mode);
@@ -923,6 +945,8 @@ int main(void)
         if(g_slots_filled)
             preset_store.Save();
         ui.SetBank(&preset_store.GetSettings());
+        g_gesture.Init(g_gesture_buf, GestureRecorder::kMaxFrames);
+        ui.SetGesture(&g_gesture);
 
         // Boot into whatever was last loaded -- as STORED, so power-up is
         // always a known-good sound and the screen's * is what tells you the
@@ -1191,7 +1215,7 @@ int main(void)
         ui.Refresh(voices);
         const DisplayState& ds = ui.display();
         const bool          scope_on
-            = !ds.browser_open && ds.readout != Readout::kEnvelope;
+            = ds.mode == UiMode::kNormal && ds.readout != Readout::kEnvelope;
         if(g_have_oled && g_blocks - last_draw >= 40)
         {
             const uint32_t sig        = ScreenSignature(ds, 0u); // all but the scope

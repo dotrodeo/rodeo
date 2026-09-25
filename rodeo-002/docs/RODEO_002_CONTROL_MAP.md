@@ -180,7 +180,7 @@ bottom; the isolated encoder under the OLED is slot 5. Slots 6–9 unpopulated.
 | 2 | R2C5 MOVEMENT  | Type: Chorus / Vibrato / Phaser / Flanger / Tremolo | Bypass slot | — | LFO shape |
 | 3 | R3C5 TEXTURE   | Type: Crush / Downsample / Tape / Dust / Squash | Bypass slot | — | Per-type variant |
 | 4 | R4C5 SPACE     | Type: Echo / Cloud / Reverse / Wash / Reverb | Bypass slot | **FREEZE** | Grain-pitch quantize |
-| 5 | R4C6 **MAIN**  | Engine select (wrap) | Open preset browser *(see below)* | **GESTURE** — arm / close loop / clear | **Voice mode** |
+| 5 | R4C6 **MAIN**  | Engine select (wrap) | **Open the menu** *(see below)* | — *(nothing: a hold is shift)* | **Voice mode** |
 
 * **Shift = MAIN's switch held.** MAIN sits at the far right, so shift is held with one hand
   while the other sweeps pots. Holding it and turning MAIN itself (a push-turn) selects the
@@ -205,7 +205,28 @@ bottom; the isolated encoder under the OLED is slot 5. Slots 6–9 unpopulated.
 * Encoder satellites take **straight** cables (`A / B / S / GND` both ends).
 * Direction follows the hub's `CONFIG.ENC_DIR_INVERT`.
 
-### Preset browser (decided 2026-09-21, built 2026-09-24)
+### The menu (revised 2026-09-24)
+
+**MAIN's hold means SHIFT and nothing else.** It used to *also* resolve on release as a
+long-press that armed the gesture recorder, told apart from a shift only by whether anything
+else had been touched — an invisible rule at the moment it mattered, and wrong in both
+directions: hesitate while holding shift and you armed the recorder; graze a pot while arming
+and nothing happened. Derek, 2026-09-24: *"that feels confusing and easy to mess up."*
+
+Everything now hangs off MAIN's **tap**, so the only press rule left is **tap acts, hold
+shifts**.
+
+| In the menu | Does |
+|---|---|
+| Turn MAIN | Move the selection (wraps; it remembers where you left it) |
+| Tap MAIN | Enter the highlighted entry |
+| Touch any other control, or 5 s idle | Close, doing nothing |
+
+Entries: **Load preset · Save preset · Gesture**. Load and Save being separate is what let the
+browser's long-press-to-save go away — inside either one, a tap acts and that is all. The
+settings pages (*Patch* and *Global*, below) join this menu when they are built.
+
+### Preset browser (decided 2026-09-21, built 2026-09-24, re-homed under the menu 2026-09-24)
 
 Tapping MAIN opens it, and **while it is open MAIN's controls mean something else** — the OLED
 says so for as long as it is open:
@@ -213,8 +234,7 @@ says so for as long as it is open:
 | In the browser | Does |
 |---|---|
 | Turn MAIN | Browse slots |
-| Tap MAIN | **Load** the highlighted preset and close |
-| Long-press MAIN | **Save** to the highlighted slot and close |
+| Tap MAIN | **Act** on the highlighted slot — load or overwrite, whichever entry you came in by — and close |
 | Touch any other control, or 5 s idle | **Close without loading** |
 
 **The idle timer stops while MAIN is held.** A press is activity: without this, pausing to
@@ -226,21 +246,25 @@ encoder down, and the long-press then meant *gesture* instead of *save* (2026-09
 sound to replace, and there is no restore gesture yet. A saved slot is named `User N` — naming needs a text entry this
 panel cannot offer. Loading drops pickup on every pot, so nothing jumps.
 
-Long-press means *gesture* everywhere else and *save* here. That is the one modal exception on
-the instrument, and it is acceptable only because the browser is on screen whenever it applies.
+There is no long-press here or anywhere else: you arrive from **Load preset** or **Save
+preset**, the screen says which, and a tap does that one thing.
 
 ### Gesture recorder (decided 2026-09-21)
 
-Records pot movements and loops them — the Chroma Console's gesture idea. It lives on **MAIN's
-long-press** because it is a global performance feature and belongs on the brain encoder, not
-on a texture slot. **Save moved into the preset browser** to make room (long-press on the
-highlighted slot while browsing), which is where you are already choosing a slot anyway.
+Records pot movements and loops them — the Chroma Console's gesture idea. **Built 2026-09-24**
+(`common/gesture.h`), reached from the menu.
 
-| MAIN long-press, when… | Does |
+| Gesture entry, when… | Does |
 |---|---|
-| idle | **Arm.** Recording starts on the first pot movement, so there is no rush. OLED: `REC`. |
-| recording | **Close the loop** and start playing it back. |
+| idle | **Arm.** Recording starts on the first pot movement, so there is no rush. |
+| armed | **Cancel**, rather than record nothing. |
 | looping | **Stop and clear.** |
+
+**While a take is recording, MAIN's tap closes the loop** rather than opening the menu — that is
+the one timing-critical action the instrument has, and it should not need a menu. The menu is
+therefore unreachable while recording; close the loop first. The header shows `ARM`, `REC` or
+`LOOP` in place of the voice mode for as long as a take is running, so the state is never
+hidden.
 
 * **Loop end is trimmed to the press-DOWN moment.** A long-press resolves ≥ 600 ms after the
   press starts (and MAIN resolves on release — see above), so closing the loop at resolution
