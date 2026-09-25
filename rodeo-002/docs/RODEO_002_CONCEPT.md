@@ -461,8 +461,9 @@ and runs it from there, which is also fast memory, so DSP cost should carry over
   | `0x040000`– | Program image (an SRAM build cannot exceed 480 KB) |
   | `0x780000` | **Panel wiring map** (`PanelPots::Calibration`, ~12 B — which analog runs were built straight) |
   | `0x790000` | **Preset bank** (`PresetBank`, 16 slots, 2.6 KB) |
+  | `0x100000`–`0x2FFFFF` | **Gestures**, 128 KB per preset slot — two erase blocks, which is what a full-length 32-lane take needs |
   | `0x7A0000` | **Instrument state** (the preset slot to boot into) |
-  | `0x7B0000`– | Free — where gestures go |
+  | `0x7B0000`– | Free |
 
   It lives far past the program on purpose: a reflash rewrites only the image, so what is stored
   survives a firmware update as well as a power cycle. **Pot travel is not stored, because it is
@@ -483,10 +484,14 @@ and runs it from there, which is also fast memory, so DSP cost should carry over
 1. ~~Gesture recorder~~ **RESOLVED (Derek, 2026-09-21), BUILT 2026-09-24** (`common/gesture.h`).
    It moved off MAIN's long-press onto a menu entry — see the control map — because a hold that
    sometimes meant shift and sometimes armed a recorder was confusable in both directions.
-   **Still outstanding: gestures are not yet saved with presets.** That needs a stored-format
-   change and therefore a migration, since a bank is version-checked and Derek has saved
-   presets; the QSPI map reserves `0x7B0000` onward for the takes themselves. 32 lanes x 16 s at
-   100 frames a second is ~102 KB per take in SDRAM.
+   **Saved with presets since 2026-09-24**, and it cost no stored format change at all: a take
+   is ~100 KB, three orders of magnitude bigger than a preset, so it never belonged in the bank.
+   Each slot has its own 128 KB region from `0x100000`, and that region's own header answers
+   whether the preset has a gesture — so no version bump, no migration, and no saved preset
+   lost. Only the frames actually recorded are erased and written (a four-second take is 25 KB,
+   not 100), because erasing stalls the panel for the best part of a second. Saving a slot
+   *without* a gesture writes an empty header, which clears whatever was there: an old loop must
+   not attach itself to a new sound.
 2. ~~The three physical models miss the 6-voice minimum~~ **RESOLVED (Derek, 2026-09-20):**
    keep them, restricted to Mono/Unison — see Voice modes above.
 3. ~~Panel layout~~ **LOCKED (Derek, 2026-09-20):** 4×4 pots, a column of 4 slot encoders, MAIN

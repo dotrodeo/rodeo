@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 
 #include <cmath>
+#include <cstring>
 #include <vector>
 
 #include "gesture.h"
@@ -178,4 +179,107 @@ TEST(Gesture, ClearingStopsItDrivingAnything)
     r.Tick(30);
     EXPECT_FLOAT_EQ(r.v[3], 0.42f);
     EXPECT_FALSE(r.g.in_loop(3));
+}
+
+// ------------------------------------------------- STORED WITH A PRESET
+//
+// A take is ~100 KB, three orders of magnitude bigger than a preset, so it does
+// not live in the bank: each slot has its own region and the region's own
+// header answers whether that preset has a gesture. That is why gestures cost
+// no change to the preset format and no saved preset.
+
+#include "gesture_store.h"
+
+TEST(GestureStore, ATakeFitsItsSlotAndTheSlotsDoNotOverlap)
+{
+    EXPECT_LE(GestureBytes(GestureRecorder::kMaxFrames), GestureSlotSize());
+    for(int i = 1; i < 16; i++)
+        EXPECT_EQ(GestureOffsetForSlot(i) - GestureOffsetForSlot(i - 1), GestureSlotSize())
+            << "slot " << i << " overlaps its neighbour";
+    // Clear of the program below and of the three stores up at the top.
+    EXPECT_GE(GestureOffsetForSlot(0), 0x070000u) << "would land on the program image";
+    EXPECT_LE(GestureOffsetForSlot(15) + GestureSlotSize(), 0x780000u)
+        << "would land on the panel wiring map";
+}
+
+TEST(GestureStore, OnlyTheFramesRecordedAreWorthWriting)
+{
+    // A four-second take is a quarter of the space, and the erase is sized to
+    // match -- erasing 128 KB stalls the panel for the best part of a second.
+    EXPECT_LT(GestureBytes(400), GestureBytes(GestureRecorder::kMaxFrames) / 3);
+    EXPECT_EQ(GestureBytes(0), sizeof(GestureHeader));
+}
+
+TEST(GestureStore, AnUnwrittenOrForeignRegionIsNotAGesture)
+{
+    GestureHeader h{};
+    h.magic = 0xFFFFFFFFu; // erased flash
+    EXPECT_FALSE(h.HasGesture());
+
+    h.magic     = GestureHeader::kMagic;
+    h.version   = GestureHeader::kVersion;
+    h.lanes     = GestureRecorder::kLanes;
+    h.frames    = 0; // saved with no gesture: clears whatever was there
+    h.lane_mask = 0;
+    EXPECT_TRUE(h.Valid());
+    EXPECT_FALSE(h.HasGesture());
+
+    h.frames = GestureRecorder::kMaxFrames * 4; // nonsense length
+    EXPECT_FALSE(h.Valid());
+}
+
+// The round trip a save-then-load makes: the app writes the buffer out and
+// reads it back, and the recorder has to pick it up playing.
+TEST(GestureStore, ATakeSurvivesTheRoundTripAndStartsLooping)
+{
+    Rig r;
+    r.g.Arm();
+    r.Sweep(3, 0.f, 1.f, 120);
+    r.g.Close();
+    const size_t   frames = r.g.length_frames();
+    const uint32_t mask   = r.g.LaneMask();
+    ASSERT_GT(frames, 0u);
+    EXPECT_EQ(mask, 1u << 3);
+
+    // "Flash": header plus exactly the bytes worth writing.
+    std::vector<uint8_t> flash(GestureBytes(frames));
+    GestureHeader        h{GestureHeader::kMagic, GestureHeader::kVersion,
+                    static_cast<uint16_t>(GestureRecorder::kLanes),
+                    static_cast<uint32_t>(frames), mask};
+    std::memcpy(flash.data(), &h, sizeof(h));
+    std::memcpy(flash.data() + sizeof(h), r.g.Data(),
+                frames * GestureRecorder::kLanes * sizeof(uint16_t));
+
+    // A fresh instrument, reading it back.
+    Rig q;
+    const GestureHeader* rh = reinterpret_cast<const GestureHeader*>(flash.data());
+    ASSERT_TRUE(rh->HasGesture());
+    std::memcpy(q.g.MutableData(), flash.data() + sizeof(GestureHeader),
+                rh->frames * GestureRecorder::kLanes * sizeof(uint16_t));
+    q.g.Adopt(rh->frames, rh->lane_mask);
+
+    EXPECT_EQ(q.g.state(), GestureRecorder::State::kPlaying) << "a stored gesture should start";
+    EXPECT_EQ(q.g.length_frames(), frames);
+    EXPECT_TRUE(q.g.in_loop(3));
+    EXPECT_FALSE(q.g.in_loop(4));
+
+    // ...and it drives the same parameter through the same shape.
+    float lo = 1.f, hi = 0.f;
+    for(size_t i = 0; i < frames; i++)
+    {
+        q.Tick();
+        lo = fminf(lo, q.v[3]);
+        hi = fmaxf(hi, q.v[3]);
+    }
+    EXPECT_NEAR(lo, 0.f, 0.02f);
+    EXPECT_NEAR(hi, 1.f, 0.02f);
+}
+
+TEST(GestureStore, AdoptingNonsenseLeavesNothingRunning)
+{
+    Rig r;
+    r.g.Adopt(0, 0xFFFFFFFFu);
+    EXPECT_EQ(r.g.state(), GestureRecorder::State::kIdle);
+    r.g.Adopt(GestureRecorder::kMaxFrames * 2, 0xFFFFFFFFu);
+    EXPECT_EQ(r.g.state(), GestureRecorder::State::kIdle);
 }

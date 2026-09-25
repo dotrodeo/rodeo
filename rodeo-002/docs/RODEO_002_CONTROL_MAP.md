@@ -275,9 +275,10 @@ hidden.
   of playback, so you can play over a gesture without stopping it.
 * **Up to 16 s, sampled at the pot scan rate** — ~108 Hz with the 8 + 8 channel split.
   Recording faster than the pots are read would only store repeated samples.
-* Gestures **are saved with presets** (Derek, 2026-09-21): a preset
-  with a gesture starts looping when it loads. Clearing a loop affects only the live state — the
-  stored preset keeps its gesture until it is saved again.
+* Gestures **are saved with presets** (Derek, 2026-09-21; built 2026-09-24): a preset with a
+  gesture starts looping the moment it loads, including the one loaded at power-up. Clearing a
+  loop affects only the live state — the stored preset keeps its gesture until it is saved
+  again, and saving a slot with no gesture running clears the stored one.
 
 ### Firmware polling
 

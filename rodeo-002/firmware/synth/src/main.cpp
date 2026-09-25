@@ -30,6 +30,7 @@
 
 #include "cost_model.h"
 #include "factory_presets.h"
+#include "gesture_store.h"
 #include "lfo_dest.h"
 #include "panel_pot.h"
 #include "scope.h"
@@ -129,6 +130,60 @@ static uint16_t DSY_SDRAM_BSS
     g_gesture_buf[GestureRecorder::kLanes * GestureRecorder::kMaxFrames];
 static GestureRecorder g_gesture;
 
+/** Write the slot's take to flash, or an empty header if there is none.
+ *
+ *  Always one or the other: a slot saved without a gesture has to CLEAR the one
+ *  that was there, or an old loop would attach itself to a new sound. Only the
+ *  frames actually recorded are erased and written -- a four-second take is
+ *  25 KB rather than 100 -- because erasing stalls this loop for a good part of
+ *  a second. Audio keeps running from the interrupt throughout. */
+static void SaveGestureForSlot(int slot)
+{
+    GestureHeader h;
+    h.magic     = GestureHeader::kMagic;
+    h.version   = GestureHeader::kVersion;
+    h.lanes     = static_cast<uint16_t>(GestureRecorder::kLanes);
+    h.frames    = static_cast<uint32_t>(g_gesture.length_frames());
+    h.lane_mask = g_gesture.LaneMask();
+
+    const uint32_t base  = GestureOffsetForSlot(slot);
+    const size_t   bytes = GestureBytes(h.frames);
+    hw.qspi.Erase(base, base + bytes);
+    hw.qspi.Write(base, sizeof(h), reinterpret_cast<uint8_t*>(&h));
+    if(h.frames)
+        hw.qspi.Write(base + sizeof(h),
+                      h.frames * GestureRecorder::kLanes * sizeof(uint16_t),
+                      reinterpret_cast<uint8_t*>(g_gesture.MutableData()));
+}
+
+/** Pick up the slot's take, if it has one, and start it looping. QSPI is
+ *  memory-mapped for reads, so this is a copy rather than a transfer. */
+static bool LoadGestureForSlot(int slot)
+{
+    const uint32_t base = GestureOffsetForSlot(slot);
+    const uint8_t* mem  = static_cast<const uint8_t*>(hw.qspi.GetData(base));
+    // INVALIDATE BEFORE READING. QSPI is memory-mapped, so a take written
+    // earlier in this session can still be sitting in cache as whatever was
+    // there before the erase. libDaisy's own PersistentStorage does the same
+    // thing for the same reason, and only when the program is not running from
+    // internal flash -- which, under the bootloader, it never is.
+    if(System::GetProgramMemoryRegion() != System::MemoryRegion::INTERNAL_FLASH)
+        dsy_dma_invalidate_cache_for_buffer(const_cast<uint8_t*>(mem), GestureSlotSize());
+    const GestureHeader* h = reinterpret_cast<const GestureHeader*>(mem);
+    if(!h->HasGesture())
+    {
+        g_gesture.Clear();
+        return false;
+    }
+    const uint16_t* src   = reinterpret_cast<const uint16_t*>(mem + sizeof(GestureHeader));
+    uint16_t*       dst   = g_gesture.MutableData();
+    const size_t    count = h->frames * GestureRecorder::kLanes;
+    for(size_t i = 0; i < count; i++)
+        dst[i] = src[i];
+    g_gesture.Adopt(h->frames, h->lane_mask);
+    return true;
+}
+
 // --- what the instrument was doing last -----------------------------------
 // Only the preset slot, for now: the synth boots back into the sound it was
 // left on. Its own sector, because it is written on a different schedule from
@@ -200,6 +255,7 @@ EngineId        current_engine = EngineId::kVirtualAnalog;
 static int      g_boot_preset       = -1;
 static int      g_slots_filled      = 0;
 static bool     g_boot_engine_known = true;
+static bool     g_boot_gesture      = false;
 
 volatile bool     g_voices_locked = false; // engine swap in progress
 volatile uint32_t g_blocks        = 0;
@@ -970,6 +1026,7 @@ int main(void)
             ApplyPatch();
             g_boot_preset       = static_cast<int>(st.last_preset);
             g_boot_engine_known = known;
+            g_boot_gesture      = LoadGestureForSlot(g_boot_preset);
         }
     }
 
@@ -1031,6 +1088,8 @@ int main(void)
                      g_boot_preset + 1,
                      preset_store.GetSettings().slot[g_boot_preset].name,
                      g_boot_engine_known ? "" : "  (its engine is gone; using virtual-analog)");
+    if(g_boot_gesture)
+        hw.PrintLine("  ...with a gesture, now looping");
     else
         hw.PrintLine("no preset loaded at boot (slot 1 is empty)");
     {
@@ -1145,9 +1204,12 @@ int main(void)
                     ui.NotePresetLoaded(sp);
                     RememberPreset(req.slot, in.now_ms);
                     g_discrete_changed = true;
-                    hw.PrintLine("preset %d loaded: %s%s",
+                    // A preset saved with a gesture starts moving when it loads.
+                    const bool with_gesture = LoadGestureForSlot(req.slot);
+                    hw.PrintLine("preset %d loaded: %s%s%s",
                                  req.slot + 1,
                                  sp.name,
+                                 with_gesture ? "  (+ gesture, looping)" : "",
                                  engine_known
                                      ? ""
                                      : "  (WARNING: its engine is gone from this build;"
@@ -1162,11 +1224,15 @@ int main(void)
                 name.AppendInt(req.slot + 1);
                 PatchToPreset(patch, name.Cstr(), bank.slot[req.slot]);
                 preset_store.Save();
+                SaveGestureForSlot(req.slot);
                 // Saving makes the patch the preset: no longer modified, and
                 // this is the slot to come back to next time.
                 ui.NotePresetLoaded(bank.slot[req.slot]);
                 RememberPreset(req.slot, in.now_ms);
-                hw.PrintLine("preset %d saved: %s", req.slot + 1, bank.slot[req.slot].name);
+                hw.PrintLine("preset %d saved: %s%s",
+                             req.slot + 1,
+                             bank.slot[req.slot].name,
+                             g_gesture.length_frames() ? "  (+ gesture)" : "");
             }
         }
 

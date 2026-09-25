@@ -162,6 +162,41 @@ class GestureRecorder
         }
     }
 
+    // --- storing a take ---------------------------------------------------
+    // The buffer is the app's, so the app writes it to flash and reads it back
+    // itself; these say what is worth writing and how to pick a take up again.
+
+    /** Which lanes the loop drives, as a bit per lane. */
+    uint32_t LaneMask() const
+    {
+        uint32_t m = 0;
+        for(int i = 0; i < kLanes; i++)
+            if(in_loop_[i])
+                m |= (1u << i);
+        return m;
+    }
+    const uint16_t* Data() const { return buf_; }
+    uint16_t*       MutableData() { return buf_; }
+
+    /** Take up a loop whose frames are already in the buffer, and play it: a
+     *  preset that was saved with a gesture starts moving when it loads. */
+    void Adopt(size_t frames, uint32_t lane_mask)
+    {
+        if(frames == 0 || frames > max_frames_)
+        {
+            Clear();
+            return;
+        }
+        length_ = frames;
+        frame_  = 0;
+        state_  = State::kPlaying;
+        for(int i = 0; i < kLanes; i++)
+        {
+            in_loop_[i] = (lane_mask & (1u << i)) != 0;
+            grabbed_[i] = false;
+        }
+    }
+
     State  state() const { return state_; }
     size_t length_frames() const { return length_; }
     /** True once this lane is part of the loop -- it moved during the take. */
