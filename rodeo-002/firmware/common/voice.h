@@ -197,6 +197,8 @@ class VoiceManager
 
     /** The LFO's current value, so the chain can take Space-mix modulation. */
     float LfoValue() const { return lfo_value_; }
+    /** The mod wheel, for the chain destinations it can be pointed at. */
+    float ModWheel() const { return mod_wheel_; }
 
     // -------------------------------------------------------------- audio
 
@@ -214,8 +216,17 @@ class VoiceManager
         const float spread_p  = sm_spread_.Next();
 
         // Mod wheel adds to LFO depth; aftertouch pushes Morph.
-        const float depth = Clamp(p.lfo_depth + mod_wheel_, 0.f, 1.f);
-        const float morph = Clamp(morph_p + aftertouch_ * 0.5f, 0.f, 1.f);
+        // The mod wheel goes wherever the patch points it. LFO depth is the
+        // default and was once the only option.
+        const float wheel = mod_wheel_;
+        const float depth = Clamp(p.lfo_depth
+                                      + (p.mod_dest == ModDest::kLfoDepth ? wheel : 0.f),
+                                  0.f,
+                                  1.f);
+        const float wheel_cutoff = p.mod_dest == ModDest::kCutoff ? wheel * 0.5f : 0.f;
+        const float wheel_timbre = p.mod_dest == ModDest::kTimbre ? wheel * 0.5f : 0.f;
+        const float wheel_morph  = p.mod_dest == ModDest::kMorph ? wheel * 0.5f : 0.f;
+        const float morph = Clamp(morph_p + aftertouch_ * 0.5f + wheel_morph, 0.f, 1.f);
         const float glide_coeff
             = p.glide > 0.001f ? TimeCoeff(ExpMap(p.glide, 0.005f, 2.f), sample_rate_) : 1.f;
 
@@ -261,7 +272,7 @@ class VoiceManager
             const float to_timb  = (p.env_to_timbre - 0.5f) * 2.f;
             const float to_morph = (p.env_to_morph - 0.5f) * 2.f;
             const float timbre
-                = Clamp(timbre_p + env * to_timb * 0.5f + timbre_mod, 0.f, 1.f);
+                = Clamp(timbre_p + env * to_timb * 0.5f + timbre_mod + wheel_timbre, 0.f, 1.f);
             const float morph_v = Clamp(morph + env * to_morph * 0.5f + morph_mod, 0.f, 1.f);
             const float detune  = x.detune * spread_p * 0.06f; // +/- ~1 semitone
             x.eng.SetParams(x.glide_freq * powf(2.f, (bend_ + pitch_mod + detune) / 12.f),
@@ -275,7 +286,8 @@ class VoiceManager
                                  * (static_cast<float>(x.note - 60) / 24.f);
             x.svf.SetRes(Clamp(res_p + res_mod, 0.f, 1.f));
             const float cut = Clamp(cutoff_p + env * env_amt + keytrk
-                                        + x.vel * p.vel_to_filter * 0.5f + cutoff_mod,
+                                        + x.vel * p.vel_to_filter * 0.5f + cutoff_mod
+                                        + wheel_cutoff,
                                     0.f,
                                     1.f);
             x.svf.SetFreq(ExpMap(cut, 30.f, 15000.f));

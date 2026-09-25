@@ -101,6 +101,33 @@ inline const char* FilterTypeName(FilterType f)
     }
 }
 
+/** What the mod wheel does. It used to be welded to LFO depth, which is a fine
+ *  default and a poor rule -- a wheel is the most expressive thing a keyboard
+ *  has (Derek, 2026-09-25). Stored in a preset, so NEW ONES GO ON THE END. */
+enum class ModDest
+{
+    kLfoDepth = 0,
+    kCutoff,
+    kTimbre,
+    kMorph,
+    kSpaceMix,
+    kCharacterAmt,
+    kCount
+};
+
+inline const char* ModDestName(ModDest d)
+{
+    switch(d)
+    {
+        case ModDest::kLfoDepth: return "LFO depth";
+        case ModDest::kCutoff: return "Cutoff";
+        case ModDest::kTimbre: return "Timbre";
+        case ModDest::kMorph: return "Morph";
+        case ModDest::kSpaceMix: return "Space mix";
+        default: return "Character";
+    }
+}
+
 struct Patch
 {
     // --- voice, main layer (pot rows 1-2) ----------------------------------
@@ -127,6 +154,7 @@ struct Patch
     float glide      = 0.f;
     float vel_to_filter = 0.3f;
     int   bend_range = 2; // semitones
+    ModDest mod_dest = ModDest::kLfoDepth;
     int   lfo_shape  = fx::Lfo::kSine;
 
     // --- discrete voice choices ---------------------------------------------
@@ -158,8 +186,9 @@ struct Patch
 /** Global settings: never stored in a preset. */
 struct Globals
 {
-    int   midi_channel = 0;   // 0 = omni
-    float volume       = 0.8f;
+    int   midi_channel     = 0; // 0 = omni
+    int   midi_out_channel = 1; // what the panel sends on; no omni for output
+    float volume           = 0.8f;
 };
 
 } // namespace rodeo002

@@ -124,7 +124,8 @@ struct StoredPreset
     uint8_t option[fx::TextureChain::kNumSlots];
     uint8_t bypass[fx::TextureChain::kNumSlots];
     uint8_t freeze;
-    uint8_t reserved[3]; // keeps the floats aligned with nothing implicit
+    uint8_t mod_dest;    // was reserved; 0 is LFO depth, which is what it always did
+    uint8_t reserved[2]; // keeps the floats aligned with nothing implicit
 
     float   space_time, space_feedback, space_grain, grain_pitch, grain_spread;
     float   tilt;
@@ -158,8 +159,9 @@ inline void CopyName(char* dst, const char* src)
 
 inline void PatchToPreset(const Patch& p, const char* name, StoredPreset& s)
 {
-    for(int i = 0; i < 3; i++)
+    for(int i = 0; i < 2; i++)
         s.reserved[i] = 0; // never left to chance: it is compared
+    s.mod_dest = static_cast<uint8_t>(p.mod_dest);
     detail::CopyName(s.name, name);
     s.used       = 1;
     s.engine_id  = EngineToStableId(p.engine);
@@ -261,6 +263,11 @@ inline void PresetToPatch(const StoredPreset& s, Patch& p, bool* engine_known = 
     p.grain_pitch    = detail::Clamp01(s.grain_pitch);
     p.grain_spread   = detail::Clamp01(s.grain_spread);
     p.freeze         = s.freeze != 0;
+    // Taken from a byte that used to be padding, so a preset written before the
+    // mod wheel had a destination reads 0 -- LFO depth, which is what the wheel
+    // did then. No version bump, no preset lost.
+    p.mod_dest = static_cast<ModDest>(
+        detail::ClampEnum(s.mod_dest, static_cast<int>(ModDest::kCount)));
     p.tilt           = detail::Clamp01(s.tilt);
 }
 

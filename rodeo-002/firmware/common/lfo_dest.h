@@ -38,4 +38,17 @@ inline void ApplyLfoToChain(fx::TextureChain& chain, const Patch& p, float lfo)
     chain.SetAmount(slot, fx::Clamp(p.amount[slot] + lfo * 0.5f, 0.f, 1.f));
 }
 
+/** The mod wheel's chain destinations, by the same rule and for the same
+ *  reason: applied once per block, because the patch rate is not fast enough to
+ *  follow a hand. Unipolar, so it only ever adds. */
+inline void ApplyModWheelToChain(fx::TextureChain& chain, const Patch& p, float wheel)
+{
+    const int slot = p.mod_dest == ModDest::kSpaceMix       ? fx::TextureChain::kSpace
+                     : p.mod_dest == ModDest::kCharacterAmt ? fx::TextureChain::kCharacter
+                                                            : -1;
+    if(slot < 0)
+        return;
+    chain.SetAmount(slot, fx::Clamp(p.amount[slot] + wheel * 0.5f, 0.f, 1.f));
+}
+
 } // namespace rodeo002

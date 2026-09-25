@@ -121,6 +121,7 @@ enum class MenuItem
     kGesture,
     kPatch,
     kGlobal,
+    kClose,
     kCount
 };
 
@@ -132,7 +133,8 @@ inline const char* MenuItemName(MenuItem m)
         case MenuItem::kSave: return "Save preset";
         case MenuItem::kGesture: return "Gesture";
         case MenuItem::kPatch: return "Patch settings";
-        default: return "Global settings";
+        case MenuItem::kGlobal: return "Global settings";
+        default: return "Close";
     }
 }
 
@@ -144,6 +146,7 @@ enum class PatchSetting
     kVelToFilter,
     kBendRange,
     kLfoShape,
+    kModDest,
     kCount
 };
 
@@ -153,6 +156,7 @@ enum class PatchSetting
 enum class GlobalSetting
 {
     kMidiChannel = 0,
+    kMidiOutChannel,
     kCount
 };
 
@@ -251,9 +255,7 @@ class Ui
     static constexpr int      kNumPots      = 16;
     static constexpr int      kMainEncoder  = 4; // the isolated one, hub slot 5
     static constexpr uint32_t kLongPressMs  = 600;
-    /** The browser closes itself after this long untouched, so the instrument
-     *  never sits in a mode nobody meant to be in. */
-    static constexpr uint32_t kBrowserIdleMs = 5000;
+
     static constexpr uint32_t kPopupMs      = 1200;
     static constexpr float    kPickupEps    = 0.01f;
     /** Below this a pot counts as still. Measured against the value the pot
@@ -476,8 +478,11 @@ class Ui
             display_.readout    = Readout::kNone;
         }
 
-        if(mode_ != UiMode::kNormal && in.now_ms - mode_ms_ > kBrowserIdleMs)
-            mode_ = UiMode::kNormal;
+        // NO IDLE TIMEOUT. It closed the menu while Derek was still deciding
+        // (2026-09-25), which is the one moment a menu has to stay put. Nothing
+        // is lost by leaving it open: touching any other control still closes
+        // it, so it can only persist while the panel is untouched, and the menu
+        // carries a Close entry for getting out without touching anything.
 
         // A clean hold past the threshold announces itself, so the pending
         // action is never invisible (control map). Without this, a press that
@@ -573,6 +578,7 @@ class Ui
                         page_index_ = 0;
                         EnterMode(UiMode::kGlobalPage, in);
                         break;
+                    case MenuItem::kClose: EnterMode(UiMode::kNormal, in); break;
                     default:
                         if(gesture_)
                         {
@@ -666,13 +672,16 @@ class Ui
     const char* PageItemName(int i) const
     {
         if(mode_ == UiMode::kGlobalPage)
-            return "MIDI channel";
+            return static_cast<GlobalSetting>(i) == GlobalSetting::kMidiChannel
+                       ? "MIDI in ch"
+                       : "MIDI out ch";
         switch(static_cast<PatchSetting>(i))
         {
             case PatchSetting::kKeytrack: return "Key track";
             case PatchSetting::kVelToFilter: return "Vel>filter";
             case PatchSetting::kBendRange: return "Bend range";
-            default: return "LFO shape";
+            case PatchSetting::kLfoShape: return "LFO shape";
+            default: return "Mod wheel";
         }
     }
 
@@ -684,12 +693,14 @@ class Ui
         char* d = page_value_;
         if(mode_ == UiMode::kGlobalPage)
         {
-            if(globals_.midi_channel == 0)
+            const bool in_ch = static_cast<GlobalSetting>(i) == GlobalSetting::kMidiChannel;
+            const int  v     = in_ch ? globals_.midi_channel : globals_.midi_out_channel;
+            if(in_ch && v == 0)
             {
-                Copy(d, "Omni");
+                Copy(d, "Omni"); // in only: out has to pick a channel
                 return;
             }
-            Int(d, globals_.midi_channel);
+            Int(d, in_ch ? v : (v < 1 ? 1 : v));
             return;
         }
         switch(static_cast<PatchSetting>(i))
@@ -713,7 +724,10 @@ class Ui
                 Int(d, patch_.bend_range);
                 Copy(d, patch_.bend_range == 1 ? " semitone" : " semitones");
                 break;
-            default: Copy(d, fx::Lfo::ShapeName(patch_.lfo_shape)); break;
+            case PatchSetting::kLfoShape:
+                Copy(d, fx::Lfo::ShapeName(patch_.lfo_shape));
+                break;
+            default: Copy(d, ModDestName(patch_.mod_dest)); break;
         }
     }
 
@@ -721,8 +735,17 @@ class Ui
     {
         if(mode_ == UiMode::kGlobalPage)
         {
-            int c = globals_.midi_channel + dir;
-            globals_.midi_channel = c < 0 ? 0 : (c > 16 ? 16 : c);
+            if(static_cast<GlobalSetting>(i) == GlobalSetting::kMidiChannel)
+            {
+                const int c           = globals_.midi_channel + dir;
+                globals_.midi_channel = c < 0 ? 0 : (c > 16 ? 16 : c);
+            }
+            else
+            {
+                // Out has no Omni: something has to be on the wire.
+                const int c               = globals_.midi_out_channel + dir;
+                globals_.midi_out_channel = c < 1 ? 1 : (c > 16 ? 16 : c);
+            }
             return;
         }
         switch(static_cast<PatchSetting>(i))
@@ -739,10 +762,17 @@ class Ui
                 patch_.bend_range = b < 0 ? 0 : (b > 24 ? 24 : b);
                 break;
             }
+            case PatchSetting::kLfoShape:
+            {
+                const int n      = fx::Lfo::kNumShapes;
+                patch_.lfo_shape = ((patch_.lfo_shape + dir) % n + n) % n;
+                break;
+            }
             default:
             {
-                const int n     = fx::Lfo::kNumShapes;
-                patch_.lfo_shape = ((patch_.lfo_shape + dir) % n + n) % n;
+                const int n = static_cast<int>(ModDest::kCount);
+                patch_.mod_dest
+                    = static_cast<ModDest>(((static_cast<int>(patch_.mod_dest) + dir) % n + n) % n);
                 break;
             }
         }

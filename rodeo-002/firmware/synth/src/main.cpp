@@ -194,18 +194,20 @@ struct InstrumentState
     uint32_t magic;
     uint16_t version;
     uint16_t last_preset;
-    int32_t  midi_channel; // 0 = omni; global, so it lives here and not in a preset
+    int32_t  midi_channel;     // 0 = omni; global, so it lives here, not in a preset
+    int32_t  midi_out_channel; // what the panel's CC goes out on; never omni
     uint32_t reserved;
 
     bool operator==(const InstrumentState& o) const
     {
         return magic == o.magic && version == o.version && last_preset == o.last_preset
-               && midi_channel == o.midi_channel && reserved == o.reserved;
+               && midi_channel == o.midi_channel
+               && midi_out_channel == o.midi_out_channel && reserved == o.reserved;
     }
     bool operator!=(const InstrumentState& o) const { return !(*this == o); }
 };
 static constexpr uint32_t kStateMagic       = 0x52325354u; // "R2ST"
-static constexpr uint16_t kStateVersion     = 2; // 2 added the MIDI channel
+static constexpr uint16_t kStateVersion     = 3; // 2 added the MIDI channel, 3 the out channel
 static constexpr uint32_t kStateStoreOffset = 0x7A0000u;
 PersistentStorage<InstrumentState> state_store(hw.qspi);
 static uint32_t g_state_changed_ms = 0;
@@ -293,6 +295,7 @@ void AudioCallback(AudioHandle::InputBuffer  in,
     // Written after ApplyPatch and immediately before the chain runs, so this
     // is always the value the block is processed with.
     ApplyLfoToChain(chain, patch, voices.LfoValue());
+    ApplyModWheelToChain(chain, patch, voices.ModWheel());
 
     chain.ProcessBlock(out[0], out[1], size);
 
@@ -514,9 +517,9 @@ static void SendCcChanges(uint32_t now)
         g_cc_scan     = i + 1;
         if(!g_cc_primed)
             continue; // the first pass only learns where everything is
-        const uint8_t ch  = static_cast<uint8_t>(globals.midi_channel > 0
-                                                     ? globals.midi_channel - 1
-                                                     : 0);
+        const uint8_t ch = static_cast<uint8_t>(globals.midi_out_channel > 0
+                                                    ? globals.midi_out_channel - 1
+                                                    : 0);
         uint8_t       msg[3] = {static_cast<uint8_t>(0xB0 | ch), cc, v};
         midi->SendMessage(msg, 3);
         return;
@@ -896,6 +899,16 @@ static uint32_t ScreenSignature(const DisplayState& d, uint32_t extra)
     mix(static_cast<uint32_t>(d.mode) * 0x1000u + static_cast<uint32_t>(d.browser_slot));
     mix(static_cast<uint32_t>(d.menu_index));
     mix_ptr(d.gesture);
+    // BY CONTENT, not by pointer. These two live in fixed buffers that are
+    // rewritten in place, so hashing the pointer says they never change -- which
+    // left a settings page or a name waiting for the one-second heartbeat before
+    // it redrew, and felt like the encoder was not working (2026-09-25).
+    mix(static_cast<uint32_t>(d.page_index));
+    for(const char* c = d.page_value; *c; c++)
+        mix(static_cast<uint32_t>(*c));
+    for(const char* c = d.name_text; *c; c++)
+        mix(static_cast<uint32_t>(*c));
+    mix(static_cast<uint32_t>(d.name_cursor));
     mix_ptr(d.pending);
     mix_ptr(d.engine);
     mix_ptr(d.voice_mode);
@@ -1122,14 +1135,15 @@ int main(void)
         // always a known-good sound and the screen's * is what tells you the
         // patch has drifted since (Derek, 2026-09-24). Slot 1 if nothing has
         // been chosen yet, or if the stored choice is out of range.
-        InstrumentState defaults{kStateMagic, kStateVersion, 0, 0, 0};
+        InstrumentState defaults{kStateMagic, kStateVersion, 0, 0, 1, 0};
         state_store.Init(defaults, kStateStoreOffset);
         InstrumentState& st = state_store.GetSettings();
         if(st.magic != kStateMagic || st.version != kStateVersion
            || st.last_preset >= PresetBank::kNumSlots || st.midi_channel < 0
-           || st.midi_channel > 16)
+           || st.midi_channel > 16 || st.midi_out_channel < 1 || st.midi_out_channel > 16)
             st = defaults;
-        globals.midi_channel = st.midi_channel;
+        globals.midi_channel     = st.midi_channel;
+        globals.midi_out_channel = st.midi_out_channel;
         const StoredPreset& boot = preset_store.GetSettings().slot[st.last_preset];
         if(boot.used)
         {
@@ -1300,11 +1314,13 @@ int main(void)
             hw.PrintLine("panel wiring: saved, %d/%d runs supply-swapped",
                          swapped, Ui::kNumPots);
         }
-        if(state_store.GetSettings().midi_channel != globals.midi_channel)
+        if(state_store.GetSettings().midi_channel != globals.midi_channel
+           || state_store.GetSettings().midi_out_channel != globals.midi_out_channel)
         {
-            state_store.GetSettings().midi_channel = globals.midi_channel;
-            g_state_dirty                          = true;
-            g_state_changed_ms                     = in.now_ms;
+            state_store.GetSettings().midi_channel     = globals.midi_channel;
+            state_store.GetSettings().midi_out_channel = globals.midi_out_channel;
+            g_state_dirty                              = true;
+            g_state_changed_ms                         = in.now_ms;
         }
         if(g_state_dirty && in.now_ms - g_state_changed_ms > kCalSettleMs)
         {
@@ -1413,7 +1429,11 @@ int main(void)
         const DisplayState& ds = ui.display();
         const bool          scope_on
             = ds.mode == UiMode::kNormal && ds.readout != Readout::kEnvelope;
-        if(g_have_oled && g_blocks - last_draw >= 40)
+        // A frame is ~23 ms of bus, so the floor between redraws is what the
+        // panel's latency is made of: at 40 ms a turn could take 65 ms to show.
+        // 24 nearly halves that and still leaves the hub most of the bus, which
+        // it does not need anyway -- it accumulates deltas and latches presses.
+        if(g_have_oled && g_blocks - last_draw >= 24)
         {
             const uint32_t sig        = ScreenSignature(ds, 0u); // all but the scope
             const bool     ui_changed = sig != last_sig;

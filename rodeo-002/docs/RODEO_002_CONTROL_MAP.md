@@ -223,9 +223,15 @@ shifts**.
 |---|---|
 | Turn MAIN | Move the selection (wraps; it remembers where you left it) |
 | Tap MAIN | Enter the highlighted entry |
-| Touch any other control, or 5 s idle | Close, doing nothing |
+| Touch any other control | Close, doing nothing |
+| The **Close** entry | The same, without touching a control |
 
-Entries: **Load preset · Save preset · Gesture**. Load and Save being separate is what let the
+**The menu does not time out.** It used to close itself after five seconds, which is precisely
+the moment it should not — it went away while the player was still deciding (2026-09-25).
+Nothing is lost by leaving it open: any pot or slot encoder still closes it, so it can only
+persist while the panel is untouched.
+
+Entries: **Load preset · Save preset · Gesture · Patch settings · Global settings · Close**. Load and Save being separate is what let the
 browser's long-press-to-save go away — inside either one, a tap acts and that is all. The
 settings pages (*Patch* and *Global*, below) join this menu when they are built.
 
@@ -238,7 +244,7 @@ says so for as long as it is open:
 |---|---|
 | Turn MAIN | Browse slots |
 | Tap MAIN | **Act** on the highlighted slot — load or overwrite, whichever entry you came in by — and close |
-| Touch any other control, or 5 s idle | **Close without loading** |
+| Touch any other control | **Close without loading** |
 
 **The idle timer stops while MAIN is held.** A press is activity: without this, pausing to
 decide which slot to save to let the browser close under a finger that was already holding the
@@ -365,8 +371,8 @@ touch:
 
 | Page | Holds | Saved |
 |---|---|---|
-| **Patch** | Filter keytrack · velocity→filter amount · pitch-bend range · LFO shape | with each preset |
-| **Global** | MIDI channel | to its own flash region, never to a preset |
+| **Patch** | Filter keytrack · velocity→filter amount · pitch-bend range · LFO shape · **mod wheel destination** | with each preset |
+| **Global** | **MIDI in channel · MIDI out channel** | to its own flash region, never to a preset |
 
 **Turn to choose the line, hold MAIN and turn to change it** — the same push-turn that picks the
 voice mode, so a page needs no edit mode of its own and the one press rule still holds. A tap
@@ -378,8 +384,15 @@ owners for one value is worse than either. Pot calibration is not there either �
 calibration any more (see the harness doc); the wiring map is cleared by holding MAIN through
 power-up.
 
-**The MIDI channel persists** in the instrument-state region at `0x7A0000`, beside the
-boot preset — global state belongs with global state.
+**The MIDI channels persist** in the instrument-state region at `0x7A0000`, beside the boot
+preset — global state belongs with global state. **In** can be Omni; **out** cannot, because
+something has to be on the wire.
+
+**The mod wheel is a destination now** (2026-09-25): LFO depth · Cutoff · Timbre · Morph · Space
+mix · Character. LFO depth is the default and is what the wheel always did. It is stored in a
+byte of the preset format that used to be padding, so presets written before it existed read as
+LFO depth rather than as nonsense — no version bump, nothing lost. New destinations go on the
+END of the enum, same as the LFO's.
 
 Master volume is also global but lives on its pot. **MIDI channel must never be in a preset** —
 loading one could otherwise leave the synth listening on a channel the keyboard isn't sending

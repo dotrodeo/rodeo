@@ -375,14 +375,29 @@ TEST(Ui, TouchingAnythingElseClosesTheModalLayerWithoutActing)
     }
 }
 
-TEST(Ui, TheModalLayerClosesItselfIfNothingHappens)
+// The menu used to close itself after five seconds, which is precisely the
+// moment it should not: it went away while Derek was still deciding what to
+// pick (2026-09-25). Nothing is lost by leaving it open -- touching any other
+// control still closes it -- and there is a Close entry for getting out without
+// touching one.
+TEST(Ui, TheMenuWaitsAsLongAsItTakes)
 {
     Rig r;
     Tap(r);
-    r.Tick(Ui::kBrowserIdleMs - 100);
-    EXPECT_EQ(r.ui.Mode(), UiMode::kMenu) << "closed too early";
-    r.Tick(200);
+    ASSERT_EQ(r.ui.Mode(), UiMode::kMenu);
+    for(int i = 0; i < 40; i++) // twenty seconds of thinking
+        r.Tick(500);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kMenu) << "the menu closed while it was being read";
+
+    // ...and Close is a way out that touches nothing. The menu is already
+    // open, so this turns to the entry rather than opening it again.
+    for(int guard = 0;
+        r.ui.display().menu_index != static_cast<int>(MenuItem::kClose) && guard < 8;
+        guard++)
+        r.Turn(kMain, 1);
+    Tap(r);
     EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
+    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
 }
 
 TEST(Ui, UsingMainAsShiftDoesNotOpenTheMenu)
@@ -904,4 +919,63 @@ TEST(Ui, TouchingSomethingElseAbandonsTheName)
     r.MovePot(0, 0.9f);
     EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
     EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone) << "it saved anyway";
+}
+
+// The mod wheel used to be welded to LFO depth. It is a destination now, and
+// every one of them has to actually go somewhere -- the same rule the LFO's
+// destinations are held to, for the same reason.
+TEST(Ui, TheModWheelDestinationIsOnThePatchPageAndStoredWithThePreset)
+{
+    Rig r;
+    OpenMenu(r, MenuItem::kPatch);
+    for(int guard = 0;
+        r.ui.display().page_index != static_cast<int>(PatchSetting::kModDest) && guard < 8;
+        guard++)
+        r.Turn(kMain, 1);
+    EXPECT_STREQ(r.ui.display().page_value, ModDestName(ModDest::kLfoDepth))
+        << "the default should be what the wheel always did";
+
+    r.HoldMain(true);
+    r.Tick();
+    r.Turn(kMain, 1);
+    r.HoldMain(false);
+    r.Tick();
+    const ModDest picked = r.ui.patch().mod_dest;
+    EXPECT_NE(picked, ModDest::kLfoDepth);
+
+    // It travels in a preset, in a byte that used to be padding -- so a preset
+    // written before this existed reads as LFO depth rather than as nonsense.
+    StoredPreset s;
+    PatchToPreset(r.ui.patch(), "mod", s);
+    Patch back;
+    PresetToPatch(s, back);
+    EXPECT_EQ(back.mod_dest, picked);
+
+    s.mod_dest = 0; // an older preset's padding
+    PresetToPatch(s, back);
+    EXPECT_EQ(back.mod_dest, ModDest::kLfoDepth);
+    s.mod_dest = 200; // or a corrupt one
+    PresetToPatch(s, back);
+    EXPECT_LT(static_cast<int>(back.mod_dest), static_cast<int>(ModDest::kCount));
+}
+
+TEST(Ui, TheMidiOutChannelIsSeparateFromTheInputChannelAndHasNoOmni)
+{
+    Rig r;
+    OpenMenu(r, MenuItem::kGlobal);
+    for(int guard = 0;
+        r.ui.display().page_index != static_cast<int>(GlobalSetting::kMidiOutChannel)
+        && guard < 8;
+        guard++)
+        r.Turn(kMain, 1);
+    EXPECT_STREQ(r.ui.display().page_value, "1");
+
+    r.HoldMain(true);
+    r.Tick();
+    for(int i = 0; i < 40; i++) // wind it down past the bottom
+        r.Turn(kMain, -1);
+    r.HoldMain(false);
+    r.Tick();
+    EXPECT_EQ(r.ui.globals().midi_out_channel, 1) << "output cannot be Omni";
+    EXPECT_EQ(r.ui.globals().midi_channel, 0) << "the input channel moved with it";
 }
