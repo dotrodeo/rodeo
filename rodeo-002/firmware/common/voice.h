@@ -233,6 +233,8 @@ class VoiceManager
         const float morph_mod  = p.lfo_dest == LfoDest::kMorph ? lfo * 0.5f : 0.f;
         const float cutoff_mod = p.lfo_dest == LfoDest::kCutoff ? lfo * 0.5f : 0.f;
         const float amp_mod    = p.lfo_dest == LfoDest::kAmp ? 1.f - 0.5f * (1.f - lfo) : 1.f;
+        const float harm_mod   = p.lfo_dest == LfoDest::kHarmonics ? lfo * 0.5f : 0.f;
+        const float res_mod    = p.lfo_dest == LfoDest::kResonance ? lfo * 0.5f : 0.f;
 
         for(int v = 0; v < max_voices_; v++)
         {
@@ -263,7 +265,7 @@ class VoiceManager
             const float morph_v = Clamp(morph + env * to_morph * 0.5f + morph_mod, 0.f, 1.f);
             const float detune  = x.detune * spread_p * 0.06f; // +/- ~1 semitone
             x.eng.SetParams(x.glide_freq * powf(2.f, (bend_ + pitch_mod + detune) / 12.f),
-                            harmonics,
+                            Clamp(harmonics + harm_mod, 0.f, 1.f),
                             timbre,
                             morph_v);
 
@@ -271,7 +273,7 @@ class VoiceManager
             const float env_amt = (p.filter_env - 0.5f) * 2.f;
             const float keytrk  = (p.keytrack - 0.5f) * 2.f
                                  * (static_cast<float>(x.note - 60) / 24.f);
-            x.svf.SetRes(res_p);
+            x.svf.SetRes(Clamp(res_p + res_mod, 0.f, 1.f));
             const float cut = Clamp(cutoff_p + env * env_amt + keytrk
                                         + x.vel * p.vel_to_filter * 0.5f + cutoff_mod,
                                     0.f,

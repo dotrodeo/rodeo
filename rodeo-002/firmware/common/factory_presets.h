@@ -51,6 +51,11 @@ inline void BuildFactoryBank(PresetBank& b)
     // 1. Somewhere to start from: the raw voice, nothing in the chain.
     {
         Patch p;
+        // Off the waveshape midpoint on purpose. At morph 0.5 the virtual-
+        // analog oscillator's pulse width cancels exactly, so Timbre -- which
+        // drives it -- does nothing at all, and the first knob a new owner
+        // turns should not be a dead one.
+        p.morph = 0.35f;
         add("Init", p);
     }
 

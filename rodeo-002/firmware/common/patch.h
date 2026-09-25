@@ -49,6 +49,10 @@ inline const char* VoiceModeShort(VoiceMode m)
 }
 
 /** LFO destinations -- one LFO, one destination (no mod matrix). */
+/** One LFO, one destination (no mod matrix).
+ *
+ *  NEW ONES GO ON THE END. The value is stored in presets by index, so
+ *  inserting in the middle would silently re-point every saved patch. */
 enum class LfoDest
 {
     kPitch = 0,
@@ -57,6 +61,9 @@ enum class LfoDest
     kCutoff,
     kAmp,
     kSpaceMix,
+    kHarmonics,
+    kResonance,
+    kCharacterAmt,
     kCount
 };
 
@@ -69,7 +76,10 @@ inline const char* LfoDestName(LfoDest d)
         case LfoDest::kMorph: return "Morph";
         case LfoDest::kCutoff: return "Cutoff";
         case LfoDest::kAmp: return "Amp";
-        default: return "Space mix";
+        case LfoDest::kSpaceMix: return "Space mix";
+        case LfoDest::kHarmonics: return "Harmonics";
+        case LfoDest::kResonance: return "Resonance";
+        default: return "Character";
     }
 }
 

@@ -30,6 +30,7 @@
 
 #include "cost_model.h"
 #include "factory_presets.h"
+#include "lfo_dest.h"
 #include "panel_pot.h"
 #include "scope.h"
 #include "patch.h"
@@ -220,6 +221,14 @@ void AudioCallback(AudioHandle::InputBuffer  in,
 
     for(size_t i = 0; i < size; i++)
         out[0][i] = out[1][i] = g_mix[i];
+
+    // LFO destinations that live in the CHAIN rather than in a voice, applied
+    // here once per block. ApplyPatch runs at ~200 Hz, which a 40 Hz LFO would
+    // step straight through; the slot's own smoothers turn this into a ramp.
+    // Written after ApplyPatch and immediately before the chain runs, so this
+    // is always the value the block is processed with.
+    ApplyLfoToChain(chain, patch, voices.LfoValue());
+
     chain.ProcessBlock(out[0], out[1], size);
 
     for(size_t i = 0; i < size; i++)
@@ -480,10 +489,14 @@ static void DrawEnvelope(const DisplayState& d)
 {
     const int y_top = layout::kEnvTop, y_base = layout::kEnvBot;
     const int h     = y_base - y_top;
-    const int wa    = 4 + static_cast<int>(d.env[0] * 30.f);
-    const int wd    = 4 + static_cast<int>(d.env[1] * 30.f);
-    const int hold  = 16;
-    const int wr    = 4 + static_cast<int>(d.env[3] * 30.f);
+    // NO MINIMUM WIDTH. A segment's width is its time and nothing else, so a
+    // time of zero draws a vertical line -- which is what zero means. Giving
+    // each segment a few pixels of floor drew a slope at zero and implied an
+    // attack that was not there (Derek, 2026-09-24).
+    const int wa   = static_cast<int>(d.env[0] * 32.f);
+    const int wd   = static_cast<int>(d.env[1] * 32.f);
+    const int hold = 16;
+    const int wr   = static_cast<int>(d.env[3] * 32.f);
     const int y_sus = y_base - static_cast<int>(d.env[2] * static_cast<float>(h));
 
     int x[5], y[5];
@@ -527,9 +540,19 @@ static void DrawScreen()
     const bool inv = d.shift;
     if(inv)
         display.DrawRect(0, layout::kHeaderTop, 127, layout::kHeaderBot, true, true);
-    FixedCapStr<20> line(d.preset_name);
-    if(d.preset_dirty)
-        line.Append("*");
+    // While SHIFT is held the preset's name is the least useful thing on this
+    // screen and the gesture nobody can guess is the most useful: holding MAIN
+    // and turning it chooses the voice mode, which is shown to the right, so
+    // the hint and its result are on the same line.
+    FixedCapStr<20> line("");
+    if(inv)
+        line.Append("TURN: MODE");
+    else
+    {
+        line.Append(d.preset_name);
+        if(d.preset_dirty)
+            line.Append("*");
+    }
     display.SetCursor(0, 0);
     display.WriteString(line, Font_6x8, !inv);
     display.SetCursor(128 - 6 * 7, 0);
