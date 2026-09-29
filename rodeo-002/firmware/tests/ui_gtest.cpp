@@ -927,52 +927,47 @@ TEST(Ui, LeavingAPageKeepsWhatWasChanged)
 
 // ------------------------------------------------ ENGINES THAT CANNOT BE POLY
 //
-// The physical models cannot carry eight voices, so the concept doc restricts
-// them to Mono or Unison. Turning onto one in Poly moves the mode rather than
-// letting the engine sound broken, and puts it back afterwards.
+// Nothing overrides the voice mode any more. String and Karplus were the only
+// engines that could not carry eight voices, and they went on 2026-09-29, so
+// turning through the engine list must leave the mode exactly where you put it
+// and Poly must be reachable on every one of them.
 
-TEST(Ui, TurningOntoAPhysicalModelLeavesPolyAndComesBack)
+TEST(Ui, NoEngineTakesTheVoiceModeAwayFromYou)
 {
     Rig r;
     ASSERT_EQ(r.ui.patch().voice_mode, VoiceMode::kPoly);
 
-    for(int i = 0; i < static_cast<int>(EngineId::kCount); i++)
+    for(int i = 0; i < static_cast<int>(EngineId::kCount) * 2; i++)
     {
-        if(r.ui.patch().engine == EngineId::kString)
-            break;
         r.Turn(kMain, 1);
+        SCOPED_TRACE(EngineName(r.ui.patch().engine));
+        EXPECT_EQ(r.ui.patch().voice_mode, VoiceMode::kPoly)
+            << "an engine moved the voice mode";
+        EXPECT_STREQ(r.ui.display().notice, "")
+            << "an engine announced a constraint it no longer has";
     }
-    ASSERT_EQ(r.ui.patch().engine, EngineId::kString);
-    EXPECT_EQ(r.ui.patch().voice_mode, VoiceMode::kMono) << "String was left in Poly";
-    EXPECT_STRNE(r.ui.display().message, "") << "the mode changed without saying so";
-
-    r.Turn(kMain, -1); // back to a polyphonic engine
-    EXPECT_NE(r.ui.patch().engine, EngineId::kString);
-    EXPECT_EQ(r.ui.patch().voice_mode, VoiceMode::kPoly) << "Poly was not given back";
 }
 
-TEST(Ui, PolyCannotBeChosenByHandOnAPhysicalModel)
+TEST(Ui, PolyIsOfferedOnEveryEngine)
 {
     Rig r;
-    for(int i = 0; i < static_cast<int>(EngineId::kCount); i++)
+    for(int e = 0; e < static_cast<int>(EngineId::kCount); e++)
     {
-        if(r.ui.patch().engine == EngineId::kKarplus)
-            break;
-        r.Turn(kMain, 1);
+        SCOPED_TRACE(EngineName(r.ui.patch().engine));
+        // Push-turn all the way round the modes; Poly has to come up.
+        r.HoldMain(true);
+        r.Tick();
+        bool saw_poly = false;
+        for(int i = 0; i < static_cast<int>(VoiceMode::kCount); i++)
+        {
+            r.Turn(kMain, 1);
+            saw_poly |= r.ui.patch().voice_mode == VoiceMode::kPoly;
+        }
+        r.HoldMain(false);
+        r.Tick();
+        EXPECT_TRUE(saw_poly) << "Poly was skipped on this engine";
+        r.Turn(kMain, 1); // next engine
     }
-    ASSERT_EQ(r.ui.patch().engine, EngineId::kKarplus);
-
-    // Push-turn through every mode: Poly must never be one of them.
-    r.HoldMain(true);
-    r.Tick();
-    for(int i = 0; i < 6; i++)
-    {
-        r.Turn(kMain, 1);
-        EXPECT_NE(r.ui.patch().voice_mode, VoiceMode::kPoly)
-            << "Poly was offered on an engine that cannot do it";
-    }
-    r.HoldMain(false);
-    r.Tick();
 }
 
 // ------------------------------------------------------- NAMING A PRESET
@@ -1118,31 +1113,6 @@ TEST(Ui, TheMidiOutChannelIsSeparateFromTheInputChannelAndHasNoOmni)
     EXPECT_EQ(r.ui.globals().midi_channel, 0) << "the input channel moved with it";
 }
 
-// Turning onto a physical model posts two things at once: the engine's name,
-// and the fact that the voice mode had to move. With one slot the second
-// overwrote the first, so you could not see which engine you had turned onto
-// (Derek, 2026-09-25). They have separate slots and separate places on screen.
-TEST(Ui, AConstraintNoticeDoesNotHideTheEngineYouTurnedOnto)
-{
-    Rig r;
-    for(int i = 0; i < static_cast<int>(EngineId::kCount); i++)
-    {
-        if(r.ui.patch().engine == EngineId::kString)
-            break;
-        r.Turn(kMain, 1);
-    }
-    ASSERT_EQ(r.ui.patch().engine, EngineId::kString);
-    ASSERT_EQ(r.ui.patch().voice_mode, VoiceMode::kMono);
-
-    EXPECT_STREQ(r.ui.display().message, EngineName(EngineId::kString))
-        << "the engine name was overwritten by the notice";
-    EXPECT_STRNE(r.ui.display().notice, "") << "the mode changed without saying so";
-
-    // Both expire on their own.
-    r.Tick(Ui::kPopupMs + 100);
-    EXPECT_STREQ(r.ui.display().message, "");
-    EXPECT_STREQ(r.ui.display().notice, "");
-}
 
 // ------------------------------------------------------- FACTORY RESET
 //

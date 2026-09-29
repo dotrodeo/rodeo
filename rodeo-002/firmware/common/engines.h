@@ -38,11 +38,19 @@ enum class EngineId : uint8_t
     kVosim,              // VosimOscillator
     kHarmonic,           // HarmonicOscillator<16> (additive)
     kZOsc,               // ZOscillator
-    kGrainlet,           // GrainletOscillator
-    kParticle,           // Particle (resonant noise grains)
-    kString,             // StringVoice (plucked/bowed)
-    kKarplus,            // KarplusString, externally excited
     kCount
+
+    // Grainlet, Particle, String and Karplus were here until 2026-09-29.
+    // Derek dropped them: four engines nobody reached for, two of which
+    // (String, Karplus) could not be played polyphonically at all. Their
+    // STORED ids -- 8, 9, 10, 11 -- are retired rather than reused, so a
+    // preset that names one still says so instead of quietly becoming a
+    // different sound. See EngineStableId in preset.h.
+    //
+    // They were also 97% of the per-voice engine storage: StringVoice alone
+    // is 5368 bytes against 148 for everything that remains, because the
+    // union has to fit the largest member. Dropping them took the union from
+    // 5368 to 148 bytes, which across eight voices is ~42 KB of DTCM back.
 };
 
 inline const char* EngineName(EngineId id)
@@ -56,21 +64,14 @@ inline const char* EngineName(EngineId id)
         case EngineId::kVosim: return "vosim";
         case EngineId::kHarmonic: return "harmonic-16";
         case EngineId::kZOsc: return "z-osc";
-        case EngineId::kGrainlet: return "grainlet";
-        case EngineId::kParticle: return "particle";
-        case EngineId::kString: return "string";
-        case EngineId::kKarplus: return "karplus";
         default: return "?";
     }
 }
 
-/** Engines that are struck/plucked rather than continuously oscillating: they
- *  need a trigger and decay on their own, so a sustained benchmark note
- *  under-reports them unless it re-triggers. The harness re-triggers these. */
-inline bool EngineIsPercussive(EngineId id)
-{
-    return id == EngineId::kString || id == EngineId::kKarplus;
-}
+// EngineIsPercussive lived here. String and Karplus were its only members --
+// the ones that needed a strike and decayed on their own -- so it went with
+// them, along with Engine::Trig() and the noise burst that excited Karplus.
+// Every engine that remains oscillates continuously.
 
 /** One engine instance. Init() picks which; the macros are control-rate. */
 class Engine
@@ -80,7 +81,6 @@ class Engine
     {
         id_          = id;
         sample_rate_ = sample_rate;
-        noise_.Init();
 
         switch(id)
         {
@@ -107,19 +107,6 @@ class Engine
                 break;
             case EngineId::kZOsc:
                 (new(storage_) daisysp::ZOscillator())->Init(sample_rate);
-                break;
-            case EngineId::kGrainlet:
-                (new(storage_) daisysp::GrainletOscillator())
-                    ->Init(sample_rate);
-                break;
-            case EngineId::kParticle:
-                (new(storage_) daisysp::Particle())->Init(sample_rate);
-                break;
-            case EngineId::kString:
-                (new(storage_) daisysp::StringVoice())->Init(sample_rate);
-                break;
-            case EngineId::kKarplus:
-                (new(storage_) daisysp::String())->Init(sample_rate);
                 break;
             default: break;
         }
@@ -198,58 +185,6 @@ class Engine
                 o->SetMode(morph);
                 break;
             }
-            case EngineId::kGrainlet:
-            {
-                auto* o = As<daisysp::GrainletOscillator>();
-                o->SetFreq(freq);
-                o->SetFormantFreq(freq * (1.f + 7.f * harmonics));
-                o->SetShape(timbre);
-                o->SetBleed(morph);
-                break;
-            }
-            case EngineId::kParticle:
-            {
-                auto* o = As<daisysp::Particle>();
-                o->SetFreq(freq);
-                o->SetResonance(0.5f + 0.49f * harmonics);
-                o->SetDensity(timbre);
-                o->SetSpread(morph);
-                o->SetGain(1.f);
-                break;
-            }
-            case EngineId::kString:
-            {
-                auto* o = As<daisysp::StringVoice>();
-                o->SetFreq(freq);
-                o->SetStructure(harmonics);
-                o->SetBrightness(timbre);
-                o->SetDamping(morph);
-                break;
-            }
-            case EngineId::kKarplus:
-            {
-                auto* o = As<daisysp::String>();
-                o->SetFreq(freq);
-                o->SetBrightness(timbre);
-                o->SetDamping(0.3f + 0.69f * morph);
-                o->SetNonLinearity(harmonics * 0.5f);
-                break;
-            }
-            default: break;
-        }
-    }
-
-    /** Strike the percussive engines; harmless on the rest. */
-    void Trig()
-    {
-        switch(id_)
-        {
-            case EngineId::kString: As<daisysp::StringVoice>()->Trig(); break;
-            case EngineId::kKarplus:
-                // KarplusString takes an external exciter -- burst some noise
-                // into it for ~3 ms, the way Plaits' string engine does.
-                exciter_samples_ = static_cast<int>(sample_rate_ * 0.003f);
-                break;
             default: break;
         }
     }
@@ -270,20 +205,6 @@ class Engine
             case EngineId::kHarmonic:
                 return As<daisysp::HarmonicOscillator<16>>()->Process();
             case EngineId::kZOsc: return As<daisysp::ZOscillator>()->Process();
-            case EngineId::kGrainlet:
-                return As<daisysp::GrainletOscillator>()->Process();
-            case EngineId::kParticle: return As<daisysp::Particle>()->Process();
-            case EngineId::kString: return As<daisysp::StringVoice>()->Process();
-            case EngineId::kKarplus:
-            {
-                float in = 0.f;
-                if(exciter_samples_ > 0)
-                {
-                    in = noise_.Process() * 0.5f;
-                    exciter_samples_--;
-                }
-                return As<daisysp::String>()->Process(in);
-            }
             default: return 0.f;
         }
     }
@@ -299,10 +220,6 @@ class Engine
         daisysp::VosimOscillator         vosim;
         daisysp::HarmonicOscillator<16>  harmonic;
         daisysp::ZOscillator             zosc;
-        daisysp::GrainletOscillator      grainlet;
-        daisysp::Particle                particle;
-        daisysp::StringVoice             string;
-        daisysp::String                  karplus;
     };
 
     template <typename T>
@@ -312,11 +229,9 @@ class Engine
     }
 
     alignas(alignof(Storage)) unsigned char storage_[sizeof(Storage)];
-    daisysp::WhiteNoise noise_;
-    EngineId            id_              = EngineId::kVirtualAnalog;
-    float               sample_rate_     = 48000.f;
-    float               freq_            = 110.f;
-    int                 exciter_samples_ = 0;
+    EngineId            id_          = EngineId::kVirtualAnalog;
+    float               sample_rate_ = 48000.f;
+    float               freq_        = 110.f;
 };
 
 } // namespace rodeo002

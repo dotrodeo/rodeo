@@ -94,12 +94,23 @@ TEST(CostModel, MatchesTheBenchmarksVoiceCounts)
     EXPECT_EQ(CostModel::MaxVoices(EngineId::kFm2, light), 8);
 }
 
-TEST(CostModel, MonoOnlyEnginesAskForOneVoice)
+// There are no mono-only engines any more: String (16.43%) and Karplus
+// (14.04%) were the last two, and they went on 2026-09-29. What replaced
+// IsMonoOnly is this: every engine left is POLYPHONIC, so nothing overrides the
+// voice mode you chose. Not every one reaches eight -- Vosim at 8.78% and ZOsc
+// at 9.02% get seven on a bare chain -- but seven is polyphony, and the cap is
+// the cost model's job rather than a property of the engine.
+TEST(CostModel, EveryEngineIsPolyphonicOnABareChain)
 {
-    EXPECT_TRUE(CostModel::IsMonoOnly(EngineId::kString));
-    EXPECT_TRUE(CostModel::IsMonoOnly(EngineId::kKarplus));
-    EXPECT_EQ(CostModel::MaxVoices(EngineId::kString, 0.f), 1);
-    EXPECT_FALSE(CostModel::IsMonoOnly(EngineId::kFm2));
+    for(int e = 0; e < static_cast<int>(EngineId::kCount); e++)
+    {
+        const EngineId id = static_cast<EngineId>(e);
+        SCOPED_TRACE(EngineName(id));
+        EXPECT_GE(CostModel::MaxVoices(id, 0.f), 2)
+            << "this engine is mono in all but name";
+        EXPECT_LE(CostModel::VoiceCost(id), 9.02f)
+            << "an engine dearer than ZOsc arrived; check it is still polyphonic";
+    }
 }
 
 // Modal was dropped because one voice did not fit beside an expensive Space.

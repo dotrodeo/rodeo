@@ -55,15 +55,15 @@ running**. Poly mode caps at 8 regardless — a higher number here is headroom, 
 |---|---|---|---|
 | Virtual analog (synced variable-shape) | DaisySP `VariableShapeOscillator` | 3.3% | **16** |
 | Variable saw | DaisySP `VariableSawOscillator` | 3.0% | **16** |
-| Particle (resonant noise grains) | DaisySP `Particle` | 3.6% | **12** |
+| ~~Particle (resonant noise grains)~~ | ~~DaisySP `Particle`~~ | ~~3.6%~~ | **DROPPED 2026-09-29** |
 | Formant / vowel | DaisySP `FormantOscillator` | 4.6% | **12** |
 | Harmonic / additive (16 partials) | DaisySP `HarmonicOscillator<16>` | 6.7% | **8** |
 | 2-op FM | DaisySP `Fm2` | 6.8% | **8** |
-| Grainlet | DaisySP `GrainletOscillator` | 6.9% | **8** |
+| ~~Grainlet~~ | ~~DaisySP `GrainletOscillator`~~ | ~~6.9%~~ | **DROPPED 2026-09-29** |
 | Vosim | DaisySP `VosimOscillator` | 8.9% | 6 |
 | Z-osc | DaisySP `ZOscillator` | 9.5% | 6 |
-| Karplus string | DaisySP `String` | 14.0% | **Mono · Unison-2** |
-| String voice | DaisySP `StringVoice` | 16.4% | **Mono · Unison-2** |
+| ~~Karplus string~~ | ~~DaisySP `String`~~ | ~~14.0%~~ | **DROPPED 2026-09-29** |
+| ~~String voice~~ | ~~DaisySP `StringVoice`~~ | ~~16.4%~~ | **DROPPED 2026-09-29** |
 | ~~Modal~~ | ~~DaisySP `ModalVoice`~~ | ~~46.2%~~ | **DROPPED** |
 | Wavetable | *deferred* — would port from Plaits (MIT) | unmeasured | — |
 | Chord | *deferred* — would port from Plaits (MIT) | unmeasured, ~4–6 osc/voice | — |
@@ -72,10 +72,19 @@ running**. Poly mode caps at 8 regardless — a higher number here is headroom, 
 engine list is the twelve measured above.
 
 **MODAL IS DROPPED** (Derek, 2026-09-22): at 46% for a single voice it could not run at all
-beside an expensive Space type, and designing around it was not worth it. The DSP stays in
-DaisySP if it is ever worth optimising back in. **String and Karplus remain, as monophonic
-engines** — they are struck and plucked models that suit monophonic playing anyway. That
-leaves **eleven engines**, and no combination that fails to fit.
+beside an expensive Space type, and designing around it was not worth it.
+
+**GRAINLET, PARTICLE, STRING AND KARPLUS ARE DROPPED** (Derek, 2026-09-29, after living with
+the instrument): four engines nobody reached for, two of which could not be played
+polyphonically at all. That leaves **seven engines** — virtual analog, variable saw, 2-op FM,
+formant, Vosim, harmonic-16, Z-osc — every one of them polyphonic, so nothing overrides the
+voice mode any more. The DSP stays in DaisySP if any of it is ever worth having back.
+
+**The removal paid for itself twice over.** `Engine` holds one union sized by its largest
+member, and `StringVoice` is **5368 bytes** against **148** for everything that remains. Per
+voice storage fell 5220 bytes; across eight voices that is **~41.6 KB of DTCM**, and the build
+went from **85.5% to 53.8%** of the 128 KB budget. The CPU ceiling moved too: the dearest engine
+left is Z-osc at 9.02%, where String was 16.43%.
 
 Per-voice costs above are the 2026-09-22 hardware fit (raw ticks, post-optimisation); they
 are the numbers [`cost_model.h`](../firmware/common/cost_model.h) uses.
@@ -96,14 +105,16 @@ it is how the platform's `06_poly_synth` example works.
 **Voice modes:** Poly (8, or 6 on Vosim/Z-osc) · Mono (legato + glide) · Unison (stacked,
 detuned by Spread).
 
-**Mono-only engines (decided 2026-09-20).** Modal, String and Karplus cost too much per voice
-to be polyphonic, so each engine declares which voice modes it supports:
+**There are no mono-only engines any more (2026-09-29).** Modal, String and Karplus were the
+three that cost too much per voice to be polyphonic, and all three are gone. Every engine that
+remains plays in every voice mode; the polyphony cap is budget arithmetic in `CostModel` rather
+than a property an engine declares, and `IsMonoOnly` / `ConstrainVoiceMode` have gone with them.
+Poly is Poly on every engine.
 
 | Engine class | Poly | Mono | Unison |
 |---|---|---|---|
-| Everything 8-voice or better | 8 *(see below)* | yes | up to 4 |
-| Vosim, Z-osc | 6 | yes | up to 4 |
-| String, Karplus | — | yes | 2 only |
+| Everything 8-voice or better | 8 | yes | up to 4 |
+| Vosim, Z-osc | 7 | yes | up to 4 |
 
 **The voice outranks the voice count** (Derek, 2026-09-21). FM, Harmonic and Grainlet run 8
 voices at 66–69% in the plain build, 63.5–64.7% under the bootloader — close to the ceiling
@@ -570,8 +581,8 @@ slots erases it properly anyway.
   free.
 
 Still deferred by choice: Wavetable and Chord engines, a lighter in-house reverb to replace
-ReverbSc, audio input, more preset slots and banks. Still Derek's to decide: whether Grainlet,
-Particle, String and Karplus stay.
+ReverbSc, audio input, more preset slots and banks. **Grainlet, Particle, String and Karplus
+were dropped on 2026-09-29** — that question is closed.
 
 ## Open questions
 

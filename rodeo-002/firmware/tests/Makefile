@@ -33,11 +33,6 @@ DSP_SOURCES = $(DAISYSP_DIR)/Filters/svf.cpp \
               $(DAISYSP_DIR)/Synthesis/formantosc.cpp \
               $(DAISYSP_DIR)/Synthesis/vosim.cpp \
               $(DAISYSP_DIR)/Synthesis/zoscillator.cpp \
-              $(DAISYSP_DIR)/Noise/grainlet.cpp \
-              $(DAISYSP_DIR)/Noise/particle.cpp \
-              $(DAISYSP_DIR)/Noise/clockednoise.cpp \
-              $(DAISYSP_DIR)/PhysicalModeling/stringvoice.cpp \
-              $(DAISYSP_DIR)/PhysicalModeling/KarplusString.cpp \
               $(DAISYSP_DIR)/PhysicalModeling/resonator.cpp \
               $(DAISYSP_DIR)/Utility/dcblock.cpp \
               $(DAISYSP_DIR)/Dynamics/crossfade.cpp \

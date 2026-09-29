@@ -38,11 +38,11 @@ enum class EngineStableId : uint8_t
     kVosim         = 5,
     kHarmonic      = 6,
     kZOsc          = 7,
-    kGrainlet      = 8,
-    kParticle      = 9,
-    kString        = 10,
-    kKarplus       = 11,
     kUnknown       = 0,
+    // 8 Grainlet, 9 Particle, 10 String, 11 Karplus -- RETIRED 2026-09-29.
+    // Listed so nobody hands one of these out again: a preset saved by an
+    // earlier build still carries the number, and it has to keep meaning "an
+    // engine this firmware does not have" rather than whatever gets added next.
 };
 
 inline uint8_t EngineToStableId(EngineId e)
@@ -56,10 +56,6 @@ inline uint8_t EngineToStableId(EngineId e)
         case EngineId::kVosim: return 5;
         case EngineId::kHarmonic: return 6;
         case EngineId::kZOsc: return 7;
-        case EngineId::kGrainlet: return 8;
-        case EngineId::kParticle: return 9;
-        case EngineId::kString: return 10;
-        case EngineId::kKarplus: return 11;
         default: return 0;
     }
 }
@@ -80,10 +76,9 @@ inline EngineId EngineFromStableId(uint8_t id, bool* known = nullptr)
         case 5: e = EngineId::kVosim; break;
         case 6: e = EngineId::kHarmonic; break;
         case 7: e = EngineId::kZOsc; break;
-        case 8: e = EngineId::kGrainlet; break;
-        case 9: e = EngineId::kParticle; break;
-        case 10: e = EngineId::kString; break;
-        case 11: e = EngineId::kKarplus; break;
+        // 8..11 are the retired engines: they fall through to the default and
+        // come back as "not known to this build", which is the whole point of
+        // never reusing a number.
         default: ok = false; break;
     }
     // An id this build knows nothing about, or one whose engine has since been

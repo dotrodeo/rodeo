@@ -356,7 +356,6 @@ class VoiceManager
         x.gate   = true;
         x.held   = true;
         x.age    = ++clock_;
-        x.eng.Trig();
         // RETRIGGER EXPLICITLY. DaisySP's Adsr only restarts on a rising gate
         // edge (`gate && !gate_`), and there is no edge when a voice is re-used
         // for the same note or stolen while it is still held -- its gate was
@@ -418,7 +417,6 @@ class VoiceManager
         {
             x.glide_freq = x.freq; // first note of a phrase: no glide in
             x.gate       = true;
-            x.eng.Trig();
         }
         for(int v = 1; v < kMaxVoices; v++)
             voices_[v].gate = false;

@@ -53,25 +53,20 @@ class CostModel
         {
             case EngineId::kVariableSaw: return 3.01f;
             case EngineId::kVirtualAnalog: return 3.35f;
-            case EngineId::kParticle: return 3.69f;
             case EngineId::kFormant: return 3.95f;
             case EngineId::kFm2: return 6.15f;
-            case EngineId::kGrainlet: return 6.54f;
             case EngineId::kHarmonic: return 6.82f;
             case EngineId::kVosim: return 8.78f;
-            case EngineId::kZOsc: return 9.02f;
-            case EngineId::kKarplus: return 14.04f;
-            default: return 16.43f; // kString
+            default: return 9.02f; // kZOsc, the dearest one left
         }
     }
 
-    /** Engines too expensive to play polyphonically: Mono, or Unison up to 2
-     *  (concept doc, *Voice modes*). Modal was a third until it was dropped --
-     *  46% for one voice. */
-    static bool IsMonoOnly(EngineId id)
-    {
-        return id == EngineId::kString || id == EngineId::kKarplus;
-    }
+    // IsMonoOnly lived here. String (16.43%) and Karplus (14.04%) were its
+    // only members, and Modal (46% for ONE voice) before them. With those gone
+    // the dearest engine left is ZOsc at 9.02%: seven voices on a bare chain,
+    // not eight, but seven is polyphony. Every engine is playable in Poly now,
+    // so there is nothing left to override and the cap is purely budget
+    // arithmetic (2026-09-29).
 
     /** Cost of one effect type at its heaviest, % CPU. A bypassed slot is 0. */
     static float EffectCost(int slot, int type)
@@ -112,12 +107,10 @@ class CostModel
     }
 
     /** Voices that fit alongside `chain_cost`, at least 1 and never more than
-     *  kMaxPoly. Mono-only engines always return 1 -- Mono and Unison-2 are
-     *  handled by the voice mode, not the cap. */
+     *  kMaxPoly. Every engine is polyphonic now, so the cap is purely what the
+     *  budget allows. */
     static int MaxVoices(EngineId id, float chain_cost)
     {
-        if(IsMonoOnly(id))
-            return 1;
         const float spare = kBudget - kFixedLoad - chain_cost;
         const int   n     = static_cast<int>(spare / VoiceCost(id));
         return n < 1 ? 1 : (n > kMaxPoly ? kMaxPoly : n);

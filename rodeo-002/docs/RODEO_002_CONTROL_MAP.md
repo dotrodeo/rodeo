@@ -198,12 +198,11 @@ bottom; the isolated encoder under the OLED is slot 5. Slots 6–9 unpopulated.
   press means a slow turn still counts while dither never does. Once a clean hold passes 600 ms the OLED shows what releasing will do,
   so the pending action is never invisible. Slot encoders 1–4 are never shift, so their own
   long-press (Freeze) can fire at the threshold without waiting for release.
-* **Voice mode is constrained by the engine** (concept doc, *Voice modes*), **built
-  2026-09-25**. String and Karplus are Mono or Unison only (Modal is gone). Turning MAIN onto
-  one of them while in Poly switches the mode to Mono and posts it on the OLED, restoring the
-  previous mode when a polyphonic engine is selected again. Push-turning the mode on such an
-  engine **skips past Poly** rather than offering something that would be ignored. Engine order
-  never changes — nothing is hidden or skipped, the instrument just says what it did.
+* **Voice mode is never constrained by the engine** (2026-09-29). It was, between 2026-09-25 and
+  then: String and Karplus could not carry eight voices, so turning onto one in Poly moved the
+  mode to Mono, said so, and put it back afterwards. Both engines are gone and every engine
+  that remains is polyphonic, so the override went with them. **Poly is Poly on every engine**,
+  and the only thing that limits voices now is the cost model's budget arithmetic.
 * Encoders are incremental, so **all encoder-owned state persists in the patch/flash**
   (engine, slot types, voice mode) — same rule as rodeo-001.
 * Encoder satellites take **straight** cables (`A / B / S / GND` both ends).

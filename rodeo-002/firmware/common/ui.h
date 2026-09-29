@@ -1031,36 +1031,12 @@ class Ui
         }
     }
 
-    /** The physical models cannot carry eight voices, so they are Mono or
-     *  Unison only (concept doc, *Voice modes*). Turning onto one in Poly moves
-     *  the mode rather than letting the engine sound broken, says so, and puts
-     *  the mode back when a polyphonic engine is chosen again -- the engine
-     *  order never changes and nothing is hidden, the instrument just says what
-     *  it did. */
-    static bool EngineIsMonophonic(EngineId e)
-    {
-        return e == EngineId::kString || e == EngineId::kKarplus;
-    }
-
-    void ConstrainVoiceMode(uint32_t now)
-    {
-        if(EngineIsMonophonic(patch_.engine))
-        {
-            if(patch_.voice_mode == VoiceMode::kPoly)
-            {
-                poly_before_       = patch_.voice_mode;
-                had_poly_before_   = true;
-                patch_.voice_mode  = VoiceMode::kMono;
-                PostNotice("MONO: THIS ENGINE", now);
-            }
-        }
-        else if(had_poly_before_)
-        {
-            had_poly_before_  = false;
-            patch_.voice_mode = poly_before_;
-            PostNotice("POLY RESTORED", now);
-        }
-    }
+    // ConstrainVoiceMode and EngineIsMonophonic lived here. They moved the
+    // voice mode to Mono when you turned onto String or Karplus and put it back
+    // afterwards, because those two could not carry eight voices. Both engines
+    // are gone (2026-09-29) and every engine that remains is polyphonic, so
+    // there is no longer a case where the instrument overrides the mode you
+    // chose. Poly is Poly on every engine.
 
     void Post(const char* msg, uint32_t now)
     {
@@ -1068,7 +1044,14 @@ class Ui
         display_.message_ms = now ? now : 1;
     }
 
-    /** For what the instrument decided, as opposed to what you asked for. */
+    /** For what the instrument decided, as opposed to what you asked for.
+     *
+     *  NOTHING CALLS THIS at the moment: its only caller was the voice-mode
+     *  override that went with String and Karplus. Kept because the channel is
+     *  a real distinction the header already draws -- what you did on the left,
+     *  what the instrument did to you in its own slot -- and the next thing
+     *  that decides something on your behalf will want it. Delete it if that
+     *  does not arrive. */
     void PostNotice(const char* msg, uint32_t now)
     {
         display_.notice    = msg;
@@ -1125,12 +1108,6 @@ class Ui
                 int m = static_cast<int>(patch_.voice_mode) + (delta > 0 ? 1 : -1);
                 const int n = static_cast<int>(VoiceMode::kCount);
                 patch_.voice_mode = static_cast<VoiceMode>(((m % n) + n) % n);
-                if(EngineIsMonophonic(patch_.engine) && patch_.voice_mode == VoiceMode::kPoly)
-                {
-                    // Skip past Poly rather than offering it and ignoring it.
-                    patch_.voice_mode = delta > 0 ? VoiceMode::kMono : VoiceMode::kUnison;
-                    had_poly_before_  = false;
-                }
                 Post(VoiceModeName(patch_.voice_mode), now);
                 return true;
             }
@@ -1138,7 +1115,6 @@ class Ui
             const int n = static_cast<int>(EngineId::kCount);
             patch_.engine = static_cast<EngineId>(((eng % n) + n) % n);
             Post(EngineName(patch_.engine), now);
-            ConstrainVoiceMode(now);
             return true;
         }
         if(shift)
@@ -1452,8 +1428,6 @@ class Ui
     int      page_index_ = 0;
     bool     reset_armed_ = false;
     bool     factory_reset_ = false;
-    VoiceMode poly_before_ = VoiceMode::kPoly;
-    bool      had_poly_before_ = false;
     char     page_value_[20] = {};
     char     row_value_[DisplayState::kListRows][20] = {};
     char     slot_label_[DisplayState::kListRows][24] = {};

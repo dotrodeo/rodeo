@@ -46,13 +46,24 @@
 // in one detent -- and the menu now has precedence over the panel: nothing you
 // touch closes it, so it cannot go away mid-thought.
 
+// v4.0.0 drops Grainlet, Particle, String and Karplus (Derek, 2026-09-29,
+// after living with the instrument): four engines nobody reached for, two of
+// which could not be played polyphonically. MAJOR because a preset that names
+// one no longer loads intact -- it falls back to virtual-analog and says so.
+// Their stored ids 8..11 are retired, never reused.
+//
+// Two things fell out of it. Every engine left is polyphonic, so the voice-mode
+// override (Mono forced on the physical models) is gone: Poly is Poly on every
+// engine. And `StringVoice` alone was 5368 bytes of the per-voice engine union
+// against 148 for everything remaining, so DTCM fell from 85.5% to 53.8%.
+
 #pragma once
 
 namespace rodeo002
 {
-constexpr int  kVersionMajor = 3;
+constexpr int  kVersionMajor = 4;
 constexpr int  kVersionMinor = 0;
 constexpr int  kVersionPatch = 0;
-constexpr char kVersionString[] = "3.0.0";
+constexpr char kVersionString[] = "4.0.0";
 
 } // namespace rodeo002

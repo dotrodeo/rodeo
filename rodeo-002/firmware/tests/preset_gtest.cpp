@@ -99,10 +99,23 @@ TEST(Preset, StableIdsAreTheseExactNumbersForever)
     EXPECT_EQ(EngineToStableId(EngineId::kVosim), 5);
     EXPECT_EQ(EngineToStableId(EngineId::kHarmonic), 6);
     EXPECT_EQ(EngineToStableId(EngineId::kZOsc), 7);
-    EXPECT_EQ(EngineToStableId(EngineId::kGrainlet), 8);
-    EXPECT_EQ(EngineToStableId(EngineId::kParticle), 9);
-    EXPECT_EQ(EngineToStableId(EngineId::kString), 10);
-    EXPECT_EQ(EngineToStableId(EngineId::kKarplus), 11);
+
+    // 8..11 were Grainlet, Particle, String and Karplus, dropped 2026-09-29.
+    // A preset saved by an older build still names one, and it has to keep
+    // meaning "an engine this firmware does not have" rather than being handed
+    // to whatever is added next. This is the test that stops that happening.
+    for(uint8_t retired : {8, 9, 10, 11})
+    {
+        bool known = true;
+        EXPECT_EQ(EngineFromStableId(retired, &known), EngineId::kVirtualAnalog)
+            << "retired id " << static_cast<int>(retired) << " resolved to an engine";
+        EXPECT_FALSE(known) << "retired id " << static_cast<int>(retired)
+                            << " was reported as a preset that loaded intact";
+    }
+    for(int e = 0; e < static_cast<int>(EngineId::kCount); e++)
+        for(uint8_t retired : {8, 9, 10, 11})
+            EXPECT_NE(EngineToStableId(static_cast<EngineId>(e)), retired)
+                << "a live engine was handed a retired id";
 }
 
 TEST(Preset, EveryEngineHasItsOwnIdAndComesBack)
@@ -224,10 +237,7 @@ TEST(Preset, NoFactoryPresetUsesAnEngineOnTheChoppingBlock)
         Patch p;
         PresetToPatch(b.slot[i], p);
         SCOPED_TRACE(testing::Message() << b.slot[i].name);
-        EXPECT_NE(p.engine, EngineId::kGrainlet);
-        EXPECT_NE(p.engine, EngineId::kParticle);
-        EXPECT_NE(p.engine, EngineId::kString);
-        EXPECT_NE(p.engine, EngineId::kKarplus);
+        EXPECT_LT(static_cast<int>(p.engine), static_cast<int>(EngineId::kCount));
     }
 }
 
