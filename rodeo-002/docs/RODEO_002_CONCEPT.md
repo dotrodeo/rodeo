@@ -489,8 +489,9 @@ and runs it from there, which is also fast memory, so DSP cost should carry over
 ## rodeo-002 firmware v1.0.0 — 2026-09-25
 
 **Scoped to this instrument.** The repository holds the whole platform — the motherboard, the
-satellites, rodeo-001 — and each versions itself, so tags are written `rodeo-002-v1.0.0` rather
-than `v1.0.0`, which would claim all of it.
+satellites, rodeo-001 — and each versions itself, so tags are written `rodeo-002/v1.0.0` rather
+than `v1.0.0`, which would claim all of it. Component first, so a tag listing groups by
+component rather than by version number.
 
 The first build of rodeo-002 that is a finished instrument rather than a bring-up: MIDI, eight voices, the
 texture chain, the panel and OLED, sixteen factory presets with naming, the gesture recorder

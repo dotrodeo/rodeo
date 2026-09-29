@@ -3,7 +3,8 @@
 // Scoped to rodeo-002 and nothing else. The repository is the whole platform --
 // the motherboard, the satellites, rodeo-001 -- and each of those versions
 // itself; a bare version number here would claim the lot. Tags are written
-// `rodeo-002-v1.0.0` for the same reason (Derek, 2026-09-25).
+// `rodeo-002/v1.0.0` for the same reason -- component first, so a listing groups
+// by component rather than by version (Derek, 2026-09-25).
 //
 // Semantic versioning. For an instrument that means:
 //
