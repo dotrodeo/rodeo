@@ -26,26 +26,32 @@ using namespace rodeo002;
 namespace
 {
 /** Everything OledDisplay asks of a driver, and nothing else. */
+/** The framebuffer is a FILE-SCOPE array rather than a member, and that is not
+ *  a style choice. OledDisplay has a vtable, so a reinterpret_cast from the
+ *  display to its driver lands 12 bytes before the driver's own storage and
+ *  every screen comes out shifted -- which is exactly the kind of quiet lie a
+ *  preview exists to avoid. Reading it here needs no cast at all. */
+static bool g_fb[128 * 64];
+
 struct HostDriver
 {
     struct Config
     {
     };
     static constexpr int kW = 128, kH = 64;
-    bool                 fb[kW * kH] = {};
 
     void     Init(Config) {}
     uint16_t Height() const { return kH; }
     uint16_t Width() const { return kW; }
     void     Fill(bool on)
     {
-        for(auto& p : fb)
+        for(auto& p : g_fb)
             p = on;
     }
     void DrawPixel(uint_fast8_t x, uint_fast8_t y, bool on)
     {
         if(x < kW && y < kH)
-            fb[y * kW + x] = on;
+            g_fb[y * kW + x] = on;
     }
     void Update() {}
     bool UpdateFinished() { return true; }
@@ -84,10 +90,8 @@ Shot Capture(const std::string& name, const DisplayState& d, Scope& scope)
     Shot s;
     s.name = name;
     s.px.resize(128 * 64);
-    // OledDisplay has no read-back, so the driver is asked directly.
-    HostDriver* drv = reinterpret_cast<HostDriver*>(&disp);
     for(int i = 0; i < 128 * 64; i++)
-        s.px[i] = drv->fb[i];
+        s.px[i] = g_fb[i];
     return s;
 }
 

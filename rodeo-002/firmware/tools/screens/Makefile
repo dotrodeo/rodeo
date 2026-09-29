@@ -29,3 +29,10 @@ $(BIN): preview.cpp ../../common/screen.h
 
 clean:
 	rm -rf $(BUILD)
+
+mock: $(BUILD)/mock
+	@$(BUILD)/mock
+
+$(BUILD)/mock: mock.cpp
+	@mkdir -p $(BUILD)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -x c++ mock.cpp $(RODEO_ROOT)/libDaisy/src/util/oled_fonts.c -o $@
