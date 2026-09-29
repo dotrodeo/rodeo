@@ -189,16 +189,17 @@ TEST(Gesture, ClearingStopsItDrivingAnything)
 // no change to the preset format and no saved preset.
 
 #include "gesture_store.h"
+#include "preset.h"
 
 TEST(GestureStore, ATakeFitsItsSlotAndTheSlotsDoNotOverlap)
 {
     EXPECT_LE(GestureBytes(GestureRecorder::kMaxFrames), GestureSlotSize());
-    for(int i = 1; i < 16; i++)
+    for(int i = 1; i < PresetBank::kNumSlots; i++)
         EXPECT_EQ(GestureOffsetForSlot(i) - GestureOffsetForSlot(i - 1), GestureSlotSize())
             << "slot " << i << " overlaps its neighbour";
     // Clear of the program below and of the three stores up at the top.
     EXPECT_GE(GestureOffsetForSlot(0), 0x070000u) << "would land on the program image";
-    EXPECT_LE(GestureOffsetForSlot(15) + GestureSlotSize(), 0x780000u)
+    EXPECT_LE(GestureOffsetForSlot(PresetBank::kNumSlots - 1) + GestureSlotSize(), 0x780000u)
         << "would land on the panel wiring map";
 }
 

@@ -15,18 +15,25 @@
 //          destination, a page.
 //   PATCH  a fix. The instrument does what it already said it did.
 //
-// rodeo-002 v1.0.0 is the first build of THIS instrument that is finished
-// rather than a bring-up: MIDI, eight voices, the texture chain, the panel and OLED, sixteen
-// factory presets with naming, the gesture recorder with per-slot persistence,
-// settings pages, and CC in and out.
+// rodeo-002 v1.0.0 was the first build of THIS instrument that was finished
+// rather than a bring-up: MIDI, eight voices, the texture chain, the panel and
+// OLED, sixteen factory presets with naming, the gesture recorder with per-slot
+// persistence, settings pages, and CC in and out.
+//
+// v2.0.0 adds eight empty user slots, a factory reset and a boot splash. MAJOR
+// rather than MINOR because the bank grew from 16 slots to 24, which changes
+// the stored layout: a v1 bank is rejected and the factory sixteen come back,
+// so anything saved over a factory slot is lost. That is exactly the case the
+// rule above exists for -- "a bank that has to be re-saved" -- and the version
+// number is the only warning a player gets.
 
 #pragma once
 
 namespace rodeo002
 {
-constexpr int  kVersionMajor = 1;
+constexpr int  kVersionMajor = 2;
 constexpr int  kVersionMinor = 0;
 constexpr int  kVersionPatch = 0;
-constexpr char kVersionString[] = "1.0.0";
+constexpr char kVersionString[] = "2.0.0";
 
 } // namespace rodeo002

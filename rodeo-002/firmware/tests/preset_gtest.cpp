@@ -204,9 +204,11 @@ TEST(Preset, TheFactoryBankIsValidAndLoadable)
             EXPECT_LT(p.option[k], fx::TextureChain::NumOptions(k));
         }
     }
-    // +0 so this does not odr-use the constexpr member, which C++14 would want
-    // an out-of-line definition for.
-    EXPECT_EQ(used, PresetBank::kNumSlots + 0) << "every slot should ship a sound";
+    // Sixteen factory sounds; the rest are empty on purpose, for you to fill.
+    EXPECT_EQ(used, 16) << "the factory bank should ship sixteen sounds";
+    EXPECT_GT(PresetBank::kNumSlots + 0, used) << "there should be room to save your own";
+    for(int i = used; i < PresetBank::kNumSlots; i++)
+        EXPECT_FALSE(b.slot[i].used) << "slot " << i << " should be empty, not a copy";
 }
 
 // Derek is weighing up dropping these four (2026-09-24). No factory preset may
@@ -272,8 +274,14 @@ TEST(Preset, EmptySlotsAreFilledFromTheFactoryWithoutTouchingAnythingElse)
     mine.cutoff = 0.321f;
     PatchToPreset(mine, "Mine", stored.slot[9]);
 
+    // Only slots the FACTORY has a sound for: 16 of them, less the nine that
+    // are already occupied (0-7 and the saved one).
     const int filled = FillEmptySlots(stored, factory);
-    EXPECT_EQ(filled, PresetBank::kNumSlots - 9) << "every empty slot should be filled";
+    EXPECT_EQ(filled, 16 - 9) << "every empty slot the factory can fill should be";
+    // ...and the user slots past the factory sixteen stay empty, rather than
+    // being refilled at every boot.
+    for(int i = 16; i < PresetBank::kNumSlots; i++)
+        EXPECT_FALSE(stored.slot[i].used) << "user slot " << i << " was filled";
 
     // What was there is untouched -- the saved one above all.
     EXPECT_STREQ(stored.slot[9].name, "Mine");

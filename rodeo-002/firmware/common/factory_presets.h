@@ -17,7 +17,8 @@
 
 namespace rodeo002
 {
-/** Fill `b` with the factory bank: sixteen sounds, one per slot. */
+/** Fill `b` with the factory bank: sixteen sounds, and the rest left empty for
+ *  you to save into. */
 inline void BuildFactoryBank(PresetBank& b)
 {
     // Every byte set, including the header's own: the bank is compared byte for

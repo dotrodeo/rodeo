@@ -274,9 +274,15 @@ inline void PresetToPatch(const StoredPreset& s, Patch& p, bool* engine_known = 
 /** The bank, as it sits in flash. One 64 KB QSPI sector holds it comfortably. */
 struct PresetBank
 {
-    static constexpr int      kNumSlots = 16;
+    /** 16 factory sounds and 8 empty slots to save your own into. Empty rather
+     *  than copies of Init: an empty slot says so and refuses to load, where a
+     *  copy of Init looks like a sound somebody chose. */
+    static constexpr int      kNumSlots = 24;
     static constexpr uint32_t kMagic    = 0x52325042u; // "R2PB"
-    static constexpr uint16_t kVersion  = 1;
+    /** 2: 24 slots rather than 16, which changes this struct's size. A stored
+     *  bank from v1 is rejected and the factory sixteen come back -- no
+     *  migration, by Derek's call (2026-09-29). */
+    static constexpr uint16_t kVersion = 2;
 
     uint32_t     magic;
     uint16_t     version;

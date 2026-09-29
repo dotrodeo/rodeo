@@ -110,7 +110,8 @@ enum class UiMode
     kSave,
     kPatchPage,
     kGlobalPage,
-    kName
+    kName,
+    kResetPage
 };
 
 /** The menu, in the order MAIN turns through it. */
@@ -121,6 +122,7 @@ enum class MenuItem
     kGesture,
     kPatch,
     kGlobal,
+    kFactoryReset,
     kClose,
     kCount
 };
@@ -134,6 +136,7 @@ inline const char* MenuItemName(MenuItem m)
         case MenuItem::kGesture: return "Gesture";
         case MenuItem::kPatch: return "Patch settings";
         case MenuItem::kGlobal: return "Global settings";
+        case MenuItem::kFactoryReset: return "Factory reset";
         default: return "Close";
     }
 }
@@ -221,6 +224,8 @@ struct DisplayState
     /** "", "ARM", "REC" or "LOOP" -- what the gesture recorder is doing. */
     const char* gesture      = "";
     float       gesture_pos  = 0.f;
+    /** kResetPage: whether the answer has been turned to YES. */
+    bool        reset_armed = false;
     /** kName: the name being spelled, and which character is being changed. */
     const char* name_text   = "";
     int         name_cursor = 0;
@@ -341,6 +346,13 @@ class Ui
         return r;
     }
     UiMode Mode() const { return mode_; }
+    /** True once, when a factory reset has been asked for and confirmed. */
+    bool TakeFactoryReset()
+    {
+        const bool r   = factory_reset_;
+        factory_reset_ = false;
+        return r;
+    }
     bool   BrowserOpen() const { return mode_ == UiMode::kLoad || mode_ == UiMode::kSave; }
 
     /** The recorder is owned by the app (its buffer is far too big for DTCM);
@@ -512,6 +524,7 @@ class Ui
         display_.gesture      = GestureLabel();
         display_.gesture_pos  = gesture_ ? gesture_->position() : 0.f;
         display_.browser_slot = browser_slot_;
+        display_.reset_armed  = reset_armed_;
         display_.name_text    = name_buf_;
         display_.name_cursor  = name_cursor_;
         if(OnPage())
@@ -591,6 +604,10 @@ class Ui
                         page_index_ = 0;
                         EnterMode(UiMode::kGlobalPage, in);
                         break;
+                    case MenuItem::kFactoryReset:
+                        reset_armed_ = false; // always starts on NO
+                        EnterMode(UiMode::kResetPage, in);
+                        break;
                     case MenuItem::kClose: EnterMode(UiMode::kNormal, in); break;
                     default:
                         if(gesture_)
@@ -625,7 +642,17 @@ class Ui
                 EnterMode(UiMode::kNormal, in);
                 break;
 
-            // A page has nothing to confirm -- every change has already
+            // The one page where a tap DOES something, because the change has
+            // deliberately not happened yet. It fires only if the answer has
+            // been turned to YES; a tap on NO is the way out.
+            case UiMode::kResetPage:
+                if(reset_armed_)
+                    factory_reset_ = true;
+                reset_armed_ = false;
+                EnterMode(UiMode::kNormal, in);
+                break;
+
+            // Every other page has nothing to confirm -- the change has already
             // happened -- so a tap is simply the way out.
             default: EnterMode(UiMode::kNormal, in); break;
         }
@@ -924,6 +951,16 @@ class Ui
                     name_buf_[name_cursor_]  = a[at];
                 }
                 mode_ms_ = now;
+                return false;
+            }
+            if(mode_ == UiMode::kResetPage)
+            {
+                // Turning is the whole confirmation: the answer has to be moved
+                // off NO before a tap means anything, which is a deliberate act
+                // rather than a tap that landed on the wrong entry. It cannot
+                // be a hold -- a hold is shift.
+                reset_armed_ = !reset_armed_;
+                mode_ms_     = now;
                 return false;
             }
             if(OnPage())
@@ -1277,6 +1314,8 @@ class Ui
     UiMode   mode_ = UiMode::kNormal;
     int      menu_index_ = 0;
     int      page_index_ = 0;
+    bool     reset_armed_ = false;
+    bool     factory_reset_ = false;
     VoiceMode poly_before_ = VoiceMode::kPoly;
     bool      had_poly_before_ = false;
     char     page_value_[20] = {};

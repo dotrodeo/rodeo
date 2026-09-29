@@ -1005,3 +1005,48 @@ TEST(Ui, AConstraintNoticeDoesNotHideTheEngineYouTurnedOnto)
     EXPECT_STREQ(r.ui.display().message, "");
     EXPECT_STREQ(r.ui.display().notice, "");
 }
+
+// ------------------------------------------------------- FACTORY RESET
+//
+// The one destructive thing on the instrument, so the one thing that has to be
+// answered rather than merely tapped. A hold cannot be the confirmation -- a
+// hold is shift -- so the answer is turned off NO first, which is a deliberate
+// act rather than a tap that landed on the wrong entry.
+
+TEST(Ui, FactoryResetHasToBeAnsweredBeforeItFires)
+{
+    Rig r;
+    OpenMenu(r, MenuItem::kFactoryReset);
+    ASSERT_EQ(r.ui.Mode(), UiMode::kResetPage);
+    EXPECT_FALSE(r.ui.display().reset_armed) << "it should start on NO";
+
+    // A tap on NO is simply the way out.
+    Tap(r);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
+    EXPECT_FALSE(r.ui.TakeFactoryReset()) << "a reset fired without being answered";
+
+    // Turned to YES, a tap fires it -- once.
+    OpenMenu(r, MenuItem::kFactoryReset);
+    r.Turn(kMain, 1);
+    EXPECT_TRUE(r.ui.display().reset_armed);
+    Tap(r);
+    EXPECT_TRUE(r.ui.TakeFactoryReset());
+    EXPECT_FALSE(r.ui.TakeFactoryReset()) << "the request is not one-shot";
+}
+
+TEST(Ui, FactoryResetStartsOnNoEveryTimeAndBacksOutIfTouchedElsewhere)
+{
+    Rig r;
+    OpenMenu(r, MenuItem::kFactoryReset);
+    r.Turn(kMain, 1);
+    ASSERT_TRUE(r.ui.display().reset_armed);
+
+    // Touching any other control abandons it, like every other mode.
+    r.MovePot(0, 0.9f);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
+    EXPECT_FALSE(r.ui.TakeFactoryReset());
+
+    // And coming back starts from NO rather than from where it was left.
+    OpenMenu(r, MenuItem::kFactoryReset);
+    EXPECT_FALSE(r.ui.display().reset_armed) << "it remembered YES";
+}

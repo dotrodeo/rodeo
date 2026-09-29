@@ -528,6 +528,51 @@ static void SendCcChanges(uint32_t now)
     g_cc_primed = true;
 }
 
+/** Everything the instrument has been told, put back the way it shipped.
+ *
+ *  Presets, gestures and instrument state -- NOT the panel wiring map, which is
+ *  a fact about which cables were built rather than a preference (Derek,
+ *  2026-09-29). Clearing that would mean re-proving all 24 pots for no gain.
+ *
+ *  The gestures are invalidated by writing zeros over each header's magic
+ *  rather than by erasing: flash can always clear bits, so a four-byte write
+ *  turns a valid header into an invalid one. Erasing 24 regions of 128 KB
+ *  instead would take the better part of a minute with the panel frozen. A
+ *  later save to any of those slots erases it properly anyway. */
+static void FactoryReset()
+{
+    hw.PrintLine("factory reset: presets, gestures and settings (wiring map kept)");
+
+    BuildFactoryBank(g_factory_bank);
+    preset_store.GetSettings() = g_factory_bank;
+    preset_store.Save();
+
+    const uint32_t zero = 0;
+    for(int i = 0; i < PresetBank::kNumSlots; i++)
+        hw.qspi.Write(GestureOffsetForSlot(i),
+                      sizeof(zero),
+                      reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&zero)));
+    g_gesture.Clear();
+
+    InstrumentState& st  = state_store.GetSettings();
+    st.magic             = kStateMagic;
+    st.version           = kStateVersion;
+    st.last_preset       = 0;
+    st.midi_channel      = 0;
+    st.midi_out_channel  = 1;
+    st.reserved          = 0;
+    state_store.Save();
+    globals.midi_channel     = st.midi_channel;
+    globals.midi_out_channel = st.midi_out_channel;
+
+    const StoredPreset& first = preset_store.GetSettings().slot[0];
+    PresetToPatch(first, patch);
+    ui.NotePresetLoaded(first);
+    ui.DropPickup();
+    g_discrete_changed = true;
+    hw.PrintLine("factory reset: done, %s loaded", first.name);
+}
+
 /** Note the slot to boot into next time. Deferred like the wiring map: the
  *  write is a 64 KB erase, and there is no reason to stall the panel with one
  *  the instant a preset is chosen. */
@@ -822,6 +867,12 @@ static void DrawScreen()
             body.Append(d.menu_item);
             hint = "turn to choose   tap to enter";
         }
+        else if(d.mode == UiMode::kResetPage)
+        {
+            head.Append("FACTORY RESET");
+            body.Append(d.reset_armed ? "YES" : "NO");
+            hint = d.reset_armed ? "tap ERASES presets and gestures" : "turn to answer   tap to leave";
+        }
         else if(d.mode == UiMode::kName)
         {
             head.Append("NAME ");
@@ -914,6 +965,7 @@ static uint32_t ScreenSignature(const DisplayState& d, uint32_t extra)
     for(const char* c = d.name_text; *c; c++)
         mix(static_cast<uint32_t>(*c));
     mix(static_cast<uint32_t>(d.name_cursor));
+    mix(d.reset_armed ? 1u : 0u);
     mix_ptr(d.pending);
     mix_ptr(d.engine);
     mix_ptr(d.voice_mode);
@@ -1188,6 +1240,21 @@ int main(void)
         tcfg.i2c_config.speed          = kI2cSpeed; // same bus, same speed
         display.Init(ocfg);
         display.Fill(false);
+        // A splash, so the instrument says what it is and which firmware it is
+        // running before anything else happens. It costs no time of its own:
+        // the log's one-second settle happens after this, and the panel's first
+        // real frame lands when the main loop starts.
+        display.SetCursor(30, 14);
+        display.WriteString("RODEO", Font_11x18, true);
+        display.SetCursor(34, 36);
+        display.WriteString("rodeo-002", Font_6x8, true);
+        {
+            FixedCapStr<16> ver("v");
+            ver.Append(kVersionString);
+            display.SetCursor(static_cast<uint8_t>(64 - 3 * ver.Size()), 48);
+            display.WriteString(ver, Font_6x8, true);
+        }
+        display.DrawLine(24, 32, 103, 32, true);
         display.Update();
         g_have_oled = rodeo::OledLinkOk();
         // The OLED yields mid-transfer so the panel stays responsive.
@@ -1338,6 +1405,9 @@ int main(void)
         }
 
         SendCcChanges(in.now_ms);
+
+        if(ui.TakeFactoryReset())
+            FactoryReset();
 
         // --- preset load / save -----------------------------------------
         // Both are done here, never in the callback: a save erases a 64 KB

@@ -503,18 +503,45 @@ format changes in a way a player or a saved preset would notice — a control mo
 has to be re-saved; **MINOR** for something new that takes nothing away — an engine, an effect
 type, a destination, a page; **PATCH** for a fix.
 
-### Backlog after rodeo-002 v1.0.0 (Derek, 2026-09-25)
+## rodeo-002 firmware v2.0.0 — 2026-09-29
+
+**Eight empty user slots** (16 factory + 8, `kNumSlots` 16 → 24), a **factory reset** in the
+menu, and a **boot splash** carrying the version.
+
+**MAJOR, not minor.** Nothing was taken away, but the bank grew, which changes the stored
+layout: a v1 bank is rejected and the factory sixteen come back, so anything saved over a
+factory slot is lost. That is the case the rule exists for — *a bank that has to be re-saved* —
+and the version number is the only warning a player gets. No migration, by Derek's call
+(2026-09-29).
+
+**Factory reset clears presets, gestures and instrument state — not the panel wiring map**
+(Derek, 2026-09-29), which is a fact about which cables were built rather than a preference;
+clearing it would mean re-proving all 24 pots for no gain. It is the one destructive thing on
+the instrument and so the one thing that must be *answered*: the confirmation page starts on
+`NO` and has to be turned to `YES` before a tap does anything. A hold could not serve, because a
+hold is shift.
+
+Gestures are invalidated by writing zeros over each header's magic rather than by erasing —
+flash can always clear bits, so four bytes turn a valid header invalid. Erasing 24 regions of
+128 KB would freeze the panel for the better part of a minute; a later save to any of those
+slots erases it properly anyway.
+
+### Backlog after v2.0.0
 
 * **The menu is awkward to navigate.** Reported as feeling "difficult and inconsistent" in use.
   Worth a design pass rather than a patch — likely candidates are how entering and leaving
   nest, and that a page and the menu answer the same gestures differently.
-* **Occasional ghost UI updates remain**, less often than before the 20 ms confirm window. The
-  open question is whether they share a cause with the load-dependent hum (motherboard
-  `hardware-map.md`, Issue 4) — if the supply dips under CPU load, the ADC's reference dips
-  with it, and the two would be the same fault wearing different clothes. Worth measuring the
-  rail and a channel's readings together before changing any more firmware.
-* **A boot splash** with the RODEO name and the version number.
-* **Factory reset, from the menu** — presets and everything else stored. Four regions to clear:
+* **Occasional ghost UI updates remain**, less often than before the 20 ms confirm window.
+  **The obvious theory is probably wrong**: they looked like they might share a cause with the
+  load-dependent hum, the supply dipping under CPU load — but the motherboard feeds the pots and
+  the ADC's reference from *the same* 3.3 V rail (`hardware-map.md`, *Power*), so the readings
+  are ratiometric and rail movement cancels by construction. Something else is producing them.
+  Worth measuring a resting channel's raw codes over minutes, looking for whether the excursions
+  correlate with anything — OLED frames and the I²C burst that goes with them are the next
+  suspects, since they are the loudest thing sharing the board with a 24-channel SPI scan.
+* ~~A boot splash~~ **BUILT in v2.0.0** — RODEO, the instrument name and the version, shown
+  while the log settles so it costs no time of its own.
+* ~~Factory reset~~ **BUILT in v2.0.0.** Four regions were considered:
   the preset bank back to the factory sixteen (`PersistentStorage::RestoreDefaults`), the
   instrument state (boot slot, MIDI channels), the panel wiring map, and **all sixteen gesture
   regions**, which is sixteen 128 KB erases and therefore seconds rather than milliseconds — it
@@ -525,7 +552,7 @@ type, a destination, a page; **PATCH** for a fix.
   shift. The likely shape is a value-style item — turn to `YES`, then tap — which reuses the
   settings-page gesture rather than inventing one. This also closes the gap left when all
   sixteen slots became factory presets: there is currently no way back.
-* **Eight more slots, empty, for user presets** — 16 factory + 8 user, `kNumSlots` 16 → 24.
+* ~~Eight more slots~~ **BUILT in v2.0.0** — 16 factory + 8 user, `kNumSlots` 16 → 24.
   **Empty rather than copies of Init**: an empty slot shows `-- empty --` and refuses to load,
   which is honest, whereas a copy of Init looks like a sound someone chose. `FillEmptySlots`
   composes correctly with that — it only fills where the *factory* bank has a preset, so slots

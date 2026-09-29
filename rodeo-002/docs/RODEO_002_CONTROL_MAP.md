@@ -231,7 +231,13 @@ the moment it should not — it went away while the player was still deciding (2
 Nothing is lost by leaving it open: any pot or slot encoder still closes it, so it can only
 persist while the panel is untouched.
 
-Entries: **Load preset · Save preset · Gesture · Patch settings · Global settings · Close**. Load and Save being separate is what let the
+Entries: **Load preset · Save preset · Gesture · Patch settings · Global settings · Factory
+reset · Close**.
+
+**Factory reset is the one entry that asks before it acts.** Its page starts on `NO`; turning
+moves it to `YES`, and only then does a tap do anything. A hold could not have been the
+confirmation, because a hold is shift. It clears presets, gestures and instrument state, and
+deliberately keeps the panel wiring map. Load and Save being separate is what let the
 browser's long-press-to-save go away — inside either one, a tap acts and that is all. The
 settings pages (*Patch* and *Global*, below) join this menu when they are built.
 
@@ -250,7 +256,7 @@ says so for as long as it is open:
 decide which slot to save to let the browser close under a finger that was already holding the
 encoder down, and the long-press then meant *gesture* instead of *save* (2026-09-24).
 
-**As built:** 16 slots, **all sixteen shipping a factory sound**. An empty slot shows
+**As built:** **24 slots — sixteen factory sounds and eight empty** for your own (v2.0.0). An empty slot shows
 `-- empty --` and will not load, but can be saved into — so saving means choosing a factory
 sound to replace, and there is no restore gesture yet.
 
