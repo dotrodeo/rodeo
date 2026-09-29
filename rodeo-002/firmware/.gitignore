@@ -1,0 +1,9 @@
+# Firmware build artifacts
+build/
+*.o
+*.d
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
