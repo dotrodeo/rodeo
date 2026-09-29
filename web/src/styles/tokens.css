@@ -1,0 +1,25 @@
+/* Rodeo design tokens — a transcription of web/docs/WEB_BRAND.md.
+ *
+ * Layer 1 is the raw palette, sampled from a kicad-cli render of
+ * rodeo-motherboard.kicad_pcb. Do not invent values here: if a colour is not
+ * on the board, it does not belong in this file.
+ *
+ * Layer 2 is the semantic set in @theme (global.css). Components reference
+ * ONLY layer 2, which is what keeps the palette swappable in one place.
+ */
+
+:root {
+  /* Layer 1 — measured off the board */
+  --palette-mask: #141416; /* black soldermask, the board field */
+  --palette-mask-raised: #1c1c20; /* one step up: cards, wells */
+  --palette-silk: #fefefe; /* silkscreen white */
+  --palette-silk-soft: #e4e4e2; /* softened white for long prose */
+  --palette-hardware: #b6b6b6; /* connector shells, tin pads */
+  --palette-plating: #f0d81e; /* gold plated through-holes */
+  --palette-trace: #2a1e18; /* copper under mask — hairlines only */
+  --palette-copper: #7e604e; /* copper mid-tone — 24px+ text only */
+
+  /* A hairline that reads on the field. Pure --palette-trace is 1.2:1 and
+   * disappears on some displays, so rules use a lifted neutral instead. */
+  --palette-rule: #2e2e33;
+}

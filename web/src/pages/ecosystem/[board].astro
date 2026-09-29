@@ -1,0 +1,88 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Chip from '../../components/Chip.astro';
+import BoardFigure from '../../components/BoardFigure.astro';
+import SpecTable from '../../components/SpecTable.astro';
+import { boards } from '../../data/boards';
+import { statusLabel } from '../../data/site';
+import type { Board } from '../../data/boards';
+
+export function getStaticPaths() {
+  return boards.map((board) => ({ params: { board: board.slug }, props: { board } }));
+}
+
+interface Props {
+  board: Board;
+}
+
+const { board } = Astro.props;
+
+const files = [
+  { ext: '.kicad_pro', name: 'KiCad project', note: 'Schematic, layout, footprints.' },
+  { ext: '.zip', name: 'Gerbers', note: 'Fab-ready, plus drill maps.' },
+  { ext: '.csv', name: 'BOM + CPL', note: 'Parts and placements.' },
+  { ext: 'src', name: 'Firmware', note: 'Where the board has its own.' },
+];
+---
+
+<BaseLayout title={board.name} description={board.summary}>
+  <p class="pt-5 font-mono text-[13px] text-hardware">
+    <a href="/ecosystem/" class="text-hardware no-underline hover:text-plating">boards</a> / {board.name}
+  </p>
+
+  <section class="flex flex-col gap-10 pt-6 lg:flex-row lg:gap-12">
+    <div class="lg:w-[42%] lg:shrink-0">
+      <BoardFigure
+        src={board.image!}
+        alt={board.imageAlt!}
+        rev={board.rev}
+        caption={`${board.name} as fabbed`}
+        loading="eager"
+        widths={[480, 800, 1200]}
+        sizes="(max-width: 1024px) 100vw, 480px"
+      />
+    </div>
+
+    <div class="flex grow flex-col gap-5">
+      <div class="flex flex-wrap items-center gap-3.5">
+        <h1 class="display m-0 text-[clamp(32px,5vw,46px)] normal-case">{board.name}</h1>
+        <Chip variant="status" status={board.status}>{statusLabel[board.status]}</Chip>
+      </div>
+      <p class="prose-body m-0 text-[18px]">{board.body}</p>
+      <SpecTable specs={board.specs} />
+      {
+        board.caveats?.map((c) => (
+          <div class="flex items-start gap-3 bg-field-raised p-4">
+            <Chip variant="status" status={c.status} class="shrink-0">
+              {statusLabel[c.status]}
+            </Chip>
+            <p class="m-0 text-[14.5px] leading-relaxed text-legend-prose">{c.text}</p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="pt-14">
+    <div class="flex items-baseline gap-4 pb-5">
+      <Chip>Files</Chip>
+      <p class="m-0 text-[14px] text-hardware">
+        Published with the board — nothing here is behind a sign-up.
+      </p>
+    </div>
+    <ul class="m-0 grid list-none gap-5 p-0 sm:grid-cols-2 lg:grid-cols-4">
+      {
+        files.map((f) => (
+          <li class="flex flex-col gap-1.5 bg-field-raised p-4">
+            <span class="font-mono text-[12px] text-plating">{f.ext}</span>
+            <span class="display text-[17px] normal-case">{f.name}</span>
+            <span class="text-[14px] leading-relaxed text-hardware">{f.note}</span>
+            <span class="mt-1 font-mono text-[11.5px] text-hardware">
+              link pending the public repo
+            </span>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+</BaseLayout>

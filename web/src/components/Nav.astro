@@ -1,0 +1,32 @@
+---
+import Wordmark from './Wordmark.astro';
+import Chip from './Chip.astro';
+import { site } from '../data/site';
+
+const path = Astro.url.pathname;
+---
+
+<header class="border-b border-rule">
+  <nav
+    class="mx-auto flex max-w-[1240px] flex-wrap items-center gap-x-6 gap-y-3 px-4 py-4 sm:px-8"
+    aria-label="Primary"
+  >
+    <Wordmark href="/" />
+    <div class="grow"></div>
+    {
+      site.nav.map((item) =>
+        path.startsWith(item.href) ? (
+          <Chip>{item.label}</Chip>
+        ) : item.pending ? (
+          <span class="text-[15px] font-semibold text-hardware" title="Coming soon">
+            {item.label}
+          </span>
+        ) : (
+          <a href={item.href} class="text-[15px] font-semibold text-legend no-underline hover:text-plating">
+            {item.label}
+          </a>
+        )
+      )
+    }
+  </nav>
+</header>

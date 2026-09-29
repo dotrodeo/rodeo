@@ -1,0 +1,20 @@
+---
+// The board's second device: a hairline rule around a functional region with a
+// knockout label straddling the bottom edge. The motherboard groups its analog
+// and digital banks this way.
+import Chip from './Chip.astro';
+
+interface Props {
+  label: string;
+  class?: string;
+}
+
+const { label, class: klass = '' } = Astro.props;
+---
+
+<div class={`relative border-[1.5px] border-legend px-7 pt-7 pb-11 ${klass}`}>
+  <slot />
+  <div class="absolute left-7 -bottom-[11px]">
+    <Chip>{label}</Chip>
+  </div>
+</div>

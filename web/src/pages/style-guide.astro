@@ -1,0 +1,98 @@
+---
+// Internal. Renders the token set and component inventory so the design can be
+// checked by looking rather than by reading CSS. noindex via BaseHead's
+// SITE_ENV gate plus the explicit tag below.
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Chip from '../components/Chip.astro';
+import OutlineGroup from '../components/OutlineGroup.astro';
+import SpecTable from '../components/SpecTable.astro';
+
+const palette = [
+  { token: '--color-field', hex: '#141416', role: 'Field — black soldermask', contrast: '—' },
+  { token: '--color-field-raised', hex: '#1C1C20', role: 'Raised — cards, wells', contrast: '—' },
+  { token: '--color-legend', hex: '#FEFEFE', role: 'Legend — silkscreen white', contrast: '18.2:1' },
+  { token: '--color-legend-prose', hex: '#E4E4E2', role: 'Prose — softened white', contrast: '14.4:1' },
+  { token: '--color-hardware', hex: '#B6B6B6', role: 'Hardware — connector shells', contrast: '9.1:1' },
+  { token: '--color-plating', hex: '#F0D81E', role: 'Plating — gold through-holes', contrast: '12.7:1' },
+  { token: '--color-trace', hex: '#2A1E18', role: 'Trace — copper under mask', contrast: 'hairlines only' },
+  { token: '--color-copper', hex: '#7E604E', role: 'Copper mid — 24px+ only', contrast: '3.2:1' },
+];
+
+const demoSpecs = [
+  { label: 'analog in', value: '24 × 16-bit', evidence: 'demo' },
+  { label: 'address', value: '0x30–0x33', evidence: 'demo' },
+  { label: 'slot link', value: 'JST-SH 4-pin', evidence: 'demo' },
+  { label: 'poll rate', value: '~1 kHz', evidence: 'demo' },
+];
+---
+
+<BaseLayout title="Style guide" description="Internal token and component reference.">
+  <meta name="robots" content="noindex,nofollow" slot="head" />
+
+  <section class="flex flex-col gap-3 py-12">
+    <Chip class="self-start">Style guide</Chip>
+    <h1 class="display m-0 text-[48px]">Foundations</h1>
+    <p class="m-0 max-w-[700px] text-[16px] text-hardware">
+      Everything here is sampled from a kicad-cli render of the motherboard, or taken from the
+      typefaces already set in the boards’ KiCad text objects. Internal page — not linked from
+      navigation.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-4 pb-14">
+    <Chip class="self-start">Palette</Chip>
+    <ul class="m-0 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-4">
+      {
+        palette.map((p) => (
+          <li class="flex flex-col gap-2">
+            <div
+              class="h-[88px] border border-rule"
+              style={`background: ${p.hex}`}
+              aria-hidden="true"
+            />
+            <code class="font-mono text-[14px] text-legend">{p.hex}</code>
+            <span class="text-[13.5px] text-legend">{p.role}</span>
+            <span class="font-mono text-[12px] text-hardware">{p.contrast}</span>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <section class="flex flex-col gap-5 pb-14">
+    <Chip class="self-start">Type</Chip>
+    <div class="flex flex-col gap-2 border-b border-rule pb-5">
+      <span class="font-mono text-[12px] text-plating">Barlow Black — display</span>
+      <p class="display m-0 text-[56px]">Synthesizer motherboard</p>
+    </div>
+    <div class="flex flex-col gap-2 border-b border-rule pb-5">
+      <span class="font-mono text-[12px] text-plating">Barlow — body</span>
+      <p class="prose-body m-0 max-w-[620px] text-[17px]">
+        Twenty-four 16-bit analog channels, twelve digital inputs and an I²C control bus. Wire up
+        the control surface your instrument needs without designing a board for it.
+      </p>
+    </div>
+    <div class="flex flex-col gap-2">
+      <span class="font-mono text-[12px] text-plating">IBM Plex Mono — designators</span>
+      <p class="m-0 font-mono text-[15px] leading-loose">
+        J42 I2C1 SDA/SCL 0x30–0x33<br />U3 ADS114S08 AIN0–AIN11 16-bit
+      </p>
+    </div>
+  </section>
+
+  <section class="flex flex-col gap-5 pb-20">
+    <Chip class="self-start">Devices</Chip>
+    <div class="flex flex-wrap items-center gap-2.5">
+      <Chip>I2C</Chip>
+      <Chip>SPI</Chip>
+      <Chip>UART</Chip>
+      <Chip variant="status" status="shipped">Verified</Chip>
+      <Chip variant="status" status="in-progress">In bring-up</Chip>
+      <Chip variant="status" status="planned">Planned</Chip>
+      <Chip variant="status" status="retired">Retired</Chip>
+    </div>
+    <OutlineGroup label="Outline group">
+      <SpecTable specs={demoSpecs} />
+    </OutlineGroup>
+  </section>
+</BaseLayout>

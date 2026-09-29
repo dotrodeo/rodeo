@@ -1,0 +1,124 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Chip from '../../components/Chip.astro';
+import BoardFigure from '../../components/BoardFigure.astro';
+import OutlineGroup from '../../components/OutlineGroup.astro';
+import SpecTable from '../../components/SpecTable.astro';
+import { host, satellites, retired } from '../../data/boards';
+import { statusLabel } from '../../data/site';
+---
+
+<BaseLayout
+  title="The boards"
+  description="One host board and the satellites that plug into it. Every entry links to its schematic, KiCad project, gerbers, BOM and pinout."
+>
+  <section class="flex flex-col gap-10 py-12 lg:flex-row lg:items-end">
+    <div class="flex grow flex-col gap-3.5">
+      <h1 class="display m-0 text-[clamp(38px,6vw,58px)]">The boards</h1>
+      <p class="prose-body m-0 max-w-[700px] text-[18px]">
+        One host board and the satellites that plug into it. Every entry links to its schematic,
+        KiCad project, gerbers, BOM and pinout. Status is what has actually been proven on
+        hardware — not what has been designed.
+      </p>
+    </div>
+    <ul class="m-0 flex list-none flex-col gap-2.5 p-0">
+      <li class="flex items-center gap-2.5">
+        <Chip variant="status" status="shipped">Verified</Chip>
+        <span class="text-[13.5px] text-hardware">proven on real hardware</span>
+      </li>
+      <li class="flex items-center gap-2.5">
+        <Chip variant="status" status="in-progress">In bring-up</Chip>
+        <span class="text-[13.5px] text-hardware">fabbed, still being tested</span>
+      </li>
+      <li class="flex items-center gap-2.5">
+        <Chip variant="status" status="planned">Open item</Chip>
+        <span class="text-[13.5px] text-hardware">a known gap, named on the board’s page</span>
+      </li>
+    </ul>
+  </section>
+
+  <section class="bg-field-raised p-6 sm:p-8">
+    <div class="flex flex-col gap-8 lg:flex-row">
+      <div class="lg:w-[46%] lg:shrink-0">
+        <BoardFigure
+          src={host.image!}
+          alt={host.imageAlt!}
+          rev={host.rev}
+          caption="rodeo-motherboard"
+          widths={[500, 800, 1200]}
+          sizes="(max-width: 1024px) 100vw, 520px"
+        />
+      </div>
+      <div class="flex min-w-0 grow flex-col gap-4">
+        <div class="flex flex-wrap items-center gap-3">
+          <h2 class="display m-0 text-[32px] normal-case">{host.name}</h2>
+          <Chip variant="status" status={host.status}>{statusLabel[host.status]}</Chip>
+        </div>
+        <p class="prose-body m-0 text-[16.5px]">{host.body}</p>
+        <SpecTable specs={host.specs} />
+        {
+          host.caveats?.map((c) => (
+            <div class="flex items-start gap-3 bg-field p-4">
+              <Chip variant="status" status={c.status} class="shrink-0">
+                {statusLabel[c.status]}
+              </Chip>
+              <p class="m-0 text-[14px] leading-relaxed text-hardware">{c.text}</p>
+            </div>
+          ))
+        }
+        <div>
+          <a
+            href={`/ecosystem/${host.slug}/`}
+            class="inline-block bg-plating px-4 py-2.5 font-display text-[14px] font-black uppercase tracking-[0.06em] text-field no-underline hover:bg-legend"
+            >Pinout &amp; files</a
+          >
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pt-14">
+    <OutlineGroup label="Satellites">
+      <ul class="m-0 grid list-none gap-6 p-0 sm:grid-cols-2 lg:grid-cols-4">
+        {
+          satellites.map((b) => (
+            <li>
+              <a href={`/ecosystem/${b.slug}/`} class="flex flex-col gap-3 text-legend no-underline">
+                <BoardFigure src={b.image!} alt={b.imageAlt!} rev={b.rev} caption={b.name} />
+                <div class="flex flex-wrap items-center gap-2">
+                  <h3 class="display m-0 text-[18px] normal-case">{b.name}</h3>
+                  <Chip variant="status" status={b.status}>
+                    {statusLabel[b.status]}
+                  </Chip>
+                </div>
+                <p class="m-0 text-[14.5px] leading-relaxed text-hardware">{b.summary}</p>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </OutlineGroup>
+  </section>
+
+  <section class="flex flex-col gap-8 pt-16 lg:flex-row">
+    <div class="flex max-w-[280px] flex-col gap-2.5">
+      <Chip variant="status" status="retired" class="self-start">Retired</Chip>
+      <p class="m-0 text-[14.5px] leading-relaxed text-hardware">
+        Boards that were designed and then cut. The files stay published; they are not part of the
+        platform.
+      </p>
+    </div>
+    <dl class="m-0 grow">
+      {
+        retired.map((b) => (
+          <div class="flex flex-col gap-1 border-t border-rule py-3.5 sm:flex-row sm:gap-5">
+            <dt class="w-[210px] shrink-0 font-mono text-[14px] text-hardware line-through">
+              {b.name}
+            </dt>
+            <dd class="m-0 text-[14.5px] leading-relaxed text-hardware">{b.retiredReason}</dd>
+          </div>
+        ))
+      }
+    </dl>
+  </section>
+</BaseLayout>

@@ -1,0 +1,86 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+@import '@fontsource/barlow/400.css';
+@import '@fontsource/barlow/500.css';
+@import '@fontsource/barlow/600.css';
+@import '@fontsource/barlow/900.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+/* Layer 2 — semantic tokens. Components use these names, never the palette. */
+@theme {
+  --color-field: var(--palette-mask);
+  --color-field-raised: var(--palette-mask-raised);
+  --color-legend: var(--palette-silk);
+  --color-legend-prose: var(--palette-silk-soft);
+  --color-hardware: var(--palette-hardware);
+  --color-plating: var(--palette-plating);
+  --color-trace: var(--palette-trace);
+  --color-copper: var(--palette-copper);
+  --color-rule: var(--palette-rule);
+
+  /* Claim status — reuses the palette rather than adding to it. */
+  --color-status-shipped: var(--palette-plating);
+  --color-status-progress: var(--palette-silk);
+  --color-status-planned: var(--palette-hardware);
+
+  --font-display: 'Barlow', system-ui, sans-serif;
+  --font-sans: 'Barlow', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+/* Element defaults MUST live in @layer base. Unlayered rules beat every
+ * Tailwind utility (layered styles always lose to unlayered ones), which
+ * silently turned `text-legend` into gold everywhere a link was involved. */
+@layer base {
+  html {
+    color-scheme: dark; /* dark only — see WEB_BRAND.md */
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-field);
+    color: var(--color-legend);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a {
+    color: var(--color-plating);
+  }
+  a:hover {
+    color: var(--color-legend);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-plating);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+}
+
+/* Named devices from the board. In @layer components so utilities still win —
+ * `normal-case` has to be able to override `.display` on a board name. */
+@layer components {
+  /* The board sets display type in caps, tight. */
+  .display {
+    font-weight: 900;
+    letter-spacing: -0.022em;
+    line-height: 0.94;
+    text-transform: uppercase;
+  }
+
+  /* Long prose uses the softened white — pure silkscreen white halates over a
+   * paragraph on near-black. Headings stay full white. */
+  .prose-body {
+    color: var(--color-legend-prose);
+    line-height: 1.65;
+  }
+}

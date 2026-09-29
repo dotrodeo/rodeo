@@ -1,0 +1,25 @@
+---
+// Specs render from data, never from prose. Each row carries its evidence path
+// in a title attribute so the provenance travels with the page.
+import type { Spec } from '../data/boards';
+
+interface Props {
+  specs: Spec[];
+  columns?: 1 | 2;
+}
+
+const { specs, columns = 2 } = Astro.props;
+---
+
+<dl class={`grid gap-x-8 gap-y-0 m-0 ${columns === 2 ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
+  {
+    specs.map((s) => (
+      <div class="flex justify-between gap-4 border-b border-rule py-2 font-mono text-[13.5px]">
+        <dt class="text-hardware shrink-0">{s.label}</dt>
+        <dd class="m-0 text-right text-legend" title={`evidence: ${s.evidence}`}>
+          {s.value}
+        </dd>
+      </div>
+    ))
+  }
+</dl>

@@ -1,0 +1,24 @@
+---
+// The board lockup: RODEO in Barlow Black with a knockout descriptor bar.
+// The bar is a slot — it says SYNTHESIZER MOTHERBOARD on the silkscreen and
+// something context-appropriate here — and swaps without touching the mark.
+import Chip from './Chip.astro';
+
+interface Props {
+  descriptor?: string;
+  size?: 'nav' | 'hero';
+  href?: string;
+}
+
+const { descriptor, size = 'nav', href } = Astro.props;
+const markClass = size === 'hero' ? 'text-[68px]' : 'text-[26px]';
+const Tag = href ? 'a' : 'div';
+---
+
+<Tag
+  href={href}
+  class={`inline-flex items-center gap-3 no-underline text-legend ${href ? 'hover:text-legend' : ''}`}
+>
+  <span class={`display ${markClass}`}>Rodeo</span>
+  {descriptor && <Chip class="hidden sm:inline-block">{descriptor}</Chip>}
+</Tag>

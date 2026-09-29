@@ -58,3 +58,39 @@ Flat layer art for graphic use:
 
 Commit only web-ready derivatives: ≤2500 px long edge, ≤500 KB, sRGB. Originals stay
 outside the repo.
+
+---
+
+## Running it
+
+```bash
+cd web
+npm install
+npm run dev      # http://localhost:4321
+npm run check    # astro check + claim citations + asset budgets
+npm run build
+```
+
+`npm run check` must be clean before a commit. It runs three things:
+
+- `astro check` — types and content-collection schemas
+- `scripts/check-claims.mjs` — every `evidence` citation in `src/data/boards.ts`
+  resolves to a real, non-blank line, and no `shipped` claim sits within three
+  lines of a `TODO`. See [docs/WEB_CLAIMS_AUDIT.md](docs/WEB_CLAIMS_AUDIT.md).
+- `scripts/check-assets.mjs` — nothing committed under `src/assets/` or
+  `public/` exceeds 500 KB.
+
+## What exists so far
+
+Phase 1 and the board catalogue: design tokens, layout shell, `/`, `/ecosystem/`,
+a page per board, `/style-guide` and `/404`. Not yet built: the build log, `/docs/`,
+`/prototype/`, the subscribe function and the deploy workflow — see
+[docs/WEB_ROADMAP.md](docs/WEB_ROADMAP.md).
+
+Board imagery is regenerated from KiCad rather than stored as precious artwork:
+
+```bash
+kicad-cli pcb render -o out/<board>.png --width 1800 --height 1400 \
+  --side top --quality high --background opaque <board>.kicad_pcb
+npm run renders out          # re-encode into src/assets/hardware within budget
+```
