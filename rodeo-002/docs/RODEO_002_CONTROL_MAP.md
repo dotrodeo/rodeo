@@ -93,8 +93,8 @@ Within each chip the grid is read left-to-right, top-to-bottom onto consecutive 
 
 | `ch` | Grid | Main layer | Shift layer | Chip | AINx | Conn |
 |---|---|---|---|---|---|---|
-| 0  | R1C1 | Harmonics         | Env→Timbre               | U3 | AIN0 | J6  |
-| 1  | R1C2 | Timbre            | Env→Morph                | U3 | AIN1 | J7  |
+| 0  | R1C1 | Harmonics         | **Sub level**            | U3 | AIN0 | J6  |
+| 1  | R1C2 | Timbre            | **Sub interval** *(stepped)* | U3 | AIN1 | J7  |
 | 2  | R1C3 | Morph             | LFO rate                 | U3 | AIN2 | J8  |
 | 3  | R1C4 | **Character amt** | Character **Bias**       | U3 | AIN3 | J9  |
 | 4  | R2C1 | Cutoff            | Filter type *(stepped)*  | U3 | AIN4 | J10 |

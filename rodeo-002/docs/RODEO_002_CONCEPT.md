@@ -129,6 +129,32 @@ the centre instead, so every even number of voices is balanced and a single held
 off centre rather than hard left. `VoiceManager.AChordIsNotPushedToOneSide` is the regression
 test.
 
+### The sub-oscillator (2026-09-29)
+
+A plain waveform under (or over) the note, mixed in before the filter. **Not a second macro
+engine**, and that is the whole design: a second engine would roughly double the per-voice cost,
+taking FM and Harmonic from 8 voices to 5 and Vosim and Z-osc to 3. What a second engine would
+mostly buy is beating, which **Unison already gives** now that its detune works. What Poly lacked
+was *weight*, and that is what a sub is for.
+
+**Two knobs on the shift layer**: Sub level, and Sub interval (stepped — the screen names the
+value rather than drawing a meter). Intervals are −12, −7, −5, unison, +5, +7, +12, +19; the
+waveform (sine, triangle, saw, square) is on the patch settings page, being a set-once choice.
+**Env→Timbre and Env→Morph moved to that page** to free the knobs — they are depths you set for a
+patch and leave, so nothing was lost but the travel.
+
+**Level 0 is off and costs nothing**, in CPU and in sound: `CostModel::MaxVoices` charges for the
+sub only when a patch uses one, so presets that do not stay at full polyphony.
+
+**It fits in the two bytes `StoredPreset` had left**, which is why it needed no
+`PresetBank::kVersion` bump — a bump rejects the stored bank and loses every saved preset. Both
+bytes were `reserved` and have always been written as zero, so every preset ever saved decodes as
+*sub off, −12, sine*: silent, and set to what you would have picked anyway. Level is 0..255 over
+0..1; the second byte packs waveform in the high nibble and interval in the low one.
+
+**There is no slack left in the format.** The next thing that needs preset storage needs a
+migration first, not another field.
+
 **There are no mono-only engines any more (2026-09-29).** Modal, String and Karplus were the
 three that cost too much per voice to be polyphonic, and all three are gone. Every engine that
 remains plays in every voice mode; the polyphony cap is budget arithmetic in `CostModel` rather

@@ -65,6 +65,14 @@
 // comment claiming a semitone; it is +/-25 cents now. Presets load unchanged
 // but SOUND different: wider, and actually stacked in Unison rather than eight
 // phase-locked copies of one oscillator.
+//
+// And a SUB-OSCILLATOR: a plain waveform under or over the note, on the two
+// shift knobs Env->Timbre and Env->Morph gave up (both moved to the patch page,
+// losing nothing but the travel). Not a second macro engine -- that would have
+// halved the polyphony on the dearer engines to buy beating, which Unison
+// already gives. Level 0 is off and is charged nothing. It fits the last two
+// spare bytes of StoredPreset, so no version bump and no preset lost; those
+// bytes have always been zero, which decodes as off, -12, sine.
 
 #pragma once
 

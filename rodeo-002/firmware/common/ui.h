@@ -64,7 +64,7 @@ enum class ParamId
     kAttack, kDecay, kSustain, kTextureAmt,
     kSpaceTime, kSpaceFeedback, kSpaceGrain, kSpaceMix,
     // shift layer, same pots
-    kEnvToTimbre, kEnvToMorph, kLfoRate, kCharacterBias,
+    kSubLevel, kSubInterval, kLfoRate, kCharacterBias,
     kFilterType, kLfoDepth, kLfoDest, kMovementRate,
     kSpread, kGlide, kVolume, kTextureTone,
     kGrainPitch, kGrainSpread, kTilt, kSpaceDamp,
@@ -76,7 +76,7 @@ inline const char* ParamName(ParamId p)
     static const char* kNames[] = {
         "Harmonics", "Timbre",    "Morph",     "Character", "Cutoff",    "Resonance",
         "Filt env",  "Movement",  "Attack",    "Decay",     "Sustain",   "Texture",
-        "Time",      "Feedback",  "Grain",     "Space mix", "Env>Timbre", "Env>Morph",
+        "Time",      "Feedback",  "Grain",     "Space mix", "Sub level", "Sub oct",
         "LFO rate",  "Bias",      "Filter",    "LFO depth", "LFO dest",  "Rate",
         "Spread",    "Glide",     "Volume",    "Tone",      "Pitch",     "Spread",
         "Tilt",      "Damp"};
@@ -91,6 +91,8 @@ inline int ParamSteps(ParamId p)
         return static_cast<int>(FilterType::kCount);
     if(p == ParamId::kLfoDest)
         return static_cast<int>(LfoDest::kCount);
+    if(p == ParamId::kSubInterval)
+        return static_cast<int>(SubInterval::kCount);
     return 0;
 }
 
@@ -158,6 +160,12 @@ enum class PatchSetting
     kBendRange,
     kLfoShape,
     kModDest,
+    // Moved off the shift layer on 2026-09-29 to make room for the sub. They
+    // are depths you set for a patch and leave; the knobs went to something you
+    // actually play with.
+    kEnvToTimbre,
+    kEnvToMorph,
+    kSubWave,
     kCount
 };
 
@@ -889,6 +897,9 @@ class Ui
             case PatchSetting::kVelToFilter: return "Vel>filter";
             case PatchSetting::kBendRange: return "Bend range";
             case PatchSetting::kLfoShape: return "LFO shape";
+            case PatchSetting::kEnvToTimbre: return "Env>timbre";
+            case PatchSetting::kEnvToMorph: return "Env>morph";
+            case PatchSetting::kSubWave: return "Sub wave";
             default: return "Mod wheel";
         }
     }
@@ -912,17 +923,7 @@ class Ui
         }
         switch(static_cast<PatchSetting>(i))
         {
-            case PatchSetting::kKeytrack:
-            {
-                // Signed: 0.5 is none, either side tracks the keyboard.
-                const int pct = static_cast<int>((patch_.keytrack - 0.5f) * 200.f
-                                                 + (patch_.keytrack >= 0.5f ? 0.5f : -0.5f));
-                if(pct > 0)
-                    *d++ = '+';
-                Int(d, pct);
-                Copy(d, "%");
-                break;
-            }
+            case PatchSetting::kKeytrack: SignedPercent(d, patch_.keytrack); break;
             case PatchSetting::kVelToFilter:
                 Int(d, static_cast<int>(patch_.vel_to_filter * 100.f + 0.5f));
                 Copy(d, "%");
@@ -934,8 +935,23 @@ class Ui
             case PatchSetting::kLfoShape:
                 Copy(d, fx::Lfo::ShapeName(patch_.lfo_shape));
                 break;
+            case PatchSetting::kEnvToTimbre: SignedPercent(d, patch_.env_to_timbre); break;
+            case PatchSetting::kEnvToMorph: SignedPercent(d, patch_.env_to_morph); break;
+            case PatchSetting::kSubWave: Copy(d, SubWaveName(patch_.sub_wave)); break;
             default: Copy(d, ModDestName(patch_.mod_dest)); break;
         }
+    }
+
+    /** A 0..1 value where 0.5 means none, written the way it reads on the
+     *  panel: -100% to +100% with the sign shown. */
+    static void SignedPercent(char*& d, float v)
+    {
+        const int pct
+            = static_cast<int>((v - 0.5f) * 200.f + (v >= 0.5f ? 0.5f : -0.5f));
+        if(pct > 0)
+            *d++ = '+';
+        Int(d, pct);
+        Copy(d, "%");
     }
 
     void AdjustPage(int i, int dir)
@@ -973,6 +989,19 @@ class Ui
             {
                 const int n      = fx::Lfo::kNumShapes;
                 patch_.lfo_shape = ((patch_.lfo_shape + dir) % n + n) % n;
+                break;
+            }
+            case PatchSetting::kEnvToTimbre:
+                patch_.env_to_timbre = Clamp01(patch_.env_to_timbre + 0.02f * dir);
+                break;
+            case PatchSetting::kEnvToMorph:
+                patch_.env_to_morph = Clamp01(patch_.env_to_morph + 0.02f * dir);
+                break;
+            case PatchSetting::kSubWave:
+            {
+                const int n     = static_cast<int>(SubWave::kCount);
+                patch_.sub_wave = static_cast<SubWave>(
+                    ((static_cast<int>(patch_.sub_wave) + dir) % n + n) % n);
                 break;
             }
             default:
@@ -1288,6 +1317,7 @@ class Ui
         switch(p)
         {
             case ParamId::kFilterType: return FilterTypeName(patch_.filter);
+            case ParamId::kSubInterval: return SubIntervalName(patch_.sub_interval);
             case ParamId::kLfoDest: return LfoDestName(patch_.lfo_dest);
             default: return "";
         }
@@ -1314,8 +1344,10 @@ class Ui
             case ParamId::kSpaceFeedback: return x.space_feedback;
             case ParamId::kSpaceGrain: return x.space_grain;
             case ParamId::kSpaceMix: return x.amount[fx::TextureChain::kSpace];
-            case ParamId::kEnvToTimbre: return x.env_to_timbre;
-            case ParamId::kEnvToMorph: return x.env_to_morph;
+            case ParamId::kSubLevel: return x.sub_level;
+            case ParamId::kSubInterval:
+                return StepToPot(static_cast<int>(x.sub_interval),
+                                 static_cast<int>(SubInterval::kCount));
             case ParamId::kLfoRate: return x.lfo_rate;
             case ParamId::kCharacterBias: return x.secondary[fx::TextureChain::kCharacter];
             case ParamId::kFilterType:
@@ -1355,8 +1387,11 @@ class Ui
             case ParamId::kSpaceFeedback: x.space_feedback = v; break;
             case ParamId::kSpaceGrain: x.space_grain = v; break;
             case ParamId::kSpaceMix: x.amount[fx::TextureChain::kSpace] = v; break;
-            case ParamId::kEnvToTimbre: x.env_to_timbre = v; break;
-            case ParamId::kEnvToMorph: x.env_to_morph = v; break;
+            case ParamId::kSubLevel: x.sub_level = v; break;
+            case ParamId::kSubInterval:
+                x.sub_interval = static_cast<SubInterval>(
+                    PotToStep(v, static_cast<int>(SubInterval::kCount)));
+                break;
             case ParamId::kLfoRate: x.lfo_rate = v; break;
             case ParamId::kCharacterBias: x.secondary[fx::TextureChain::kCharacter] = v; break;
             case ParamId::kFilterType:

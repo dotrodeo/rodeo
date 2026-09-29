@@ -92,17 +92,25 @@ CpuLoadMeter meter;
 
 struct BenchVoice
 {
-    Engine eng;
-    Svf    svf;
-    Adsr   amp_env;
-    Adsr   filt_env;
-    float  freq = 110.f;
-    bool   gate = false;
+    Engine     eng;
+    Oscillator sub;
+    Svf        svf;
+    Adsr       amp_env;
+    Adsr       filt_env;
+    float      freq     = 110.f;
+    bool       gate     = false;
+    /** Set by the sub pass. The point of the measurement is the DIFFERENCE
+     *  between this off and on, which is what CostModel::kSubCost has to be. */
+    bool       sub_on   = false;
 
     void Init(EngineId id, float f)
     {
         freq = f;
         eng.Init(id, kSampleRate);
+        sub.Init(kSampleRate);
+        sub.SetWaveform(Oscillator::WAVE_SIN);
+        sub.SetAmp(1.f);
+        sub.SetFreq(freq * 0.5f); // an octave down, the sub's default
         eng.SetParams(freq, 0.5f, 0.5f, 0.5f);
         svf.Init(kSampleRate);
         svf.SetRes(0.4f);
@@ -131,7 +139,7 @@ struct BenchVoice
         for(size_t i = 0; i < size; i++)
         {
             const float e = amp_env.Process(gate);
-            svf.Process(eng.Process());
+            svf.Process(sub_on ? (eng.Process() + sub.Process() * 0.5f) : eng.Process());
             out[i] += svf.Low() * e * 0.15f;
         }
     }
@@ -244,7 +252,6 @@ static void StartStep(EngineId id, int count)
     {
         voices[v].Init(id, mtof(static_cast<float>(kChord[v])));
         voices[v].gate = true;
-        voices[v].eng.Trig();
     }
     g_active_voices = count;
 }
@@ -466,16 +473,14 @@ int main(void)
                 g_busy_blocks = 0;
                 const uint32_t start   = g_blocks;
                 uint32_t       next_tr = start + 400;
+                // The percussive engines needed re-striking here so a sustained
+                // note did not under-report them. String and Karplus were the
+                // only two, and they were dropped on 2026-09-29; everything
+                // left oscillates continuously, so a held note is the honest
+                // measurement.
+                (void)next_tr;
                 while((g_blocks - start) < 1200 && !g_overload)
-                {
-                    if(EngineIsPercussive(id) && g_blocks >= next_tr)
-                    {
-                        for(int v = 0; v < count; v++)
-                            voices[v].eng.Trig();
-                        next_tr += 400;
-                    }
                     hw.SetLed(((g_blocks / 100) % 2) == 0);
-                }
 
                 if(g_overload)
                 {
@@ -516,6 +521,52 @@ int main(void)
                 if(avg > kCliffLoad)
                     break; // no point climbing further
             }
+        }
+    }
+
+    // ------------------------------------------------------------ SUB pass
+    //
+    // What the sub-oscillator costs, which is the only number CostModel needs
+    // for it: four voices with it off, four with it on, and the difference
+    // divided by four. Measured per engine because the sub is the same work
+    // every time -- if the per-engine answers disagree by much, something else
+    // is moving and the number is not trustworthy.
+    {
+        const int kSubVoices                       = 4;
+        int       bypassed[TextureChain::kNumSlots] = {};
+        ConfigureChain(bypassed, kNoSlots); // the sub alone, nothing downstream
+        hw.PrintLine("");
+        hw.PrintLine("--- SUB pass: what the sub-oscillator costs (%d voices) ---",
+                     kSubVoices);
+        hw.PrintLine("SUB,engine,off_pct,on_pct,per_voice_pct");
+        for(int e = 0; e < static_cast<int>(EngineId::kCount); e++)
+        {
+            const EngineId id = static_cast<EngineId>(e);
+            float          load[2];
+            for(int on = 0; on < 2; on++)
+            {
+                StartStep(id, kSubVoices);
+                for(int v = 0; v < kSubVoices; v++)
+                    voices[v].sub_on = on != 0;
+                WaitBlocks(300);
+                g_busy_ticks  = 0;
+                g_busy_blocks = 0;
+                WaitBlocks(1200);
+                const float budget = static_cast<float>(g_block_budget);
+                load[on]           = g_busy_blocks
+                               ? static_cast<float>(g_busy_ticks)
+                                     / (static_cast<float>(g_busy_blocks) * budget) * 100.f
+                               : 0.f;
+            }
+            const float per_voice = (load[1] - load[0]) / static_cast<float>(kSubVoices);
+            hw.PrintLine("SUB,%s,%d.%d,%d.%d,%d.%d",
+                         EngineName(id),
+                         static_cast<int>(load[0]),
+                         static_cast<int>((load[0] - floorf(load[0])) * 10.f),
+                         static_cast<int>(load[1]),
+                         static_cast<int>((load[1] - floorf(load[1])) * 10.f),
+                         static_cast<int>(per_voice),
+                         static_cast<int>((per_voice - floorf(per_voice)) * 100.f) % 10);
         }
     }
 

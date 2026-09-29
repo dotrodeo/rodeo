@@ -1202,7 +1202,8 @@ int main(void)
             }
             ApplyPatch();
             // Recompute the cap: an expensive Space type costs voices.
-            voices.SetMaxVoices(CostModel::MaxVoices(patch.engine, CostModel::ChainCost(chain)));
+            voices.SetMaxVoices(CostModel::MaxVoices(
+                patch.engine, CostModel::ChainCost(chain), patch.sub_level > 0.f));
         }
 
         if(g_blocks - last_apply >= 5) // ~200 Hz

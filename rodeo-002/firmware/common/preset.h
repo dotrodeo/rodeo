@@ -120,7 +120,18 @@ struct StoredPreset
     uint8_t bypass[fx::TextureChain::kNumSlots];
     uint8_t freeze;
     uint8_t mod_dest;    // was reserved; 0 is LFO depth, which is what it always did
-    uint8_t reserved[2]; // keeps the floats aligned with nothing implicit
+    /** The sub-oscillator, in the last two spare bytes (2026-09-29). Both were
+     *  `reserved` and both have always been written as zero, so every preset
+     *  ever saved decodes as: level 0 -- the sub off -- with interval -12 and a
+     *  sine, which is what you would pick anyway. That is what let the sub
+     *  arrive WITHOUT bumping PresetBank::kVersion, which would have rejected
+     *  the stored bank and lost every saved preset.
+     *
+     *  Level is 0..255 over 0..1; that is finer than the pot reads. The second
+     *  byte packs the waveform in the high nibble and the interval in the low
+     *  one -- four and eight values, so a nibble each with room to spare. */
+    uint8_t sub_level;
+    uint8_t sub_shape; // wave << 4 | interval
 
     float   space_time, space_feedback, space_grain, grain_pitch, grain_spread;
     float   tilt;
@@ -129,6 +140,11 @@ struct StoredPreset
 // 20 bytes of header, 16 of choices and slack, 32 floats. If this fires, the
 // layout changed: bump PresetBank::kVersion so old banks are not misread.
 static_assert(sizeof(StoredPreset) == 164, "StoredPreset layout changed");
+
+// THERE IS NO SLACK LEFT. The last two bytes went to the sub-oscillator on
+// 2026-09-29. Anything added from here grows the struct, which means bumping
+// PresetBank::kVersion, which means every saved preset is lost -- so the next
+// thing that needs storage needs a migration first, not another field.
 
 namespace detail
 {
@@ -154,9 +170,11 @@ inline void CopyName(char* dst, const char* src)
 
 inline void PatchToPreset(const Patch& p, const char* name, StoredPreset& s)
 {
-    for(int i = 0; i < 2; i++)
-        s.reserved[i] = 0; // never left to chance: it is compared
     s.mod_dest = static_cast<uint8_t>(p.mod_dest);
+    s.sub_level
+        = static_cast<uint8_t>(detail::Clamp01(p.sub_level) * 255.f + 0.5f);
+    s.sub_shape = static_cast<uint8_t>((static_cast<int>(p.sub_wave) << 4)
+                                       | static_cast<int>(p.sub_interval));
     detail::CopyName(s.name, name);
     s.used       = 1;
     s.engine_id  = EngineToStableId(p.engine);
@@ -231,6 +249,11 @@ inline void PresetToPatch(const StoredPreset& s, Patch& p, bool* engine_known = 
     p.attack    = detail::Clamp01(s.attack);
     p.release   = detail::Clamp01(s.release);
 
+    p.sub_level    = static_cast<float>(s.sub_level) * (1.f / 255.f);
+    p.sub_interval = static_cast<SubInterval>(
+        detail::ClampEnum(s.sub_shape & 0x0F, static_cast<int>(SubInterval::kCount)));
+    p.sub_wave = static_cast<SubWave>(
+        detail::ClampEnum((s.sub_shape >> 4) & 0x0F, static_cast<int>(SubWave::kCount)));
     p.env_to_timbre = detail::Clamp01(s.env_to_timbre);
     p.env_to_morph  = detail::Clamp01(s.env_to_morph);
     p.decay         = detail::Clamp01(s.decay);

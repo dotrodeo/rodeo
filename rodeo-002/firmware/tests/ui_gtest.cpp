@@ -89,17 +89,19 @@ TEST(Ui, ShiftSwapsTheLayerAndPickupProtectsBothSides)
     r.MovePot(0, 0.2f); // catch and set Harmonics
     ASSERT_NEAR(r.ui.patch().harmonics, 0.2f, 1e-5f);
 
-    // Hold shift: pot 0 now addresses Env>Timbre (stored 0.5) and must be
-    // caught again before it moves anything.
+    // Hold shift: pot 0 now addresses Sub level, which it must catch again
+    // before it moves anything. Parked at 0.5 so the pot has somewhere to
+    // cross from -- the stored default is 0, which is the end of the travel.
+    r.ui.mutable_patch().sub_level = 0.5f;
     r.HoldMain(true);
     r.Tick();
-    const float env_before = r.ui.patch().env_to_timbre;
+    const float sub_before = r.ui.patch().sub_level;
     r.MovePot(0, 0.3f);
-    EXPECT_FLOAT_EQ(r.ui.patch().env_to_timbre, env_before);
+    EXPECT_FLOAT_EQ(r.ui.patch().sub_level, sub_before);
     EXPECT_NEAR(r.ui.patch().harmonics, 0.2f, 1e-5f) << "the main layer must not move";
 
     r.MovePot(0, 0.7f); // crosses 0.5
-    EXPECT_NEAR(r.ui.patch().env_to_timbre, 0.7f, 1e-5f);
+    EXPECT_NEAR(r.ui.patch().sub_level, 0.7f, 1e-5f);
 
     // Release shift: the pot is at 0.7 but Harmonics is 0.2 -- it must not jump.
     r.HoldMain(false);

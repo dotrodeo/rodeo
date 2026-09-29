@@ -106,21 +106,39 @@ class CostModel
         return sum;
     }
 
+    /** What the sub-oscillator adds to a voice, % CPU, when it is switched on.
+     *
+     *  NOT MEASURED ON HARDWARE YET -- every other number in this file is, and
+     *  this one is an estimate pending a run of bench_voices, which has a SUB
+     *  pass that prints exactly this figure. It is deliberately generous: a
+     *  polyBLEP oscillator should cost well under half the cheapest macro
+     *  engine (variable saw, 3.01%), and over-charging costs a voice where
+     *  under-charging costs an overrun. Correct it from the bench output. */
+    static constexpr float kSubCost = 1.5f;
+
     /** Voices that fit alongside `chain_cost`, at least 1 and never more than
      *  kMaxPoly. Every engine is polyphonic now, so the cap is purely what the
-     *  budget allows. */
-    static int MaxVoices(EngineId id, float chain_cost)
+     *  budget allows.
+     *
+     *  `sub_on` matters: the sub is charged for only when a patch actually uses
+     *  it, which is what keeps a preset that does not use it at full polyphony.
+     *  Z-osc is the case that needs it -- seven voices at 9.02% leaves 5.2% of
+     *  the budget, and seven subs would not fit in it. */
+    static int MaxVoices(EngineId id, float chain_cost, bool sub_on = false)
     {
         const float spare = kBudget - kFixedLoad - chain_cost;
-        const int   n     = static_cast<int>(spare / VoiceCost(id));
+        const float per   = VoiceCost(id) + (sub_on ? kSubCost : 0.f);
+        const int   n     = static_cast<int>(spare / per);
         return n < 1 ? 1 : (n > kMaxPoly ? kMaxPoly : n);
     }
 
     /** Predicted load for a configuration -- for the OLED, and for tests that
      *  check the model against the hardware logs. */
-    static float PredictLoad(EngineId id, int voices, float chain_cost)
+    static float PredictLoad(EngineId id, int voices, float chain_cost, bool sub_on = false)
     {
-        return kFixedLoad + static_cast<float>(voices) * VoiceCost(id) + chain_cost;
+        return kFixedLoad
+               + static_cast<float>(voices) * (VoiceCost(id) + (sub_on ? kSubCost : 0.f))
+               + chain_cost;
     }
 
     /** True when even one voice does not fit: the patch is beyond the board,

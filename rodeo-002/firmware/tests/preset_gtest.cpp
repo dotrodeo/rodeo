@@ -317,3 +317,75 @@ TEST(Preset, FillingRefusesABankItDoesNotUnderstand)
     stored.magic        = 0xFFFFFFFFu; // erased
     EXPECT_EQ(FillEmptySlots(stored, factory), 0);
 }
+
+// ------------------------------------------------------------ SUB-OSCILLATOR
+//
+// The sub rides in the two bytes that were `reserved`. Those have always been
+// written as zero, which is what let it arrive without bumping
+// PresetBank::kVersion -- and a version bump would have rejected the stored
+// bank and lost every preset already saved. These tests are what that promise
+// rests on.
+
+TEST(Preset, APresetFromBeforeTheSubLoadsWithItOff)
+{
+    // Exactly what an older build wrote: a valid preset with both spare bytes
+    // zero, which is all `reserved` ever contained.
+    Patch        original;
+    original.cutoff = 0.42f;
+    StoredPreset s;
+    PatchToPreset(original, "Old", s);
+    s.sub_level = 0;
+    s.sub_shape = 0;
+
+    Patch p;
+    PresetToPatch(s, p);
+    EXPECT_FLOAT_EQ(p.sub_level, 0.f) << "an old preset came back with the sub audible";
+    EXPECT_EQ(p.sub_interval, SubInterval::kMinus12)
+        << "a zeroed byte has to decode to the interval you would have picked";
+    EXPECT_EQ(p.sub_wave, SubWave::kSine);
+    EXPECT_FLOAT_EQ(p.cutoff, 0.42f) << "the rest of the preset did not survive";
+
+    // And it still round-trips to the same bytes, so loading an old preset and
+    // saving it back does not mark the bank dirty or rewrite flash.
+    StoredPreset again;
+    PatchToPreset(p, "Old", again);
+    EXPECT_EQ(std::memcmp(&s, &again, sizeof(StoredPreset)), 0);
+}
+
+TEST(Preset, TheSubSurvivesARoundTrip)
+{
+    for(int w = 0; w < static_cast<int>(SubWave::kCount); w++)
+        for(int i = 0; i < static_cast<int>(SubInterval::kCount); i++)
+        {
+            Patch p;
+            p.sub_level    = 0.6f;
+            p.sub_wave     = static_cast<SubWave>(w);
+            p.sub_interval = static_cast<SubInterval>(i);
+            SCOPED_TRACE(testing::Message()
+                         << SubWaveName(p.sub_wave) << " " << SubIntervalName(p.sub_interval));
+
+            StoredPreset s;
+            PatchToPreset(p, "Sub", s);
+            Patch q;
+            PresetToPatch(s, q);
+
+            EXPECT_EQ(q.sub_wave, p.sub_wave);
+            EXPECT_EQ(q.sub_interval, p.sub_interval);
+            // 8 bits over 0..1, so half a step is the most it can be out.
+            EXPECT_NEAR(q.sub_level, p.sub_level, 1.f / 255.f);
+        }
+}
+
+// A corrupt byte must not index past either table.
+TEST(Preset, AnImpossibleSubByteFallsBackRatherThanIndexingOut)
+{
+    Patch        p;
+    StoredPreset s;
+    PatchToPreset(p, "Sub", s);
+    s.sub_shape = 0xFF; // wave 15, interval 15: neither exists
+
+    Patch q;
+    PresetToPatch(s, q);
+    EXPECT_LT(static_cast<int>(q.sub_wave), static_cast<int>(SubWave::kCount));
+    EXPECT_LT(static_cast<int>(q.sub_interval), static_cast<int>(SubInterval::kCount));
+}

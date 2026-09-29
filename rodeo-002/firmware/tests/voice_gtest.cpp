@@ -697,3 +697,88 @@ TEST(VoiceManager, UnisonVoicesAreNotPhaseLocked)
                           << " of a possible 8)";
     EXPECT_GT(ratio, 1.5f) << "the unison voices are cancelling rather than thickening";
 }
+
+// -------------------------------------------------------------- SUB-OSCILLATOR
+
+namespace
+{
+/** Magnitude at one frequency (Goertzel). Enough to answer "is there energy an
+ *  octave down", which is the only question these tests ask. */
+double Magnitude(VoiceManager& vm, float hz, float seconds)
+{
+    static float l[kBlock], r[kBlock];
+    const size_t total = static_cast<size_t>(kSr * seconds);
+    const double w     = 2.0 * M_PI * hz / kSr;
+    const double coeff = 2.0 * cos(w);
+    double       s1 = 0, s2 = 0;
+    for(size_t i = 0; i + kBlock <= total; i += kBlock)
+    {
+        vm.Render(l, r, kBlock);
+        for(size_t j = 0; j < kBlock; j++)
+        {
+            const double s = double(l[j]) + r[j] + coeff * s1 - s2;
+            s2             = s1;
+            s1             = s;
+        }
+    }
+    return sqrt(s1 * s1 + s2 * s2 - coeff * s1 * s2);
+}
+
+VoiceManager& SubNote(VoiceManager& vm, float level, SubInterval interval)
+{
+    vm.Init(kSr);
+    Patch p;
+    p.sustain      = 1.f;
+    p.voice_mode   = VoiceMode::kMono; // one voice, centred, nothing else moving
+    p.sub_level    = level;
+    p.sub_interval = interval;
+    p.sub_wave     = SubWave::kSine;
+    vm.ApplyPatch(p);
+    vm.NoteOn(60, 1.f); // 261.6 Hz
+    return vm;
+}
+} // namespace
+
+// Level 0 is off, and off has to mean off: the interval and waveform must make
+// no difference at all, because a preset that does not use the sub should sound
+// exactly as it did before the sub existed.
+TEST(VoiceManager, TheSubAtZeroIsSilentWhateverElseItIsSetTo)
+{
+    VoiceManager a, b;
+    const double x = Magnitude(SubNote(a, 0.f, SubInterval::kMinus12), 130.8f, 0.4f);
+    const double y = Magnitude(SubNote(b, 0.f, SubInterval::kPlus12), 130.8f, 0.4f);
+    EXPECT_NEAR(x, y, fmax(x, y) * 1e-6 + 1e-9) << "a silent sub still changed the sound";
+}
+
+// ...and with the level up there is energy where the interval says there should
+// be. An octave down is the default and the one that has to work.
+TEST(VoiceManager, TheSubPutsEnergyAtItsInterval)
+{
+    VoiceManager off, on;
+    const double quiet = Magnitude(SubNote(off, 0.f, SubInterval::kMinus12), 130.8f, 0.4f);
+    const double loud  = Magnitude(SubNote(on, 1.f, SubInterval::kMinus12), 130.8f, 0.4f);
+    EXPECT_GT(loud, quiet * 4.0) << "nothing arrived an octave down";
+
+    VoiceManager up_off, up_on;
+    const double up_quiet = Magnitude(SubNote(up_off, 0.f, SubInterval::kPlus12), 523.3f, 0.4f);
+    const double up_loud  = Magnitude(SubNote(up_on, 1.f, SubInterval::kPlus12), 523.3f, 0.4f);
+    EXPECT_GT(up_loud, up_quiet * 2.0) << "the interval is not being applied";
+}
+
+// The sub is charged for only when a patch uses it. Z-osc is the case that
+// matters: it is the dearest engine left, and seven of them plus seven subs do
+// not fit in the budget.
+TEST(CostModel, TheSubIsOnlyPaidForWhenItIsOn)
+{
+    for(int e = 0; e < static_cast<int>(EngineId::kCount); e++)
+    {
+        const EngineId id = static_cast<EngineId>(e);
+        SCOPED_TRACE(EngineName(id));
+        EXPECT_LE(CostModel::MaxVoices(id, 0.f, true), CostModel::MaxVoices(id, 0.f, false))
+            << "switching the sub on somehow bought voices";
+        EXPECT_GE(CostModel::MaxVoices(id, 0.f, true), 2) << "the sub made this engine mono";
+        EXPECT_LE(CostModel::PredictLoad(id, CostModel::MaxVoices(id, 0.f, true), 0.f, true),
+                  70.f)
+            << "the cap it hands out does not fit the budget";
+    }
+}

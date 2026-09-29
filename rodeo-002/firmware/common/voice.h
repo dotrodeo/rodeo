@@ -86,6 +86,7 @@ class VoiceManager
         sm_cutoff_.Init(block_rate, kSmoothSeconds, 0.8f);
         sm_resonance_.Init(block_rate, kSmoothSeconds, 0.2f);
         sm_spread_.Init(block_rate, kSmoothSeconds, 0.f);
+        sm_sub_.Init(block_rate, kSmoothSeconds, 0.f);
         // ONCE PER BLOCK IS ITS SAMPLE RATE. Initialised at the audio rate it
         // advanced 1/48th as far per tick as it thought, so "20 Hz" was really
         // 0.42 Hz -- measured on the host, 2026-09-24, and the reason the LFO
@@ -95,6 +96,8 @@ class VoiceManager
         {
             Voice& x = voices_[v];
             x.eng.Init(patch_.engine, sample_rate);
+            x.sub.Init(sample_rate);
+            x.sub.SetAmp(1.f);
             x.svf.Init(sample_rate);
             x.svf.SetDrive(kSvfDrive);
             x.env.Init(sample_rate, 1);
@@ -163,6 +166,7 @@ class VoiceManager
         sm_cutoff_.Set(p.cutoff);
         sm_resonance_.Set(Clamp(p.resonance, 0.f, 0.95f));
         sm_spread_.Set(p.spread);
+        sm_sub_.Set(p.sub_level);
     }
 
     /** The smoothed control values actually in use -- for tests and the OLED,
@@ -249,6 +253,7 @@ class VoiceManager
         const float cutoff_p  = sm_cutoff_.Next();
         const float res_p     = sm_resonance_.Next();
         const float spread_p  = sm_spread_.Next();
+        const float sub_level = sm_sub_.Next();
 
         // Mod wheel adds to LFO depth; aftertouch pushes Morph.
         // The mod wheel goes wherever the patch points it. LFO depth is the
@@ -339,6 +344,16 @@ class VoiceManager
                                     1.f);
             x.svf.SetFreq(ExpMap(cut, 30.f, 15000.f));
 
+            // The sub tracks the voice exactly -- same glide, bend, detune and
+            // drift -- so it stays locked to the note it is thickening rather
+            // than beating against it. Only the interval separates them.
+            const float sub_semis = SubIntervalSemitones(p.sub_interval);
+            x.sub.SetWaveform(SubWaveform(p.sub_wave));
+            x.sub.SetFreq(x.glide_freq
+                          * powf(2.f,
+                                 (bend_ + pitch_mod + detune + cents * 0.01f + sub_semis)
+                                     / 12.f));
+
             const float level = x.vel * amp_mod * kVoiceGain;
             // Equal power, so moving a voice off centre does not change how
             // loud it is: a chord must not get quieter as Spread comes up.
@@ -348,7 +363,10 @@ class VoiceManager
             for(size_t i = 0; i < n; i++)
             {
                 const float e = x.env.Process(x.gate);
-                x.svf.Process(x.eng.Process() * 0.5f); // +/-1 into the filter
+                // Both halved, so the pair reaches the filter at the same +/-1
+                // the engine alone used to. The sub adds body without needing
+                // the voice to be turned down to make room for it.
+                x.svf.Process((x.eng.Process() + x.sub.Process() * sub_level) * 0.5f);
                 const float sample = Pick(x.svf, p.filter) * e * level;
                 l[i] += sample * gl;
                 r[i] += sample * gr;
@@ -364,6 +382,10 @@ class VoiceManager
     struct Voice
     {
         Engine        eng;
+        /** The sub. A plain oscillator, not another Engine: that is the whole
+         *  point of it -- a fraction of the cost, so turning it on does not
+         *  halve the polyphony. */
+        daisysp::Oscillator sub;
         daisysp::Svf  svf;
         daisysp::Adsr env;
         int           note       = -1;
@@ -405,6 +427,17 @@ class VoiceManager
         if(patch_.voice_mode == VoiceMode::kMono)
             return 0.f;
         return kVoicePan[v & 7];
+    }
+
+    static uint8_t SubWaveform(SubWave w)
+    {
+        switch(w)
+        {
+            case SubWave::kTriangle: return daisysp::Oscillator::WAVE_POLYBLEP_TRI;
+            case SubWave::kSaw: return daisysp::Oscillator::WAVE_POLYBLEP_SAW;
+            case SubWave::kSquare: return daisysp::Oscillator::WAVE_POLYBLEP_SQUARE;
+            default: return daisysp::Oscillator::WAVE_SIN;
+        }
     }
 
     static int Clampi(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -534,6 +567,7 @@ class VoiceManager
     Voice    voices_[kMaxVoices];
     Patch    patch_;
     Smoother sm_harmonics_, sm_timbre_, sm_morph_, sm_cutoff_, sm_resonance_, sm_spread_;
+    Smoother sm_sub_;
     uint32_t rng_ = 0x9E3779B9u;
     fx::Lfo  lfo_;
     float    sample_rate_ = 48000.f;
