@@ -3,7 +3,7 @@ title: "Rodeo Web — Claims Audit & Accuracy Guardrail"
 tags: [rodeo, web, claims, accuracy, specs]
 status: active
 created: 2026-09-17
-updated: 2026-09-17
+updated: 2026-09-29
 ---
 
 # Rodeo Web — Claims Audit & Accuracy Guardrail
@@ -137,6 +137,35 @@ damaging thing the site could do.
 | `rodeo-button` | Interface verified, but the switch footprint is not yet assigned | `rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md` open items |
 | Rev-A bus anchoring | The hub carries the **only** bus pull-ups, so the host's I²C bus needs a hub present. Rev-B moves them to the motherboard. Say this — a builder will hit it. | `RODEO_HUB_I2C_CONTRACT.md:37` |
 
+## Reference builds — there are now two
+
+**Revised 2026-09-29.** When this audit was first written `rodeo-001` was the only
+instrument. Since then `rodeo-002` has taken 86 commits to `rodeo-001`'s zero and is tagged
+through `rodeo-002/v3.0.0`. It is the active reference build; `rodeo-001` is dormant.
+
+This is good for the platform argument rather than awkward for it. Two instruments with
+deliberately opposite philosophies — `rodeo-001` gives every parameter its own control,
+`rodeo-002` accepts a single shift layer to reach far more parameters from 16 pots — running
+on the same host board and the same satellites is the strongest available evidence that
+Rodeo is a platform and not one synth. Say exactly that.
+
+**Two entries below are now wrong and are corrected here:**
+
+| Claim | Was | Now | Evidence |
+|---|---|---|---|
+| **Effects** | `not-planned` — "none exist anywhere in the repo" | **`in-progress` on rodeo-002.** A four-slot texture chain: CHARACTER → MOVEMENT → TEXTURE → SPACE, ending in a granular delay with Echo / Cloud / Reverse / Wash / Reverb types. | `rodeo-002/firmware/common/fx_space.h:1-8`, `rodeo-002/firmware/common/texture_chain.h` |
+| **Presets** | `planned` | **`in-progress` on rodeo-002.** Patch storage, a factory bank, user slots, naming from the panel. MIDI channel and master volume are deliberately excluded from a patch. | `rodeo-002/firmware/common/preset.h:1-6`, `rodeo-002/firmware/common/factory_presets.h` |
+
+Consequently **`preset` and `effects` come off the banned-phrase list** for rodeo-002 copy —
+but they stay banned for platform and `rodeo-001` copy, which is why the banned list needs to
+become per-scope rather than global when `specs.ts` is built.
+
+Not yet re-audited, and required before any rodeo-002 page ships: the voice count (the cost
+model caps it, and the bench logs sweep to 12 under the bootloader rather than 16), the engine
+list, and the encoder count — the concept doc says five, a later commit adds a sixth, so the
+doc lags the firmware. Do not state any of these numbers until they are checked against
+`rodeo-002/docs/` and the bench logs.
+
 ## Reference build (`rodeo-001`) — mostly `planned`
 
 `rodeo-001/firmware/src/main.cpp:1` describes itself as a **scaffold**, and its own status
@@ -173,7 +202,8 @@ the only 12-voice code is the scaffold. Don't conflate them.
 | `open source` **before the LICENSE files land** | Openness is decided; the files are not written. Gate the words on the files existing. |
 | **Bumble, Honey, Fizz** | Agent personas in the engineering docs, not team credits |
 | `USB MIDI`, `USB audio` | Panel USB-C is power only |
-| `preset`, `effects`, `unison`, `mono mode`, `hard sync` | All `planned` on the reference build |
+| `unison`, `mono mode`, `hard sync` | Planned on `rodeo-001`, not built |
+| `preset`, `effects` | **Scope-dependent.** Banned for platform and `rodeo-001` copy; permitted for `rodeo-002`, where both now exist — see "Reference builds — there are now two". The banned list must become per-scope when `specs.ts` is built. |
 
 ## Sourcing caveat — two docs disagree
 
