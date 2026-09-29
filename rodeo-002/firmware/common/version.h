@@ -39,10 +39,12 @@
 // into the bank -- so it is your hands that have to relearn something, which is
 // exactly what MAJOR is for.
 //
-// The header follows the selector: `NN - Preset name`, zero-padded, where the
+// The header follows the selector: `NN-Preset name`, zero-padded, where the
 // voice count used to be. Where you are in the bank is now worth a glance
 // several times a minute; how many voices are sounding had not been worth one
-// since bring-up.
+// since bring-up. Load left the menu for the same reason -- NAV's turn does it
+// in one detent -- and the menu now has precedence over the panel: nothing you
+// touch closes it, so it cannot go away mid-thought.
 
 #pragma once
 

@@ -244,8 +244,6 @@ int main(int argc, char** argv)
       r.Pot(0, 0.2f); r.Pot(0, 0.8f);                      // recording
       shot("07-recording", r); }
     { Rig r; r.NavTap(); r.Turn(Ui::kNavEncoder, 1); shot("08-menu", r); }
-    { Rig r; r.Menu(MenuItem::kLoad); for(int i = 0; i < 4; i++) r.Turn(Ui::kNavEncoder, 1);
-      shot("09-load", r); }
     { Rig r; r.Menu(MenuItem::kSave); for(int i = 0; i < 17; i++) r.Turn(Ui::kNavEncoder, 1);
       shot("10-save", r); }
     { Rig r; r.Menu(MenuItem::kSave); for(int i = 0; i < 17; i++) r.Turn(Ui::kNavEncoder, 1);

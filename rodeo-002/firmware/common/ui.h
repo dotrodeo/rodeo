@@ -121,7 +121,6 @@ enum class UiMode
 {
     kNormal = 0,
     kMenu,
-    kLoad,
     kSave,
     kPatchPage,
     kGlobalPage,
@@ -132,8 +131,7 @@ enum class UiMode
 /** The menu, in the order MAIN turns through it. */
 enum class MenuItem
 {
-    kLoad = 0,
-    kSave,
+    kSave = 0,
     kPatch,
     kGlobal,
     kFactoryReset,
@@ -144,7 +142,6 @@ inline const char* MenuItemName(MenuItem m)
 {
     switch(m)
     {
-        case MenuItem::kLoad: return "Load preset";
         case MenuItem::kSave: return "Save preset";
         case MenuItem::kPatch: return "Patch settings";
         case MenuItem::kGlobal: return "Global settings";
@@ -387,7 +384,7 @@ class Ui
         factory_reset_ = false;
         return r;
     }
-    bool   BrowserOpen() const { return mode_ == UiMode::kLoad || mode_ == UiMode::kSave; }
+    bool   BrowserOpen() const { return mode_ == UiMode::kSave; }
 
     /** The recorder is owned by the app (its buffer is far too big for DTCM);
      *  the Ui drives it, because the Ui is what knows the parameters. */
@@ -467,8 +464,6 @@ class Ui
             {
                 if(shift_ && e != kMainEncoder)
                     touched_while_held_ = true;
-                if(e != kMainEncoder)
-                    CloseMode(in.now_ms);
                 discrete_changed |= TurnEncoder(e, d, shift_, in.now_ms);
             }
             // Slot encoders: tap = bypass, and SPACE's long-press = freeze.
@@ -486,8 +481,6 @@ class Ui
                         Post(patch_.freeze ? "FREEZE" : "unfreeze", in.now_ms);
                     }
                 }
-                if(in.enc_held[e] && !enc_held_[e])
-                    CloseMode(in.now_ms);
                 if(!in.enc_held[e] && enc_held_[e])
                 {
                     if(!enc_long_[e])
@@ -665,7 +658,6 @@ class Ui
             // changes the sound (Derek, 2026-09-29).
             case UiMode::kNormal: CyclePreset(dir); break;
             case UiMode::kMenu: menu_index_ = Wrap(menu_index_ + dir, MenuCount()); break;
-            case UiMode::kLoad:
             case UiMode::kSave:
                 browser_slot_ = Wrap(browser_slot_ + dir, PresetBank::kNumSlots);
                 break;
@@ -706,7 +698,6 @@ class Ui
             case UiMode::kMenu:
                 switch(static_cast<MenuItem>(menu_index_))
                 {
-                    case MenuItem::kLoad: EnterMode(UiMode::kLoad, in); break;
                     case MenuItem::kSave: EnterMode(UiMode::kSave, in); break;
                     case MenuItem::kPatch:
                         page_index_ = 0;
@@ -721,13 +712,6 @@ class Ui
                         EnterMode(UiMode::kResetPage, in);
                         break;
                 }
-                break;
-
-            case UiMode::kLoad:
-                request_.action = PresetAction::kLoad;
-                request_.slot   = browser_slot_;
-                request_.name   = nullptr;
-                EnterMode(UiMode::kNormal, in);
                 break;
 
             // Saving names the slot first. A preset you cannot tell apart from
@@ -827,9 +811,8 @@ class Ui
                 display_.list_index = menu_index_;
                 display_.list_total = MenuCount();
                 break;
-            case UiMode::kLoad:
             case UiMode::kSave:
-                display_.list_title = mode_ == UiMode::kLoad ? "LOAD PRESET" : "SAVE TO";
+                display_.list_title = "SAVE TO";
                 display_.list_index = browser_slot_;
                 display_.list_total = PresetBank::kNumSlots;
                 break;
@@ -860,7 +843,6 @@ class Ui
                     display_.list_left[r]  = MenuItemName(static_cast<MenuItem>(i));
                     display_.list_right[r] = nullptr;
                     break;
-                case UiMode::kLoad:
                 case UiMode::kSave:
                 {
                     char* d = slot_label_[r];
@@ -1031,9 +1013,8 @@ class Ui
 
     void EnterMode(UiMode m, const UiInput& in)
     {
-        mode_           = m;
-        mode_ms_        = in.now_ms;
-        mode_opened_ms_ = in.now_ms;
+        mode_    = m;
+        mode_ms_ = in.now_ms;
         ResetTurnWatch(in);
     }
 
@@ -1048,13 +1029,6 @@ class Ui
             case GestureRecorder::State::kPlaying: return "LOOP";
             default: return "";
         }
-    }
-
-    /** Anything that is not MAIN closes the modal layer, without acting. */
-    void CloseMode(uint32_t now)
-    {
-        if(mode_ != UiMode::kNormal && now != mode_opened_ms_)
-            mode_ = UiMode::kNormal;
     }
 
     /** The physical models cannot carry eight voices, so they are Mono or
@@ -1139,7 +1113,6 @@ class Ui
 
                 // Nothing on these lines is a value: NAV moves them.
                 case UiMode::kMenu:
-                case UiMode::kLoad:
                 case UiMode::kSave: mode_ms_ = now; return false;
 
                 default: break;
@@ -1219,10 +1192,13 @@ class Ui
         const bool turned = (watch_hi_[pot] - watch_lo_[pot]) > kTurnEps;
         if(turned && shift_)
             touched_while_held_ = true;
-        // A turned pot closes the browser -- but not in the same pass that
-        // opened it, since the hand that released MAIN may still be on a knob.
-        if(turned && mode_ != UiMode::kNormal && now != mode_opened_ms_)
-            mode_ = UiMode::kNormal;
+        // A turned pot used to close whatever was open. It does not any more:
+        // THE MENU HAS PRECEDENCE, and it closes only when you close it.
+        // Brushing a knob -- or a gesture playing one back, which is a knob
+        // moving that no hand touched -- would drop you out of the menu
+        // mid-thought, which is the same complaint the five-second timeout
+        // earned (Derek, 2026-09-29). Playing while the menu is open still
+        // works; the menu just keeps the screen.
 
         if(!caught_[index])
         {
@@ -1487,7 +1463,10 @@ class Ui
     /** What is PLAYING. browser_slot_ wanders while you scroll the browser;
      *  this does not move until something is actually loaded. */
     int      loaded_slot_  = 0;
-    uint32_t mode_ms_ = 0, mode_opened_ms_ = 0;
+    // mode_opened_ms_ went with CloseMode: it existed only to stop the hand
+    // that had just released MAIN from closing what it had opened, and nothing
+    // closes a mode by accident any more.
+    uint32_t mode_ms_ = 0;
     bool     shift_ = false;
     bool         main_held_            = false;
     bool         touched_while_held_   = false;

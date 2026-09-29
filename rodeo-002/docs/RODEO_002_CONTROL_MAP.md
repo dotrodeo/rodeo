@@ -275,7 +275,7 @@ shifts**.
 | Turn NAV | Move the selection (wraps; it remembers where you left it) |
 | Tap NAV | Enter the highlighted entry |
 | Hold NAV | Back — to the menu from a list, to playing from the menu |
-| Touch any pot or slot encoder | Close, doing nothing |
+| Touch any pot or slot encoder | Nothing to the menu. The parameter still moves; you can play with it open |
 
 **Menus are vertical lists filling the screen**: an inverted title bar with a counter, five rows
 of 6×8, the selection inverted, and a scroll bar when there are more than five. Before this each
@@ -283,14 +283,23 @@ list showed *one* entry at a time, so turning was blind — you could not see wh
 below and had to memorise the order. That was most of what "difficult and inconsistent to
 navigate" meant (Derek, 2026-09-29).
 
-**The menu does not time out.** It used to close itself after five seconds, which is precisely
-the moment it should not — it went away while the player was still deciding (2026-09-25).
-Nothing is lost by leaving it open: any pot or slot encoder still closes it, so it can only
-persist while the panel is untouched.
+**The menu does not time out, and nothing on the panel closes it** (v3.0.0). It used to close
+after five seconds, which is precisely the moment it should not — it went away while the player
+was still deciding (2026-09-25) — and then it still closed the moment any pot or slot encoder was
+touched, which turned out to be the same complaint wearing a different hat: brush a knob on the
+way past and you are out of the menu mid-thought. Worse, a *gesture* playing back moves pots that
+no hand is touching, so a looping take could close the menu by itself.
 
-Entries: **Load preset · Save preset · Patch settings · Global settings · Factory reset** —
-five, which is exactly what fits without scrolling. Gesture left the menu for MAIN's tap; Close
-left it for NAV's hold.
+**The menu has precedence.** It closes when you close it, and not before. Playing still works
+while it is open — the knobs move their parameters as usual, the menu simply keeps the screen.
+Derek, 2026-09-29.
+
+Entries: **Save preset · Patch settings · Global settings · Factory reset** — four, comfortably
+inside the five that fit without scrolling. Gesture left the menu for MAIN's tap; Close left it
+for NAV's hold; **Load left it for NAV's turn** (v3.0.0) — a list you scroll to reach a preset is
+a slower way to do what one detent now does, and two ways to do one thing is what this revision
+exists to remove. Save keeps its browser, because *where to write* is a real question with no
+other way to ask it.
 
 **Factory reset is the one entry that asks before it acts.** Its page starts on `NO`; turning
 moves it to `YES`, and only then does a tap do anything. A hold could not have been the
@@ -301,18 +310,18 @@ settings pages (*Patch* and *Global*, below) join this menu when they are built.
 
 ### Preset browser (decided 2026-09-21, built 2026-09-24, re-homed under the menu 2026-09-24)
 
-Tapping MAIN opens it, and **while it is open MAIN's controls mean something else** — the OLED
-says so for as long as it is open:
+**It is the Save browser now** (v3.0.0): loading is NAV's turn, described above, and the browser
+is where you choose which of the twenty-four slots to write to.
 
 | In the browser | Does |
 |---|---|
-| Turn MAIN | Browse slots |
-| Tap MAIN | **Act** on the highlighted slot — load or overwrite, whichever entry you came in by — and close |
-| Touch any other control | **Close without loading** |
+| Turn NAV | Browse slots |
+| Tap NAV | Take the highlighted slot, and go on to name it |
+| Hold NAV | Back to the menu, having written nothing |
+| Touch any other control | Nothing to the browser |
 
-**The idle timer stops while MAIN is held.** A press is activity: without this, pausing to
-decide which slot to save to let the browser close under a finger that was already holding the
-encoder down, and the long-press then meant *gesture* instead of *save* (2026-09-24).
+It opens on the slot that is **playing**, so saving over what you just changed is the default and
+takes no scrolling at all.
 
 **As built:** **24 slots — sixteen factory sounds and eight empty** for your own (v2.0.0). An empty
 slot shows `-- empty --`, **plays Init**, and can be saved into (v3.0.0; before that it refused to
@@ -328,8 +337,8 @@ comes back as that. Upper case only: at six pixels a character the difference be
 `I` is not worth the extra turning. A saved slot is named `User N` — naming needs a text entry this
 panel cannot offer. Loading drops pickup on every pot, so nothing jumps.
 
-There is no long-press here or anywhere else: you arrive from **Load preset** or **Save
-preset**, the screen says which, and a tap does that one thing.
+There is no long-press here or anywhere else: a tap takes the slot, a tap saves, and NAV's hold
+is the way back out of either.
 
 ### Gesture recorder (decided 2026-09-21)
 
@@ -378,7 +387,7 @@ encoder polling — a full frame at 400 kHz is ~23 ms.
 
 | Rows | Holds |
 |---|---|
-| 0–8 | **`NN - Preset name`**, `*` if the patch has changed since it was loaded · at the right end, the voice mode, or `ARM`/`REC`/`LOOP` while the recorder is doing something. **Inverted while SHIFT is held**, and the left side is replaced by `TURN: MODE` — holding MAIN and turning it chooses the voice mode, and that is the only moment the hint applies. |
+| 0–8 | **`NN-Preset name`**, `*` if the patch has changed since it was loaded · at the right end, the voice mode, or `ARM`/`REC`/`LOOP` while the recorder is doing something. **Inverted while SHIFT is held**, and the left side is replaced by `TURN: MODE` — holding MAIN and turning it chooses the voice mode, and that is the only moment the hint applies. |
 | 11–18 | The four slot types, bypassed ones struck through. **The Space cell inverts when frozen.** |
 | 20–62 | The body: scope, readout and meter — **see below** |
 
@@ -397,7 +406,9 @@ of you, and the engine announces itself as a message when you turn MAIN onto it.
 you are in the bank* became something you ask several times a minute, and *how many voices happen
 to be sounding* became something nobody had asked since bring-up. The number is **zero-padded** —
 `01`, `09`, `10` — so the name always begins at the same x; a name that shuffles sideways between
-slots 9 and 10 is harder to read while scrolling than one that does not. Derek, 2026-09-29.
+slots 9 and 10 is harder to read while scrolling than one that does not. There are **no spaces
+around the hyphen** (`01-Init`): two characters of name are worth more than air around a separator
+that was never ambiguous. Derek, 2026-09-29.
 
 It is the **playing** slot, not the browser's selection: scrolling the browser past a slot is not
 loading it, and the header must not claim otherwise. Twelve characters of name, two digits and the

@@ -198,6 +198,8 @@ void Draw(Display& display, const DisplayState& d, Scope& scope)
     // changed it, and -- at the right end -- the voice mode, or what the
     // gesture recorder is doing while it is doing something.
     //
+    // `NN-Name`, with no spaces around the hyphen: two characters of name are
+    // worth more than the air around a separator that is already unambiguous.
     // The number is zero-padded so the name always starts at the same x: you
     // scroll this list with NAV now, and a name that shuffles left and right
     // between slots 9 and 10 is harder to read than one that does not (Derek,
@@ -251,7 +253,7 @@ void Draw(Display& display, const DisplayState& d, Scope& scope)
         const int n = d.preset_slot + 1;
         line.AppendInt(n / 10);
         line.AppendInt(n % 10);
-        line.Append(" - ");
+        line.Append("-");
         // The `*` is reserved BEFORE the name is laid in. If something has to
         // give it is the tail of the name, because the number and the `*` are
         // the two things you cannot reconstruct by looking at the screen.

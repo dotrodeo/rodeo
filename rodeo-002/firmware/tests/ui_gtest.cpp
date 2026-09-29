@@ -410,25 +410,22 @@ TEST(Ui, TheHeaderNumberFollowsWhatIsPlayingNotTheBrowser)
     r.ui.Refresh();
     ASSERT_EQ(r.ui.display().preset_slot, 3);
 
-    OpenMenu(r, MenuItem::kLoad);
-    ASSERT_EQ(r.ui.Mode(), UiMode::kLoad);
+    OpenMenu(r, MenuItem::kSave);
+    ASSERT_EQ(r.ui.Mode(), UiMode::kSave);
     for(int i = 0; i < 5; i++)
         r.Turn(kNav, 1);
     r.ui.Refresh();
     EXPECT_EQ(r.ui.display().browser_slot, 8) << "the browser did not move";
     EXPECT_EQ(r.ui.display().preset_slot, 3) << "the header followed the browser";
 
-    // Confirming is what moves it.
-    NavTap(r);
-    const PresetRequest req = r.ui.TakePresetRequest();
-    ASSERT_EQ(req.slot, 8);
-    r.ui.NotePresetLoaded(bank.slot[req.slot], req.slot);
+    // Loading is what moves it, and only NAV's turn on the normal screen loads.
+    r.ui.NotePresetLoaded(bank.slot[8], 8);
     r.ui.Refresh();
     EXPECT_EQ(r.ui.display().preset_slot, 8);
 }
 
 // Where you are IS where the browser opens. Cycling to a preset and then
-// opening Load should not dump you back at slot 1.
+// saving should offer that slot first, not slot 1.
 TEST(Ui, TheBrowserOpensOnThePresetThatIsPlaying)
 {
     Rig               r;
@@ -437,8 +434,8 @@ TEST(Ui, TheBrowserOpensOnThePresetThatIsPlaying)
     r.ui.SetBank(&bank);
     r.ui.NotePresetLoaded(bank.slot[5], 5);
 
-    OpenMenu(r, MenuItem::kLoad);
-    ASSERT_EQ(r.ui.Mode(), UiMode::kLoad);
+    OpenMenu(r, MenuItem::kSave);
+    ASSERT_EQ(r.ui.Mode(), UiMode::kSave);
     EXPECT_EQ(r.ui.display().browser_slot, 5);
 }
 
@@ -478,57 +475,75 @@ TEST(Ui, NavMovesTheSelectionAndMainDoesNot)
     EXPECT_EQ(r.ui.patch().engine, before) << "MAIN changed the engine from the menu";
 }
 
-TEST(Ui, LoadAndSaveAreSeparateEntries)
+// Loading left the menu when NAV's turn became the selector: a list you scroll
+// to reach a preset is a slower way to do what one detent now does, and two
+// ways to do the same thing is what this revision is for (Derek, 2026-09-29).
+// Save keeps its browser, because choosing WHERE to write is a real question.
+TEST(Ui, TheMenuHasNoLoadEntry)
 {
-    {
-        Rig r;
-        OpenMenu(r, MenuItem::kLoad);
-        ASSERT_EQ(r.ui.Mode(), UiMode::kLoad);
-        r.Turn(kNav, 1);
-        r.Turn(kNav, 1);
-        NavTap(r);
-        const PresetRequest req = r.ui.TakePresetRequest();
-        EXPECT_EQ(req.action, PresetAction::kLoad);
-        EXPECT_EQ(req.slot, 2);
-        EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
-    }
-    {
-        Rig r;
-        OpenMenu(r, MenuItem::kSave);
-        ASSERT_EQ(r.ui.Mode(), UiMode::kSave);
-        r.Turn(kNav, 1);
-        NavTap(r);
-        ASSERT_EQ(r.ui.Mode(), UiMode::kName) << "saving names the slot first";
-        NavTap(r);
-        const PresetRequest req = r.ui.TakePresetRequest();
-        EXPECT_EQ(req.action, PresetAction::kSave);
-        EXPECT_EQ(req.slot, 1);
-    }
+    for(int i = 0; i < static_cast<int>(MenuItem::kCount); i++)
+        EXPECT_STRNE(MenuItemName(static_cast<MenuItem>(i)), "Load preset");
+    EXPECT_STREQ(MenuItemName(MenuItem::kSave), "Save preset")
+        << "Save should be the entry the menu opens on";
 }
 
-TEST(Ui, TouchingAPotOrSlotEncoderClosesTheModalLayer)
+TEST(Ui, SavingChoosesASlotAndThenNamesIt)
+{
+    Rig r;
+    OpenMenu(r, MenuItem::kSave);
+    ASSERT_EQ(r.ui.Mode(), UiMode::kSave);
+    r.Turn(kNav, 1);
+    NavTap(r);
+    ASSERT_EQ(r.ui.Mode(), UiMode::kName) << "saving names the slot first";
+    NavTap(r);
+    const PresetRequest req = r.ui.TakePresetRequest();
+    EXPECT_EQ(req.action, PresetAction::kSave);
+    EXPECT_EQ(req.slot, 1);
+}
+
+// THE MENU HAS PRECEDENCE. A pot brushed on the way past -- or moved by a
+// gesture playing back, which no hand touched at all -- used to drop you out of
+// it mid-thought, which is the same complaint the five-second timeout earned
+// (Derek, 2026-09-29). Playing still works with the menu open; the menu just
+// keeps the screen until you leave it.
+TEST(Ui, NothingOnThePanelClosesTheMenu)
 {
     {
         Rig r;
         NavTap(r);
         ASSERT_EQ(r.ui.Mode(), UiMode::kMenu);
         r.MovePot(0, 0.9f);
-        EXPECT_EQ(r.ui.Mode(), UiMode::kNormal) << "a pot did not close the menu";
+        EXPECT_EQ(r.ui.Mode(), UiMode::kMenu) << "a pot closed the menu";
     }
     {
         Rig r;
-        OpenMenu(r, MenuItem::kLoad);
+        OpenMenu(r, MenuItem::kSave);
+        ASSERT_EQ(r.ui.Mode(), UiMode::kSave);
         r.Turn(0, 1); // a slot encoder
-        EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
+        EXPECT_EQ(r.ui.Mode(), UiMode::kSave) << "a slot encoder closed the browser";
+        r.in.enc_held[0] = true;
+        r.Tick();
+        r.in.enc_held[0] = false;
+        r.Tick();
+        EXPECT_EQ(r.ui.Mode(), UiMode::kSave) << "a slot encoder press closed the browser";
         EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
+    }
+    // ...and the parameter still moved, because you can still play.
+    {
+        Rig r;
+        NavTap(r);
+        const float before = r.ui.patch().cutoff;
+        r.MovePot(4, 0.8f);
+        r.MovePot(4, 0.2f);
+        EXPECT_NE(r.ui.patch().cutoff, before) << "the menu swallowed the knob";
+        EXPECT_EQ(r.ui.Mode(), UiMode::kMenu);
     }
 }
 
 // The menu used to close itself after five seconds, which is precisely the
 // moment it should not: it went away while Derek was still deciding what to
-// pick (2026-09-25). Nothing is lost by leaving it open -- touching any other
-// control still closes it -- and there is a Close entry for getting out without
-// touching one.
+// pick (2026-09-25). Nothing is lost by leaving it open, and NAV's hold is the
+// way out.
 TEST(Ui, TheMenuWaitsAsLongAsItTakesAndNavHoldLeaves)
 {
     Rig r;
@@ -594,7 +609,7 @@ TEST(Ui, TheBrowserShowsTheNameOfTheHighlightedSlot)
     static PresetBank bank;
     BuildFactoryBank(bank);
     r.ui.SetBank(&bank);
-    OpenMenu(r, MenuItem::kLoad);
+    OpenMenu(r, MenuItem::kSave);
     r.Tick();
     EXPECT_STREQ(r.ui.display().browser_name, bank.slot[0].name);
     EXPECT_TRUE(r.ui.display().browser_used);
@@ -1027,7 +1042,11 @@ TEST(Ui, AnEmptySlotIsNamedAfterItselfAndAnAllSpaceNameFallsBack)
     EXPECT_STREQ(req.name, "USER 6") << "an all-spaces name should fall back to the slot";
 }
 
-TEST(Ui, TouchingSomethingElseAbandonsTheName)
+// Touching a pot while spelling a name used to abandon the save. It no longer
+// does -- the menu has precedence everywhere, not only in the menu itself --
+// but the property that actually mattered is unchanged: a pot cannot SAVE.
+// Only NAV's tap does that.
+TEST(Ui, PlayingWhileNamingNeitherSavesNorLosesTheName)
 {
     Rig               r;
     static PresetBank bank;
@@ -1036,15 +1055,16 @@ TEST(Ui, TouchingSomethingElseAbandonsTheName)
     OpenMenu(r, MenuItem::kSave);
     NavTap(r);
     ASSERT_EQ(r.ui.Mode(), UiMode::kName);
-    r.MovePot(0, 0.9f);
-    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
-    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone) << "it saved anyway";
+    const char* spelled = r.ui.display().name_text;
+    const char  first   = spelled[0];
 
-    // ...and NAV's hold goes back to the slot rather than out, so a mistyped
-    // name does not mean choosing the slot again.
-    OpenMenu(r, MenuItem::kSave);
-    NavTap(r);
-    ASSERT_EQ(r.ui.Mode(), UiMode::kName);
+    r.MovePot(0, 0.9f);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kName) << "a pot threw away the name";
+    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone) << "it saved anyway";
+    EXPECT_EQ(r.ui.display().name_text[0], first) << "a pot spelled into the name";
+
+    // NAV's hold goes back to the slot rather than out, so a mistyped name does
+    // not mean choosing the slot again.
     NavBack(r);
     EXPECT_EQ(r.ui.Mode(), UiMode::kSave);
 }
@@ -1152,17 +1172,28 @@ TEST(Ui, FactoryResetHasToBeAnsweredBeforeItFires)
     EXPECT_FALSE(r.ui.TakeFactoryReset()) << "the request is not one-shot";
 }
 
-TEST(Ui, FactoryResetStartsOnNoEveryTimeAndBacksOutIfTouchedElsewhere)
+// The reset page no longer backs out when you touch something else, because
+// nothing does. What has to stay true is the part that would cost you your
+// presets: it starts on NO every time it is opened, and only NAV's tap on YES
+// resets anything.
+TEST(Ui, FactoryResetStartsOnNoEveryTimeAndNeedsNavToFire)
 {
     Rig r;
     OpenMenu(r, MenuItem::kFactoryReset);
+    EXPECT_FALSE(r.ui.display().reset_armed) << "it opened on YES";
     r.Turn(kMain, 1);
     ASSERT_TRUE(r.ui.display().reset_armed);
 
+    // Playing a note's worth of knob does not reset the instrument, and does
+    // not close the page either.
     r.MovePot(0, 0.9f);
-    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
-    EXPECT_FALSE(r.ui.TakeFactoryReset());
+    EXPECT_EQ(r.ui.Mode(), UiMode::kResetPage);
+    EXPECT_FALSE(r.ui.TakeFactoryReset()) << "a pot reset the instrument";
 
+    // Leaving without confirming disarms it, so the next visit starts on NO.
+    NavBack(r);
+    ASSERT_EQ(r.ui.Mode(), UiMode::kMenu);
+    EXPECT_FALSE(r.ui.TakeFactoryReset());
     OpenMenu(r, MenuItem::kFactoryReset);
     EXPECT_FALSE(r.ui.display().reset_armed) << "it remembered YES";
 }
