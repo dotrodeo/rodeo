@@ -16,6 +16,7 @@ and the design docs that tie them together.
 | [`rodeo-potentiometer/`](rodeo-potentiometer/) | Potentiometer daughterboard — analog, into the motherboard's ADC channels. |
 | [`rodeo-rotary-switch/`](rodeo-rotary-switch/) | Rotary-switch daughterboard (resistor-ladder → ADC). |
 | [`rodeo-001/`](rodeo-001/) | **The first instrument instance** — the specific synth built from the boards above. Instance-only material: the [control map](rodeo-001/docs/RODEO_CONTROL_MAP.md), the [enclosure spec](rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md), and its instance KiCad. |
+| [`web/`](web/) | **The website** — *planning only, no site yet.* Discovery docs for the marketing site and devlog: [brief](web/docs/WEB_DISCOVERY.md), [brand](web/docs/WEB_BRAND.md), [architecture](web/docs/WEB_ARCHITECTURE.md), [claims audit](web/docs/WEB_CLAIMS_AUDIT.md), [roadmap](web/docs/WEB_ROADMAP.md). |
 
 > **Naming, so nobody trips on it again:** `rodeo-motherboard` is the *host board*;
 > `rodeo-001` is the *first instrument built from the ecosystem*. They are different
