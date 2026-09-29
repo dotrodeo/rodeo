@@ -336,7 +336,7 @@ TEST(Ui, OnlyNavsTapOpensTheMenu)
 }
 
 // The preset selector: NAV's turn on the normal screen.
-TEST(Ui, NavTurnCyclesPresetsAndSkipsEmptySlots)
+TEST(Ui, NavTurnCyclesEverySlotIncludingTheEmptyOnes)
 {
     Rig               r;
     static PresetBank bank;
@@ -350,39 +350,53 @@ TEST(Ui, NavTurnCyclesPresetsAndSkipsEmptySlots)
     EXPECT_EQ(req.slot, 1);
     EXPECT_EQ(r.ui.Mode(), UiMode::kNormal) << "cycling left the normal screen";
 
-    // Backwards off slot 0 lands on the LAST used slot, not on an empty one:
-    // eight of the twenty-four are empty user slots, and stopping on them
-    // would be eight detents of silence in the middle of the bank.
-    int last_used = 0;
-    for(int i = 0; i < PresetBank::kNumSlots; i++)
-        if(bank.slot[i].used)
-            last_used = i;
-    ASSERT_LT(last_used, PresetBank::kNumSlots - 1) << "no empty slot to skip";
-
+    // Backwards off slot 0 lands on the LAST slot, empty or not. An empty slot
+    // plays Init, so there is nothing to protect anyone from by skipping it --
+    // and skipping would make the bank a different length depending on how
+    // much of it you had filled in (Derek, 2026-09-29).
     r.ui.NotePresetLoaded(bank.slot[0], 0);
     r.Turn(kNav, -1);
     req = r.ui.TakePresetRequest();
     EXPECT_EQ(req.action, PresetAction::kLoad);
-    EXPECT_EQ(req.slot, last_used) << "cycling stopped on an empty slot";
+    EXPECT_EQ(req.slot, PresetBank::kNumSlots - 1);
+    EXPECT_FALSE(bank.slot[req.slot].used) << "the last slot was not an empty one";
+
+    // All the way round, every slot once, back where it started.
+    r.ui.NotePresetLoaded(bank.slot[0], 0);
+    for(int i = 1; i <= PresetBank::kNumSlots; i++)
+    {
+        r.Turn(kNav, 1);
+        req = r.ui.TakePresetRequest();
+        EXPECT_EQ(req.action, PresetAction::kLoad) << "stalled at step " << i;
+        EXPECT_EQ(req.slot, i % PresetBank::kNumSlots) << "wrong slot at step " << i;
+    }
 }
 
-// A bank with one sound in it has nowhere to cycle to. Reloading what is
-// already playing would throw away unsaved edits for a turn that changed
-// nothing, so the turn does nothing at all.
-TEST(Ui, NavTurnDoesNotReloadTheOnlyPreset)
+// An empty slot is a slot you can play. The bank has to hand one out with a
+// patch in it, or cycling onto it would be silence under a knob you are meant
+// to turn (Derek, 2026-09-29: "I don't think empty user slots should be
+// silent").
+TEST(Preset, AnEmptySlotHoldsInitUnderAnEmptyName)
 {
-    Rig               r;
     static PresetBank bank;
     BuildFactoryBank(bank);
-    for(int i = 1; i < PresetBank::kNumSlots; i++)
-        bank.slot[i].used = 0;
-    r.ui.SetBank(&bank);
-    r.ui.NotePresetLoaded(bank.slot[0], 0);
 
-    r.Turn(kNav, 1);
-    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
-    r.Turn(kNav, -1);
-    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
+    int empties = 0;
+    for(int i = 0; i < PresetBank::kNumSlots; i++)
+    {
+        if(bank.slot[i].used)
+            continue;
+        empties++;
+        EXPECT_STREQ(bank.slot[i].name, kEmptySlotName)
+            << "slot " << i << " does not say it is empty";
+
+        StoredPreset want;
+        PatchToPreset(InitPatch(), bank.slot[i].name, want);
+        want.used = 0;
+        EXPECT_EQ(std::memcmp(&bank.slot[i], &want, sizeof(StoredPreset)), 0)
+            << "empty slot " << i << " is not Init";
+    }
+    EXPECT_GT(empties, 0) << "the factory bank has no empty slots to check";
 }
 
 // Where you are IS where the browser opens. Cycling to a preset and then

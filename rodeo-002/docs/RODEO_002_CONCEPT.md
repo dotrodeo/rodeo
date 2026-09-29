@@ -554,7 +554,13 @@ slots erases it properly anyway.
   sixteen slots became factory presets: there is currently no way back.
 * ~~Eight more slots~~ **BUILT in v2.0.0** — 16 factory + 8 user, `kNumSlots` 16 → 24.
   **Empty rather than copies of Init**: an empty slot shows `-- empty --` and refuses to load,
-  which is honest, whereas a copy of Init looks like a sound someone chose. `FillEmptySlots`
+  which is honest, whereas a copy of Init looks like a sound someone chose. **Half of this was
+  wrong, and v3.0.0 fixed it**: once NAV cycled presets, refusing to load made an empty slot a
+  hole in the scroll, so an empty slot now *plays* Init while still being *named* `-- empty --`.
+  The name is what carries the honesty; the silence was carrying nothing (Derek, 2026-09-29:
+  *"I don't think empty user slots should be silent"*). Init is substituted at load time rather
+  than written into the bank, so banks already in flash need no version bump and lose nothing.
+  `FillEmptySlots`
   composes correctly with that — it only fills where the *factory* bank has a preset, so slots
   17–24 stay empty rather than being refilled at every boot. Two costs to note: changing
   `kNumSlots` changes `PresetBank`'s size, so a stored bank is rejected and **a migration is

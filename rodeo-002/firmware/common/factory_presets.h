@@ -17,8 +17,29 @@
 
 namespace rodeo002
 {
-/** Fill `b` with the factory bank: sixteen sounds, and the rest left empty for
- *  you to save into. */
+/** Somewhere to start from: the raw voice, nothing in the chain.
+ *
+ *  Named rather than inlined because it is the patch an EMPTY user slot plays.
+ *  An empty slot is still somewhere to go -- NAV cycles onto it like any other
+ *  -- and a slot that makes no sound is not somewhere to go (Derek,
+ *  2026-09-29: "I don't think empty user slots should be silent"). */
+inline Patch InitPatch()
+{
+    Patch p;
+    // Off the waveshape midpoint on purpose. At morph 0.5 the virtual-analog
+    // oscillator's pulse width cancels exactly, so Timbre -- which drives it --
+    // does nothing at all, and the first knob a new owner turns should not be a
+    // dead one.
+    p.morph = 0.35f;
+    return p;
+}
+
+/** The name an unsaved slot answers to. It says what the slot IS: nothing has
+ *  been put here yet, even though turning to it makes a sound. */
+constexpr char kEmptySlotName[] = "-- empty --";
+
+/** Fill `b` with the factory bank: sixteen sounds, and the rest holding Init
+ *  under an empty name, for you to save over. */
 inline void BuildFactoryBank(PresetBank& b)
 {
     // Every byte set, including the header's own: the bank is compared byte for
@@ -27,11 +48,13 @@ inline void BuildFactoryBank(PresetBank& b)
     b.version = PresetBank::kVersion;
     b.slots   = PresetBank::kNumSlots;
 
-    // Empty everywhere first: an unused slot still holds a valid patch, so a
-    // corrupt `used` byte cannot produce a nonsense sound.
+    // Empty everywhere first, and empty means Init: an unused slot holds a
+    // patch you can play, so a corrupt `used` byte cannot produce a nonsense
+    // sound -- and, more to the point, so cycling onto one is a sound rather
+    // than a silence.
     for(int i = 0; i < PresetBank::kNumSlots; i++)
     {
-        PatchToPreset(Patch{}, "-- empty --", b.slot[i]);
+        PatchToPreset(InitPatch(), kEmptySlotName, b.slot[i]);
         b.slot[i].used = 0;
     }
 
@@ -49,16 +72,8 @@ inline void BuildFactoryBank(PresetBank& b)
 
     using namespace fx;
 
-    // 1. Somewhere to start from: the raw voice, nothing in the chain.
-    {
-        Patch p;
-        // Off the waveshape midpoint on purpose. At morph 0.5 the virtual-
-        // analog oscillator's pulse width cancels exactly, so Timbre -- which
-        // drives it -- does nothing at all, and the first knob a new owner
-        // turns should not be a dead one.
-        p.morph = 0.35f;
-        add("Init", p);
-    }
+    // 1. Somewhere to start from, and what every empty slot plays.
+    add("Init", InitPatch());
 
     // 2. The house sound: additive pad into chorus and a wash.
     {

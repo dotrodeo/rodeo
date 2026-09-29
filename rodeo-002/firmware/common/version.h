@@ -32,9 +32,12 @@
 // taps to enter; MAIN turns to change the highlighted value and taps for the
 // gesture recorder; a hold on NAV goes back one level. The menu no longer times
 // out, and -- the last piece -- turning NAV on the normal screen is now the
-// preset selector rather than a second way to open the menu. Presets and
-// gestures saved by v2 load unchanged; it is your hands that have to relearn
-// something, which is exactly what MAJOR is for.
+// preset selector rather than a second way to open the menu. An empty user slot
+// is part of that scroll and so it had to become playable: it plays Init while
+// still being named `-- empty --`. Presets and gestures saved by v2 load
+// unchanged -- Init is substituted when an unsaved slot is loaded, not written
+// into the bank -- so it is your hands that have to relearn something, which is
+// exactly what MAJOR is for.
 
 #pragma once
 

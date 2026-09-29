@@ -577,6 +577,29 @@ static void FactoryReset()
     hw.PrintLine("factory reset: done, %s loaded", first.name);
 }
 
+/** What a slot actually plays.
+ *
+ *  A slot with nothing saved in it plays Init, taken from HERE rather than from
+ *  the stored bytes. A bank written before empty slots were playable holds a
+ *  default Patch in them, whose morph sits exactly on the waveshape midpoint
+ *  where Timbre does nothing; substituting at load time means those banks
+ *  behave like a fresh one WITHOUT a version bump, which would reject the bank
+ *  in flash and throw away every preset already saved over a factory slot.
+ *
+ *  `used` stays 0, so the screen still says the slot is empty and the browser
+ *  still offers it. The Ui is told about THIS rather than about the stored
+ *  bytes, so a slot loaded this way starts clean instead of showing the
+ *  unsaved `*` the instant it lands. */
+static StoredPreset EmptyAware(const StoredPreset& stored)
+{
+    if(stored.used)
+        return stored;
+    StoredPreset out;
+    PatchToPreset(InitPatch(), stored.name, out);
+    out.used = 0;
+    return out;
+}
+
 /** Note the slot to boot into next time. Deferred like the wiring map: the
  *  write is a 64 KB erase, and there is no reason to stall the panel with one
  *  the instant a preset is chosen. */
@@ -909,20 +932,21 @@ int main(void)
             st = defaults;
         globals.midi_channel     = st.midi_channel;
         globals.midi_out_channel = st.midi_out_channel;
-        const StoredPreset& boot = preset_store.GetSettings().slot[st.last_preset];
-        if(boot.used)
-        {
-            bool known = true;
-            PresetToPatch(boot, patch, &known);
-            ui.NotePresetLoaded(boot, static_cast<int>(st.last_preset));
-            ui.DropPickup();
-            current_engine = patch.engine;
-            voices.SetEngine(patch.engine);
-            ApplyPatch();
-            g_boot_preset       = static_cast<int>(st.last_preset);
-            g_boot_engine_known = known;
-            g_boot_gesture      = LoadGestureForSlot(g_boot_preset);
-        }
+        // No `used` test: NAV can leave you parked on an empty slot, and
+        // coming back up on Init under the name you left is what continuity
+        // means. EmptyAware decides what an empty slot plays.
+        const StoredPreset boot
+            = EmptyAware(preset_store.GetSettings().slot[st.last_preset]);
+        bool known = true;
+        PresetToPatch(boot, patch, &known);
+        ui.NotePresetLoaded(boot, static_cast<int>(st.last_preset));
+        ui.DropPickup();
+        current_engine = patch.engine;
+        voices.SetEngine(patch.engine);
+        ApplyPatch();
+        g_boot_preset       = static_cast<int>(st.last_preset);
+        g_boot_engine_known = known;
+        g_boot_gesture      = LoadGestureForSlot(g_boot_preset);
     }
 
     if(g_have_hub)
@@ -1124,30 +1148,27 @@ int main(void)
             PresetBank&         bank = preset_store.GetSettings();
             if(req.action == PresetAction::kLoad)
             {
-                const StoredPreset& sp = bank.slot[req.slot];
-                if(!sp.used)
-                    hw.PrintLine("preset %d: empty slot, nothing loaded", req.slot + 1);
-                else
-                {
-                    bool engine_known = true;
-                    PresetToPatch(sp, patch, &engine_known);
-                    // The pots are wherever the last patch left them, so every
-                    // one of them has to be caught again before it takes hold.
-                    ui.DropPickup();
-                    ui.NotePresetLoaded(sp, req.slot);
-                    RememberPreset(req.slot, in.now_ms);
-                    g_discrete_changed = true;
-                    // A preset saved with a gesture starts moving when it loads.
-                    const bool with_gesture = LoadGestureForSlot(req.slot);
-                    hw.PrintLine("preset %d loaded: %s%s%s",
-                                 req.slot + 1,
-                                 sp.name,
-                                 with_gesture ? "  (+ gesture, looping)" : "",
-                                 engine_known
-                                     ? ""
-                                     : "  (WARNING: its engine is gone from this build;"
-                                       " using virtual-analog)");
-                }
+                StoredPreset sp           = EmptyAware(bank.slot[req.slot]);
+                bool         engine_known = true;
+                PresetToPatch(sp, patch, &engine_known);
+                // The pots are wherever the last patch left them, so every
+                // one of them has to be caught again before it takes hold.
+                ui.DropPickup();
+                ui.NotePresetLoaded(sp, req.slot);
+                RememberPreset(req.slot, in.now_ms);
+                g_discrete_changed = true;
+                // A preset saved with a gesture starts moving when it loads.
+                // An empty slot has none, and this clears whatever was looping.
+                const bool with_gesture = LoadGestureForSlot(req.slot);
+                hw.PrintLine("preset %d loaded: %s%s%s%s",
+                             req.slot + 1,
+                             sp.name,
+                             sp.used ? "" : "  (empty slot: Init)",
+                             with_gesture ? "  (+ gesture, looping)" : "",
+                             engine_known
+                                 ? ""
+                                 : "  (WARNING: its engine is gone from this build;"
+                                   " using virtual-analog)");
             }
             else if(req.action == PresetAction::kSave)
             {

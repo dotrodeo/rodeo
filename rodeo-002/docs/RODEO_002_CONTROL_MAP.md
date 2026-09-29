@@ -240,12 +240,20 @@ new encoder."*
 
 Two details worth knowing:
 
-* **Empty slots are skipped.** Eight of the twenty-four are empty user slots, and stopping on them
-  would be eight detents of silence in the middle of the bank. They are still there in the
-  browser, which is where you go to fill one.
+* **Every slot is in the scroll, including the empty ones — and an empty slot is not silent.** It
+  plays **Init**, under the name `-- empty --`. Skipping them was the first attempt, and it was
+  wrong twice over: it made the bank a different length depending on how much of it you had filled
+  in, and it treated "nothing saved here" as "nowhere to go". An empty slot is exactly somewhere to
+  go — it is where you build the next sound before saving it there. Derek, 2026-09-29: *"I don't
+  think empty user slots should be silent."*
 * **It cycles from what is playing, and the browser follows.** Opening *Load* lands on the current
-  preset rather than on slot 1. If the bank holds only one sound there is nowhere to go, and the
-  turn does nothing rather than reloading it and discarding unsaved edits.
+  preset rather than on slot 1.
+
+`used` still means what it always did — *nothing has been saved here* — so the browser still offers
+the slot as free and the header still shows it as empty. What changed is only what an unsaved slot
+**plays**. Slots already written to flash by an earlier build get the same treatment: Init is
+substituted when the slot is loaded rather than being rewritten into the bank, so nothing you have
+saved is disturbed.
 
 Loading a preset drops pickup, so every pot has to be caught again before it takes hold — the
 same as loading from the browser. **Unsaved changes are lost**, which the `*` in the header warns
@@ -306,9 +314,10 @@ says so for as long as it is open:
 decide which slot to save to let the browser close under a finger that was already holding the
 encoder down, and the long-press then meant *gesture* instead of *save* (2026-09-24).
 
-**As built:** **24 slots — sixteen factory sounds and eight empty** for your own (v2.0.0). An empty slot shows
-`-- empty --` and will not load, but can be saved into — so saving means choosing a factory
-sound to replace, and there is no restore gesture yet.
+**As built:** **24 slots — sixteen factory sounds and eight empty** for your own (v2.0.0). An empty
+slot shows `-- empty --`, **plays Init**, and can be saved into (v3.0.0; before that it refused to
+load at all). Saving still means choosing which slot to replace, and there is no restore gesture
+yet — *Factory Reset* in the menu is the only way back.
 
 **Saving names the slot first** (built 2026-09-25). After choosing the slot, a tap goes to the
 name: **turn spells the character under the cursor, hold MAIN and turn moves along the name,

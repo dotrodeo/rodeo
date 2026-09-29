@@ -670,33 +670,22 @@ class Ui
         }
     }
 
-    /** Step to the next preset that HAS something in it, and load it.
+    /** Step to the next slot and load it.
      *
-     *  Empty slots are skipped rather than stepped onto: eight of the
-     *  twenty-four are empty user slots, and stopping on them would be eight
-     *  detents of silence in the middle of the bank. The browser still shows
-     *  them -- that is where you go to fill one.
+     *  EVERY slot, including the empty user ones. They are not silent -- an
+     *  unsaved slot plays Init -- so there is nothing to protect you from by
+     *  skipping them, and skipping would make the bank a different length
+     *  depending on how much of it you had filled in (Derek, 2026-09-29). An
+     *  empty slot still says so on screen; that is the browser's job and the
+     *  header's, not the selector's.
      *
-     *  The load is immediate, so one detent is one new sound. Without a bank
-     *  (the host preview) it just steps, and the app decides what that means. */
+     *  The load is immediate, so one detent is one new sound. */
     void CyclePreset(int dir)
     {
-        int slot = browser_slot_;
-        for(int n = 0; n < PresetBank::kNumSlots - 1; n++)
-        {
-            slot = Wrap(slot + dir, PresetBank::kNumSlots);
-            if(!bank_ || bank_->slot[slot].used)
-            {
-                browser_slot_   = slot;
-                request_.action = PresetAction::kLoad;
-                request_.slot   = slot;
-                request_.name   = nullptr;
-                return;
-            }
-        }
-        // Nowhere else to go: the bank holds at most this one preset. Staying
-        // put beats reloading what is already playing, which would throw away
-        // unsaved edits for a turn that changed nothing.
+        browser_slot_   = Wrap(browser_slot_ + dir, PresetBank::kNumSlots);
+        request_.action = PresetAction::kLoad;
+        request_.slot   = browser_slot_;
+        request_.name   = nullptr;
     }
 
     /** NAV's tap: enter what is highlighted, or confirm it. */
