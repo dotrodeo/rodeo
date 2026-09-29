@@ -378,7 +378,7 @@ encoder polling — a full frame at 400 kHz is ~23 ms.
 
 | Rows | Holds |
 |---|---|
-| 0–8 | **Preset name**, `*` if the patch has changed since it was loaded · voice mode in three letters · voices in use. **Inverted while SHIFT is held**, and the name is replaced by `TURN: MODE` — holding MAIN and turning it chooses the voice mode, and that is the only moment the hint applies. |
+| 0–8 | **`NN - Preset name`**, `*` if the patch has changed since it was loaded · at the right end, the voice mode, or `ARM`/`REC`/`LOOP` while the recorder is doing something. **Inverted while SHIFT is held**, and the left side is replaced by `TURN: MODE` — holding MAIN and turning it chooses the voice mode, and that is the only moment the hint applies. |
 | 11–18 | The four slot types, bypassed ones struck through. **The Space cell inverts when frozen.** |
 | 20–62 | The body: scope, readout and meter — **see below** |
 
@@ -392,6 +392,22 @@ for and an overlap is a bug that only shows up on hardware.
 
 **The engine is not on the header.** The preset name is the more useful thing to have in front
 of you, and the engine announces itself as a message when you turn MAIN onto it.
+
+**The slot number is, though, and the voice count is not** (v3.0.0). Once NAV cycled presets, *where
+you are in the bank* became something you ask several times a minute, and *how many voices happen
+to be sounding* became something nobody had asked since bring-up. The number is **zero-padded** —
+`01`, `09`, `10` — so the name always begins at the same x; a name that shuffles sideways between
+slots 9 and 10 is harder to read while scrolling than one that does not. Derek, 2026-09-29.
+
+It is the **playing** slot, not the browser's selection: scrolling the browser past a slot is not
+loading it, and the header must not claim otherwise. Twelve characters of name, two digits and the
+`*` all fit at once; nothing is truncated in practice, and if a longer name ever could be, it is
+the tail of the name that gives rather than the number or the `*` — those are the two things you
+cannot reconstruct by looking.
+
+Losing the voice count also finished a job: `Ui::Refresh()` took the two numbers as arguments, and
+now takes none. **The panel names nothing from the DSP at all**, which is what lets the screens be
+rendered on a laptop without linking a synthesiser (`tools/screens`).
 
 **The scope is almost always on**, so you can watch the waveform change shape as you turn a
 knob. It takes the whole readout area when nothing else is on screen, and a strip above the

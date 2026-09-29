@@ -38,6 +38,11 @@
 // unchanged -- Init is substituted when an unsaved slot is loaded, not written
 // into the bank -- so it is your hands that have to relearn something, which is
 // exactly what MAJOR is for.
+//
+// The header follows the selector: `NN - Preset name`, zero-padded, where the
+// voice count used to be. Where you are in the bank is now worth a glance
+// several times a minute; how many voices are sounding had not been worth one
+// since bring-up.
 
 #pragma once
 

@@ -699,8 +699,7 @@ static uint32_t ScreenSignature(const DisplayState& d, uint32_t extra)
     mix_ptr(d.pending);
     mix_ptr(d.engine);
     mix_ptr(d.voice_mode);
-    mix(static_cast<uint32_t>(d.voices_active));
-    mix(static_cast<uint32_t>(d.voices_max));
+    mix(static_cast<uint32_t>(d.preset_slot));
     for(int s = 0; s < fx::TextureChain::kNumSlots; s++)
     {
         mix_ptr(d.slot_type[s]);
@@ -1232,7 +1231,7 @@ int main(void)
         // knob therefore costs no more bus than it already did: the frame was
         // going out anyway, and a frame is the same 1024 bytes whatever is
         // drawn in it. Only a scope moving under a still panel is rate-limited.
-        ui.Refresh(voices.ActiveVoices(), voices.GetMaxVoices());
+        ui.Refresh();
         const DisplayState& ds = ui.display();
         const bool          scope_on
             = ds.mode == UiMode::kNormal && ds.readout != Readout::kEnvelope;

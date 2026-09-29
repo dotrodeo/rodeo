@@ -65,6 +65,23 @@ static_assert(kEnvBot + 1 < kRows, "the envelope baseline falls off the screen")
 static_assert(kMsgTop >= kBodyTop && kMsgBot <= kStripBot, "the message box is not over the strip");
 } // namespace layout
 
+/** Font_6x8 is the header's font, so a character is six pixels and the line
+ *  holds twenty-one of them. Spelled once, because the header now packs two
+ *  fields against each other and every number here is derived from it. */
+constexpr int kChar = 6;
+
+/** Append what fits and no more.
+ *
+ *  Nothing wraps on this display: a string longer than its room draws straight
+ *  over whatever is to its right. Every header field is bounded by what the
+ *  field beside it leaves, so every one of them goes in through here. */
+template <size_t kCap>
+static void AppendUpTo(FixedCapStr<kCap>& s, const char* text, int room)
+{
+    for(int i = 0; i < room && text[i]; i++)
+        s.Append(text + i, 1);
+}
+
 /** A title bar: inverted, with an optional counter on the right. */
 template <typename Display>
 static void DrawTitle(Display& display, const char* text, const char* right)
@@ -177,46 +194,75 @@ void Draw(Display& display, const DisplayState& d, Scope& scope)
 {
     display.Fill(false);
 
-    // Header: the preset you are in, whether you have changed it, the voice
-    // mode in three letters, and the voices in use. The ENGINE is not here any
-    // more -- it announces itself when you turn to it, and the preset's name is
-    // the more useful thing to have in front of you.
+    // Header: WHICH preset you are in, what it is called, whether you have
+    // changed it, and -- at the right end -- the voice mode, or what the
+    // gesture recorder is doing while it is doing something.
+    //
+    // The number is zero-padded so the name always starts at the same x: you
+    // scroll this list with NAV now, and a name that shuffles left and right
+    // between slots 9 and 10 is harder to read than one that does not (Derek,
+    // 2026-09-29). It is the PLAYING slot, not the browser's, so the header
+    // keeps saying what you are hearing while you scroll past it.
+    //
+    // The engine is not here -- it announces itself when you turn to it -- and
+    // neither is the voice count any more; the number that earned that corner
+    // is the one that tells you where you are in the bank.
+    //
     // SHIFT inverts the header rather than spending a line on the word. It is
     // a held state, so it wants to be unmissable and to cost nothing: the
     // bottom of the screen is worth more as waveform.
     const bool inv = d.shift;
     if(inv)
         display.DrawRect(0, layout::kHeaderTop, 127, layout::kHeaderBot, true, true);
+
+    // Right end first, because it decides how much room the name has.
+    // What the recorder is doing displaces the voice mode while it is doing
+    // it: knowing a take is running matters more than knowing you are in Poly,
+    // and it has to be visible without opening anything.
+    const char* right = d.gesture[0] ? d.gesture : d.voice_short;
+    int         right_n = 0;
+    while(right[right_n])
+        right_n++;
+    const int right_x = 128 - kChar * right_n;
+    display.SetCursor(static_cast<uint8_t>(right_x), 0);
+    display.WriteString(right, Font_6x8, !inv);
+
+    // Two pixels of slack rather than a whole blank cell. The 6x8 glyphs are
+    // five pixels in a six-pixel cell, so this reads as a gap of about half a
+    // character -- and the cell it buys back is the difference between a
+    // twelve-character name fitting and losing its tail.
+    const int left_max = (right_x - 2) / kChar;
+
     // While SHIFT is held the preset's name is the least useful thing on this
     // screen and the gesture nobody can guess is the most useful: holding MAIN
     // and turning it chooses the voice mode, which is shown to the right, so
     // the hint and its result are on the same line.
     FixedCapStr<22> line("");
     if(inv)
-        line.Append("TURN: MODE");
+        AppendUpTo(line, "TURN: MODE", left_max);
     else if(d.notice[0])
         // What the instrument did on its own, where it cannot cover what you
         // did: the engine you just turned onto is in the middle of the screen.
-        line.Append(d.notice);
+        // It takes the number's place too -- it is gone in a second, and the
+        // slot has not changed underneath it.
+        AppendUpTo(line, d.notice, left_max);
     else
     {
-        line.Append(d.preset_name);
+        const int n = d.preset_slot + 1;
+        line.AppendInt(n / 10);
+        line.AppendInt(n % 10);
+        line.Append(" - ");
+        // The `*` is reserved BEFORE the name is laid in. If something has to
+        // give it is the tail of the name, because the number and the `*` are
+        // the two things you cannot reconstruct by looking at the screen.
+        const int room = left_max - static_cast<int>(line.Size())
+                         - (d.preset_dirty ? 1 : 0);
+        AppendUpTo(line, d.preset_name, room);
         if(d.preset_dirty)
             line.Append("*");
     }
     display.SetCursor(0, 0);
     display.WriteString(line, Font_6x8, !inv);
-    // What the recorder is doing displaces the voice mode while it is doing it:
-    // knowing a take is running matters more than knowing you are in Poly, and
-    // it has to be visible without opening anything.
-    display.SetCursor(128 - 6 * 7, 0);
-    display.WriteString(d.gesture[0] ? d.gesture : d.voice_short, Font_6x8, !inv);
-    FixedCapStr<8> voices_str("");
-    voices_str.AppendInt(d.voices_active);
-    voices_str.Append("/");
-    voices_str.AppendInt(d.voices_max);
-    display.SetCursor(128 - 6 * 3, 0);
-    display.WriteString(voices_str, Font_6x8, !inv);
     display.DrawLine(0, layout::kRuleY, 127, layout::kRuleY, true);
 
     // The chain: four slot names, bypassed ones struck through.

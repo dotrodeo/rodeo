@@ -42,8 +42,8 @@ inline const char* VoiceModeShort(VoiceMode m)
 {
     switch(m)
     {
-        case VoiceMode::kPoly: return "POL";
-        case VoiceMode::kMono: return "MON";
+        case VoiceMode::kPoly: return "POLY";
+        case VoiceMode::kMono: return "MONO";
         default: return "UNI";
     }
 }

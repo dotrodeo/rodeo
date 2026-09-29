@@ -188,10 +188,13 @@ struct DisplayState
 {
     const char* engine      = "";
     const char* voice_mode  = "";
-    /** Three letters, for the header, where the preset's name has the room. */
+    /** Four letters at most, for the right end of the header. */
     const char* voice_short = "";
-    int         voices_active = 0;
-    int         voices_max    = 0;
+    /** Which preset is PLAYING, 0-based, and how many there are. Not the
+     *  browser's selection: the header has to keep saying what you are hearing
+     *  while you scroll the browser past it. */
+    int         preset_slot  = 0;
+    int         preset_total = PresetBank::kNumSlots;
     const char* slot_type[fx::TextureChain::kNumSlots] = {"", "", "", ""};
     bool        slot_bypass[fx::TextureChain::kNumSlots] = {false, false, false, false};
     bool        freeze  = false;
@@ -345,7 +348,8 @@ class Ui
     {
         loaded_       = s;
         have_loaded_  = true;
-        browser_slot_ = Clampi(slot, 0, PresetBank::kNumSlots - 1);
+        loaded_slot_  = Clampi(slot, 0, PresetBank::kNumSlots - 1);
+        browser_slot_ = loaded_slot_;
     }
 
     /** True when the live patch no longer matches what was loaded. Compared
@@ -594,18 +598,22 @@ class Ui
         return discrete_changed;
     }
 
-    /** Fills in the parts of the display only the app knows.
+    /** Fills in the rest of the display from the patch.
      *
-     *  Takes the two numbers rather than the VoiceManager, so the panel does
-     *  not depend on the DSP at all: it is what lets the screens be rendered on
-     *  a host without linking a synthesiser (see tools/screens). */
-    void Refresh(int voices_active, int voices_max)
+     *  It used to take the active and maximum voice counts, for a `3/8` in the
+     *  corner of the header. That corner is the preset number now: what you are
+     *  playing out of how many is worth a glance, and how many voices happen to
+     *  be sounding is not (Derek, 2026-09-29). Losing the two arguments also
+     *  finishes the job they were introduced for -- the panel now names nothing
+     *  from the DSP at all, which is what lets the screens be rendered on a host
+     *  without linking a synthesiser (see tools/screens). */
+    void Refresh()
     {
         display_.engine        = EngineName(patch_.engine);
         display_.voice_mode    = VoiceModeName(patch_.voice_mode);
         display_.voice_short   = VoiceModeShort(patch_.voice_mode);
-        display_.voices_active = voices_active;
-        display_.voices_max    = voices_max;
+        display_.preset_slot   = loaded_slot_;
+        display_.preset_total  = PresetBank::kNumSlots;
         for(int s = 0; s < fx::TextureChain::kNumSlots; s++)
         {
             display_.slot_type[s]   = fx::TextureChain::TypeName(s, patch_.type[s]);
@@ -1476,6 +1484,9 @@ class Ui
     char     name_buf_[StoredPreset::kNameLen] = {};
     int      name_cursor_ = 0;
     int      browser_slot_ = 0;
+    /** What is PLAYING. browser_slot_ wanders while you scroll the browser;
+     *  this does not move until something is actually loaded. */
+    int      loaded_slot_  = 0;
     uint32_t mode_ms_ = 0, mode_opened_ms_ = 0;
     bool     shift_ = false;
     bool         main_held_            = false;

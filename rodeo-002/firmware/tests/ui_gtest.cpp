@@ -249,14 +249,13 @@ TEST(Ui, SteppedPotsLandOnWholeChoices)
     EXPECT_EQ(static_cast<int>(r.ui.patch().filter), 0);
 }
 
-TEST(Ui, DisplayReportsEngineVoicesAndSlots)
+TEST(Ui, DisplayReportsEngineSlotAndSlots)
 {
     Rig r;
-    r.voices.SetMaxVoices(6);
-    r.ui.Refresh(r.voices.ActiveVoices(), r.voices.GetMaxVoices());
+    r.ui.Refresh();
     const DisplayState& d = r.ui.display();
     EXPECT_STREQ(d.engine, EngineName(r.ui.patch().engine));
-    EXPECT_EQ(d.voices_max, 6);
+    EXPECT_EQ(d.preset_total, static_cast<int>(PresetBank::kNumSlots));
     EXPECT_STREQ(d.slot_type[fx::TextureChain::kSpace],
                  fx::TextureChain::TypeName(fx::TextureChain::kSpace,
                                             r.ui.patch().type[fx::TextureChain::kSpace]));
@@ -397,6 +396,35 @@ TEST(Preset, AnEmptySlotHoldsInitUnderAnEmptyName)
             << "empty slot " << i << " is not Init";
     }
     EXPECT_GT(empties, 0) << "the factory bank has no empty slots to check";
+}
+
+// The header says what you are HEARING. Scrolling the browser past a slot is
+// not loading it, and the number must not claim otherwise.
+TEST(Ui, TheHeaderNumberFollowsWhatIsPlayingNotTheBrowser)
+{
+    Rig               r;
+    static PresetBank bank;
+    BuildFactoryBank(bank);
+    r.ui.SetBank(&bank);
+    r.ui.NotePresetLoaded(bank.slot[3], 3);
+    r.ui.Refresh();
+    ASSERT_EQ(r.ui.display().preset_slot, 3);
+
+    OpenMenu(r, MenuItem::kLoad);
+    ASSERT_EQ(r.ui.Mode(), UiMode::kLoad);
+    for(int i = 0; i < 5; i++)
+        r.Turn(kNav, 1);
+    r.ui.Refresh();
+    EXPECT_EQ(r.ui.display().browser_slot, 8) << "the browser did not move";
+    EXPECT_EQ(r.ui.display().preset_slot, 3) << "the header followed the browser";
+
+    // Confirming is what moves it.
+    NavTap(r);
+    const PresetRequest req = r.ui.TakePresetRequest();
+    ASSERT_EQ(req.slot, 8);
+    r.ui.NotePresetLoaded(bank.slot[req.slot], req.slot);
+    r.ui.Refresh();
+    EXPECT_EQ(r.ui.display().preset_slot, 8);
 }
 
 // Where you are IS where the browser opens. Cycling to a preset and then

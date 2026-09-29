@@ -185,7 +185,7 @@ struct Rig
         ui.Update(in);
         for(int e = 0; e < Ui::kNumEncoders; e++)
             in.enc_delta[e] = 0;
-        ui.Refresh(3, 8);
+        ui.Refresh();
     }
     void Turn(int e, int d)
     {
@@ -257,6 +257,15 @@ int main(int argc, char** argv)
     { Rig r; r.Menu(MenuItem::kFactoryReset); r.Turn(Ui::kMainEncoder, 1);
       shot("14-factory-reset", r); }
     { Rig r; r.Turn(Ui::kMainEncoder, 1); shot("15-engine-change", r); }
+    // The header at its tightest: the longest name a slot can hold, in a
+    // two-digit slot, with the unsaved `*`. If anything collides it is here.
+    { Rig r;
+      StoredPreset& s = r.bank.slot[PresetBank::kNumSlots - 1];
+      PatchToPreset(r.ui.patch(), "Wavetable XY", s);
+      r.ui.NotePresetLoaded(s, PresetBank::kNumSlots - 1);
+      r.Pot(4, 0.2f); r.Pot(4, 0.62f);          // dirty it
+      r.Tick(300);                              // let the value readout lapse
+      shot("16-header-full", r); }
 
     for(const Shot& s : shots)
     {
