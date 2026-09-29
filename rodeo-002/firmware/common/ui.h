@@ -1416,9 +1416,13 @@ class Ui
     DisplayState display_;
     bool         caught_[kNumPots * 2] = {};
     float        last_pot_[kNumPots]   = {};
-    bool         enc_held_[5]          = {};
-    bool         enc_long_[5]          = {};
-    uint32_t     enc_press_ms_[5]      = {};
+    // SIZED BY THE COUNT, not by a number that was right once. These were left
+    // at 5 when NAV became encoder 6, so every NAV press wrote one past the end
+    // of three arrays -- caught by -Warray-bounds before it ever reached the
+    // hardware (2026-09-29).
+    bool         enc_held_[kNumEncoders]     = {};
+    bool         enc_long_[kNumEncoders]     = {};
+    uint32_t     enc_press_ms_[kNumEncoders] = {};
     uint32_t     press_start_ms_       = 0;
     uint32_t     touched_ms_           = 0;
     /** The value each parameter last took from its pot: the reference the
