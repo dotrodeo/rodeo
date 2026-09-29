@@ -38,6 +38,35 @@ using fx::Smoother;
 using fx::ExpMap;
 using fx::TimeCoeff;
 
+// ---------------------------------------------------------- analog behaviour
+//
+// Two things every analog polysynth does for free and a digital one has to be
+// told to do. Both are deliberately small: this is meant to read as "alive",
+// never as "out of tune".
+//
+// At NAMESPACE scope rather than inside the class on purpose. A class-static
+// constexpr array that is indexed at runtime is odr-used and needs an
+// out-of-line definition in C++14; clang optimised the reference away and
+// arm-gcc did not, so it built on the host and failed to link for the board.
+
+/** A fixed tuning error per voice, in cents -- what you get from eight
+ *  oscillator cards that were never trimmed to each other. Irregular on
+ *  purpose: evenly spaced offsets comb rather than thicken. Voice 0 is exactly
+ *  in tune, because Mono only ever plays voice 0 and a lead should not be
+ *  detuned from the rest of the band. */
+constexpr float kVoiceCents[8] = {0.0f, 2.7f, -1.9f, 3.4f, -3.1f, 1.2f, -2.4f, 0.8f};
+
+/** Where each voice sits in the stereo field, before Spread scales it.
+ *
+ *  THE ORDER IS THE WHOLE POINT. A linear ramp across all eight positions looks
+ *  right and is wrong: Poly fills voices from 0 upward, so a four-note chord
+ *  takes the first four positions and sits entirely on the left. Measured that
+ *  way, a C major 7th came out L=371 against R=101. These alternate outward
+ *  from the centre instead, so every EVEN number of voices is balanced and the
+ *  first pair is only lightly spread -- a single held note lands 20% off
+ *  centre, about a decibel, rather than hard left. */
+constexpr float kVoicePan[8] = {-0.20f, 0.20f, -0.55f, 0.55f, -0.80f, 0.80f, -1.00f, 1.00f};
+
 class VoiceManager
 {
   public:
@@ -202,8 +231,14 @@ class VoiceManager
 
     // -------------------------------------------------------------- audio
 
-    /** Sums every voice into `out` (mono; the chain makes it stereo). */
-    void Render(float* out, size_t n)
+    /** Sums every voice into `l` and `r`.
+     *
+     *  Stereo at the voice, not just at the chain. Every voice used to land in
+     *  the same place and the pair was two copies of one signal; now each voice
+     *  sits where PanFor puts it, scaled by Spread, so a held chord opens out
+     *  instead of stacking on one point. Spread at 0 is the old mono sum
+     *  exactly (Derek, 2026-09-29: "a little more complexity/depth/richness"). */
+    void Render(float* l, float* r, size_t n)
     {
         const Patch& p = patch_;
 
@@ -231,7 +266,7 @@ class VoiceManager
             = p.glide > 0.001f ? TimeCoeff(ExpMap(p.glide, 0.005f, 2.f), sample_rate_) : 1.f;
 
         for(size_t i = 0; i < n; i++)
-            out[i] = 0.f;
+            l[i] = r[i] = 0.f;
 
         // The LFO runs once per block at control rate: destinations are all
         // slow, and it keeps the per-voice loop tight.
@@ -274,8 +309,20 @@ class VoiceManager
             const float timbre
                 = Clamp(timbre_p + env * to_timb * 0.5f + timbre_mod + wheel_timbre, 0.f, 1.f);
             const float morph_v = Clamp(morph + env * to_morph * 0.5f + morph_mod, 0.f, 1.f);
-            const float detune  = x.detune * spread_p * 0.06f; // +/- ~1 semitone
-            x.eng.SetParams(x.glide_freq * powf(2.f, (bend_ + pitch_mod + detune) / 12.f),
+            // Unison detune. This was 0.06 -- SIX CENTS at full spread, under a
+            // comment claiming a semitone, which is why Spread sounded like it
+            // did nothing (Derek, 2026-09-22: "not getting a lot of value out of
+            // the Spread control"). A quarter tone is what a unison stack wants.
+            const float detune = x.detune * spread_p * 0.25f; // +/- 25 cents
+            // The voice's own tuning error, plus its wander. Always on, always
+            // small: this is what stops eight digital copies of one oscillator
+            // summing to one loud oscillator.
+            x.drift += (Noise() - x.drift) * kDriftPole;
+            const float cents = kVoiceCents[v & 7]
+                                + Clamp(x.drift * kDriftGain, -1.f, 1.f) * kDriftCents;
+            x.eng.SetParams(x.glide_freq
+                                * powf(2.f,
+                                       (bend_ + pitch_mod + detune + cents * 0.01f) / 12.f),
                             Clamp(harmonics + harm_mod, 0.f, 1.f),
                             timbre,
                             morph_v);
@@ -293,11 +340,18 @@ class VoiceManager
             x.svf.SetFreq(ExpMap(cut, 30.f, 15000.f));
 
             const float level = x.vel * amp_mod * kVoiceGain;
+            // Equal power, so moving a voice off centre does not change how
+            // loud it is: a chord must not get quieter as Spread comes up.
+            const float pan = Clamp(PanFor(v) * spread_p, -1.f, 1.f);
+            const float gl  = sqrtf(0.5f * (1.f - pan));
+            const float gr  = sqrtf(0.5f * (1.f + pan));
             for(size_t i = 0; i < n; i++)
             {
                 const float e = x.env.Process(x.gate);
                 x.svf.Process(x.eng.Process() * 0.5f); // +/-1 into the filter
-                out[i] += Pick(x.svf, p.filter) * e * level;
+                const float sample = Pick(x.svf, p.filter) * e * level;
+                l[i] += sample * gl;
+                r[i] += sample * gr;
                 if(i == 0)
                     x.env_val = e;
             }
@@ -320,8 +374,38 @@ class VoiceManager
         float         glide_freq = 0.f;
         float         env_val    = 0.f;
         float         detune     = 0.f;
+        /** Slow independent wander, one-pole filtered noise. See kDriftPole. */
+        float         drift      = 0.f;
         uint32_t      age        = 0;
     };
+
+    /** The wander on top of kVoiceCents. One pole at block rate, ~0.5 s to
+     *  settle: slow enough to be heard as drift rather than as vibrato.
+     *  kDriftGain puts the filtered noise back to roughly +/-1 before it is
+     *  scaled to cents. These are scalars, so they can stay in the class. */
+    static constexpr float kDriftPole  = 0.002f;
+    static constexpr float kDriftGain  = 30.f;
+    static constexpr float kDriftCents = 3.f;
+
+    /** Cheap uniform noise in -1..1. Not for audio -- this runs once per voice
+     *  per block, to move the drift along. */
+    float Noise()
+    {
+        rng_ = rng_ * 1664525u + 1013904223u;
+        return static_cast<float>(static_cast<int32_t>(rng_)) * (1.f / 2147483648.f);
+    }
+
+    /** Where voice `v` sits, scaled later by Spread. By VOICE, not by pitch:
+     *  the voice cards are what is spread out, so a chord opens up while the
+     *  stereo image stays unhitched from what you are playing. Mono is centred
+     *  -- it only ever runs voice 0. See kVoicePan for why the positions are
+     *  in the order they are. */
+    float PanFor(int v) const
+    {
+        if(patch_.voice_mode == VoiceMode::kMono)
+            return 0.f;
+        return kVoicePan[v & 7];
+    }
 
     static int Clampi(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
@@ -450,6 +534,7 @@ class VoiceManager
     Voice    voices_[kMaxVoices];
     Patch    patch_;
     Smoother sm_harmonics_, sm_timbre_, sm_morph_, sm_cutoff_, sm_resonance_, sm_spread_;
+    uint32_t rng_ = 0x9E3779B9u;
     fx::Lfo  lfo_;
     float    sample_rate_ = 48000.f;
     int      max_voices_  = kMaxVoices;

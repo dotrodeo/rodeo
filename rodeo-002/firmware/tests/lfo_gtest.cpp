@@ -25,6 +25,17 @@ namespace
 constexpr float  kSr    = 48000.f;
 constexpr size_t kBlock = 48;
 
+/** Render writes a panned pair now. Fold it the way a mono listener would:
+ *  equal power puts a centred voice at s * 0.7071 per channel, so 1/sqrt(2)
+ *  gives back exactly the mono sum these tests were written against. */
+void RenderMono(VoiceManager& vm, float* buf, size_t n)
+{
+    static float l[kBlock], r[kBlock];
+    vm.Render(l, r, n);
+    for(size_t i = 0; i < n; i++)
+        buf[i] = (l[i] + r[i]) * 0.70710678f;
+}
+
 } // namespace
 
 // Renders the same patch twice -- LFO off, then LFO at full depth -- and asks
@@ -73,7 +84,7 @@ double DifferenceFor(LfoDest dest)
         float               mix[kBlock], l[kBlock], r[kBlock];
         for(int i = 0; i < static_cast<int>(kSr * 1.5f / kBlock); i++)
         {
-            vm->Render(mix, kBlock);
+            RenderMono(*vm, mix, kBlock);
             for(size_t j = 0; j < kBlock; j++)
                 l[j] = r[j] = mix[j];
             ApplyLfoToChain(*chain, p, vm->LfoValue());
@@ -166,7 +177,7 @@ TEST(Lfo, EveryModWheelDestinationChangesTheSound)
             float mix[kBlock], l[kBlock], r[kBlock];
             for(int i = 0; i < static_cast<int>(kSr * 1.0f / kBlock); i++)
             {
-                vm->Render(mix, kBlock);
+                RenderMono(*vm, mix, kBlock);
                 for(size_t j = 0; j < kBlock; j++)
                     l[j] = r[j] = mix[j];
                 ApplyLfoToChain(*chain, p, vm->LfoValue());

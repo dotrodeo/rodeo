@@ -105,6 +105,30 @@ it is how the platform's `06_poly_synth` example works.
 **Voice modes:** Poly (8, or 6 on Vosim/Z-osc) · Mono (legato + glide) · Unison (stacked,
 detuned by Spread).
 
+### Analog behaviour (2026-09-29)
+
+Derek: *"I mostly just want to add a little more complexity/depth/richness."* Two things every
+analog polysynth does for free and a digital one has to be told to do. Both cost effectively
+nothing — no CPU worth measuring, no RAM, and **no panel controls at all**.
+
+**Every voice is tuned slightly wrong, and wanders.** A fixed error per voice in cents
+(`kVoiceCents`, irregular on purpose — evenly spaced offsets comb rather than thicken), plus a
+slow wander from one-pole filtered noise, ~0.5 s to settle so it reads as drift and not vibrato.
+Peak deviation is about 6 cents. Voice 0 is exactly in tune, because Mono only ever plays voice 0
+and a lead should not be detuned from the rest of the band.
+
+**Every voice has a place in the stereo field**, scaled by Spread (`kVoicePan`). The pan law is
+equal power, so opening the field does not change how loud the instrument is, and Spread at 0 is
+the old mono sum sample for sample.
+
+The ordering of those positions is the whole point, and the first attempt got it wrong. A linear
+ramp across all eight looks right and is not: Poly fills voices from index 0 upward, so a chord
+smaller than the full polyphony takes the first few positions and sits entirely on one side —
+measured, a C major 7th came out **L=371 against R=101**. The positions alternate outward from
+the centre instead, so every even number of voices is balanced and a single held note lands 20%
+off centre rather than hard left. `VoiceManager.AChordIsNotPushedToOneSide` is the regression
+test.
+
 **There are no mono-only engines any more (2026-09-29).** Modal, String and Karplus were the
 three that cost too much per voice to be polyphonic, and all three are gone. Every engine that
 remains plays in every voice mode; the polyphony cap is budget arithmetic in `CostModel` rather

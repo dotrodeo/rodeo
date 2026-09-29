@@ -138,11 +138,24 @@ envelope — Attack, Decay, Sustain — on the **main** layer, where it had been
 `Patch` keeps a `release` field, moved in step by the panel, so the stored preset format is
 unchanged and a later firmware could separate them again without a version bump.
 
-**Spread moved to the shift layer.** Not a taste judgement: `VoiceManager` passes a detune of
-zero in Poly and Mono and only spreads voices in **Unison**, so the knob is inert in normal
-playing. That is the profile of a shift-layer parameter, not a main one. (If Spread should do
-something polyphonic — per-voice detune or stereo placement — that is a separate change, and it
-would earn its way back.)
+**Spread moved to the shift layer** (2026-09-22). Not a taste judgement: `VoiceManager` passed a
+detune of zero in Poly and Mono and only spread voices in **Unison**, so the knob was inert in
+normal playing. The note ended: *"If Spread should do something polyphonic — per-voice detune or
+stereo placement — that is a separate change, and it would earn its way back."*
+
+**It did, on 2026-09-29: Spread is now stereo width.** It places the voices across the field in
+every polyphonic mode, so a held chord opens out instead of stacking on one point. At 0 the
+output is the mono sum it always was, sample for sample. It still sets the detune in Unison, and
+the two readings are one idea — *how wide* — rather than two jobs on one knob.
+
+Two things were wrong underneath it, and both are why it felt inert:
+
+* **Unison detune was ±6 cents, not the ±1 semitone its comment claimed** — a factor of sixteen.
+  It is ±25 cents now, which is what a unison stack wants.
+* **The voices were phase-locked.** Eight copies of one oscillator, started together at one
+  pitch, are one oscillator eight times as loud. Measured: the stack peaked at 8.00× a single
+  voice. With the per-voice tuning errors below it peaks at **3.95×** — the same notes, actually
+  stacked.
 
 **Master volume moved behind SHIFT**, and the freed slots went to **Sustain** and **Filter env**
 — the latter promoted out of the shift layer onto R2C3, beside Cutoff and Resonance, so the

@@ -273,7 +273,6 @@ volatile uint32_t g_busy_blocks   = 0;
 static uint32_t   g_block_ticks   = 1;
 static float      g_last_load     = 0.f; // for the screen's footer
 
-static float g_mix[kBlockSize];
 
 // The output as a picture; the triggering, normalising and clamping all live
 // in scope.h, where they can be tested.
@@ -285,14 +284,13 @@ void AudioCallback(AudioHandle::InputBuffer  in,
 {
     const uint32_t t0 = System::GetTick();
 
+    // The voices write the pair themselves now: each one is panned, so there
+    // is no mono sum to copy across (see VoiceManager::Render).
     if(g_voices_locked)
         for(size_t i = 0; i < size; i++)
-            g_mix[i] = 0.f;
+            out[0][i] = out[1][i] = 0.f;
     else
-        voices.Render(g_mix, size);
-
-    for(size_t i = 0; i < size; i++)
-        out[0][i] = out[1][i] = g_mix[i];
+        voices.Render(out[0], out[1], size);
 
     // LFO destinations that live in the CHAIN rather than in a voice, applied
     // here once per block. ApplyPatch runs at ~200 Hz, which a 40 Hz LFO would

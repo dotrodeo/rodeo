@@ -56,6 +56,15 @@
 // override (Mono forced on the physical models) is gone: Poly is Poly on every
 // engine. And `StringVoice` alone was 5368 bytes of the per-voice engine union
 // against 148 for everything remaining, so DTCM fell from 85.5% to 53.8%.
+//
+// It also adds the analog behaviour that room paid for, at no panel cost: every
+// voice is tuned slightly wrong and wanders slowly, and every voice has a place
+// in the stereo field. SPREAD NOW MEANS STEREO WIDTH in every polyphonic mode,
+// where it used to do nothing outside Unison -- at 0 the output is the mono sum
+// it always was, sample for sample. Unison's own detune was +/-6 cents under a
+// comment claiming a semitone; it is +/-25 cents now. Presets load unchanged
+// but SOUND different: wider, and actually stacked in Unison rather than eight
+// phase-locked copies of one oscillator.
 
 #pragma once
 
