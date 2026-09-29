@@ -73,6 +73,12 @@
 // already gives. Level 0 is off and is charged nothing. It fits the last two
 // spare bytes of StoredPreset, so no version bump and no preset lost; those
 // bytes have always been zero, which decodes as off, -12, sine.
+//
+// The FACTORY BANK is rebuilt from nothing for all of the above: sixteen sounds
+// covering all seven engines, all three voice modes, all three filter types, all
+// five Space types, and the sub above the note, below it and off. Factory Reset
+// is what loads it -- the stored bank is otherwise kept, since the format did
+// not change.
 
 #pragma once
 

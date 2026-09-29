@@ -105,6 +105,28 @@ it is how the platform's `06_poly_synth` example works.
 **Voice modes:** Poly (8, or 6 on Vosim/Z-osc) · Mono (legato + glide) · Unison (stacked,
 detuned by Spread).
 
+### The factory bank (rebuilt 2026-09-29)
+
+Sixteen sounds, written from nothing for the instrument as it now is. The old bank predated the
+sub-oscillator, Spread-as-width and the per-voice drift, so half of those controls sat at their
+defaults in every slot.
+
+It is built to **cover the instrument** rather than to be sixteen good sounds in one corner of it:
+all seven engines, all three voice modes, all three filter types, all five Space types, and the sub
+above the note, below it and switched off. `FactoryBank.CoversTheInstrument` enforces exactly that,
+so the claim cannot quietly stop being true as engines and effects come and go, and
+`FactoryBank.EveryPresetFitsTheBudget` checks every slot against the same cost model the firmware
+uses — a factory sound the board cannot run is worse than no sound. Polyphony across the bank
+lands between 4 and 8 voices, worst predicted load 68.7%.
+
+Slot 1 is still **Init** and is not really a sound: it is the zero point, it is what every empty
+user slot plays, and it is one detent away whatever you are doing.
+
+**Editing this file does not change an instrument that already has a bank.** The stored bank is
+replaced only when it is invalid or when asked, and the version is unchanged — *Factory Reset* in
+the menu is what loads a new one. That also clears gestures and instrument state, which is what it
+is for.
+
 ### Analog behaviour (2026-09-29)
 
 Derek: *"I mostly just want to add a little more complexity/depth/richness."* Two things every

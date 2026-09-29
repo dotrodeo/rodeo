@@ -11,6 +11,7 @@
 #include <cstring>
 #include <set>
 
+#include "cost_model.h"
 #include "factory_presets.h"
 #include "preset.h"
 
@@ -389,3 +390,104 @@ TEST(Preset, AnImpossibleSubByteFallsBackRatherThanIndexingOut)
     EXPECT_LT(static_cast<int>(q.sub_wave), static_cast<int>(SubWave::kCount));
     EXPECT_LT(static_cast<int>(q.sub_interval), static_cast<int>(SubInterval::kCount));
 }
+
+// ---------------------------------------------------------------- FACTORY BANK
+//
+// The bank was rebuilt from nothing on 2026-09-29 for the instrument as it then
+// was. These tests are what keep the claims in factory_presets.h's header from
+// quietly going stale as engines and effects come and go.
+
+TEST(FactoryBank, CoversTheInstrument)
+{
+    PresetBank b;
+    BuildFactoryBank(b);
+
+    bool engine_seen[static_cast<int>(EngineId::kCount)]   = {};
+    bool mode_seen[static_cast<int>(VoiceMode::kCount)]    = {};
+    bool filter_seen[static_cast<int>(FilterType::kCount)] = {};
+    bool space_seen[fx::Space::kNumTypes]                  = {};
+    bool sub_below = false, sub_above = false, sub_off = false;
+
+    int used = 0;
+    for(int i = 0; i < PresetBank::kNumSlots; i++)
+    {
+        if(!b.slot[i].used)
+            continue;
+        used++;
+        Patch p;
+        PresetToPatch(b.slot[i], p);
+        engine_seen[static_cast<int>(p.engine)]     = true;
+        mode_seen[static_cast<int>(p.voice_mode)]   = true;
+        filter_seen[static_cast<int>(p.filter)]     = true;
+        if(!p.bypass[fx::TextureChain::kSpace] && p.amount[fx::TextureChain::kSpace] > 0.f)
+            space_seen[p.type[fx::TextureChain::kSpace]] = true;
+        const float semis = SubIntervalSemitones(p.sub_interval);
+        if(p.sub_level <= 0.f)
+            sub_off = true;
+        else if(semis < 0.f)
+            sub_below = true;
+        else if(semis > 0.f)
+            sub_above = true;
+    }
+    EXPECT_EQ(used, 16) << "the factory bank is not sixteen sounds";
+
+    for(int e = 0; e < static_cast<int>(EngineId::kCount); e++)
+        EXPECT_TRUE(engine_seen[e]) << "no factory preset uses " << EngineName(static_cast<EngineId>(e));
+    for(int m = 0; m < static_cast<int>(VoiceMode::kCount); m++)
+        EXPECT_TRUE(mode_seen[m]) << "voice mode " << m << " is never used";
+    for(int f = 0; f < static_cast<int>(FilterType::kCount); f++)
+        EXPECT_TRUE(filter_seen[f]) << "filter type " << f << " is never used";
+    for(int t = 0; t < fx::Space::kNumTypes; t++)
+        EXPECT_TRUE(space_seen[t]) << "Space type " << fx::Space::TypeName(t) << " is never used";
+
+    EXPECT_TRUE(sub_below) << "nothing uses the sub below the note";
+    EXPECT_TRUE(sub_above) << "nothing uses the sub above the note";
+    EXPECT_TRUE(sub_off) << "every preset uses the sub: none shows it switched off";
+}
+
+// A factory sound the board cannot run is worse than no sound at all. Checked
+// against the cost model the firmware itself uses to set the polyphony cap.
+TEST(FactoryBank, EveryPresetFitsTheBudget)
+{
+    PresetBank b;
+    BuildFactoryBank(b);
+    for(int i = 0; i < PresetBank::kNumSlots; i++)
+    {
+        if(!b.slot[i].used)
+            continue;
+        Patch p;
+        PresetToPatch(b.slot[i], p);
+        SCOPED_TRACE(testing::Message() << b.slot[i].name);
+
+        float chain = 0.f;
+        for(int s = 0; s < fx::TextureChain::kNumSlots; s++)
+            if(!p.bypass[s])
+                chain += CostModel::EffectCost(s, p.type[s]);
+
+        const bool sub = p.sub_level > 0.f;
+        EXPECT_FALSE(CostModel::Overcommitted(p.engine, chain))
+            << "not even one voice fits";
+        const int v = CostModel::MaxVoices(p.engine, chain, sub);
+        EXPECT_GE(v, 1);
+        EXPECT_LE(CostModel::PredictLoad(p.engine, v, chain, sub), 70.f);
+        // A polyphonic patch that only gets two voices is not really playable.
+        if(p.voice_mode == VoiceMode::kPoly)
+            EXPECT_GE(v, 4) << "a Poly factory preset that only fits " << v << " voices";
+    }
+}
+
+// Twelve characters and a terminator. A name that does not survive the store is
+// a name nobody chose.
+TEST(FactoryBank, EveryNameFits)
+{
+    PresetBank b;
+    BuildFactoryBank(b);
+    for(int i = 0; i < PresetBank::kNumSlots; i++)
+    {
+        if(!b.slot[i].used)
+            continue;
+        EXPECT_LT(strlen(b.slot[i].name), static_cast<size_t>(StoredPreset::kNameLen))
+            << "slot " << i + 1 << " name was truncated: " << b.slot[i].name;
+    }
+}
+
