@@ -183,7 +183,7 @@ bottom; the isolated encoder under the OLED is slot 5. Slots 6–9 unpopulated.
 | 3 | R3C5 TEXTURE   | Type: Crush / Downsample / Tape / Dust / Squash | Bypass slot | — | Per-type variant |
 | 4 | R4C5 SPACE     | Type: Echo / Cloud / Reverse / Wash / Reverb | Bypass slot | **FREEZE** | Grain-pitch quantize |
 | 5 | R4C6 **MAIN**  | Engine select (wrap), or the **value** of whatever NAV has highlighted | **Gesture recorder**: arm · close loop · clear | — *(nothing: a hold is shift)* | **Voice mode** |
-| 6 | R3C6 **NAV**   | **Move the selection** (opens the menu from the normal screen) | **Enter / confirm** | **Back**, one level | — |
+| 6 | R3C6 **NAV**   | **Move the selection** — or, with the menu closed, **select the preset** | **Enter / confirm** (opens the menu) | **Back**, one level | — |
 
 * **Shift = MAIN's switch held.** MAIN sits at the far right, so shift is held with one hand
   while the other sweeps pots. Holding it and turning MAIN itself (a push-turn) selects the
@@ -216,7 +216,7 @@ changes.** That is the whole rule, and it holds in every mode:
 
 | | NAV (E6, above MAIN) | MAIN (E5) |
 |---|---|---|
-| Turn | Move the selection | Change the highlighted **value** |
+| Turn | Move the selection — the **preset** when nothing is open | Change the highlighted **value** |
 | Tap | Enter / confirm | Gesture recorder: arm · close · clear |
 | Hold | **Back**, one level | SHIFT (+ turn = voice mode) |
 
@@ -229,6 +229,27 @@ always one press away**, whatever is on screen, which matters because closing a 
 action on this instrument that has to land on a beat.
 
 **NAV is hub slot 6 (connector J8)**, the first of the four the control map used to leave empty.
+
+#### The preset selector (2026-09-29)
+
+With nothing open, **turning NAV steps through the presets and loads them** — one detent, one new
+sound. It used to open the menu instead, which meant the menu appeared when you had only meant to
+look at something: the one gesture left that still did two things, in the layer you spend all your
+time in. Derek, 2026-09-29: *"only have the menu open on tap, and move the preset selector to the
+new encoder."*
+
+Two details worth knowing:
+
+* **Empty slots are skipped.** Eight of the twenty-four are empty user slots, and stopping on them
+  would be eight detents of silence in the middle of the bank. They are still there in the
+  browser, which is where you go to fill one.
+* **It cycles from what is playing, and the browser follows.** Opening *Load* lands on the current
+  preset rather than on slot 1. If the bank holds only one sound there is nowhere to go, and the
+  turn does nothing rather than reloading it and discarding unsaved edits.
+
+Loading a preset drops pickup, so every pot has to be caught again before it takes hold — the
+same as loading from the browser. **Unsaved changes are lost**, which the `*` in the header warns
+about before you turn.
 
 ### The menu (revised 2026-09-24, rebuilt on NAV 2026-09-29)
 

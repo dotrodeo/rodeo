@@ -174,7 +174,7 @@ struct Rig
         ui.SetBank(&bank);
         gesture.Init(take.data(), GestureRecorder::kMaxFrames);
         ui.SetGesture(&gesture);
-        ui.NotePresetLoaded(bank.slot[1]); // "Chroma Pad"
+        ui.NotePresetLoaded(bank.slot[1], 1); // "Chroma Pad"
         for(int i = 0; i < Ui::kNumPots; i++)
             in.pot[i] = 0.5f;
         Tick();

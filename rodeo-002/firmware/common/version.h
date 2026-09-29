@@ -26,14 +26,23 @@
 // so anything saved over a factory slot is lost. That is exactly the case the
 // rule above exists for -- "a bank that has to be re-saved" -- and the version
 // number is the only warning a player gets.
+//
+// v3.0.0 is the panel again, and nothing stored: a SIXTH encoder (NAV, hub slot
+// 6 / J8) alongside MAIN, and one meaning per gesture. NAV turns to move and
+// taps to enter; MAIN turns to change the highlighted value and taps for the
+// gesture recorder; a hold on NAV goes back one level. The menu no longer times
+// out, and -- the last piece -- turning NAV on the normal screen is now the
+// preset selector rather than a second way to open the menu. Presets and
+// gestures saved by v2 load unchanged; it is your hands that have to relearn
+// something, which is exactly what MAJOR is for.
 
 #pragma once
 
 namespace rodeo002
 {
-constexpr int  kVersionMajor = 2;
+constexpr int  kVersionMajor = 3;
 constexpr int  kVersionMinor = 0;
 constexpr int  kVersionPatch = 0;
-constexpr char kVersionString[] = "2.0.0";
+constexpr char kVersionString[] = "3.0.0";
 
 } // namespace rodeo002

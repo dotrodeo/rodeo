@@ -319,19 +319,85 @@ void OpenMenu(Rig& r, MenuItem item)
 }
 } // namespace
 
-TEST(Ui, NavOpensTheMenu)
+TEST(Ui, OnlyNavsTapOpensTheMenu)
 {
     Rig r;
     EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
     NavTap(r);
     EXPECT_EQ(r.ui.Mode(), UiMode::kMenu);
 
-    // Turning NAV from the normal screen opens it too: reaching for the menu
-    // and reaching into it are the same motion.
+    // Turning NAV used to open it as well. It no longer does: with the menu
+    // closed the turn belongs to the preset selector, and a gesture that means
+    // two things is the thing we set out to remove (Derek, 2026-09-29).
     NavBack(r);
     ASSERT_EQ(r.ui.Mode(), UiMode::kNormal);
     r.Turn(kNav, 1);
-    EXPECT_EQ(r.ui.Mode(), UiMode::kMenu);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal) << "a turn opened the menu";
+}
+
+// The preset selector: NAV's turn on the normal screen.
+TEST(Ui, NavTurnCyclesPresetsAndSkipsEmptySlots)
+{
+    Rig               r;
+    static PresetBank bank;
+    BuildFactoryBank(bank);
+    r.ui.SetBank(&bank);
+    r.ui.NotePresetLoaded(bank.slot[0], 0);
+
+    r.Turn(kNav, 1);
+    PresetRequest req = r.ui.TakePresetRequest();
+    EXPECT_EQ(req.action, PresetAction::kLoad) << "a turn did not load anything";
+    EXPECT_EQ(req.slot, 1);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal) << "cycling left the normal screen";
+
+    // Backwards off slot 0 lands on the LAST used slot, not on an empty one:
+    // eight of the twenty-four are empty user slots, and stopping on them
+    // would be eight detents of silence in the middle of the bank.
+    int last_used = 0;
+    for(int i = 0; i < PresetBank::kNumSlots; i++)
+        if(bank.slot[i].used)
+            last_used = i;
+    ASSERT_LT(last_used, PresetBank::kNumSlots - 1) << "no empty slot to skip";
+
+    r.ui.NotePresetLoaded(bank.slot[0], 0);
+    r.Turn(kNav, -1);
+    req = r.ui.TakePresetRequest();
+    EXPECT_EQ(req.action, PresetAction::kLoad);
+    EXPECT_EQ(req.slot, last_used) << "cycling stopped on an empty slot";
+}
+
+// A bank with one sound in it has nowhere to cycle to. Reloading what is
+// already playing would throw away unsaved edits for a turn that changed
+// nothing, so the turn does nothing at all.
+TEST(Ui, NavTurnDoesNotReloadTheOnlyPreset)
+{
+    Rig               r;
+    static PresetBank bank;
+    BuildFactoryBank(bank);
+    for(int i = 1; i < PresetBank::kNumSlots; i++)
+        bank.slot[i].used = 0;
+    r.ui.SetBank(&bank);
+    r.ui.NotePresetLoaded(bank.slot[0], 0);
+
+    r.Turn(kNav, 1);
+    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
+    r.Turn(kNav, -1);
+    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
+}
+
+// Where you are IS where the browser opens. Cycling to a preset and then
+// opening Load should not dump you back at slot 1.
+TEST(Ui, TheBrowserOpensOnThePresetThatIsPlaying)
+{
+    Rig               r;
+    static PresetBank bank;
+    BuildFactoryBank(bank);
+    r.ui.SetBank(&bank);
+    r.ui.NotePresetLoaded(bank.slot[5], 5);
+
+    OpenMenu(r, MenuItem::kLoad);
+    ASSERT_EQ(r.ui.Mode(), UiMode::kLoad);
+    EXPECT_EQ(r.ui.display().browser_slot, 5);
 }
 
 // Back goes one level rather than all the way out.
@@ -651,7 +717,7 @@ TEST(Ui, ThePresetIsCleanWhenLoadedAndDirtyOnceAKnobTakesHold)
     Patch p;
     PresetToPatch(bank.slot[1], p); // "Chroma Pad"
     r.ui.mutable_patch() = p;
-    r.ui.NotePresetLoaded(bank.slot[1]);
+    r.ui.NotePresetLoaded(bank.slot[1], 1);
     r.ui.DropPickup();
     r.Tick();
     EXPECT_FALSE(r.ui.PresetDirty());
@@ -665,7 +731,7 @@ TEST(Ui, ThePresetIsCleanWhenLoadedAndDirtyOnceAKnobTakesHold)
 
     // Saving makes the patch the preset again.
     PatchToPreset(r.ui.patch(), bank.slot[1].name, bank.slot[1]);
-    r.ui.NotePresetLoaded(bank.slot[1]);
+    r.ui.NotePresetLoaded(bank.slot[1], 1);
     r.Tick();
     EXPECT_FALSE(r.ui.PresetDirty());
     EXPECT_FALSE(r.ui.display().preset_dirty);
@@ -679,7 +745,7 @@ TEST(Ui, AnUntouchedPanelNeverMarksThePresetDirty)
     Patch p;
     PresetToPatch(bank.slot[2], p);
     r.ui.mutable_patch() = p;
-    r.ui.NotePresetLoaded(bank.slot[2]);
+    r.ui.NotePresetLoaded(bank.slot[2], 2);
     r.ui.DropPickup();
     for(int i = 0; i < 200; i++)
     {

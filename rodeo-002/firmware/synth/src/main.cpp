@@ -571,7 +571,7 @@ static void FactoryReset()
 
     const StoredPreset& first = preset_store.GetSettings().slot[0];
     PresetToPatch(first, patch);
-    ui.NotePresetLoaded(first);
+    ui.NotePresetLoaded(first, 0);
     ui.DropPickup();
     g_discrete_changed = true;
     hw.PrintLine("factory reset: done, %s loaded", first.name);
@@ -914,7 +914,7 @@ int main(void)
         {
             bool known = true;
             PresetToPatch(boot, patch, &known);
-            ui.NotePresetLoaded(boot);
+            ui.NotePresetLoaded(boot, static_cast<int>(st.last_preset));
             ui.DropPickup();
             current_engine = patch.engine;
             voices.SetEngine(patch.engine);
@@ -1134,7 +1134,7 @@ int main(void)
                     // The pots are wherever the last patch left them, so every
                     // one of them has to be caught again before it takes hold.
                     ui.DropPickup();
-                    ui.NotePresetLoaded(sp);
+                    ui.NotePresetLoaded(sp, req.slot);
                     RememberPreset(req.slot, in.now_ms);
                     g_discrete_changed = true;
                     // A preset saved with a gesture starts moving when it loads.
@@ -1160,7 +1160,7 @@ int main(void)
                 SaveGestureForSlot(req.slot);
                 // Saving makes the patch the preset: no longer modified, and
                 // this is the slot to come back to next time.
-                ui.NotePresetLoaded(bank.slot[req.slot]);
+                ui.NotePresetLoaded(bank.slot[req.slot], req.slot);
                 RememberPreset(req.slot, in.now_ms);
                 hw.PrintLine("preset %d saved: %s%s",
                              req.slot + 1,

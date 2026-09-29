@@ -336,11 +336,16 @@ class Ui
 
     /** Remember what was loaded, so the screen can name it and say whether the
      *  patch has drifted from it. The app calls this after a load AND after a
-     *  save, since a save makes the patch the preset. */
-    void NotePresetLoaded(const StoredPreset& s)
+     *  save, since a save makes the patch the preset.
+     *
+     *  The slot comes with it because the panel now cycles presets from where
+     *  you are: NAV's turn steps off the CURRENT preset, and opening Load
+     *  lands on it rather than on slot 1. */
+    void NotePresetLoaded(const StoredPreset& s, int slot)
     {
         loaded_       = s;
         have_loaded_  = true;
+        browser_slot_ = Clampi(slot, 0, PresetBank::kNumSlots - 1);
     }
 
     /** True when the live patch no longer matches what was loaded. Compared
@@ -645,9 +650,12 @@ class Ui
         mode_ms_ = in.now_ms;
         switch(mode_)
         {
-            case UiMode::kNormal: // turning NAV is how the menu opens
-                EnterMode(UiMode::kMenu, in);
-                break;
+            // With the menu closed, NAV is the preset selector. It used to
+            // open the menu, which meant the menu opened when you only meant
+            // to look at something -- one gesture with two meanings, which is
+            // what we set out to get rid of. The tap opens the menu; the turn
+            // changes the sound (Derek, 2026-09-29).
+            case UiMode::kNormal: CyclePreset(dir); break;
             case UiMode::kMenu: menu_index_ = Wrap(menu_index_ + dir, MenuCount()); break;
             case UiMode::kLoad:
             case UiMode::kSave:
@@ -660,6 +668,35 @@ class Ui
                 break;
             default: break; // the reset answer is a value, so MAIN turns it
         }
+    }
+
+    /** Step to the next preset that HAS something in it, and load it.
+     *
+     *  Empty slots are skipped rather than stepped onto: eight of the
+     *  twenty-four are empty user slots, and stopping on them would be eight
+     *  detents of silence in the middle of the bank. The browser still shows
+     *  them -- that is where you go to fill one.
+     *
+     *  The load is immediate, so one detent is one new sound. Without a bank
+     *  (the host preview) it just steps, and the app decides what that means. */
+    void CyclePreset(int dir)
+    {
+        int slot = browser_slot_;
+        for(int n = 0; n < PresetBank::kNumSlots - 1; n++)
+        {
+            slot = Wrap(slot + dir, PresetBank::kNumSlots);
+            if(!bank_ || bank_->slot[slot].used)
+            {
+                browser_slot_   = slot;
+                request_.action = PresetAction::kLoad;
+                request_.slot   = slot;
+                request_.name   = nullptr;
+                return;
+            }
+        }
+        // Nowhere else to go: the bank holds at most this one preset. Staying
+        // put beats reloading what is already playing, which would throw away
+        // unsaved edits for a turn that changed nothing.
     }
 
     /** NAV's tap: enter what is highlighted, or confirm it. */
