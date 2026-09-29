@@ -237,7 +237,10 @@ static const uint8_t kPotChannel[Ui::kNumPots]
     = {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 16, 17, 18, 19};
 // Panel encoder -> hub slot. The API is 0-based; panel encoders 1-5 are the
 // hub's slots 1-5 (connectors J3-J7).
-static const uint8_t kEncoderSlot[5] = {0, 1, 2, 3, 4};
+// Six now: the four slots, MAIN, and NAV above it on hub slot 6 / J8. NAV is
+// what took the navigation off MAIN, so every gesture means one thing
+// (control map, 2026-09-29).
+static const uint8_t kEncoderSlot[Ui::kNumEncoders] = {0, 1, 2, 3, 4, 5};
 
 // BRING-UP WORKAROUND, 2026-09-23: the pot on J25 -- Space Mix -- is dead. It
 // reads 0.00 V at every position. (The faulty pot came off R3C4; it was moved
@@ -1050,7 +1053,7 @@ int main(void)
                 // analog run, whose range is shifted.
                 in.pot[i] = pots.Normalize(i, adc.GetVolts(kPotChannel[i]));
         if(g_have_hub)
-            for(int e = 0; e < 5; e++)
+            for(int e = 0; e < Ui::kNumEncoders; e++)
             {
                 in.enc_delta[e] = encoders.GetDelta(0, kEncoderSlot[e]);
                 in.enc_held[e]  = encoders.IsPressed(0, kEncoderSlot[e]);
@@ -1208,7 +1211,7 @@ int main(void)
         // knob therefore costs no more bus than it already did: the frame was
         // going out anyway, and a frame is the same 1024 bytes whatever is
         // drawn in it. Only a scope moving under a still panel is rate-limited.
-        ui.Refresh(voices);
+        ui.Refresh(voices.ActiveVoices(), voices.GetMaxVoices());
         const DisplayState& ds = ui.display();
         const bool          scope_on
             = ds.mode == UiMode::kNormal && ds.readout != Readout::kEnvelope;

@@ -182,7 +182,8 @@ bottom; the isolated encoder under the OLED is slot 5. Slots 6–9 unpopulated.
 | 2 | R2C5 MOVEMENT  | Type: Chorus / Vibrato / Phaser / Flanger / Tremolo | Bypass slot | — | LFO shape |
 | 3 | R3C5 TEXTURE   | Type: Crush / Downsample / Tape / Dust / Squash | Bypass slot | — | Per-type variant |
 | 4 | R4C5 SPACE     | Type: Echo / Cloud / Reverse / Wash / Reverb | Bypass slot | **FREEZE** | Grain-pitch quantize |
-| 5 | R4C6 **MAIN**  | Engine select (wrap) | **Open the menu** *(see below)* | — *(nothing: a hold is shift)* | **Voice mode** |
+| 5 | R4C6 **MAIN**  | Engine select (wrap), or the **value** of whatever NAV has highlighted | **Gesture recorder**: arm · close loop · clear | — *(nothing: a hold is shift)* | **Voice mode** |
+| 6 | R3C6 **NAV**   | **Move the selection** (opens the menu from the normal screen) | **Enter / confirm** | **Back**, one level | — |
 
 * **Shift = MAIN's switch held.** MAIN sits at the far right, so shift is held with one hand
   while the other sweeps pots. Holding it and turning MAIN itself (a push-turn) selects the
@@ -208,7 +209,28 @@ bottom; the isolated encoder under the OLED is slot 5. Slots 6–9 unpopulated.
 * Encoder satellites take **straight** cables (`A / B / S / GND` both ends).
 * Direction follows the hub's `CONFIG.ENC_DIR_INVERT`.
 
-### The menu (revised 2026-09-24)
+### Two brain encoders (2026-09-29)
+
+A sixth encoder turned up, and it is what let every gesture mean one thing. **NAV moves, MAIN
+changes.** That is the whole rule, and it holds in every mode:
+
+| | NAV (E6, above MAIN) | MAIN (E5) |
+|---|---|---|
+| Turn | Move the selection | Change the highlighted **value** |
+| Tap | Enter / confirm | Gesture recorder: arm · close · clear |
+| Hold | **Back**, one level | SHIFT (+ turn = voice mode) |
+
+NAV's hold fires *at* the threshold rather than on release, because unlike MAIN it has no shift
+to be told apart from and waiting would only make going back feel slow.
+
+Three things fall out of it. **Hold-to-edit is gone** — a settings page is turned with MAIN, not
+held. **The Close menu entry is gone** — NAV's hold is the way out. And **the gesture recorder is
+always one press away**, whatever is on screen, which matters because closing a loop is the only
+action on this instrument that has to land on a beat.
+
+**NAV is hub slot 6 (connector J8)**, the first of the four the control map used to leave empty.
+
+### The menu (revised 2026-09-24, rebuilt on NAV 2026-09-29)
 
 **MAIN's hold means SHIFT and nothing else.** It used to *also* resolve on release as a
 long-press that armed the gesture recorder, told apart from a shift only by whether anything
@@ -221,18 +243,25 @@ shifts**.
 
 | In the menu | Does |
 |---|---|
-| Turn MAIN | Move the selection (wraps; it remembers where you left it) |
-| Tap MAIN | Enter the highlighted entry |
-| Touch any other control | Close, doing nothing |
-| The **Close** entry | The same, without touching a control |
+| Turn NAV | Move the selection (wraps; it remembers where you left it) |
+| Tap NAV | Enter the highlighted entry |
+| Hold NAV | Back — to the menu from a list, to playing from the menu |
+| Touch any pot or slot encoder | Close, doing nothing |
+
+**Menus are vertical lists filling the screen**: an inverted title bar with a counter, five rows
+of 6×8, the selection inverted, and a scroll bar when there are more than five. Before this each
+list showed *one* entry at a time, so turning was blind — you could not see what was above or
+below and had to memorise the order. That was most of what "difficult and inconsistent to
+navigate" meant (Derek, 2026-09-29).
 
 **The menu does not time out.** It used to close itself after five seconds, which is precisely
 the moment it should not — it went away while the player was still deciding (2026-09-25).
 Nothing is lost by leaving it open: any pot or slot encoder still closes it, so it can only
 persist while the panel is untouched.
 
-Entries: **Load preset · Save preset · Gesture · Patch settings · Global settings · Factory
-reset · Close**.
+Entries: **Load preset · Save preset · Patch settings · Global settings · Factory reset** —
+five, which is exactly what fits without scrolling. Gesture left the menu for MAIN's tap; Close
+left it for NAV's hold.
 
 **Factory reset is the one entry that asks before it acts.** Its page starts on `NO`; turning
 moves it to `YES`, and only then does a tap do anything. A hold could not have been the

@@ -19,6 +19,7 @@
 
 #include "hid/disp/oled_display.h"
 
+#include "factory_presets.h"
 #include "screen.h"
 
 using namespace rodeo002;
@@ -148,139 +149,114 @@ Scope& TheScope()
     return s;
 }
 
-DisplayState Base()
+/** A real Ui, driven by real encoder input. The screens are then whatever the
+ *  instrument would actually show, including anything the interaction gets
+ *  wrong -- which is the point of looking at them. */
+struct Rig
 {
-    DisplayState d;
-    d.engine         = "variable-saw";
-    d.voice_mode     = "Poly";
-    d.voice_short    = "POL";
-    d.voices_active  = 3;
-    d.voices_max     = 8;
-    d.slot_type[0]   = "Drive";
-    d.slot_type[1]   = "Chorus";
-    d.slot_type[2]   = "Crush";
-    d.slot_type[3]   = "Echo";
-    d.slot_bypass[2] = true;
-    d.preset_name    = "Chroma Pad";
-    d.preset_dirty   = true;
-    return d;
-}
+    Ui                    ui;
+    UiInput               in;
+    PresetBank            bank;
+    GestureRecorder       gesture;
+    std::vector<uint16_t> take;
+
+    Rig() : take(GestureRecorder::kLanes * GestureRecorder::kMaxFrames)
+    {
+        Patch   p;
+        Globals g;
+        p.type[fx::TextureChain::kCharacter] = fx::Character::kDrive;
+        p.type[fx::TextureChain::kMovement]  = fx::Movement::kChorus;
+        p.type[fx::TextureChain::kTexture]   = fx::Texture::kCrush;
+        p.type[fx::TextureChain::kSpace]     = fx::Space::kEcho;
+        p.bypass[fx::TextureChain::kTexture] = true;
+        ui.Init(p, g);
+        BuildFactoryBank(bank);
+        ui.SetBank(&bank);
+        gesture.Init(take.data(), GestureRecorder::kMaxFrames);
+        ui.SetGesture(&gesture);
+        ui.NotePresetLoaded(bank.slot[1]); // "Chroma Pad"
+        for(int i = 0; i < Ui::kNumPots; i++)
+            in.pot[i] = 0.5f;
+        Tick();
+    }
+    void Tick(uint32_t ms = 10)
+    {
+        in.now_ms += ms;
+        ui.Update(in);
+        for(int e = 0; e < Ui::kNumEncoders; e++)
+            in.enc_delta[e] = 0;
+        ui.Refresh(3, 8);
+    }
+    void Turn(int e, int d)
+    {
+        in.enc_delta[e] = static_cast<int16_t>(d);
+        Tick();
+    }
+    void NavTap()
+    {
+        in.enc_held[Ui::kNavEncoder] = true;
+        Tick();
+        in.enc_held[Ui::kNavEncoder] = false;
+        Tick();
+    }
+    void Pot(int i, float to)
+    {
+        const float from = in.pot[i];
+        for(int s = 1; s <= 8; s++)
+        {
+            in.pot[i] = from + (to - from) * (static_cast<float>(s) / 8.f);
+            Tick();
+        }
+    }
+    void Menu(MenuItem item)
+    {
+        if(ui.Mode() != UiMode::kMenu)
+            NavTap();
+        for(int g = 0; ui.display().menu_index != static_cast<int>(item) && g < 10; g++)
+            Turn(Ui::kNavEncoder, 1);
+        NavTap();
+    }
+};
+
 } // namespace
 
 int main(int argc, char** argv)
 {
-    const bool ascii_only = argc > 1 && std::strcmp(argv[1], "ascii") == 0;
+    const bool        ascii_only = argc > 1 && std::strcmp(argv[1], "ascii") == 0;
     std::vector<Shot> shots;
     Scope&            scope = TheScope();
 
-    {
-        DisplayState d = Base();
-        shots.push_back(Capture("01-idle", d, scope));
-    }
-    {
-        DisplayState d = Base();
-        d.readout      = Readout::kBar;
-        d.param        = "Cutoff";
-        d.value        = 0.62f;
-        shots.push_back(Capture("02-value", d, scope));
-    }
-    {
-        DisplayState d   = Base();
-        d.readout        = Readout::kBar;
-        d.param          = "Cutoff";
-        d.value          = 0.62f;
-        d.pickup_hint    = -1;
-        shots.push_back(Capture("03-value-pickup", d, scope));
-    }
-    {
-        DisplayState d = Base();
-        d.readout      = Readout::kChoice;
-        d.param        = "LFO dest";
-        d.choice       = "Space mix";
-        shots.push_back(Capture("04-choice", d, scope));
-    }
-    {
-        DisplayState d  = Base();
-        d.readout       = Readout::kEnvelope;
-        d.param         = "Decay";
-        d.env[0]        = 0.15f;
-        d.env[1]        = 0.55f;
-        d.env[2]        = 0.70f;
-        d.env[3]        = 0.55f;
-        d.env_moving    = 1;
-        shots.push_back(Capture("05-envelope", d, scope));
-    }
-    {
-        DisplayState d = Base();
-        d.shift        = true;
-        shots.push_back(Capture("06-shift", d, scope));
-    }
-    {
-        DisplayState d = Base();
-        d.gesture      = "REC";
-        shots.push_back(Capture("07-recording", d, scope));
-    }
-    {
-        DisplayState d = Base();
-        d.mode         = UiMode::kMenu;
-        d.menu_item    = "Save preset";
-        d.menu_index   = 1;
-        shots.push_back(Capture("08-menu", d, scope));
-    }
-    {
-        DisplayState d  = Base();
-        d.mode          = UiMode::kLoad;
-        d.browser_slot  = 4;
-        d.browser_name  = "Shimmer Bell";
-        d.browser_used  = true;
-        shots.push_back(Capture("09-load", d, scope));
-    }
-    {
-        DisplayState d  = Base();
-        d.mode          = UiMode::kSave;
-        d.browser_slot  = 17;
-        d.browser_name  = "-- empty --";
-        d.browser_used  = false;
-        shots.push_back(Capture("10-save", d, scope));
-    }
-    {
-        DisplayState d = Base();
-        d.mode         = UiMode::kName;
-        d.browser_slot = 17;
-        d.name_text    = "USER 18     ";
-        d.name_cursor  = 5;
-        shots.push_back(Capture("11-name", d, scope));
-    }
-    {
-        DisplayState d = Base();
-        d.mode         = UiMode::kPatchPage;
-        d.page_item    = "Bend range";
-        d.page_value   = "2 semitones";
-        d.page_index   = 2;
-        d.page_count   = 5;
-        shots.push_back(Capture("12-patch-page", d, scope));
-    }
-    {
-        DisplayState d = Base();
-        d.mode         = UiMode::kGlobalPage;
-        d.page_item    = "MIDI out ch";
-        d.page_value   = "1";
-        d.page_index   = 1;
-        d.page_count   = 2;
-        shots.push_back(Capture("13-global-page", d, scope));
-    }
-    {
-        DisplayState d = Base();
-        d.mode         = UiMode::kResetPage;
-        d.reset_armed  = true;
-        shots.push_back(Capture("14-factory-reset", d, scope));
-    }
-    {
-        DisplayState d = Base();
-        d.message      = "harmonic-16";
-        d.notice       = "MONO: THIS ENGINE";
-        shots.push_back(Capture("15-engine-change", d, scope));
-    }
+    auto shot = [&](const char* name, Rig& r) {
+        shots.push_back(Capture(name, r.ui.display(), scope));
+    };
+
+    { Rig r; shot("01-idle", r); }
+    { Rig r; r.Pot(4, 0.2f); r.Pot(4, 0.62f); shot("02-value", r); }
+    { Rig r; r.Pot(4, 0.9f); shot("03-value-pickup", r); }
+    { Rig r; r.in.enc_held[Ui::kMainEncoder] = true; r.Tick(); r.Pot(6, 0.1f);
+      shot("04-choice", r); }
+    { Rig r; r.Pot(8, 0.2f); r.Pot(8, 0.45f); shot("05-envelope", r); }
+    { Rig r; r.in.enc_held[Ui::kMainEncoder] = true; r.Tick(); r.Tick();
+      shot("06-shift", r); }
+    { Rig r;
+      r.in.enc_held[Ui::kMainEncoder] = true; r.Tick();
+      r.in.enc_held[Ui::kMainEncoder] = false; r.Tick();   // arm
+      r.Pot(0, 0.2f); r.Pot(0, 0.8f);                      // recording
+      shot("07-recording", r); }
+    { Rig r; r.NavTap(); r.Turn(Ui::kNavEncoder, 1); shot("08-menu", r); }
+    { Rig r; r.Menu(MenuItem::kLoad); for(int i = 0; i < 4; i++) r.Turn(Ui::kNavEncoder, 1);
+      shot("09-load", r); }
+    { Rig r; r.Menu(MenuItem::kSave); for(int i = 0; i < 17; i++) r.Turn(Ui::kNavEncoder, 1);
+      shot("10-save", r); }
+    { Rig r; r.Menu(MenuItem::kSave); for(int i = 0; i < 17; i++) r.Turn(Ui::kNavEncoder, 1);
+      r.NavTap(); r.Turn(Ui::kNavEncoder, 1); r.Turn(Ui::kNavEncoder, 1);
+      shot("11-name", r); }
+    { Rig r; r.Menu(MenuItem::kPatch); r.Turn(Ui::kNavEncoder, 1); r.Turn(Ui::kNavEncoder, 1);
+      shot("12-patch-page", r); }
+    { Rig r; r.Menu(MenuItem::kGlobal); r.Turn(Ui::kNavEncoder, 1); shot("13-global-page", r); }
+    { Rig r; r.Menu(MenuItem::kFactoryReset); r.Turn(Ui::kMainEncoder, 1);
+      shot("14-factory-reset", r); }
+    { Rig r; r.Turn(Ui::kMainEncoder, 1); shot("15-engine-change", r); }
 
     for(const Shot& s : shots)
     {

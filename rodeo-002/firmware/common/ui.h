@@ -13,6 +13,21 @@
 //     destination.
 //   * Master volume is global, is never stored in a preset, and never waits for
 //     pickup -- it is the physical output level.
+//   * SIX ENCODERS, TWO OF THEM THE BRAIN. A sixth encoder turned up
+//     (2026-09-29) and it is what lets every gesture mean one thing:
+//
+//       NAV (E6, above MAIN)   turn = move the selection
+//                              tap  = enter / confirm
+//                              hold = back, one level
+//       MAIN (E5)              turn = change the highlighted VALUE
+//                              tap  = the gesture recorder: arm / close / clear
+//                              hold = SHIFT (+ turn = voice mode)
+//
+//     One vocabulary, the same in every mode. Nothing is modal except which
+//     list you are looking at, and the screen always shows that. Before this
+//     there were five jobs on MAIN and its gestures had to mean different
+//     things per screen, which is what "difficult and inconsistent to
+//     navigate" was.
 //   * MAIN'S HOLD MEANS SHIFT AND NOTHING ELSE. It used to also resolve, on
 //     release, as a long-press that armed the gesture recorder -- told apart
 //     from a shift only by whether anything else had been touched, which is an
@@ -32,12 +47,10 @@
 
 #include <cstdint>
 
-#include "cost_model.h"
 #include "patch.h"
 #include "gesture.h"
 #include "preset.h"
 #include "texture_chain.h"
-#include "voice.h"
 
 namespace rodeo002
 {
@@ -95,8 +108,10 @@ inline bool ParamIsGlobal(ParamId p) { return p == ParamId::kVolume; }
 struct UiInput
 {
     float    pot[16]      = {};      // 0..1, panel order
-    int16_t  enc_delta[5] = {};      // detents since the last update
-    bool     enc_held[5]  = {};      // live switch level
+    /** Six: four slot encoders, MAIN, and NAV above it. */
+    static constexpr int kEncoders = 6;
+    int16_t  enc_delta[kEncoders] = {}; // detents since the last update
+    bool     enc_held[kEncoders]  = {}; // live switch level
     uint32_t now_ms       = 0;
 };
 
@@ -119,11 +134,9 @@ enum class MenuItem
 {
     kLoad = 0,
     kSave,
-    kGesture,
     kPatch,
     kGlobal,
     kFactoryReset,
-    kClose,
     kCount
 };
 
@@ -133,11 +146,9 @@ inline const char* MenuItemName(MenuItem m)
     {
         case MenuItem::kLoad: return "Load preset";
         case MenuItem::kSave: return "Save preset";
-        case MenuItem::kGesture: return "Gesture";
         case MenuItem::kPatch: return "Patch settings";
         case MenuItem::kGlobal: return "Global settings";
-        case MenuItem::kFactoryReset: return "Factory reset";
-        default: return "Close";
+        default: return "Factory reset";
     }
 }
 
@@ -234,6 +245,18 @@ struct DisplayState
     const char* page_value   = "";
     int         page_index   = 0;
     int         page_count   = 0;
+    /** THE LIST ON SCREEN, already windowed. The Ui works out which rows are
+     *  visible and what they say, so the drawing does not have to know whether
+     *  it is showing a menu, a bank of presets or a page of settings -- it
+     *  draws rows. */
+    static constexpr int kListRows = 5;
+    const char* list_left[kListRows]  = {};
+    const char* list_right[kListRows] = {};
+    int         list_rows   = 0; // how many of them are filled
+    int         list_first  = 0; // index of the first visible row
+    int         list_index  = 0; // the selected index, absolute
+    int         list_total  = 0;
+    const char* list_title  = "";
 };
 
 /** What the panel is asking the app to do with the preset store. */
@@ -266,7 +289,9 @@ class Ui
 {
   public:
     static constexpr int      kNumPots      = 16;
-    static constexpr int      kMainEncoder  = 4; // the isolated one, hub slot 5
+    static constexpr int      kNumEncoders  = UiInput::kEncoders;
+    static constexpr int      kMainEncoder  = 4; // hub slot 5, J7
+    static constexpr int      kNavEncoder   = 5; // hub slot 6, J8 -- above MAIN
     static constexpr uint32_t kLongPressMs  = 600;
 
     static constexpr uint32_t kPopupMs      = 1200;
@@ -404,8 +429,29 @@ class Ui
                 caught_[i] = false;
         }
 
+        // --- NAV: move, enter, back -------------------------------------
+        // Its hold fires AT the threshold rather than on release. It can:
+        // unlike MAIN, NAV has no shift to be told apart from, so waiting
+        // would only make going back feel slow.
+        if(in.enc_delta[kNavEncoder] != 0)
+            MoveSelection(in.enc_delta[kNavEncoder] > 0 ? 1 : -1, in);
+        if(in.enc_held[kNavEncoder] && !enc_held_[kNavEncoder])
+        {
+            enc_press_ms_[kNavEncoder] = in.now_ms;
+            enc_long_[kNavEncoder]     = false;
+        }
+        if(in.enc_held[kNavEncoder] && !enc_long_[kNavEncoder]
+           && in.now_ms - enc_press_ms_[kNavEncoder] >= kLongPressMs)
+        {
+            enc_long_[kNavEncoder] = true;
+            Back(in);
+        }
+        if(!in.enc_held[kNavEncoder] && enc_held_[kNavEncoder] && !enc_long_[kNavEncoder])
+            Enter(in);
+        enc_held_[kNavEncoder] = in.enc_held[kNavEncoder];
+
         // --- encoders ---------------------------------------------------
-        for(int e = 0; e < 5; e++)
+        for(int e = 0; e < kNavEncoder; e++)
         {
             const int16_t d = in.enc_delta[e];
             if(d != 0)
@@ -529,12 +575,13 @@ class Ui
         display_.name_cursor  = name_cursor_;
         if(OnPage())
         {
-            FormatPageValue(page_index_);
+            FormatPageValue(page_index_, page_value_);
             display_.page_item  = PageItemName(page_index_);
             display_.page_value = page_value_;
             display_.page_index = page_index_;
             display_.page_count = PageCount();
         }
+        BuildList();
         display_.browser_name = bank_ ? bank_->slot[browser_slot_].name : "";
         display_.browser_used = bank_ ? bank_->slot[browser_slot_].used != 0 : false;
         display_.preset_name  = PresetName();
@@ -542,14 +589,18 @@ class Ui
         return discrete_changed;
     }
 
-    /** Fills in the parts of the display only the app knows. */
-    void Refresh(const VoiceManager& voices)
+    /** Fills in the parts of the display only the app knows.
+     *
+     *  Takes the two numbers rather than the VoiceManager, so the panel does
+     *  not depend on the DSP at all: it is what lets the screens be rendered on
+     *  a host without linking a synthesiser (see tools/screens). */
+    void Refresh(int voices_active, int voices_max)
     {
         display_.engine        = EngineName(patch_.engine);
         display_.voice_mode    = VoiceModeName(patch_.voice_mode);
         display_.voice_short   = VoiceModeShort(patch_.voice_mode);
-        display_.voices_active = voices.ActiveVoices();
-        display_.voices_max    = voices.GetMaxVoices();
+        display_.voices_active = voices_active;
+        display_.voices_max    = voices_max;
         for(int s = 0; s < fx::TextureChain::kNumSlots; s++)
         {
             display_.slot_type[s]   = fx::TextureChain::TypeName(s, patch_.type[s]);
@@ -572,21 +623,48 @@ class Ui
             watch_lo_[i] = watch_hi_[i] = in.pot[i];
     }
 
-    /** A tap on MAIN. What it does is whatever the screen is showing. */
+    /** MAIN's tap: the gesture recorder, always, in every mode. Arm, close the
+     *  loop, clear -- one press for the whole cycle, reachable without opening
+     *  anything, which matters because closing a loop is the only action on
+     *  this instrument that has to land on a beat. The end is trimmed back to
+     *  the moment the press went DOWN, since it resolves on release. */
     void Tap(const UiInput& in, uint32_t held)
     {
-        // While a take is recording, a tap closes the loop and nothing else --
-        // that is the one timing-critical action the instrument has. The end is
-        // trimmed back to the moment the press went DOWN, so a loop does not
-        // end late by however long the finger stayed there.
-        if(mode_ == UiMode::kNormal && gesture_
-           && gesture_->state() == GestureRecorder::State::kRecording)
-        {
-            gesture_->Close(held * GestureRecorder::kFrameRate / 1000u);
-            Post("loop closed", in.now_ms);
+        if(!gesture_)
             return;
-        }
+        if(gesture_->state() == GestureRecorder::State::kRecording)
+            gesture_->Close(held * GestureRecorder::kFrameRate / 1000u);
+        else
+            gesture_->Advance();
+        Post(GestureLabel()[0] ? GestureLabel() : "loop cleared", in.now_ms);
+    }
 
+    /** NAV's turn: move within whatever list is on screen. */
+    void MoveSelection(int dir, const UiInput& in)
+    {
+        mode_ms_ = in.now_ms;
+        switch(mode_)
+        {
+            case UiMode::kNormal: // turning NAV is how the menu opens
+                EnterMode(UiMode::kMenu, in);
+                break;
+            case UiMode::kMenu: menu_index_ = Wrap(menu_index_ + dir, MenuCount()); break;
+            case UiMode::kLoad:
+            case UiMode::kSave:
+                browser_slot_ = Wrap(browser_slot_ + dir, PresetBank::kNumSlots);
+                break;
+            case UiMode::kPatchPage:
+            case UiMode::kGlobalPage: page_index_ = Wrap(page_index_ + dir, PageCount()); break;
+            case UiMode::kName:
+                name_cursor_ = Clampi(name_cursor_ + dir, 0, kNameLast);
+                break;
+            default: break; // the reset answer is a value, so MAIN turns it
+        }
+    }
+
+    /** NAV's tap: enter what is highlighted, or confirm it. */
+    void Enter(const UiInput& in)
+    {
         switch(mode_)
         {
             case UiMode::kNormal: EnterMode(UiMode::kMenu, in); break;
@@ -604,18 +682,9 @@ class Ui
                         page_index_ = 0;
                         EnterMode(UiMode::kGlobalPage, in);
                         break;
-                    case MenuItem::kFactoryReset:
+                    default:
                         reset_armed_ = false; // always starts on NO
                         EnterMode(UiMode::kResetPage, in);
-                        break;
-                    case MenuItem::kClose: EnterMode(UiMode::kNormal, in); break;
-                    default:
-                        if(gesture_)
-                        {
-                            gesture_->Advance();
-                            Post(GestureLabel(), in.now_ms);
-                        }
-                        EnterMode(UiMode::kNormal, in);
                         break;
                 }
                 break;
@@ -642,9 +711,6 @@ class Ui
                 EnterMode(UiMode::kNormal, in);
                 break;
 
-            // The one page where a tap DOES something, because the change has
-            // deliberately not happened yet. It fires only if the answer has
-            // been turned to YES; a tap on NO is the way out.
             case UiMode::kResetPage:
                 if(reset_armed_)
                     factory_reset_ = true;
@@ -652,11 +718,27 @@ class Ui
                 EnterMode(UiMode::kNormal, in);
                 break;
 
-            // Every other page has nothing to confirm -- the change has already
-            // happened -- so a tap is simply the way out.
-            default: EnterMode(UiMode::kNormal, in); break;
+            // A settings page has nothing to confirm: every change has already
+            // happened. Entering it again is harmless.
+            default: break;
         }
     }
+
+    /** NAV's hold: back, one level. */
+    void Back(const UiInput& in)
+    {
+        switch(mode_)
+        {
+            case UiMode::kNormal: break;
+            case UiMode::kMenu: EnterMode(UiMode::kNormal, in); break;
+            case UiMode::kName: EnterMode(UiMode::kSave, in); break; // back to the slot
+            default: EnterMode(UiMode::kMenu, in); break;
+        }
+    }
+
+    static int Wrap(int v, int n) { return ((v % n) + n) % n; }
+    static int Clampi(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
+    static int MenuCount() { return static_cast<int>(MenuItem::kCount); }
 
     static constexpr int kNameLast = StoredPreset::kNameLen - 2;
 
@@ -699,6 +781,76 @@ class Ui
 
     static char Upper(char c) { return (c >= 'a' && c <= 'z') ? c - 32 : c; }
 
+    /** Work out which rows are on screen and what each of them says. */
+    void BuildList()
+    {
+        display_.list_rows  = 0;
+        display_.list_total = 0;
+        switch(mode_)
+        {
+            case UiMode::kMenu:
+                display_.list_title = "MENU";
+                display_.list_index = menu_index_;
+                display_.list_total = MenuCount();
+                break;
+            case UiMode::kLoad:
+            case UiMode::kSave:
+                display_.list_title = mode_ == UiMode::kLoad ? "LOAD PRESET" : "SAVE TO";
+                display_.list_index = browser_slot_;
+                display_.list_total = PresetBank::kNumSlots;
+                break;
+            case UiMode::kPatchPage:
+            case UiMode::kGlobalPage:
+                display_.list_title = mode_ == UiMode::kPatchPage ? "PATCH" : "GLOBAL";
+                display_.list_index = page_index_;
+                display_.list_total = PageCount();
+                break;
+            case UiMode::kName: display_.list_title = "NAME"; return;
+            case UiMode::kResetPage: display_.list_title = "FACTORY RESET"; return;
+            default: return;
+        }
+
+        const int rows  = DisplayState::kListRows;
+        int       first = display_.list_index - rows / 2;
+        if(first > display_.list_total - rows)
+            first = display_.list_total - rows;
+        if(first < 0)
+            first = 0;
+        display_.list_first = first;
+        for(int r = 0; r < rows && first + r < display_.list_total; r++)
+        {
+            const int i = first + r;
+            switch(mode_)
+            {
+                case UiMode::kMenu:
+                    display_.list_left[r]  = MenuItemName(static_cast<MenuItem>(i));
+                    display_.list_right[r] = nullptr;
+                    break;
+                case UiMode::kLoad:
+                case UiMode::kSave:
+                {
+                    char* d = slot_label_[r];
+                    Int(d, i + 1);
+                    Copy(d, " ");
+                    Copy(d,
+                         bank_ && bank_->slot[i].used ? bank_->slot[i].name : "-- empty --");
+                    display_.list_left[r]  = slot_label_[r];
+                    display_.list_right[r] = nullptr;
+                    break;
+                }
+                default:
+                {
+                    display_.list_left[r] = PageItemName(i);
+                    char* d               = row_value_[r];
+                    FormatPageValue(i, d);
+                    display_.list_right[r] = row_value_[r];
+                    break;
+                }
+            }
+            display_.list_rows = r + 1;
+        }
+    }
+
     bool OnPage() const
     {
         return mode_ == UiMode::kPatchPage || mode_ == UiMode::kGlobalPage;
@@ -728,9 +880,8 @@ class Ui
     /** Fills page_value_. Formatted by hand: these are the only numbers the
      *  panel ever spells out, and pulling in a formatter for four of them is
      *  not a trade worth making on a 128 KB budget. */
-    void FormatPageValue(int i)
+    void FormatPageValue(int i, char* d)
     {
-        char* d = page_value_;
         if(mode_ == UiMode::kGlobalPage)
         {
             const bool in_ch = static_cast<GlobalSetting>(i) == GlobalSetting::kMidiChannel;
@@ -920,24 +1071,19 @@ class Ui
     {
         if(e == kMainEncoder)
         {
-            if(mode_ == UiMode::kMenu && !shift)
+            // MAIN turns the VALUE of whatever NAV has highlighted. In a list
+            // that is the highlighted line; on the normal screen it is the
+            // engine. NAV never changes a value and MAIN never moves a
+            // selection, which is the whole of the rule.
+            switch(mode_)
             {
-                const int n  = static_cast<int>(MenuItem::kCount);
-                menu_index_  = (menu_index_ + (delta > 0 ? 1 : -1) + n) % n;
-                mode_ms_     = now;
-                return false;
-            }
-            if(mode_ == UiMode::kName)
-            {
-                // Turn spells, hold and turn moves along the name: the same
-                // two axes a settings page uses.
-                if(shift)
-                {
-                    touched_while_held_ = true;
-                    const int c  = name_cursor_ + (delta > 0 ? 1 : -1);
-                    name_cursor_ = c < 0 ? 0 : (c > kNameLast ? kNameLast : c);
-                }
-                else
+                case UiMode::kPatchPage:
+                case UiMode::kGlobalPage:
+                    AdjustPage(page_index_, delta > 0 ? 1 : -1);
+                    mode_ms_ = now;
+                    return true;
+
+                case UiMode::kName:
                 {
                     const char* a = NameAlphabet();
                     int         n = 0;
@@ -947,48 +1093,24 @@ class Ui
                     for(int i = 0; i < n; i++)
                         if(a[i] == name_buf_[name_cursor_])
                             at = i;
-                    at                       = ((at + (delta > 0 ? 1 : -1)) % n + n) % n;
-                    name_buf_[name_cursor_]  = a[at];
+                    name_buf_[name_cursor_] = a[Wrap(at + (delta > 0 ? 1 : -1), n)];
+                    mode_ms_                = now;
+                    return false;
                 }
-                mode_ms_ = now;
-                return false;
+
+                case UiMode::kResetPage:
+                    reset_armed_ = !reset_armed_;
+                    mode_ms_     = now;
+                    return false;
+
+                // Nothing on these lines is a value: NAV moves them.
+                case UiMode::kMenu:
+                case UiMode::kLoad:
+                case UiMode::kSave: mode_ms_ = now; return false;
+
+                default: break;
             }
-            if(mode_ == UiMode::kResetPage)
-            {
-                // Turning is the whole confirmation: the answer has to be moved
-                // off NO before a tap means anything, which is a deliberate act
-                // rather than a tap that landed on the wrong entry. It cannot
-                // be a hold -- a hold is shift.
-                reset_armed_ = !reset_armed_;
-                mode_ms_     = now;
-                return false;
-            }
-            if(OnPage())
-            {
-                // Turn to choose the line, HOLD and turn to change it -- the
-                // same push-turn that picks the voice mode in normal use, so
-                // the page needs no edit mode of its own.
-                if(shift)
-                {
-                    touched_while_held_ = true;
-                    AdjustPage(page_index_, delta > 0 ? 1 : -1);
-                }
-                else
-                {
-                    const int n = PageCount();
-                    page_index_ = (page_index_ + (delta > 0 ? 1 : -1) + n) % n;
-                }
-                mode_ms_ = now;
-                return true;
-            }
-            if(BrowserOpen() && !shift)
-            {
-                // Browsing slots, not choosing an engine.
-                const int n   = PresetBank::kNumSlots;
-                browser_slot_ = (browser_slot_ + (delta > 0 ? 1 : -1) + n) % n;
-                mode_ms_      = now;
-                return false;
-            }
+
             if(shift)
             {
                 // Push-turn: voice mode. (Holding MAIN and turning MAIN.)
@@ -1319,6 +1441,8 @@ class Ui
     VoiceMode poly_before_ = VoiceMode::kPoly;
     bool      had_poly_before_ = false;
     char     page_value_[20] = {};
+    char     row_value_[DisplayState::kListRows][20] = {};
+    char     slot_label_[DisplayState::kListRows][24] = {};
     char     name_buf_[StoredPreset::kNameLen] = {};
     int      name_cursor_ = 0;
     int      browser_slot_ = 0;

@@ -11,6 +11,7 @@
 
 #include "factory_presets.h"
 #include "ui.h"
+#include "voice.h"
 
 using namespace rodeo002;
 
@@ -37,8 +38,8 @@ struct Rig
     {
         in.now_ms += ms;
         ui.Update(in);
-        for(int e = 0; e < 5; e++)
-            in.enc_delta[e] = 0;
+        for(int e = 0; e < Ui::kNumEncoders; e++)
+            in.enc_delta[e] = 0; // ALL of them: a delta left set keeps applying
     }
     void MovePot(int pot, float to, int steps = 8)
     {
@@ -55,9 +56,11 @@ struct Rig
         Tick();
     }
     void HoldMain(bool held) { in.enc_held[Ui::kMainEncoder] = held; }
+    void HoldNav(bool held) { in.enc_held[Ui::kNavEncoder] = held; }
 };
 
 constexpr int kMain = Ui::kMainEncoder;
+constexpr int kNav  = Ui::kNavEncoder;
 } // namespace
 
 TEST(Ui, PotTakesControlOnlyAfterItCatchesTheStoredValue)
@@ -250,7 +253,7 @@ TEST(Ui, DisplayReportsEngineVoicesAndSlots)
 {
     Rig r;
     r.voices.SetMaxVoices(6);
-    r.ui.Refresh(r.voices);
+    r.ui.Refresh(r.voices.ActiveVoices(), r.voices.GetMaxVoices());
     const DisplayState& d = r.ui.display();
     EXPECT_STREQ(d.engine, EngineName(r.ui.patch().engine));
     EXPECT_EQ(d.voices_max, 6);
@@ -269,6 +272,7 @@ TEST(Ui, DisplayReportsEngineVoicesAndSlots)
 
 namespace
 {
+// MAIN: the gesture recorder, in every mode.
 void Tap(Rig& r)
 {
     r.HoldMain(true);
@@ -284,25 +288,62 @@ void LongPress(Rig& r)
     r.HoldMain(false);
     r.Tick();
 }
-// Open the menu and enter an entry. The menu remembers where it was left, so
-// this turns to the entry rather than assuming it opens at the first one.
+// NAV: move, enter, back. Its hold fires at the threshold rather than on
+// release, since NAV has no shift to be told apart from.
+void NavTap(Rig& r)
+{
+    r.HoldNav(true);
+    r.Tick();
+    r.HoldNav(false);
+    r.Tick();
+}
+void NavBack(Rig& r)
+{
+    r.HoldNav(true);
+    r.Tick();
+    r.Tick(Ui::kLongPressMs + 50);
+    r.HoldNav(false);
+    r.Tick();
+}
+// Open the menu and enter an entry. It remembers where it was left, so this
+// turns to the entry rather than assuming where it opens.
 void OpenMenu(Rig& r, MenuItem item)
 {
-    Tap(r);
-    for(int guard = 0; r.ui.display().menu_index != static_cast<int>(item) && guard < 8; guard++)
-        r.Turn(kMain, 1);
-    Tap(r);
+    if(r.ui.Mode() != UiMode::kMenu)
+        NavTap(r);
+    for(int guard = 0;
+        r.ui.display().menu_index != static_cast<int>(item) && guard < 10;
+        guard++)
+        r.Turn(kNav, 1);
+    NavTap(r);
 }
 } // namespace
 
-TEST(Ui, TappingMainOpensTheMenu)
+TEST(Ui, NavOpensTheMenu)
 {
     Rig r;
     EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
-    Tap(r);
+    NavTap(r);
     EXPECT_EQ(r.ui.Mode(), UiMode::kMenu);
-    EXPECT_EQ(r.ui.display().mode, UiMode::kMenu);
-    EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
+
+    // Turning NAV from the normal screen opens it too: reaching for the menu
+    // and reaching into it are the same motion.
+    NavBack(r);
+    ASSERT_EQ(r.ui.Mode(), UiMode::kNormal);
+    r.Turn(kNav, 1);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kMenu);
+}
+
+// Back goes one level rather than all the way out.
+TEST(Ui, NavHoldGoesBackOneLevel)
+{
+    Rig r;
+    OpenMenu(r, MenuItem::kPatch);
+    ASSERT_EQ(r.ui.Mode(), UiMode::kPatchPage);
+    NavBack(r);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kMenu) << "back should land on the menu";
+    NavBack(r);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
 }
 
 TEST(Ui, HoldingMainDoesNothingButShift)
@@ -314,29 +355,30 @@ TEST(Ui, HoldingMainDoesNothingButShift)
     EXPECT_STREQ(r.ui.display().pending, "") << "a hold still announces an action";
 }
 
-TEST(Ui, TurningInTheMenuMovesTheSelectionNotTheEngine)
+TEST(Ui, NavMovesTheSelectionAndMainDoesNot)
 {
     Rig            r;
     const EngineId before = r.ui.patch().engine;
-    Tap(r);
-    r.Turn(kMain, 1);
+    NavTap(r);
+    r.Turn(kNav, 1);
     EXPECT_EQ(r.ui.display().menu_index, 1);
     EXPECT_EQ(r.ui.patch().engine, before) << "browsing the menu changed the engine";
-    // ...and it wraps.
-    for(int i = 0; i < static_cast<int>(MenuItem::kCount); i++)
-        r.Turn(kMain, 1);
-    EXPECT_EQ(r.ui.display().menu_index, 1);
+
+    // MAIN never moves a selection, and never reaches the engine from in here.
+    r.Turn(kMain, 1);
+    EXPECT_EQ(r.ui.display().menu_index, 1) << "MAIN moved the selection";
+    EXPECT_EQ(r.ui.patch().engine, before) << "MAIN changed the engine from the menu";
 }
 
-TEST(Ui, LoadAndSaveAreSeparateEntriesAndBothActOnATap)
+TEST(Ui, LoadAndSaveAreSeparateEntries)
 {
     {
         Rig r;
         OpenMenu(r, MenuItem::kLoad);
         ASSERT_EQ(r.ui.Mode(), UiMode::kLoad);
-        r.Turn(kMain, 1);
-        r.Turn(kMain, 1);
-        Tap(r);
+        r.Turn(kNav, 1);
+        r.Turn(kNav, 1);
+        NavTap(r);
         const PresetRequest req = r.ui.TakePresetRequest();
         EXPECT_EQ(req.action, PresetAction::kLoad);
         EXPECT_EQ(req.slot, 2);
@@ -346,22 +388,21 @@ TEST(Ui, LoadAndSaveAreSeparateEntriesAndBothActOnATap)
         Rig r;
         OpenMenu(r, MenuItem::kSave);
         ASSERT_EQ(r.ui.Mode(), UiMode::kSave);
-        r.Turn(kMain, 1);
-        Tap(r);
-        // Saving names the slot first; the tap after that is the save.
-        ASSERT_EQ(r.ui.Mode(), UiMode::kName);
-        Tap(r);
+        r.Turn(kNav, 1);
+        NavTap(r);
+        ASSERT_EQ(r.ui.Mode(), UiMode::kName) << "saving names the slot first";
+        NavTap(r);
         const PresetRequest req = r.ui.TakePresetRequest();
-        EXPECT_EQ(req.action, PresetAction::kSave) << "saving now needs no hold at all";
+        EXPECT_EQ(req.action, PresetAction::kSave);
         EXPECT_EQ(req.slot, 1);
     }
 }
 
-TEST(Ui, TouchingAnythingElseClosesTheModalLayerWithoutActing)
+TEST(Ui, TouchingAPotOrSlotEncoderClosesTheModalLayer)
 {
     {
         Rig r;
-        Tap(r);
+        NavTap(r);
         ASSERT_EQ(r.ui.Mode(), UiMode::kMenu);
         r.MovePot(0, 0.9f);
         EXPECT_EQ(r.ui.Mode(), UiMode::kNormal) << "a pot did not close the menu";
@@ -380,22 +421,17 @@ TEST(Ui, TouchingAnythingElseClosesTheModalLayerWithoutActing)
 // pick (2026-09-25). Nothing is lost by leaving it open -- touching any other
 // control still closes it -- and there is a Close entry for getting out without
 // touching one.
-TEST(Ui, TheMenuWaitsAsLongAsItTakes)
+TEST(Ui, TheMenuWaitsAsLongAsItTakesAndNavHoldLeaves)
 {
     Rig r;
-    Tap(r);
+    NavTap(r);
     ASSERT_EQ(r.ui.Mode(), UiMode::kMenu);
     for(int i = 0; i < 40; i++) // twenty seconds of thinking
         r.Tick(500);
     EXPECT_EQ(r.ui.Mode(), UiMode::kMenu) << "the menu closed while it was being read";
 
-    // ...and Close is a way out that touches nothing. The menu is already
-    // open, so this turns to the entry rather than opening it again.
-    for(int guard = 0;
-        r.ui.display().menu_index != static_cast<int>(MenuItem::kClose) && guard < 8;
-        guard++)
-        r.Turn(kMain, 1);
-    Tap(r);
+    // NAV's hold is the way out; the Close entry it used to need is gone.
+    NavBack(r);
     EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
     EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone);
 }
@@ -413,7 +449,12 @@ TEST(Ui, UsingMainAsShiftDoesNotOpenTheMenu)
 
 TEST(Ui, PotDitherDuringAPressDoesNotSwallowTheTap)
 {
-    Rig r;
+    Rig                   r;
+    GestureRecorder       g;
+    std::vector<uint16_t> buf(GestureRecorder::kLanes * GestureRecorder::kMaxFrames);
+    g.Init(buf.data(), GestureRecorder::kMaxFrames);
+    r.ui.SetGesture(&g);
+
     r.HoldMain(true);
     r.Tick();
     for(int i = 0; i < 20; i++)
@@ -423,7 +464,8 @@ TEST(Ui, PotDitherDuringAPressDoesNotSwallowTheTap)
     }
     r.HoldMain(false);
     r.Tick();
-    EXPECT_EQ(r.ui.Mode(), UiMode::kMenu) << "dither made the tap look like a shift";
+    EXPECT_EQ(g.state(), GestureRecorder::State::kArmed)
+        << "dither made the tap look like a shift";
 }
 
 TEST(Ui, ADeliberateTurnDuringAHoldIsStillAShift)
@@ -456,54 +498,47 @@ TEST(Ui, TheBrowserShowsTheNameOfTheHighlightedSlot)
 
 // ------------------------------------------------------ GESTURE RECORDER
 
-TEST(Ui, TheGestureEntryCyclesArmRecordAndClear)
+TEST(Ui, MainsTapCyclesTheGestureRecorder)
 {
-    Rig             r;
-    GestureRecorder g;
+    Rig                   r;
+    GestureRecorder       g;
     std::vector<uint16_t> buf(GestureRecorder::kLanes * GestureRecorder::kMaxFrames);
     g.Init(buf.data(), GestureRecorder::kMaxFrames);
     r.ui.SetGesture(&g);
 
-    OpenMenu(r, MenuItem::kGesture);
+    Tap(r); // arm -- nothing opened, no mode entered
     EXPECT_EQ(g.state(), GestureRecorder::State::kArmed);
-    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal) << "the menu should close behind it";
+    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
 
-    // Recording starts on the first pot movement, not on the press.
     r.Tick(200);
-    EXPECT_EQ(g.state(), GestureRecorder::State::kArmed);
-    r.MovePot(0, 0.2f); // catches, then moves: a real parameter change
+    EXPECT_EQ(g.state(), GestureRecorder::State::kArmed) << "it should wait for a pot";
+    r.MovePot(0, 0.2f);
     r.MovePot(0, 0.8f);
     EXPECT_EQ(g.state(), GestureRecorder::State::kRecording);
 
-    // While recording, a tap closes the loop rather than opening the menu --
-    // the one timing-critical action the instrument has.
-    Tap(r);
+    Tap(r); // close the loop
     EXPECT_EQ(g.state(), GestureRecorder::State::kPlaying);
-    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal) << "closing the loop opened the menu";
-
-    // Clearing goes back through the menu, since nothing is time-critical now.
-    OpenMenu(r, MenuItem::kGesture);
+    Tap(r); // clear
     EXPECT_EQ(g.state(), GestureRecorder::State::kIdle);
 }
 
 TEST(Ui, APlayingLoopDrivesTheParameterItRecorded)
 {
-    Rig             r;
-    GestureRecorder g;
+    Rig                   r;
+    GestureRecorder       g;
     std::vector<uint16_t> buf(GestureRecorder::kLanes * GestureRecorder::kMaxFrames);
     g.Init(buf.data(), GestureRecorder::kMaxFrames);
     r.ui.SetGesture(&g);
 
-    OpenMenu(r, MenuItem::kGesture); // arm
-    r.MovePot(0, 0.2f);              // catch Harmonics, then sweep it
+    Tap(r);             // arm
+    r.MovePot(0, 0.2f); // catch Harmonics, then sweep it
     for(int i = 0; i < 6; i++)
         r.MovePot(0, i % 2 ? 0.8f : 0.2f);
     ASSERT_EQ(g.state(), GestureRecorder::State::kRecording);
-    Tap(r); // close
+    Tap(r);
     ASSERT_EQ(g.state(), GestureRecorder::State::kPlaying);
     ASSERT_TRUE(g.in_loop(static_cast<int>(ParamId::kHarmonics)));
 
-    // With no hands on the panel, the loop moves the parameter by itself.
     float lo = 1.f, hi = 0.f;
     for(int i = 0; i < 200; i++)
     {
@@ -512,6 +547,23 @@ TEST(Ui, APlayingLoopDrivesTheParameterItRecorded)
         hi = fmaxf(hi, r.ui.patch().harmonics);
     }
     EXPECT_GT(hi - lo, 0.2f) << "the loop is not driving the parameter";
+}
+
+// MAIN's tap means the same thing with a menu up, because it always means the
+// same thing.
+TEST(Ui, TheRecorderIsReachableWhateverIsOnScreen)
+{
+    Rig                   r;
+    GestureRecorder       g;
+    std::vector<uint16_t> buf(GestureRecorder::kLanes * GestureRecorder::kMaxFrames);
+    g.Init(buf.data(), GestureRecorder::kMaxFrames);
+    r.ui.SetGesture(&g);
+
+    NavTap(r);
+    ASSERT_EQ(r.ui.Mode(), UiMode::kMenu);
+    Tap(r);
+    EXPECT_EQ(g.state(), GestureRecorder::State::kArmed);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kMenu) << "arming closed the menu";
 }
 
 // ------------------------------------------------------ WHAT THE SCREEN SAYS
@@ -697,42 +749,28 @@ TEST(Ui, ThePatchPageChangesTheValuesNothingElseCanReach)
     OpenMenu(r, MenuItem::kPatch);
     ASSERT_EQ(r.ui.Mode(), UiMode::kPatchPage);
     EXPECT_EQ(r.ui.display().page_count, static_cast<int>(PatchSetting::kCount));
-    EXPECT_STRNE(r.ui.display().page_value, "") << "the page shows no value";
 
-    // Turning alone moves the selection and changes nothing.
+    // NAV moves between lines and changes nothing.
     const float keytrack = r.ui.patch().keytrack;
-    r.Turn(kMain, 1);
+    r.Turn(kNav, 1);
     EXPECT_EQ(r.ui.display().page_index, 1);
     EXPECT_FLOAT_EQ(r.ui.patch().keytrack, keytrack);
 
-    // Hold and turn: the highlighted line changes.
+    // MAIN changes the highlighted line. No hold anywhere.
     const float vel = r.ui.patch().vel_to_filter;
-    r.HoldMain(true);
-    r.Tick();
     for(int i = 0; i < 5; i++)
         r.Turn(kMain, 1);
-    r.HoldMain(false);
-    r.Tick();
     EXPECT_GT(r.ui.patch().vel_to_filter, vel);
-    EXPECT_EQ(r.ui.Mode(), UiMode::kPatchPage) << "the hold was taken for something else";
+    EXPECT_EQ(r.ui.Mode(), UiMode::kPatchPage);
 
-    // Bend range and LFO shape, the two that are not percentages.
-    r.Turn(kMain, 1);
+    r.Turn(kNav, 1);
     const int bend = r.ui.patch().bend_range;
-    r.HoldMain(true);
-    r.Tick();
     r.Turn(kMain, 1);
-    r.HoldMain(false);
-    r.Tick();
     EXPECT_EQ(r.ui.patch().bend_range, bend + 1);
 
-    r.Turn(kMain, 1);
+    r.Turn(kNav, 1);
     const int shape = r.ui.patch().lfo_shape;
-    r.HoldMain(true);
-    r.Tick();
     r.Turn(kMain, 1);
-    r.HoldMain(false);
-    r.Tick();
     EXPECT_NE(r.ui.patch().lfo_shape, shape);
     EXPECT_LT(r.ui.patch().lfo_shape, fx::Lfo::kNumShapes);
 }
@@ -744,36 +782,23 @@ TEST(Ui, TheGlobalPageSetsTheMidiChannel)
     ASSERT_EQ(r.ui.Mode(), UiMode::kGlobalPage);
     EXPECT_STREQ(r.ui.display().page_value, "Omni") << "0 should read as Omni";
 
-    r.HoldMain(true);
-    r.Tick();
     r.Turn(kMain, 1);
-    r.HoldMain(false);
-    r.Tick();
     EXPECT_EQ(r.ui.globals().midi_channel, 1);
     EXPECT_STREQ(r.ui.display().page_value, "1");
 
-    // It cannot be turned past either end.
-    r.HoldMain(true);
-    r.Tick();
     for(int i = 0; i < 30; i++)
         r.Turn(kMain, -1);
-    r.HoldMain(false);
-    r.Tick();
-    EXPECT_EQ(r.ui.globals().midi_channel, 0);
+    EXPECT_EQ(r.ui.globals().midi_channel, 0) << "it ran past Omni";
 }
 
-TEST(Ui, ATapLeavesAPageAndTheValuesStay)
+TEST(Ui, LeavingAPageKeepsWhatWasChanged)
 {
     Rig r;
     OpenMenu(r, MenuItem::kPatch);
-    r.HoldMain(true);
-    r.Tick();
     r.Turn(kMain, 1);
-    r.HoldMain(false);
-    r.Tick();
     const float keytrack = r.ui.patch().keytrack;
-    Tap(r);
-    EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
+    NavBack(r);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kMenu);
     EXPECT_FLOAT_EQ(r.ui.patch().keytrack, keytrack) << "leaving a page undid the change";
 }
 
@@ -841,28 +866,22 @@ TEST(Ui, SavingSpellsANameFirst)
     r.ui.SetBank(&bank);
 
     OpenMenu(r, MenuItem::kSave);
-    Tap(r); // choose slot 1 and go to the name
+    NavTap(r); // choose slot 1 and go to the name
     ASSERT_EQ(r.ui.Mode(), UiMode::kName);
-    // It starts from what the slot is already called, so renaming is an edit.
     EXPECT_EQ(std::string(r.ui.display().name_text).substr(0, 4), "INIT");
 
-    // Turning spells the character under the cursor.
+    // MAIN spells the character under the cursor; NAV moves along the name.
     r.Turn(kMain, 1);
     EXPECT_NE(r.ui.display().name_text[0], 'I');
     const char first = r.ui.display().name_text[0];
 
-    // Holding and turning moves along it, and leaves what was typed alone.
-    r.HoldMain(true);
-    r.Tick();
-    r.Turn(kMain, 1);
-    r.Turn(kMain, 1);
-    r.HoldMain(false);
-    r.Tick();
+    r.Turn(kNav, 1);
+    r.Turn(kNav, 1);
     EXPECT_EQ(r.ui.display().name_cursor, 2);
-    EXPECT_EQ(r.ui.display().name_text[0], first);
+    EXPECT_EQ(r.ui.display().name_text[0], first) << "moving changed what was typed";
 
-    r.Turn(kMain, -1); // spell something at the new position
-    Tap(r);
+    r.Turn(kMain, -1);
+    NavTap(r);
     const PresetRequest req = r.ui.TakePresetRequest();
     EXPECT_EQ(req.action, PresetAction::kSave);
     ASSERT_NE(req.name, nullptr);
@@ -880,28 +899,21 @@ TEST(Ui, AnEmptySlotIsNamedAfterItselfAndAnAllSpaceNameFallsBack)
 
     OpenMenu(r, MenuItem::kSave);
     for(int i = 0; i < 5; i++)
-        r.Turn(kMain, 1);
-    Tap(r);
+        r.Turn(kNav, 1);
+    NavTap(r);
     ASSERT_EQ(r.ui.Mode(), UiMode::kName);
     EXPECT_EQ(std::string(r.ui.display().name_text).substr(0, 6), "USER 6");
 
-    // Spell every character down to a space. A name of nothing is not a name,
-    // so it has to come back as the slot's own.
+    // Spell every character down to a space: a name of nothing is not a name.
     for(int c = 0; c < 6; c++)
     {
-        if(c > 0) // move along
-        {
-            r.HoldMain(true);
-            r.Tick();
-            r.Turn(kMain, 1);
-            r.HoldMain(false);
-            r.Tick();
-        }
+        if(c > 0)
+            r.Turn(kNav, 1);
         for(int guard = 0; r.ui.display().name_text[c] != ' ' && guard < 60; guard++)
             r.Turn(kMain, -1);
         ASSERT_EQ(r.ui.display().name_text[c], ' ') << "could not blank character " << c;
     }
-    Tap(r);
+    NavTap(r);
     const PresetRequest req = r.ui.TakePresetRequest();
     ASSERT_NE(req.name, nullptr);
     EXPECT_STREQ(req.name, "USER 6") << "an all-spaces name should fall back to the slot";
@@ -914,11 +926,19 @@ TEST(Ui, TouchingSomethingElseAbandonsTheName)
     BuildFactoryBank(bank);
     r.ui.SetBank(&bank);
     OpenMenu(r, MenuItem::kSave);
-    Tap(r);
+    NavTap(r);
     ASSERT_EQ(r.ui.Mode(), UiMode::kName);
     r.MovePot(0, 0.9f);
     EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
     EXPECT_EQ(r.ui.TakePresetRequest().action, PresetAction::kNone) << "it saved anyway";
+
+    // ...and NAV's hold goes back to the slot rather than out, so a mistyped
+    // name does not mean choosing the slot again.
+    OpenMenu(r, MenuItem::kSave);
+    NavTap(r);
+    ASSERT_EQ(r.ui.Mode(), UiMode::kName);
+    NavBack(r);
+    EXPECT_EQ(r.ui.Mode(), UiMode::kSave);
 }
 
 // The mod wheel used to be welded to LFO depth. It is a destination now, and
@@ -931,20 +951,14 @@ TEST(Ui, TheModWheelDestinationIsOnThePatchPageAndStoredWithThePreset)
     for(int guard = 0;
         r.ui.display().page_index != static_cast<int>(PatchSetting::kModDest) && guard < 8;
         guard++)
-        r.Turn(kMain, 1);
+        r.Turn(kNav, 1);
     EXPECT_STREQ(r.ui.display().page_value, ModDestName(ModDest::kLfoDepth))
         << "the default should be what the wheel always did";
 
-    r.HoldMain(true);
-    r.Tick();
     r.Turn(kMain, 1);
-    r.HoldMain(false);
-    r.Tick();
     const ModDest picked = r.ui.patch().mod_dest;
     EXPECT_NE(picked, ModDest::kLfoDepth);
 
-    // It travels in a preset, in a byte that used to be padding -- so a preset
-    // written before this existed reads as LFO depth rather than as nonsense.
     StoredPreset s;
     PatchToPreset(r.ui.patch(), "mod", s);
     Patch back;
@@ -967,15 +981,11 @@ TEST(Ui, TheMidiOutChannelIsSeparateFromTheInputChannelAndHasNoOmni)
         r.ui.display().page_index != static_cast<int>(GlobalSetting::kMidiOutChannel)
         && guard < 8;
         guard++)
-        r.Turn(kMain, 1);
+        r.Turn(kNav, 1);
     EXPECT_STREQ(r.ui.display().page_value, "1");
 
-    r.HoldMain(true);
-    r.Tick();
     for(int i = 0; i < 40; i++) // wind it down past the bottom
         r.Turn(kMain, -1);
-    r.HoldMain(false);
-    r.Tick();
     EXPECT_EQ(r.ui.globals().midi_out_channel, 1) << "output cannot be Omni";
     EXPECT_EQ(r.ui.globals().midi_channel, 0) << "the input channel moved with it";
 }
@@ -1020,16 +1030,16 @@ TEST(Ui, FactoryResetHasToBeAnsweredBeforeItFires)
     ASSERT_EQ(r.ui.Mode(), UiMode::kResetPage);
     EXPECT_FALSE(r.ui.display().reset_armed) << "it should start on NO";
 
-    // A tap on NO is simply the way out.
-    Tap(r);
+    // NAV's tap on NO is simply the way out.
+    NavTap(r);
     EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
     EXPECT_FALSE(r.ui.TakeFactoryReset()) << "a reset fired without being answered";
 
-    // Turned to YES, a tap fires it -- once.
+    // MAIN turns the answer to YES; NAV's tap then fires it, once.
     OpenMenu(r, MenuItem::kFactoryReset);
     r.Turn(kMain, 1);
     EXPECT_TRUE(r.ui.display().reset_armed);
-    Tap(r);
+    NavTap(r);
     EXPECT_TRUE(r.ui.TakeFactoryReset());
     EXPECT_FALSE(r.ui.TakeFactoryReset()) << "the request is not one-shot";
 }
@@ -1041,12 +1051,10 @@ TEST(Ui, FactoryResetStartsOnNoEveryTimeAndBacksOutIfTouchedElsewhere)
     r.Turn(kMain, 1);
     ASSERT_TRUE(r.ui.display().reset_armed);
 
-    // Touching any other control abandons it, like every other mode.
     r.MovePot(0, 0.9f);
     EXPECT_EQ(r.ui.Mode(), UiMode::kNormal);
     EXPECT_FALSE(r.ui.TakeFactoryReset());
 
-    // And coming back starts from NO rather than from where it was left.
     OpenMenu(r, MenuItem::kFactoryReset);
     EXPECT_FALSE(r.ui.display().reset_armed) << "it remembered YES";
 }

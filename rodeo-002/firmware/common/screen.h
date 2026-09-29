@@ -65,6 +65,59 @@ static_assert(kEnvBot + 1 < kRows, "the envelope baseline falls off the screen")
 static_assert(kMsgTop >= kBodyTop && kMsgBot <= kStripBot, "the message box is not over the strip");
 } // namespace layout
 
+/** A title bar: inverted, with an optional counter on the right. */
+template <typename Display>
+static void DrawTitle(Display& display, const char* text, const char* right)
+{
+    display.DrawRect(0, 0, 127, 9, true, true);
+    display.SetCursor(2, 1);
+    display.WriteString(text, Font_6x8, false);
+    if(right)
+    {
+        int n = 0;
+        while(right[n])
+            n++;
+        display.SetCursor(static_cast<uint8_t>(126 - 6 * n), 1);
+        display.WriteString(right, Font_6x8, false);
+    }
+}
+
+/** One list row. The selected row inverts rather than carrying a marker, which
+ *  would eat a character of width on a 21-character line. */
+template <typename Display>
+static void DrawRow(Display& display, int r, const char* left, const char* right, bool selected)
+{
+    const uint8_t y = static_cast<uint8_t>(12 + r * 10);
+    if(selected)
+        display.DrawRect(0, static_cast<uint8_t>(y - 1), 127, static_cast<uint8_t>(y + 8),
+                         true, true);
+    display.SetCursor(2, y);
+    display.WriteString(left, Font_6x8, !selected);
+    if(right)
+    {
+        int n = 0;
+        while(right[n])
+            n++;
+        display.SetCursor(static_cast<uint8_t>(126 - 6 * n), y);
+        display.WriteString(right, Font_6x8, !selected);
+    }
+}
+
+/** How far down a long list you are. Nothing is drawn when it all fits. */
+template <typename Display>
+static void DrawScrollBar(Display& display, int first, int visible, int total)
+{
+    if(total <= visible)
+        return;
+    const int track = 51;
+    int       h     = track * visible / total;
+    if(h < 4)
+        h = 4;
+    const int top = 12 + track * first / total;
+    display.DrawRect(126, static_cast<uint8_t>(top), 127,
+                     static_cast<uint8_t>(top + h), true, true);
+}
+
 /** The output as a triggered scope, in whatever space the readout leaves. */
 template <typename Display>
 static void DrawScope(Display& display, Scope& scope, int y0, int y1)
@@ -249,65 +302,58 @@ void Draw(Display& display, const DisplayState& d, Scope& scope)
         }
     }
 
-    // The modal layer takes the screen for as long as it applies, so that what
-    // a tap will do is never a guess.
+    // THE MODAL LAYER IS A LIST, AND IT TAKES THE WHOLE SCREEN. It used to be
+    // a box showing one entry at a time, which meant turning blind: you could
+    // not see what was above or below, so the order had to be memorised. That
+    // is most of what "difficult to navigate" was (Derek, 2026-09-29). The Ui
+    // has already worked out which rows are visible and what they say, so this
+    // draws rows without knowing whether they are presets, settings or a menu.
     if(d.mode != UiMode::kNormal)
     {
-        display.DrawRect(0, 20, 127, 52, false, true); // clear what is under it
-        display.DrawRect(0, 20, 127, 52, true);
-        FixedCapStr<24> head("");
-        FixedCapStr<24> body("");
-        const char*     hint = "";
-        if(d.mode == UiMode::kMenu)
+        display.Fill(false);
+        FixedCapStr<12> count("");
+        if(d.list_total)
         {
-            head.Append("MENU");
-            body.Append(d.menu_item);
-            hint = "turn to choose   tap to enter";
+            count.AppendInt(d.list_index + 1);
+            count.Append("/");
+            count.AppendInt(d.list_total);
+        }
+        DrawTitle(display, d.list_title, count.Size() ? count.Cstr() : nullptr);
+
+        if(d.mode == UiMode::kName)
+        {
+            // Not a list: one word being spelled, as large as it will go, with
+            // the character under the cursor underlined.
+            display.SetCursor(4, 18);
+            display.WriteString(d.name_text, Font_11x18, true);
+            const uint8_t x = static_cast<uint8_t>(4 + d.name_cursor * 11);
+            display.DrawLine(x, 38, static_cast<uint8_t>(x + 9), 38, true);
+            display.SetCursor(2, 46);
+            display.WriteString("MAIN spells    NAV moves", Font_4x6, true);
+            display.SetCursor(2, 55);
+            display.WriteString("NAV tap saves    hold goes back", Font_4x6, true);
         }
         else if(d.mode == UiMode::kResetPage)
         {
-            head.Append("FACTORY RESET");
-            body.Append(d.reset_armed ? "YES" : "NO");
-            hint = d.reset_armed ? "tap ERASES presets and gestures" : "turn to answer   tap to leave";
-        }
-        else if(d.mode == UiMode::kName)
-        {
-            head.Append("NAME ");
-            head.AppendInt(d.browser_slot + 1);
-            body.Append(d.name_text);
-            hint = "turn spells  hold+turn moves  tap saves";
-        }
-        else if(d.mode == UiMode::kPatchPage || d.mode == UiMode::kGlobalPage)
-        {
-            head.Append(d.mode == UiMode::kPatchPage ? "PATCH " : "GLOBAL ");
-            head.AppendInt(d.page_index + 1);
-            head.Append("/");
-            head.AppendInt(d.page_count);
-            head.Append("  ");
-            head.Append(d.page_item);
-            body.Append(d.page_value);
-            hint = "hold MAIN and turn to change";
+            display.SetCursor(2, 14);
+            display.WriteString("Erases presets, gestures", Font_6x8, true);
+            display.SetCursor(2, 24);
+            display.WriteString("and settings.", Font_6x8, true);
+            DrawRow(display, 3, "Factory reset", d.reset_armed ? "YES" : "NO", true);
+            display.SetCursor(2, 56);
+            display.WriteString(d.reset_armed ? "NAV tap ERASES it all"
+                                              : "MAIN turns the answer",
+                                Font_4x6, true);
         }
         else
         {
-            head.Append(d.mode == UiMode::kLoad ? "LOAD " : "SAVE ");
-            head.AppendInt(d.browser_slot + 1);
-            head.Append("/");
-            head.AppendInt(PresetBank::kNumSlots);
-            body.Append(d.browser_used ? d.browser_name : "-- empty --");
-            hint = d.mode == UiMode::kLoad ? "tap to load" : "tap to overwrite";
-        }
-        display.SetCursor(4, 23);
-        display.WriteString(head, Font_6x8, true);
-        display.SetCursor(4, 33);
-        display.WriteString(body, Font_7x10, true);
-        display.SetCursor(4, 44);
-        display.WriteString(hint, Font_4x6, true);
-        // The character being spelled, underlined where it sits in the name.
-        if(d.mode == UiMode::kName)
-        {
-            const uint8_t x = static_cast<uint8_t>(4 + d.name_cursor * 7);
-            display.DrawLine(x, 43, static_cast<uint8_t>(x + 6), 43, true);
+            for(int r = 0; r < d.list_rows; r++)
+                DrawRow(display,
+                        r,
+                        d.list_left[r],
+                        d.list_right[r],
+                        d.list_first + r == d.list_index);
+            DrawScrollBar(display, d.list_first, DisplayState::kListRows, d.list_total);
         }
     }
 
