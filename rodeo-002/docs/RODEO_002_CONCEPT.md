@@ -105,6 +105,46 @@ it is how the platform's `06_poly_synth` example works.
 **Voice modes:** Poly (8, or 6 on Vosim/Z-osc) · Mono (legato + glide) · Unison (stacked,
 detuned by Spread).
 
+### Effects review (2026-09-29)
+
+Derek: *"I suspected some of them may not be working as expected."* All twenty types were measured
+against what their names claim, not just for stability — the existing tests already asked whether
+each type was stable, transparent at zero and audible at full, and a phaser that is really a
+low-pass passes all three. `tests/fx_review_gtest.cpp` holds the harness and prints every number.
+
+**Character, Movement and Space came out clean.** All five waveshapers add harmonics and none leaks
+DC; Bias brings in even harmonics on four of them and takes them *away* on Rectify, which is
+correct and documented (centred, Rectify is already full-wave). The Movement LFO runs at exactly the
+0.05–12 Hz it claims, Vibrato is the only type without stereo motion (by design, no dry path), and
+every Space type responds properly to both Time and Feedback.
+
+**Two real faults, both in Texture:**
+
+* **Crush was sending −0.125 of DC to the output.** `Decimator` quantises with an arithmetic shift,
+  which truncates toward minus infinity instead of rounding, so every sample rounds down by up to a
+  step; at full crush the step is a quarter of full scale and the mean error is half of that.
+  Nothing downstream removed it — the output stage is tilt, volume and the limiter — so it reached
+  the codec, and reached Space's feedback, where DC is amplified and a railed output is heard as
+  *silence* because the line out is AC-coupled. **The Texture wet path is DC-blocked now**, the same
+  arrangement Character has always had. `FxReview.NoSlotSendsDcDownTheChain` is the guard.
+* **Squash was a volume control with a compressor attached.** Its make-up gain applied half the
+  theoretical compensation, leaving a nominal −6 dB signal 7.5 dB down on Soft and 11.3 dB down on
+  Pump. At 0.85 all three options land within half a decibel of unity, *together* — that they agree
+  across ratios is what says 0.85 is right rather than a fudge.
+
+**Two things that looked wrong and were not**, both worth recording so they are not "fixed" later:
+
+* Crush's Smooth/Stepped option makes no difference at full crush. That is arithmetic, not a bug:
+  `Decimator`'s `bit_overflow_` works out to exactly 2 at a whole-bit setting, and shifting by
+  `bits+1` after a 2× pre-scale is the same as shifting by `bits`. The option is about the *sweep* —
+  measured across the knob, Smooth changes on 19 of 28 steps and Stepped on 12.
+* Dust barely registers in an energy measurement because it is crackle *on top of* the signal rather
+  than a bed replacing it. It puts peaks at 0.85 against a 0.5 input, which is the thing to measure.
+
+**One design observation, not a fault:** Chorus, Phaser and Flanger all show ~0.9 amplitude
+modulation on a sine. That is a single delay tap combing against the dry, and the nulls sweep
+through the fundamental. It is thin and wobbly where a multi-tap chorus would be lush. Left alone.
+
 ### The factory bank (rebuilt 2026-09-29)
 
 Sixteen sounds, written from nothing for the instrument as it now is. The old bank predated the
