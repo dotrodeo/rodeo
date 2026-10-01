@@ -16,6 +16,7 @@ and the design docs that tie them together.
 | [`rodeo-button/`](rodeo-button/) | Momentary-button daughterboard. |
 | [`rodeo-potentiometer/`](rodeo-potentiometer/) | Potentiometer daughterboard — analog, into the motherboard's ADC channels. |
 | [`rodeo-rotary-switch/`](rodeo-rotary-switch/) | Rotary-switch daughterboard (resistor-ladder → ADC). |
+| [`rodeo-panels/`](rodeo-panels/) | KiCad **panel templates** for fabbing daughterboards in arrays — `Panel_2x8` is sixteen up. Templates only: no schematic of its own to build. |
 | [`rodeo-001/`](rodeo-001/) | **The first instrument instance** — the specific synth built from the boards above. Instance-only material: the [control map](rodeo-001/docs/RODEO_CONTROL_MAP.md), the [enclosure spec](rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md), and its instance KiCad. |
 | [`rodeo-002/`](rodeo-002/) | **The second instrument instance** — a multi-engine digital polysynth into a Chroma-Console-style texture chain ending in a granular delay. 16 pots, 6 encoders, OLED, no buttons. [Concept](rodeo-002/docs/RODEO_002_CONCEPT.md), [control map](rodeo-002/docs/RODEO_002_CONTROL_MAP.md), and [firmware](rodeo-002/firmware/) — playable, tagged `rodeo-002/v5.0.0`. |
 
