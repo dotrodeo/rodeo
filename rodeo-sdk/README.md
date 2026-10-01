@@ -14,6 +14,7 @@ freshly assembled board — flash one, confirm the hardware, move on.
 firmware/
   common/
     board.h              # Rodeo pin map — the single source of truth (host-safe)
+    version.h            # SDK version + RODEO_SDK_AT_LEAST(); the real changelog
     rodeo.mk             # shared build rules; every app/example includes this
     ads114s08.{h,cpp}    # Layer 1: per-chip ADS114S08 SPI ADC driver
     rodeo_adc.{h,cpp}    # Layer 2: 24-ch two-chip pipelined ADC scanner
@@ -84,6 +85,21 @@ make program-dfu               # flash: hold BOOT, tap RESET on the Daisy first
    template carries for its own shallower location).
 2. Edit `TARGET` and `CPP_SOURCES` in its `Makefile`.
 3. `#include "board.h"` for the pin map; write `src/main.cpp`.
+
+## Versioning
+
+Tagged `rodeo-sdk/vX.Y.Z` — component first, same convention as
+`rodeo-002/vX.Y.Z`, so a tag listing groups by component rather than by number.
+`common/version.h` carries the number and the changelog, and an app can refuse
+to build against an SDK that is too old:
+
+```cpp
+static_assert(RODEO_SDK_AT_LEAST(0, 1, 0), "this app needs a newer SDK");
+```
+
+**0.x on purpose.** Two instruments in, the shape is clear but the seams are
+not all settled — `version.h` names what is still unresolved and what stands
+between this and a 1.0.
 
 ## Notes
 

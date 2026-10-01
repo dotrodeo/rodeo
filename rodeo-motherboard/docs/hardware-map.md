@@ -8,7 +8,9 @@ libDaisy `seed::Dxx` ↔ STM32 mapping is carried from ElectroSmith's original
 Daisy Seed pinout; the `seed::` numbering is identical across Seed rev4 and the
 Seed2 DFM for D0–D30.
 
-**This describes the board AS LAID OUT, including a wiring error — see Issue 1.**
+**This describes the board AS LAID OUT.** It once included a wiring error (Issue
+1, SPI MOSI/MISO); that was corrected before fab, so the board in hand is
+correct and Issue 1 is history rather than a caveat.
 
 ---
 
@@ -255,9 +257,10 @@ fab"** until 2026-10-01, long after all three of those were true, so anyone
 reading the doc would have concluded the hardware was dead. The analysis above
 is kept because it is why the fix was needed; only the status was wrong.
 
-**Still worth recording:** *how* it was resolved — a corrected layout before
-fab, or a reroute on the board — is not written down anywhere. Whoever knows
-should add a line.
+**How it was resolved: the fix went into the layout before the board was
+fabbed** (Derek, 2026-10-01). So there is no rework on the board and nothing to
+look for with a meter — the copper is correct as delivered, and the table above
+describes a layout that never reached fabrication.
 
 ### 2. USB-C is still power-only, and the Daisy's USB pins now dead-end
 
