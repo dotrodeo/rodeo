@@ -943,21 +943,31 @@ class Ui
             case PatchSetting::kEnvToMorph: SignedPercent(d, patch_.env_to_morph); break;
             case PatchSetting::kSubWave: Copy(d, SubWaveName(patch_.sub_wave)); break;
             case PatchSetting::kGain:
-            {
-                // Shown in dB, which is the only unit a level is worth reading
-                // in. Rounded to whole dB, and the step is 0.5 dB, so the
-                // display repeats a value every other detent rather than
-                // inventing precision it does not have.
-                const int db = static_cast<int>(GainToDb(patch_.gain)
-                                                + (patch_.gain >= 1.f ? 0.5f : -0.5f));
-                if(db > 0)
-                    *d++ = '+';
-                Int(d, db);
+                // Shown in dB with the half decibel, because the step IS half a
+                // decibel. Rounding to whole dB printed the same number for two
+                // different settings -- "+8 dB" twice, where the second one is
+                // +8.5 -- which tells you the knob did nothing (Derek,
+                // 2026-10-01). A readout that cannot distinguish two states is
+                // worse than no readout.
+                SignedHalves(d, GainToDb(patch_.gain));
                 Copy(d, " dB");
                 break;
-            }
             default: Copy(d, ModDestName(patch_.mod_dest)); break;
         }
+    }
+
+    /** A signed value to one decimal, for anything stepped in halves. */
+    static void SignedHalves(char*& d, float v)
+    {
+        // Snapped to the same grid the step uses, so the text is exactly the
+        // state rather than a rounding of it.
+        const int halves = static_cast<int>(v * 2.f + (v >= 0.f ? 0.5f : -0.5f));
+        const int tenths  = halves * 5;
+        const int mag     = tenths < 0 ? -tenths : tenths;
+        *d++              = tenths < 0 ? '-' : '+';
+        Int(d, mag / 10);
+        *d++ = '.';
+        Int(d, mag % 10);
     }
 
     /** A 0..1 value where 0.5 means none, written the way it reads on the
@@ -1017,8 +1027,15 @@ class Ui
                 break;
             case PatchSetting::kGain:
             {
-                const float db = GainToDb(patch_.gain) + 0.5f * static_cast<float>(dir);
-                patch_.gain    = DbToGain(db < -18.f ? -18.f : (db > 12.f ? 12.f : db));
+                // SNAPPED TO THE HALF-DECIBEL GRID on every step. Without it,
+                // each adjustment runs the value through log and then exp
+                // again, and the error accumulates until the reading sits
+                // between two detents and the display has to round.
+                const float now   = GainToDb(patch_.gain);
+                const float want  = now + 0.5f * static_cast<float>(dir);
+                const float snap  = roundf(want * 2.f) * 0.5f;
+                const float clamp = snap < -18.f ? -18.f : (snap > 12.f ? 12.f : snap);
+                patch_.gain       = DbToGain(clamp);
                 break;
             }
             case PatchSetting::kSubWave:

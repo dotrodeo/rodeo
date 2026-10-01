@@ -251,6 +251,12 @@ int main(int argc, char** argv)
       shot("11-name", r); }
     { Rig r; r.Menu(MenuItem::kPatch); r.Turn(Ui::kNavEncoder, 1); r.Turn(Ui::kNavEncoder, 1);
       shot("12-patch-page", r); }
+    // The widest value on any settings page: "+12.0 dB" beside "Patch gain".
+    { Rig r; r.Menu(MenuItem::kPatch);
+      for(int i = 0; i < 20 && r.ui.display().page_index != int(PatchSetting::kGain); i++)
+          r.Turn(Ui::kNavEncoder, 1);
+      for(int i = 0; i < 80; i++) r.Turn(Ui::kMainEncoder, 1);
+      shot("17-patch-gain", r); }
     { Rig r; r.Menu(MenuItem::kGlobal); r.Turn(Ui::kNavEncoder, 1); shot("13-global-page", r); }
     { Rig r; r.Menu(MenuItem::kFactoryReset); r.Turn(Ui::kMainEncoder, 1);
       shot("14-factory-reset", r); }

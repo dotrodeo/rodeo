@@ -1169,3 +1169,54 @@ TEST(Ui, FactoryResetStartsOnNoEveryTimeAndNeedsNavToFire)
     OpenMenu(r, MenuItem::kFactoryReset);
     EXPECT_FALSE(r.ui.display().reset_armed) << "it remembered YES";
 }
+
+// A readout that shows the same text for two different settings tells you the
+// knob did nothing. Patch gain steps half a decibel, so it has to SHOW the half
+// decibel -- it was rounding to whole dB and printing "+8 dB" twice (Derek,
+// 2026-10-01). Walked end to end, every detent must read differently from the
+// one before it, and the ends must stop.
+TEST(Ui, EveryGainDetentReadsDifferentlyFromTheLast)
+{
+    Rig r;
+    OpenMenu(r, MenuItem::kPatch);
+    ASSERT_EQ(r.ui.Mode(), UiMode::kPatchPage);
+    for(int guard = 0;
+        r.ui.display().page_index != static_cast<int>(PatchSetting::kGain) && guard < 20;
+        guard++)
+        r.Turn(kNav, 1);
+    ASSERT_EQ(r.ui.display().page_index, static_cast<int>(PatchSetting::kGain));
+
+    // Down to the bottom of the range, counting how far it actually goes.
+    for(int i = 0; i < 80; i++)
+        r.Turn(kMain, -1);
+    r.Tick();
+    std::string bottom = r.ui.display().page_value;
+    EXPECT_EQ(bottom, "-18.0 dB") << "the gain did not stop at -18 dB";
+
+    std::string prev = bottom;
+    int         seen = 1;
+    for(int i = 0; i < 60; i++)
+    {
+        r.Turn(kMain, 1);
+        r.Tick();
+        const std::string now = r.ui.display().page_value;
+        if(now == "+12.0 dB")
+        {
+            seen++;
+            break;
+        }
+        EXPECT_NE(now, prev) << "two detents in a row read \"" << now << "\"";
+        prev = now;
+        seen++;
+    }
+    // -18 to +12 in half-decibel steps is 61 distinct readings.
+    EXPECT_EQ(seen, 61) << "the range is not what the half-decibel step implies";
+    EXPECT_EQ(std::string(r.ui.display().page_value), "+12.0 dB")
+        << "the gain did not stop at +12 dB";
+
+    for(int i = 0; i < 5; i++)
+        r.Turn(kMain, 1);
+    r.Tick();
+    EXPECT_EQ(std::string(r.ui.display().page_value), "+12.0 dB")
+        << "the top of the range does not hold";
+}

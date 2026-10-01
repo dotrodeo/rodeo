@@ -117,7 +117,12 @@ envelope, filter, voice mode and how much of the chain is in play — which mean
 stored, per-preset number can fix it.
 
 **So every preset carries a gain**, linear, −18 to +12 dB, on the patch settings page in dB and
-adjusted half a decibel at a time. It is applied **after the chain**, as a separate trim from the
+adjusted half a decibel at a time — **and shown to the half decibel**, since the step is half a
+decibel. It first rounded to whole dB, which printed `+8 dB` for two different settings and so said
+the knob had done nothing; a readout that cannot tell two states apart is worse than no readout
+(Derek, 2026-10-01). Each adjustment also snaps to the half-decibel grid rather than running the
+value through log and exp and keeping the error, so the text is exactly the state. Sixty-one
+distinct readings end to end, enforced by `Ui.EveryGainDetentReadsDifferentlyFromTheLast`. It is applied **after the chain**, as a separate trim from the
 master volume, for two reasons: turning a preset down must not also turn its drive down, and the
 master is squared for feel, which would make a trim folded into it mean something else.
 
