@@ -326,7 +326,7 @@ TEST(VoiceManager, TheLfoRateKnobIsMonotonic)
 
 // ADS, Moog style (2026-09-24): there is no separate release time. The Decay
 // knob sets the fall whether the key is still held or not, so a short decay has
-// to give a short tail after note-off -- p.release is not consulted at all.
+// to give a short tail after note-off. There is no release field any more.
 TEST(VoiceManager, DecayIsTheReleaseTime)
 {
     for(float decay : {0.05f, 0.9f})
@@ -336,7 +336,6 @@ TEST(VoiceManager, DecayIsTheReleaseTime)
         Patch p;
         p.decay   = decay;
         p.sustain = 1.f;             // hold the level so only the tail differs
-        p.release = 1.f;             // must be ignored
         vm.ApplyPatch(p);
         vm.NoteOn(60, 0.8f);
         Render(vm, 0.3f);

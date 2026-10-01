@@ -262,6 +262,7 @@ VoiceManager    voices;
 TextureChain    chain;
 EngineId        current_engine = EngineId::kVirtualAnalog;
 static int      g_boot_preset       = -1;
+static bool     g_bank_migrated     = false;
 static int      g_slots_filled      = 0;
 static bool     g_boot_engine_known = true;
 static bool     g_boot_gesture      = false;
@@ -378,10 +379,10 @@ static void HandleCc(uint8_t cc, uint8_t value)
         case kCcMovementRate: patch.secondary[TextureChain::kMovement] = f; return;
         // ADS: one fall time, held or not -- kept in step so the stored patch
         // says the same thing the panel does.
-        case kCcDecay:
-            patch.decay   = f;
-            patch.release = f;
-            return;
+        // ADS: one fall time, held or not. `release` used to be kept in step
+        // here; it is the patch gain now and has nothing to do with the
+        // envelope.
+        case kCcDecay: patch.decay = f; return;
         case kCcGlide: patch.glide = f; return;
         case kCcSustain: patch.sustain = f; return;
         case kCcLfoDepth: patch.lfo_depth = f; return;
@@ -631,6 +632,7 @@ static void ApplyPatch()
     sp.SetSpread(patch.grain_spread);
     sp.SetFreeze(patch.freeze);
     chain.SetTilt(patch.tilt);
+    chain.SetTrim(patch.gain);
     chain.SetVolume(globals.volume);
 }
 
@@ -905,8 +907,14 @@ int main(void)
     {
         BuildFactoryBank(g_factory_bank);
         preset_store.Init(g_factory_bank, kPresetStoreOffset);
+        // A v2 bank is brought forward rather than thrown away: v3 only
+        // reinterprets the four bytes `release` used to sit in, so the layout
+        // is identical and the migration is to set every gain to unity.
+        g_bank_migrated = preset_store.GetSettings().MigrateFromV2();
         if(!preset_store.GetSettings().Valid())
             preset_store.GetSettings() = g_factory_bank; // older layout, or corrupt
+        if(g_bank_migrated)
+            preset_store.Save();
         // New factory sounds reach an instrument that has already been saved to
         // by filling its empty slots. Nothing already there is touched.
         g_slots_filled = FillEmptySlots(preset_store.GetSettings(), g_factory_bank);

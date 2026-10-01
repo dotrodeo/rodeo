@@ -166,6 +166,9 @@ enum class PatchSetting
     kEnvToTimbre,
     kEnvToMorph,
     kSubWave,
+    /** Added 2026-10-01: the factory bank spanned 19 dB of peak level, which is
+     *  more than "some patches are just louder". */
+    kGain,
     kCount
 };
 
@@ -900,6 +903,7 @@ class Ui
             case PatchSetting::kEnvToTimbre: return "Env>timbre";
             case PatchSetting::kEnvToMorph: return "Env>morph";
             case PatchSetting::kSubWave: return "Sub wave";
+            case PatchSetting::kGain: return "Patch gain";
             default: return "Mod wheel";
         }
     }
@@ -938,6 +942,20 @@ class Ui
             case PatchSetting::kEnvToTimbre: SignedPercent(d, patch_.env_to_timbre); break;
             case PatchSetting::kEnvToMorph: SignedPercent(d, patch_.env_to_morph); break;
             case PatchSetting::kSubWave: Copy(d, SubWaveName(patch_.sub_wave)); break;
+            case PatchSetting::kGain:
+            {
+                // Shown in dB, which is the only unit a level is worth reading
+                // in. Rounded to whole dB, and the step is 0.5 dB, so the
+                // display repeats a value every other detent rather than
+                // inventing precision it does not have.
+                const int db = static_cast<int>(GainToDb(patch_.gain)
+                                                + (patch_.gain >= 1.f ? 0.5f : -0.5f));
+                if(db > 0)
+                    *d++ = '+';
+                Int(d, db);
+                Copy(d, " dB");
+                break;
+            }
             default: Copy(d, ModDestName(patch_.mod_dest)); break;
         }
     }
@@ -997,6 +1015,12 @@ class Ui
             case PatchSetting::kEnvToMorph:
                 patch_.env_to_morph = Clamp01(patch_.env_to_morph + 0.02f * dir);
                 break;
+            case PatchSetting::kGain:
+            {
+                const float db = GainToDb(patch_.gain) + 0.5f * static_cast<float>(dir);
+                patch_.gain    = DbToGain(db < -18.f ? -18.f : (db > 12.f ? 12.f : db));
+                break;
+            }
             case PatchSetting::kSubWave:
             {
                 const int n     = static_cast<int>(SubWave::kCount);
@@ -1405,12 +1429,10 @@ class Ui
                 break;
             case ParamId::kMovementRate: x.secondary[fx::TextureChain::kMovement] = v; break;
             // ADS, Moog style: one knob for the fall time, whether the note is
-            // still held or not. The patch keeps both fields in step so that
-            // what a preset stores is what the panel can express.
-            case ParamId::kDecay:
-                x.decay = v;
-                x.release = v;
-                break;
+            // still held or not. There is only one field for it now -- the
+            // separate `release` was dead weight kept in step with this, and
+            // its four bytes are the patch gain (2026-10-01).
+            case ParamId::kDecay: x.decay = v; break;
             case ParamId::kGlide: x.glide = v; break;
             case ParamId::kSustain: x.sustain = v; break;
             case ParamId::kLfoDepth: x.lfo_depth = v; break;

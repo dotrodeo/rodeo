@@ -105,6 +105,41 @@ it is how the platform's `06_poly_synth` example works.
 **Voice modes:** Poly (8, or 6 on Vosim/Z-osc) · Mono (legato + glide) · Unison (stacked,
 detuned by Spread).
 
+### Patch gain (2026-10-01)
+
+Derek: *"the maximum volume output has quite a wide range. Some patches are very loud, other
+patches are very quiet."* Measured, that was **19.3 dB of peak spread** across the sixteen factory
+presets — a lot more than "some patches are just louder".
+
+**Where it comes from.** Not the engines: at identical settings all seven sit within **5.7 dB** of
+each other, so a per-engine trim would have bought almost nothing. It comes from the patches —
+envelope, filter, voice mode and how much of the chain is in play — which means nothing but a
+stored, per-preset number can fix it.
+
+**So every preset carries a gain**, linear, −18 to +12 dB, on the patch settings page in dB and
+adjusted half a decibel at a time. It is applied **after the chain**, as a separate trim from the
+master volume, for two reasons: turning a preset down must not also turn its drive down, and the
+master is squared for feel, which would make a trim folded into it mean something else.
+
+Why not a normaliser, the other option on the table: an automatic one fights the player. Close the
+filter and it gets louder; it cannot tell "quiet because it is a pluck" from "quiet because it
+needs gain". A number set once per sound is predictable, and it is what every synth with this
+problem does.
+
+**The factory bank is balanced with it**, to a −6 dB peak on a four-note chord at full velocity.
+`Level.SuggestedFactoryGains` prints the figure each preset needs, and those are the numbers in
+`factory_presets.h`. Peak spread is **2.4 dB** now, enforced by `Level.TheFactoryBankIsLevel`.
+Peak is what is matched and RMS deliberately is not: a pluck carries less energy than a pad at the
+same peak, and forcing their RMS together would mean boosting the pluck until it clipped.
+
+**It cost no new storage.** `release` had been dead since the envelope became ADS on 2026-09-24 —
+written in step with `decay`, read by nothing — so the gain took its four bytes at the same offset.
+That still needed `PresetBank::kVersion` 2 → 3, because a v2 slot holds a copy of `decay` there and
+a decay value read as a gain is a quiet preset nobody asked for. **A v2 bank is migrated rather
+than rejected**: the layout is identical, so the whole migration is to put unity in that one field
+and move the version on. Nothing saved is lost, which is the only reason the version could be
+bumped at all.
+
 ### Effects review (2026-09-29)
 
 Derek: *"I suspected some of them may not be working as expected."* All twenty types were measured

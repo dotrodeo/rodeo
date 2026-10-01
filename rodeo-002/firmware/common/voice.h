@@ -154,9 +154,9 @@ class VoiceManager
             x.env.SetSustainLevel(p.sustain);
             // ADS (Derek, 2026-09-24): the Decay knob sets the fall time
             // whether or not the key is still down, so there is no separate
-            // release. p.release is kept in the patch and moved in step by the
-            // Ui, so the stored format is unchanged and a future firmware can
-            // separate them again without a version bump.
+            // release. The stored `release` field was kept in step with it for
+            // a while in case the two were ever separated again; nothing read
+            // it, and on 2026-10-01 its four bytes became the patch gain.
             x.env.SetReleaseTime(ExpMap(p.decay, 0.005f, 12.f));
         }
         // Targets only: the smoothers walk toward these per block (see Render).
@@ -429,11 +429,26 @@ class VoiceManager
         return kVoicePan[v & 7];
     }
 
+    /** The sub's waveform, mapped to DaisySP's.
+     *
+     *  TRIANGLE IS THE NAIVE ONE, NOT POLYBLEP, on purpose. DaisySP's
+     *  WAVE_POLYBLEP_TRI is the only waveform built on a leaky integrator, and
+     *  `Oscillator::Init` never initialises `last_out_` -- so its first output
+     *  is whatever was in that memory, and because the integrator feeds itself,
+     *  a NaN there is a NaN for ever. On the board `voices` is a file-scope
+     *  object, so BSS zeroing hides it; on the host it produced NaN from the
+     *  first sample of two factory presets (2026-10-01). Depending on BSS
+     *  zeroing for the correctness of a vendor class is not a thing to rely on.
+     *
+     *  Nothing is lost. The naive triangle is stateless, it measures within 1%
+     *  of the polyblep one's level at every pitch the sub reaches, and a
+     *  waveform that mostly runs an octave BELOW the note has no aliasing worth
+     *  band-limiting. Saw and square stay polyblep: they are stateless too. */
     static uint8_t SubWaveform(SubWave w)
     {
         switch(w)
         {
-            case SubWave::kTriangle: return daisysp::Oscillator::WAVE_POLYBLEP_TRI;
+            case SubWave::kTriangle: return daisysp::Oscillator::WAVE_TRI;
             case SubWave::kSaw: return daisysp::Oscillator::WAVE_POLYBLEP_SAW;
             case SubWave::kSquare: return daisysp::Oscillator::WAVE_POLYBLEP_SQUARE;
             default: return daisysp::Oscillator::WAVE_SIN;

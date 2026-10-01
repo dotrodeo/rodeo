@@ -80,13 +80,29 @@
 // is what loads it -- the stored bank is otherwise kept, since the format did
 // not change.
 
+// v5.0.0 gives every preset its own GAIN, because the factory bank spanned 19 dB
+// of peak level and switching presets meant riding the master volume (Derek,
+// 2026-10-01). It is a trim after the chain, so turning a preset down does not
+// also turn its drive down, and it is on the patch settings page in dB.
+//
+// MAJOR because the stored format moved: PresetBank::kVersion 2 -> 3. NOTHING
+// SAVED IS LOST -- v3 only reinterprets the four bytes `release` used to hold,
+// which had been dead since the envelope became ADS, so the layout is identical
+// and a v2 bank is migrated in place by putting unity in that field. The
+// factory bank's own levels all changed, though, which every preset notices.
+//
+// Also: the sub's triangle is DaisySP's naive one rather than its polyblep one.
+// WAVE_POLYBLEP_TRI is the only waveform built on a leaky integrator and
+// Oscillator::Init never initialises its state, so on the host two factory
+// presets produced NaN from the first sample. BSS zeroing hid it on the board.
+
 #pragma once
 
 namespace rodeo002
 {
-constexpr int  kVersionMajor = 4;
+constexpr int  kVersionMajor = 5;
 constexpr int  kVersionMinor = 0;
 constexpr int  kVersionPatch = 0;
-constexpr char kVersionString[] = "4.0.0";
+constexpr char kVersionString[] = "5.0.0";
 
 } // namespace rodeo002

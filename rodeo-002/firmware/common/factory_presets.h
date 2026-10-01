@@ -15,6 +15,12 @@
 // filter types, every Space type, the sub above and below the note and off, and
 // a mod-wheel destination worth reaching for in each.
 //
+// EVERY PRESET CARRIES A GAIN, set so the bank is level. Measured, not guessed:
+// Level.SuggestedFactoryGains prints the figure each one needs to reach a -6 dB
+// peak on a four-note chord at full velocity, and those are the numbers below.
+// Before this the bank spanned 19 dB of peak level, which is a lot more than
+// "some patches are just louder" (Derek, 2026-10-01).
+//
 // CHANGING THIS FILE DOES NOT CHANGE THE INSTRUMENT ON ITS OWN. The stored bank
 // is only replaced when it is invalid or when you ask: the version is unchanged,
 // so a board that already has a bank keeps it. Factory Reset in the menu is what
@@ -40,6 +46,10 @@ inline Patch InitPatch()
     // does nothing at all, and the first knob a new owner turns should not be a
     // dead one.
     p.morph = 0.35f;
+    // Balanced with the rest of the bank, like every other preset -- and this
+    // is also what an empty user slot plays, so an empty slot is not a step
+    // down in level either.
+    p.gain = DbToGain(3.6f);
     return p;
 }
 
@@ -68,11 +78,8 @@ inline void BuildFactoryBank(PresetBank& b)
     }
 
     int n = 0;
-    // Taken by value so the fall time can be normalised: the envelope is ADS
-    // (Derek, 2026-09-24), so decay IS the release, and a preset must not carry
-    // a release the panel cannot express.
+    // Taken by value so each sound can set `gain` without the caller caring.
     auto add = [&](const char* name, Patch p) {
-        p.release = p.decay;
         if(n < PresetBank::kNumSlots)
             PatchToPreset(p, name, b.slot[n++]);
     };
@@ -113,6 +120,7 @@ inline void BuildFactoryBank(PresetBank& b)
         p.space_feedback                     = 0.50f;
         p.space_grain                        = 0.55f;
         p.tilt                               = 0.55f;
+        p.gain = DbToGain(+6.9f);
         add("Wide Open", p);
     }
 
@@ -145,6 +153,7 @@ inline void BuildFactoryBank(PresetBank& b)
         p.amount[TextureChain::kSpace]     = 0.12f;
         p.space_time                       = 0.18f;
         p.space_feedback                   = 0.20f;
+        p.gain = DbToGain(-3.2f);
         add("Sub Bass", p);
     }
 
@@ -171,6 +180,7 @@ inline void BuildFactoryBank(PresetBank& b)
         p.amount[TextureChain::kSpace]     = 0.28f;
         p.space_time                       = 0.45f;
         p.space_feedback                   = 0.40f;
+        p.gain = DbToGain(-2.6f);
         add("Unison Brass", p);
     }
 
@@ -198,6 +208,7 @@ inline void BuildFactoryBank(PresetBank& b)
         p.amount[TextureChain::kSpace]   = 0.32f;
         p.space_time                     = 0.26f;
         p.space_feedback                 = 0.38f;
+        p.gain = DbToGain(+5.5f);
         add("Glass Tines", p);
     }
 
@@ -229,6 +240,7 @@ inline void BuildFactoryBank(PresetBank& b)
         p.space_feedback                     = 0.62f;
         p.space_grain                        = 0.60f;
         p.tilt                               = 0.60f;
+        p.gain = DbToGain(+7.9f);
         add("Vowel Choir", p);
     }
 
@@ -255,6 +267,7 @@ inline void BuildFactoryBank(PresetBank& b)
         p.space_time                      = 0.80f;
         p.space_feedback                  = 0.70f;
         p.tilt                            = 0.62f;
+        p.gain = DbToGain(-2.7f);
         add("Slow Drift", p);
     }
 
@@ -283,6 +296,7 @@ inline void BuildFactoryBank(PresetBank& b)
         p.amount[TextureChain::kSpace]     = 0.22f;
         p.space_time                       = 0.22f;
         p.space_feedback                   = 0.45f;
+        p.gain = DbToGain(+8.9f);
         add("Z Growl", p);
     }
 
@@ -309,6 +323,7 @@ inline void BuildFactoryBank(PresetBank& b)
         p.amount[TextureChain::kSpace]       = 0.40f;
         p.space_time                         = 0.55f;
         p.space_feedback                     = 0.48f;
+        p.gain = DbToGain(+6.2f);
         add("Formant Pad", p);
     }
 
@@ -334,6 +349,7 @@ inline void BuildFactoryBank(PresetBank& b)
         p.amount[TextureChain::kSpace]     = 0.30f;
         p.space_time                       = 0.30f;
         p.space_feedback                   = 0.42f;
+        p.gain = DbToGain(-1.6f);
         add("Fifth Stack", p);
     }
 
@@ -357,6 +373,7 @@ inline void BuildFactoryBank(PresetBank& b)
         p.amount[TextureChain::kSpace] = 0.55f;
         p.space_time                   = 0.42f;
         p.space_feedback               = 0.30f;
+        p.gain = DbToGain(+8.1f);
         add("Reverse Bell", p);
     }
 
@@ -383,6 +400,7 @@ inline void BuildFactoryBank(PresetBank& b)
         p.amount[TextureChain::kSpace]      = 0.35f;
         p.space_time                        = 0.20f;
         p.space_feedback                    = 0.50f;
+        p.gain = DbToGain(+8.6f);
         add("Crush Pluck", p);
     }
 
@@ -413,6 +431,7 @@ inline void BuildFactoryBank(PresetBank& b)
         p.grain_pitch                  = 0.62f;
         p.grain_spread                 = 0.55f;
         p.option[TextureChain::kSpace] = Space::kOctaves;
+        p.gain = DbToGain(+2.9f);
         add("Freeze Cloud", p);
     }
 
@@ -442,6 +461,7 @@ inline void BuildFactoryBank(PresetBank& b)
         p.amount[TextureChain::kSpace]     = 0.28f;
         p.space_time                       = 0.24f;
         p.space_feedback                   = 0.52f;
+        p.gain = DbToGain(-5.0f);
         add("Octave Lead", p);
     }
 
@@ -466,6 +486,7 @@ inline void BuildFactoryBank(PresetBank& b)
         p.space_time                     = 0.50f;
         p.space_feedback                 = 0.45f;
         p.tilt                           = 0.60f;
+        p.gain = DbToGain(+12.0f);
         add("Dust Tick", p);
     }
 
@@ -499,6 +520,7 @@ inline void BuildFactoryBank(PresetBank& b)
         p.space_time                         = 0.72f;
         p.space_feedback                     = 0.66f;
         p.space_grain                        = 0.55f;
+        p.gain = DbToGain(+9.5f);
         add("Pulse Drone", p);
     }
 

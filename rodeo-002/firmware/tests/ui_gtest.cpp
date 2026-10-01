@@ -742,15 +742,15 @@ TEST(Ui, AnEnvelopePotAsksForTheWholeEnvelope)
 }
 
 // ADS, Moog style: Decay is the fall time whether or not the key is still down,
-// so the drawing's release segment follows it and the patch keeps both fields in
-// step -- what a preset stores is what the panel can express.
-TEST(Ui, DecaySetsTheReleaseAsWell)
+// so the drawing's release segment follows it. There is only one field for the
+// fall time now: the separate `release` was dead weight and its bytes are the
+// patch gain.
+TEST(Ui, DecayIsAlsoTheRelease)
 {
     Rig r;
     r.MovePot(9, 0.2f);  // down across the stored value, so the pot catches
     r.MovePot(9, 0.62f);
     EXPECT_NEAR(r.ui.patch().decay, 0.62f, 0.02f);
-    EXPECT_FLOAT_EQ(r.ui.patch().release, r.ui.patch().decay);
     EXPECT_FLOAT_EQ(r.ui.display().env[3], r.ui.patch().decay)
         << "the picture shows a release the sound does not have";
 }

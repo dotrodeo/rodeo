@@ -48,6 +48,15 @@ inline const char* VoiceModeShort(VoiceMode m)
     }
 }
 
+/** Patch gain limits, linear. -18 dB to +12 dB: enough to pull the loudest
+ *  factory preset down to the quietest and more, measured at a 19 dB spread of
+ *  peak level across the bank (2026-10-01). */
+constexpr float kGainMin = 0.12589254f; // -18 dB
+constexpr float kGainMax = 3.98107171f; // +12 dB
+
+inline float GainToDb(float g) { return 20.f * log10f(g < 1e-6f ? 1e-6f : g); }
+inline float DbToGain(float db) { return powf(10.f, db / 20.f); }
+
 /** The sub-oscillator's interval, in the order the knob steps through it.
  *
  *  MONOTONIC, and index 0 is -12 on purpose: the two stored bytes this rides in
@@ -210,7 +219,16 @@ struct Patch
     float cutoff    = 0.8f;
     float resonance = 0.2f;
     float attack    = 0.05f;
-    float release   = 0.25f;
+
+    /** PATCH GAIN: a trim after the chain, so one preset can be brought level
+     *  with the next without re-voicing it.
+     *
+     *  Linear, 1.0 = unity, clamped to kGainMin..kGainMax (-18 to +12 dB). It
+     *  lives in the four bytes `release` used to occupy -- same offset, same
+     *  size -- which is how it arrived without growing StoredPreset. `release`
+     *  had been dead since the envelope became ADS on 2026-09-24: written in
+     *  step with decay, read by nothing. */
+    float gain      = 1.f;
 
     // --- voice, shift layer -------------------------------------------------
     /** The sub-oscillator: a plain waveform under (or over) the note, mixed in

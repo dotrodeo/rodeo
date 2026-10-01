@@ -107,6 +107,7 @@ class TextureChain
         low_gain_.Init(sample_rate, 0.02f, 1.f);
         high_gain_.Init(sample_rate, 0.02f, 1.f);
         volume_.Init(sample_rate, 0.02f, 1.f);
+        trim_.Init(sample_rate, 0.02f, 1.f);
     }
 
     // ------------------------------------------------------------ slot controls
@@ -197,6 +198,17 @@ class TextureChain
         low_gain_.Set(powf(10.f, -db / 40.f));
         high_gain_.Set(powf(10.f, db / 40.f));
     }
+    /** The PATCH's own gain, after everything: a trim that brings one preset
+     *  level with the next without re-voicing it.
+     *
+     *  Separate from the master volume rather than folded into it, for two
+     *  reasons. The master is squared for feel, and squaring a trim would make
+     *  it mean something else. And the master is global while this travels with
+     *  the preset -- one is the player's, the other is the sound's. Applied
+     *  AFTER the chain so it never changes how the effects respond: turning a
+     *  preset down must not also turn its drive down (2026-10-01). */
+    void SetTrim(float g) { trim_.Set(g); }
+
     /** Master volume, squared for a more even feel across the pot. */
     void SetVolume(float v)
     {
@@ -223,7 +235,7 @@ class TextureChain
         for(size_t i = 0; i < n; i++)
         {
             const float lo = low_gain_.Next(), hi = high_gain_.Next();
-            const float vol = volume_.Next();
+            const float vol = volume_.Next() * trim_.Next();
             const float bl  = split_[0].Lp(l[i]);
             const float br  = split_[1].Lp(r[i]);
             const float ol  = (bl * lo + (l[i] - bl) * hi) * vol;
@@ -248,6 +260,13 @@ class TextureChain
      *  benchmark uses it between measurements. */
     void SnapToTargets()
     {
+        // The output trims too, not just the slot fades. A patch gain reached
+        // over 20 ms is right on hardware, where ApplyPatch runs at control
+        // rate and the trim has long settled before a note is played; it is
+        // wrong in a measurement that configures and plays in the same instant,
+        // where a short pluck's peak passes before the gain arrives.
+        trim_.Snap(trim_.target);
+        volume_.Snap(volume_.target);
         for(int s = 0; s < kSpace; s++)
         {
             if(pending_[s] >= 0)
@@ -382,7 +401,7 @@ class TextureChain
     float        fade_step_       = 0.002f;
     float        dry_l_[kMaxBlock], dry_r_[kMaxBlock];
     OnePole      split_[2];
-    Smoother     low_gain_, high_gain_, volume_;
+    Smoother     low_gain_, high_gain_, volume_, trim_;
     float        peak_ = 0.f;
 };
 

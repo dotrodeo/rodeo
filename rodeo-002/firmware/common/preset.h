@@ -109,7 +109,12 @@ struct StoredPreset
     uint8_t voice_mode, lfo_dest, filter, lfo_shape;
     int8_t  bend_range;
 
-    float harmonics, timbre, morph, spread, cutoff, resonance, attack, release;
+    /** `release` occupied this slot until 2026-10-01. It had been dead since
+     *  the envelope became ADS -- written in step with decay, read by nothing --
+     *  so the patch gain took its four bytes rather than growing the struct.
+     *  kVersion went to 3 for it, with a migration: a v2 bank is accepted and
+     *  every slot's gain set to unity, so nothing saved is lost. */
+    float harmonics, timbre, morph, spread, cutoff, resonance, attack, gain;
     float env_to_timbre, env_to_morph, decay, sustain, filter_env, lfo_rate, lfo_depth;
     float keytrack, glide, vel_to_filter;
 
@@ -154,6 +159,12 @@ inline float Clamp01(float v)
         return 0.f;
     return v > 1.f ? 1.f : v;
 }
+inline float ClampGain(float g)
+{
+    if(!(g >= kGainMin)) // also catches NaN out of a corrupt store
+        return 1.f;
+    return g > kGainMax ? kGainMax : g;
+}
 inline uint8_t ClampEnum(uint8_t v, int count)
 {
     return v < static_cast<uint8_t>(count) ? v : 0;
@@ -191,7 +202,7 @@ inline void PatchToPreset(const Patch& p, const char* name, StoredPreset& s)
     s.cutoff    = p.cutoff;
     s.resonance = p.resonance;
     s.attack    = p.attack;
-    s.release   = p.release;
+    s.gain      = detail::ClampGain(p.gain);
 
     s.env_to_timbre = p.env_to_timbre;
     s.env_to_morph  = p.env_to_morph;
@@ -247,7 +258,7 @@ inline void PresetToPatch(const StoredPreset& s, Patch& p, bool* engine_known = 
     p.cutoff    = detail::Clamp01(s.cutoff);
     p.resonance = detail::Clamp01(s.resonance);
     p.attack    = detail::Clamp01(s.attack);
-    p.release   = detail::Clamp01(s.release);
+    p.gain      = detail::ClampGain(s.gain);
 
     p.sub_level    = static_cast<float>(s.sub_level) * (1.f / 255.f);
     p.sub_interval = static_cast<SubInterval>(
@@ -300,7 +311,7 @@ struct PresetBank
     /** 2: 24 slots rather than 16, which changes this struct's size. A stored
      *  bank from v1 is rejected and the factory sixteen come back -- no
      *  migration, by Derek's call (2026-09-29). */
-    static constexpr uint16_t kVersion = 2;
+    static constexpr uint16_t kVersion = 3;
 
     uint32_t     magic;
     uint16_t     version;
@@ -310,6 +321,26 @@ struct PresetBank
     bool Valid() const
     {
         return magic == kMagic && version == kVersion && slots == kNumSlots;
+    }
+
+    /** Bring a v2 bank up to v3 in place, and say whether anything was done.
+     *
+     *  v3 reinterprets one field: the four bytes that held `release` now hold
+     *  the patch gain. The LAYOUT IS UNCHANGED -- same offset, same size -- so
+     *  the whole migration is to put unity in that field and move the version
+     *  on. Nothing saved is lost, which is the only reason the version could be
+     *  bumped at all (2026-10-01).
+     *
+     *  A v2 slot holds a copy of `decay` there, which as a gain would be a
+     *  quiet preset that nobody asked for, so it cannot simply be left. */
+    bool MigrateFromV2()
+    {
+        if(magic != kMagic || version != 2 || slots != kNumSlots)
+            return false;
+        for(int i = 0; i < kNumSlots; i++)
+            slot[i].gain = 1.f;
+        version = kVersion;
+        return true;
     }
     bool operator==(const PresetBank& o) const
     {

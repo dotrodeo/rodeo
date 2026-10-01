@@ -22,7 +22,7 @@ TEST(Preset, EveryFieldSurvivesARoundTrip)
     Patch p;
     // Something different in every field, so a missed one shows up.
     p.harmonics = 0.11f; p.timbre = 0.22f; p.morph = 0.33f; p.spread = 0.44f;
-    p.cutoff = 0.55f; p.resonance = 0.66f; p.attack = 0.77f; p.release = 0.88f;
+    p.cutoff = 0.55f; p.resonance = 0.66f; p.attack = 0.77f; p.gain = 1.41f;
     p.env_to_timbre = 0.12f; p.env_to_morph = 0.23f; p.decay = 0.34f;
     p.sustain = 0.45f; p.filter_env = 0.56f; p.lfo_rate = 0.67f; p.lfo_depth = 0.78f;
     p.keytrack = 0.19f; p.glide = 0.29f; p.vel_to_filter = 0.39f;
@@ -61,7 +61,7 @@ TEST(Preset, EveryFieldSurvivesARoundTrip)
     EXPECT_FLOAT_EQ(q.cutoff, p.cutoff);
     EXPECT_FLOAT_EQ(q.resonance, p.resonance);
     EXPECT_FLOAT_EQ(q.attack, p.attack);
-    EXPECT_FLOAT_EQ(q.release, p.release);
+    EXPECT_FLOAT_EQ(q.gain, p.gain);
     EXPECT_FLOAT_EQ(q.env_to_timbre, p.env_to_timbre);
     EXPECT_FLOAT_EQ(q.env_to_morph, p.env_to_morph);
     EXPECT_FLOAT_EQ(q.decay, p.decay);
