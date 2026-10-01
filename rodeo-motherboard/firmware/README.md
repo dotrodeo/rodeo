@@ -23,6 +23,9 @@ firmware/
     status_led.h         # tiny onboard/carrier LED helper
     oled_ssd130x_bulk.{h,cpp} # faster SSD130x I2C transport (page-at-a-time + yield hook)
     pot_ui.h             # pure panel logic: stepped pots, "which knob is moving"
+    rodeo_dsp.h          # pure DSP blocks: Smoother, OnePole, DcBlocker, Lfo, Rng
+    rodeo_scope.h        # triggered, normalised waveform for a small display
+    rodeo_screen.h       # 128x64 screen primitives: title bar, list rows, scroll bar
     tests/               # host-side GoogleTest for the pure-logic headers
   template/          # copy-to-start skeleton for a new Rodeo app (blinks LEDs)
   examples/
@@ -36,6 +39,8 @@ firmware/
                        #   (also proves the hub's I2C pass-through + bus pull-ups)
     08_oled_i2c/       # SSD1309 128x64 feedback display smoke test (I2C @ 0x3C)
     09_poly_synth_oled/ # 06 + the OLED: knob-value popups and a live output scope
+  tools/
+    screens/           # render an instrument's real OLED screens on your laptop
   docs/
     RODEO_ADC_LIB_DESIGN.md  # design of the ADS114S08 / RodeoAdc driver stack
   libDaisy/  DaisySP/ # vendored submodules (static libs live in their build/)
@@ -82,11 +87,24 @@ make program-dfu               # flash: hold BOOT, tap RESET on the Daisy first
 
 ## Notes
 
+- **The pure-logic headers are the point.** `adc_convert.h`, `pot_ui.h`,
+  `rodeo_dsp.h`, `rodeo_scope.h` and `rodeo_screen.h` have no libDaisy and no
+  hardware in them: they build on the host, `common/tests/` exercises them
+  there, and the firmware calls *these* functions rather than a second
+  implementation. Anything that is just maths and state belongs here.
+- **Pot cables are straight-through.** Both the motherboard connector and the
+  `rodeo-potentiometer` satellite are `1 = supply, 2 = signal, 3 = GND`; the
+  satellites are not mirrored. See `docs/hardware-map.md` for the pinout and for
+  what a reversed cable does to the travel.
+
 - `board.h` is the pin/topology contract for the whole board (SPI/ADC, MIDI,
   audio, LED, 24-channel ADC surface). Keep it in sync with the KiCad source.
   It holds only *generic* board facts — instance-specific control assignments
   (which pot is cutoff, which encoder slot is waveform) live in the instrument
-  build and in `rodeo-001/docs/RODEO_CONTROL_MAP.md`, not here.
+  build and in that instrument's own control map: `rodeo-001/docs/RODEO_CONTROL_MAP.md`,
+  `rodeo-002/docs/RODEO_002_CONTROL_MAP.md`. **This library serves every
+  instrument, not the first one** — if something here names a specific knob or a
+  specific sound, it is in the wrong place.
 - **External ADC (ADS114S08) status:** the SPI orientation and conversion path
   are bench-confirmed on real hardware (`04_adc_1ch`, 2026-08-14); absolute-voltage
   accuracy is still unverified pending a jumper/pot test (needs JST connectors).

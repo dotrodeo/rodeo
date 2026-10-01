@@ -49,7 +49,7 @@ OBJECTS = $(SOURCES:%.cpp=$(BUILD_PATH)/%.o)
 CXXFLAGS += -std=gnu++14 -O2 -Wall -Wextra -g -pthread -DUNIT_TEST=1
 INCLUDES  = -I $(GTEST_DIR)/ -I $(GTEST_DIR)/googletest/ \
             -I $(GTEST_DIR)/googletest/include/ \
-            -I ../common -isystem $(DAISYSP_DIR) -isystem $(DAISYSP_DIR)/Utility \
+            -I ../common -I $(RODEO_ROOT)/common -isystem $(DAISYSP_DIR) -isystem $(DAISYSP_DIR)/Utility \
             -isystem $(LGPL_DIR)
 
 vpath %.cpp $(sort $(dir $(DSP_SOURCES)))

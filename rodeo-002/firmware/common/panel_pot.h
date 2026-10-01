@@ -5,21 +5,36 @@
 //
 //     0.00 V  ->  3.3 * Rpot/(Rpot + 1k)  =  ~3.00 V for a 10k pot
 //
-// Built with a STRAIGHT cable instead of a reversed one, supply and ground swap
-// and the SAME divider runs from the other end, so the travel becomes
+// THE SATELLITE AND THE MOTHERBOARD AGREE, AND THIS COMMENT USED TO SAY THEY
+// DID NOT. Checked against the schematics on 2026-10-01:
+//
+//   motherboard J6-J17   pin 1 = +3V3    pin 2 = signal   pin 3 = GND
+//   rodeo-potentiometer  pin 1 = supply  pin 2 = wiper    pin 3 = GND
+//                        (pin 1 -> 1K -> pot top leg, 100n to GND on pin 1)
+//
+// So a STRAIGHT-THROUGH cable is the correct one and always was. An earlier
+// version of this comment claimed the opposite -- that the connectors were
+// mirrored and a reversed cable was required -- which would have had the next
+// person build a whole harness wrong. They are not mirrored. rodeo-002's own
+// harness was simply built reversed, and that is a one-off assembly fault on
+// this instrument, NOT a property of the platform.
+//
+// What the fault does, when it is present: supply and ground swap, the same
+// divider runs from the other end, and the travel becomes
 //
 //     3.3 * 1k/(Rpot + 1k)  ->  3.30 V   =  ~0.30 V .. 3.30 V
 //
-// Note what does and does not change. The RANGE shifts -- the pot can no longer
-// reach 0 V, and it can now reach the full 3.3 V, which correct wiring cannot.
-// The DIRECTION does not: which way the knob reads depends on the pot's pin
+// instead of 0.00 V .. ~3.00 V. The RANGE shifts -- the pot can no longer reach
+// 0 V, and it can now reach the full 3.3 V, which correct wiring cannot. The
+// DIRECTION does not: which way the knob reads depends on the pot's pin
 // orientation, and on rodeo-002's panel it comes out correct either way. An
 // earlier version of this file inverted such channels and made every knob run
 // backwards on hardware (2026-09-23) -- the range and the direction are
 // independent, and only the range is wrong here.
 //
 // Nothing is harmed by the swap: the satellite is passive. Rebuilding 16 cables
-// is a worse trade than rescaling here.
+// is a worse trade than rescaling here. Because this tolerates a MISTAKE rather
+// than a design, it stays in rodeo-002 and is not part of the platform library.
 //
 // WIRING IS DETECTED, NOT CONFIGURED, and each end proves one of the two. A
 // correctly wired satellite CANNOT read above ~3.05 V -- the 1 kOhm resistor

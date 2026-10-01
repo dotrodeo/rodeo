@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include "rodeo_screen.h"
+
 // FixedCapStr wants <string_view>, so the host tool builds at C++17 while the
 // firmware stays gnu++14 -- the only thing the two builds do not share.
 #include "util/FixedCapStr.h"
@@ -64,76 +66,15 @@ static_assert(kMeterBot < kRows, "the meter falls off the screen");
 static_assert(kEnvBot + 1 < kRows, "the envelope baseline falls off the screen");
 static_assert(kMsgTop >= kBodyTop && kMsgBot <= kStripBot, "the message box is not over the strip");
 } // namespace layout
-
-/** Font_6x8 is the header's font, so a character is six pixels and the line
- *  holds twenty-one of them. Spelled once, because the header now packs two
- *  fields against each other and every number here is derived from it. */
-constexpr int kChar = 6;
-
-/** Append what fits and no more.
- *
- *  Nothing wraps on this display: a string longer than its room draws straight
- *  over whatever is to its right. Every header field is bounded by what the
- *  field beside it leaves, so every one of them goes in through here. */
-template <size_t kCap>
-static void AppendUpTo(FixedCapStr<kCap>& s, const char* text, int room)
-{
-    for(int i = 0; i < room && text[i]; i++)
-        s.Append(text + i, 1);
-}
-
-/** A title bar: inverted, with an optional counter on the right. */
-template <typename Display>
-static void DrawTitle(Display& display, const char* text, const char* right)
-{
-    display.DrawRect(0, 0, 127, 9, true, true);
-    display.SetCursor(2, 1);
-    display.WriteString(text, Font_6x8, false);
-    if(right)
-    {
-        int n = 0;
-        while(right[n])
-            n++;
-        display.SetCursor(static_cast<uint8_t>(126 - 6 * n), 1);
-        display.WriteString(right, Font_6x8, false);
-    }
-}
-
-/** One list row. The selected row inverts rather than carrying a marker, which
- *  would eat a character of width on a 21-character line. */
-template <typename Display>
-static void DrawRow(Display& display, int r, const char* left, const char* right, bool selected)
-{
-    const uint8_t y = static_cast<uint8_t>(12 + r * 10);
-    if(selected)
-        display.DrawRect(0, static_cast<uint8_t>(y - 1), 127, static_cast<uint8_t>(y + 8),
-                         true, true);
-    display.SetCursor(2, y);
-    display.WriteString(left, Font_6x8, !selected);
-    if(right)
-    {
-        int n = 0;
-        while(right[n])
-            n++;
-        display.SetCursor(static_cast<uint8_t>(126 - 6 * n), y);
-        display.WriteString(right, Font_6x8, !selected);
-    }
-}
-
-/** How far down a long list you are. Nothing is drawn when it all fits. */
-template <typename Display>
-static void DrawScrollBar(Display& display, int first, int visible, int total)
-{
-    if(total <= visible)
-        return;
-    const int track = 51;
-    int       h     = track * visible / total;
-    if(h < 4)
-        h = 4;
-    const int top = 12 + track * first / total;
-    display.DrawRect(126, static_cast<uint8_t>(top), 127,
-                     static_cast<uint8_t>(top + h), true, true);
-}
+// kChar, AppendUpTo, DrawTitle, DrawRow and DrawScrollBar moved to the platform
+// library on 2026-10-01: the display is the platform's 128x64 SSD130x, so its
+// geometry and its list conventions are not this instrument's to own. The layout
+// constants above and Draw() below still are.
+using rodeo::AppendUpTo;
+using rodeo::DrawRow;
+using rodeo::DrawScrollBar;
+using rodeo::DrawTitle;
+using rodeo::kChar;
 
 /** The output as a triggered scope, in whatever space the readout leaves. */
 template <typename Display>

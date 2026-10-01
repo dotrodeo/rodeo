@@ -4,14 +4,17 @@
 // every one of those matters -- and the clamping is not cosmetic. The display
 // takes unsigned coordinates, so an overshoot wraps and paints a band across
 // the whole screen.
+//
+// Moved here with rodeo_scope.h on 2026-10-01: the module is the platform's, so
+// its tests belong beside the platform's other host tests.
 
 #include "gtest/gtest.h"
 
 #include <cmath>
 
-#include "scope.h"
+#include "rodeo_scope.h"
 
-using namespace rodeo002;
+using namespace rodeo;
 
 namespace
 {
