@@ -1,6 +1,6 @@
 // rodeo-002 — the platform's DSP utilities, under the names this instrument uses.
 //
-// The code moved to rodeo-motherboard/firmware/common/rodeo_dsp.h on 2026-10-01:
+// The code moved to rodeo-sdk/common/rodeo_dsp.h on 2026-10-01:
 // none of it is about a synthesiser, and rodeo-001 had already hand-rolled its
 // own one-pole smoother for want of it. What is left here is the bridge, so
 // every call site in this instrument keeps reading `fx::Smoother` rather than

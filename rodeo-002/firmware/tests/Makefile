@@ -3,18 +3,18 @@
 # Builds the effect headers in ../common for the HOST (your Mac), against the
 # REAL vendored DaisySP -- what these tests guard is numerical behaviour
 # (blow-ups, NaN, runaway feedback), and a reimplementation would not catch it.
-# Mirrors rodeo-motherboard/firmware/common/tests: same clang++ / gnu++14 and the
+# Mirrors rodeo-sdk/common/tests: same clang++ / gnu++14 and the
 # googletest already vendored in libDaisy, so no new dependency.
 #
 #   make test     # build + run
 #   make clean
 #
 # In a git worktree without submodules, point RODEO_ROOT at the main checkout:
-#   make test RODEO_ROOT=/path/to/rodeo/rodeo-motherboard/firmware
+#   make test RODEO_ROOT=/path/to/rodeo/rodeo-sdk
 
 CXX ?= clang++
 
-RODEO_ROOT ?= ../../../rodeo-motherboard/firmware
+RODEO_ROOT ?= ../../../rodeo-sdk
 
 BUILD_PATH = build
 BIN_NAME   = rodeo002_gtest

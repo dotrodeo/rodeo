@@ -89,7 +89,7 @@ left is Z-osc at 9.02%, where String was 16.43%.
 Per-voice costs above are the 2026-09-22 hardware fit (raw ticks, post-optimisation); they
 are the numbers [`cost_model.h`](../firmware/common/cost_model.h) uses.
 
-Most of the list is already vendored in `rodeo-motherboard/firmware/DaisySP` — these are the
+Most of the list is already vendored in `rodeo-sdk/DaisySP` — these are the
 Plaits-derived modules Émilie Gillet contributed upstream, so the "Plaits-like" feel is mostly
 a matter of *driving* them from common macros rather than porting new DSP. Anything still
 missing comes from the MIT-licensed Mutable source.

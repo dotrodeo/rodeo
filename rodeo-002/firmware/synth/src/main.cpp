@@ -41,7 +41,7 @@
 #include "ui.h"
 #include "voice.h"
 
-// Platform drivers (rodeo-motherboard/firmware/common).
+// Platform drivers (rodeo-sdk/common).
 #include "encoder_hub.h"
 #include "oled_ssd130x_bulk.h"
 #include "rodeo_adc.h"

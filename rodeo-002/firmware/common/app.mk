@@ -10,7 +10,7 @@
 # bootloader by default, and refuses mismatched flashes. Apps live one level
 # below rodeo-002/firmware, which fixes the relative paths here.
 
-RODEO_ROOT ?= ../../../rodeo-motherboard/firmware
+RODEO_ROOT ?= ../../../rodeo-sdk
 
 # The real effects and voice engines, shared by every app.
 C_INCLUDES += -I../common

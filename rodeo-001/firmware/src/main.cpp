@@ -2,7 +2,7 @@
 //
 // The rodeo-001 INSTRUMENT, built on the generic rodeo-motherboard boilerplate
 // (consume-not-copy: this app links the vendored libDaisy/DaisySP and the shared
-// common/ drivers via ../../rodeo-motherboard/firmware; it does not fork them).
+// common/ drivers via ../../rodeo-sdk; it does not fork them).
 //
 // Voice v2 target = "less-complicated MiniFreak":
 //   - 12-voice polyphony

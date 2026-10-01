@@ -27,7 +27,7 @@ using namespace rodeo002;
 namespace
 {
 /** The driver, the framebuffer, and the ASCII/PBM writers are the platform's --
- *  see rodeo-motherboard/firmware/tools/screens/host_display.h, which also
+ *  see rodeo-sdk/tools/screens/host_display.h, which also
  *  explains why the framebuffer is not a member. What is left here is this
  *  instrument's: a rig that drives its Ui, and the list of screens worth
  *  looking at. */

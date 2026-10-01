@@ -1,4 +1,4 @@
-# Rodeo motherboard firmware — top-level helpers.
+# Rodeo SDK — top-level helpers.
 #
 # The real builds live in template/ and examples/<name>/. cd into one and run
 # `make` (then `make program-dfu` to flash). This top-level file just builds the
