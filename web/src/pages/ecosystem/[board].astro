@@ -33,10 +33,11 @@ const files = [
   <section class="flex flex-col gap-10 pt-6 lg:flex-row lg:gap-12">
     <div class="lg:w-[42%] lg:shrink-0">
       <BoardFigure
-        src={board.image!}
-        alt={board.imageAlt!}
+        src={board.shot!.src}
+        alt={board.shot!.alt}
+        media={board.shot!.media}
         rev={board.rev}
-        caption={`${board.name} as fabbed`}
+        caption={board.shot!.caption}
         loading="eager"
         widths={[480, 800, 1200]}
         sizes="(max-width: 1024px) 100vw, 480px"
@@ -62,6 +63,34 @@ const files = [
       }
     </div>
   </section>
+
+  {
+    board.gallery?.length ? (
+      <section class="pt-14">
+        <div class="flex items-baseline gap-4 pb-5">
+          <Chip>More views</Chip>
+          <p class="m-0 text-[14px] text-hardware">The board as it actually arrived.</p>
+        </div>
+        <ul
+          class={`m-0 grid list-none gap-6 p-0 ${board.gallery.length > 1 ? 'sm:grid-cols-2 lg:grid-cols-3' : 'max-w-[520px]'}`}
+        >
+          {board.gallery.map((shot) => (
+            <li>
+              <BoardFigure
+                src={shot.src}
+                alt={shot.alt}
+                media={shot.media}
+                rev={board.rev}
+                caption={shot.caption}
+                widths={[400, 700, 1000]}
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px"
+              />
+            </li>
+          ))}
+        </ul>
+      </section>
+    ) : null
+  }
 
   <section class="pt-14">
     <div class="flex items-baseline gap-4 pb-5">

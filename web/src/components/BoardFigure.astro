@@ -11,6 +11,12 @@ interface Props {
   src: ImageMetadata;
   alt: string;
   rev: Rev;
+  /**
+   * Whether this is a photograph of real hardware or a CAD render. Stated in
+   * the caption: a render shown as if it were a photo is the same class of
+   * dishonesty as an unlabelled revision.
+   */
+  media: 'photo' | 'render';
   /** Extra context, shown after the revision. */
   caption?: string;
   widths?: number[];
@@ -19,10 +25,15 @@ interface Props {
   class?: string;
 }
 
-const { src, alt, rev, caption, widths = [480, 800, 1200], sizes = '(max-width: 768px) 100vw, 50vw', loading = 'lazy', class: klass = '' } = Astro.props;
+const { src, alt, rev, media, caption, widths = [480, 800, 1200], sizes = '(max-width: 768px) 100vw, 50vw', loading = 'lazy', class: klass = '' } = Astro.props;
 
 if (!alt?.trim()) throw new Error('BoardFigure: `alt` is required.');
 if (!rev) throw new Error('BoardFigure: `rev` is required — every board image states its revision.');
+if (media !== 'photo' && media !== 'render') {
+  throw new Error("BoardFigure: `media` must be 'photo' or 'render'.");
+}
+
+const medium = media === 'photo' ? 'photo' : 'CAD render';
 ---
 
 <figure class={`m-0 ${klass}`}>
@@ -36,6 +47,6 @@ if (!rev) throw new Error('BoardFigure: `rev` is required — every board image 
     class="block w-full h-auto"
   />
   <figcaption class="mt-2.5 font-mono text-[12px] leading-relaxed text-hardware">
-    <span class="text-legend">Rev-{rev}</span>{caption ? ` — ${caption}` : ' prototype'}
+    <span class="text-legend">Rev-{rev}</span>{caption ? ` — ${caption}` : ''} · {medium}
   </figcaption>
 </figure>

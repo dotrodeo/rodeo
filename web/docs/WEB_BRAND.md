@@ -185,9 +185,11 @@ ever changes, and it costs nothing now.
    `F.Mask` colour in their stackup; the other four declare `Black`. Left alone, the family
    arrives looking like two different products. One-line fix per board in KiCad — a hardware
    task with brand consequences, tracked here because this doc is where it was found.
-2. **`JLCJLCJLCJLC` is on the motherboard's front silkscreen.** JLC prints an order number
-   there. Acceptable on prototypes; it should move somewhere discreet before the board is a
-   product people photograph.
+2. ~~**`JLCJLCJLCJLC` is on the motherboard's front silkscreen.**~~ **Corrected 2026-10-01 —
+   this was wrong.** The field is on `B.SilkS` (`rodeo-motherboard.kicad_pcb`), and the
+   photograph of the board's back confirms it: a small `JLCJLCJLCJLC` above the `RODEO`
+   wordmark. That is already discreet. No action needed, and nothing was ever wrong on the
+   front.
 3. **No `rodeo-001` imagery exists.** The reference-build showcase page needs either a
    render of the instance KiCad or photographs of an assembled unit. Its Cassette Futurism
    panel aesthetic (`rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md:474-491`) is **that

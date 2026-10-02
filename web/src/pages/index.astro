@@ -41,10 +41,11 @@ const figures = [
     </div>
     <div class="min-w-0 grow lg:w-[46%] lg:shrink-0">
       <BoardFigure
-        src={host.image!}
-        alt={host.imageAlt!}
+        src={host.shot!.src}
+        alt={host.shot!.alt}
+        media={host.shot!.media}
         rev={host.rev}
-        caption="rodeo-motherboard, 95 × 75 mm mounting, 4-layer"
+        caption={host.shot!.caption}
         loading="eager"
         widths={[600, 900, 1400]}
         sizes="(max-width: 1024px) 100vw, 640px"
@@ -130,7 +131,13 @@ const figures = [
         satellites.map((b) => (
           <li>
             <a href={`/ecosystem/${b.slug}/`} class="flex flex-col gap-3 text-legend no-underline">
-              <BoardFigure src={b.image!} alt={b.imageAlt!} rev={b.rev} caption={b.name} />
+              <BoardFigure
+                src={b.shot!.src}
+                alt={b.shot!.alt}
+                media={b.shot!.media}
+                rev={b.rev}
+                caption={b.name}
+              />
               <p class="m-0 text-[14.5px] leading-relaxed text-hardware">{b.summary}</p>
             </a>
           </li>

@@ -87,7 +87,23 @@ a page per board, `/style-guide` and `/404`. Not yet built: the build log, `/doc
 `/prototype/`, the subscribe function and the deploy workflow — see
 [docs/WEB_ROADMAP.md](docs/WEB_ROADMAP.md).
 
-Board imagery is regenerated from KiCad rather than stored as precious artwork:
+### Imagery
+
+**Photographs where they exist, renders only for boards not yet shot.** The distinction is
+rendered into the caption by `BoardFigure`, which refuses to render without both `media`
+(`photo` | `render`) and `rev` — a render passed off as a photo is the same class of
+dishonesty as an unlabelled board revision.
+
+Photographed so far: `rodeo-motherboard` (front, back, two detail shots) and
+`rodeo-encoder-hub` (front, back). Still renders: potentiometer, encoder, button.
+
+Importing new photos — re-encoding also strips any EXIF, which phone photos can carry:
+
+```bash
+npm run photos -- <src-dir>   # mapping lives in scripts/prepare-photos.mjs
+```
+
+Renders are regenerated from KiCad rather than stored as precious artwork:
 
 ```bash
 kicad-cli pcb render -o out/<board>.png --width 1800 --height 1400 \

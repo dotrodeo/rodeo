@@ -12,8 +12,14 @@
 import type { ImageMetadata } from 'astro';
 import type { Rev, Status } from './site';
 
-import motherboardImg from '../assets/hardware/rodeo-motherboard.png';
-import encoderHubImg from '../assets/hardware/rodeo-encoder-hub.png';
+// Photographs where they exist, renders only for the boards not yet shot.
+// The distinction is rendered in the caption — see BoardFigure.
+import motherboardImg from '../assets/hardware/rodeo-motherboard.webp';
+import motherboardBackImg from '../assets/hardware/rodeo-motherboard-back.webp';
+import motherboardDaisyImg from '../assets/hardware/rodeo-motherboard-daisy.webp';
+import motherboardIoImg from '../assets/hardware/rodeo-motherboard-io.webp';
+import encoderHubImg from '../assets/hardware/rodeo-encoder-hub.webp';
+import encoderHubBackImg from '../assets/hardware/rodeo-encoder-hub-back.webp';
 import potentiometerImg from '../assets/hardware/rodeo-potentiometer.png';
 import encoderImg from '../assets/hardware/rodeo-encoder.png';
 import buttonImg from '../assets/hardware/rodeo-button.png';
@@ -31,6 +37,15 @@ export interface Caveat {
   evidence: string;
 }
 
+export interface Shot {
+  src: ImageMetadata;
+  /** Alt text. Required — BoardFigure throws without it. */
+  alt: string;
+  /** Photograph of real hardware, or a CAD render. Stated in the caption. */
+  media: 'photo' | 'render';
+  caption: string;
+}
+
 export interface Board {
   slug: string;
   name: string;
@@ -41,9 +56,10 @@ export interface Board {
   summary: string;
   /** A paragraph for the board page. */
   body: string;
-  image?: ImageMetadata;
-  /** Alt text. Required — the figure component will not render without it. */
-  imageAlt?: string;
+  /** The lead image used on the card and at the top of the board page. */
+  shot?: Shot;
+  /** Further views, shown on the board page only. */
+  gallery?: Shot[];
   specs: Spec[];
   caveats?: Caveat[];
   /** Why it was cut. Retired boards only. */
@@ -66,9 +82,32 @@ export const boards: Board[] = [
     summary:
       'The host. A Daisy Seed carrier that turns the Seed’s pins into a wired control surface.',
     body: 'Two 12-channel 16-bit delta-sigma converters on SPI give twenty-four analog inputs, with twelve raw digital inputs alongside them and an I²C bus for smart modules. Controls are not board-mounted: every input is a JST connector, so the panel is a tiling of satellite boards rather than one co-designed PCB.',
-    image: motherboardImg,
-    imageAlt:
-      'The Rodeo motherboard seen from above: a black four-layer board with two banks of twelve analog JST connectors, a bank of twelve digital connectors, three bus headers, and a Daisy Seed footprint with gold plated through-holes.',
+    shot: {
+      src: motherboardImg,
+      media: 'photo',
+      alt: 'A populated Rodeo motherboard photographed from above: a black four-layer board with two banks of twelve gold JST connectors labelled ANALOG BANK 1 and 2, a DIGITAL BANK of twelve more, UART, I2C and SPI headers, four 3.5 mm jacks down the right edge, and an empty Daisy Seed footprint.',
+      caption: 'rodeo-motherboard, assembled',
+    },
+    gallery: [
+      {
+        src: motherboardIoImg,
+        media: 'photo',
+        alt: 'Close-up of the motherboard’s right edge: four 3.5 mm jacks silkscreened LINE OUT, LINE IN, MIDI OUT and MIDI IN, beside ANALOG BANK 2 and the 6N138 optocoupler.',
+        caption: 'The I/O edge — line in and out, MIDI in and out',
+      },
+      {
+        src: motherboardDaisyImg,
+        media: 'photo',
+        alt: 'Close-up of the motherboard’s Daisy Seed footprint: two rows of plated through-holes, the UART, I2C and SPI headers above them, STS, 3.3V and +5V indicator LEDs, and the USB-C connector.',
+        caption: 'The Daisy Seed footprint, bus headers and the power-only USB-C',
+      },
+      {
+        src: motherboardBackImg,
+        media: 'photo',
+        alt: 'The back of the motherboard: bare black soldermask with a large white RODEO wordmark across the lower half and the Daisy Seed through-holes running through it.',
+        caption: 'The back — the wordmark is part of the board',
+      },
+    ],
     specs: [
       { label: 'analog in', value: '24 × 16-bit', evidence: `${MAP}:76` },
       { label: 'converters', value: '2 × ADS114S08 on SPI1', evidence: `${MAP}:76` },
@@ -106,9 +145,20 @@ export const boards: Board[] = [
     summary:
       'Reads nine encoders and answers the host as a single I²C target. Four addresses per bus.',
     body: 'Encoders are expensive in pins and cheap in bandwidth, so they do not go to the host directly. An STM32C031 polls nine of them at roughly 1 kHz, does the quadrature and the debouncing, and serves a RAM shadow over I²C. Two cuttable jumpers set the address, so four hubs — thirty-six encoders — share two wires.',
-    image: encoderHubImg,
-    imageAlt:
-      'The Rodeo encoder hub seen from above: a square black board with nine numbered encoder slots ringing a central microcontroller, and JST connectors along all four edges.',
+    shot: {
+      src: encoderHubImg,
+      media: 'photo',
+      alt: 'A populated Rodeo encoder hub photographed from above: a square black board with nine large white numbers ringing a central STM32 microcontroller, a dashed circle between them, and JST connectors on all four edges.',
+      caption: 'rodeo-encoder-hub, assembled',
+    },
+    gallery: [
+      {
+        src: encoderHubBackImg,
+        media: 'photo',
+        alt: 'The back of the encoder hub: black soldermask filled edge to edge with the words RODEO ENCODER HUB in heavy white silkscreen.',
+        caption: 'The back — the whole surface is the label',
+      },
+    ],
     specs: [
       { label: 'MCU', value: 'STM32C031C6', evidence: `${HUBFW}:177-191` },
       { label: 'slots', value: '9', evidence: `${HUB}:39` },
@@ -140,9 +190,12 @@ export const boards: Board[] = [
     rev: 'A',
     summary: 'One pot, a supply filter, three pins to an ADC channel. Entirely passive.',
     body: 'An Alps RK09K with a 1 kΩ + 100 nF supply filter on the top of the track. Nothing to configure and nothing to drive — it presents a voltage and the host converts it.',
-    image: potentiometerImg,
-    imageAlt:
-      'The Rodeo potentiometer satellite seen from above: a small black board carrying one Alps potentiometer and a 3-pin JST connector.',
+    shot: {
+      src: potentiometerImg,
+      media: 'render',
+      alt: 'A CAD render of the Rodeo potentiometer satellite from above: a small black board carrying one Alps potentiometer and a 3-pin JST connector.',
+      caption: 'rodeo-potentiometer — not yet photographed',
+    },
     specs: [
       { label: 'control', value: 'Alps RK09K', evidence: 'rodeo-potentiometer/jlcpcb/production_files/BOM-rodeo-potentiometer.csv' },
       { label: 'outline', value: '25 × 30 mm', evidence: 'rodeo-potentiometer/rodeo-potentiometer.kicad_pcb' },
@@ -165,9 +218,12 @@ export const boards: Board[] = [
     rev: 'A',
     summary: 'A detented EC11 with a push switch, wired to one hub slot.',
     body: 'Deliberately dumb: no microcontroller, no quadrature decoding, four pins to a hub slot. All the intelligence lives in the hub, which is what keeps the satellite cheap enough to put twenty of them on a panel.',
-    image: encoderImg,
-    imageAlt:
-      'The Rodeo encoder satellite seen from above: a small square black board carrying one EC11 rotary encoder and a 4-pin JST connector.',
+    shot: {
+      src: encoderImg,
+      media: 'render',
+      alt: 'A CAD render of the Rodeo encoder satellite from above: a small square black board carrying one EC11 rotary encoder and a 4-pin JST connector.',
+      caption: 'rodeo-encoder — not yet photographed',
+    },
     specs: [
       { label: 'control', value: 'EC11, detented, with switch', evidence: `${CMAP}:78` },
       { label: 'outline', value: '25 × 25 mm', evidence: 'rodeo-encoder/rodeo-encoder.kicad_pcb' },
@@ -183,9 +239,12 @@ export const boards: Board[] = [
     rev: 'A',
     summary: 'A momentary switch straight onto a digital input.',
     body: 'The simplest satellite in the set: a switch, a pull-up and two pins. The interface is verified against the host; the switch footprint itself is still being settled, which is why this one is not marked verified.',
-    image: buttonImg,
-    imageAlt:
-      'The Rodeo button satellite seen from above: a small square black board carrying one momentary switch and a 2-pin JST connector.',
+    shot: {
+      src: buttonImg,
+      media: 'render',
+      alt: 'A CAD render of the Rodeo button satellite from above: a small square black board carrying one momentary switch and a 2-pin JST connector.',
+      caption: 'rodeo-button — not yet photographed',
+    },
     specs: [
       { label: 'control', value: 'momentary switch', evidence: `${CMAP}:77` },
       { label: 'outline', value: '25 × 25 mm', evidence: 'rodeo-button/rodeo-button.kicad_pcb' },

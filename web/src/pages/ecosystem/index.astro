@@ -41,10 +41,11 @@ import { statusLabel } from '../../data/site';
     <div class="flex flex-col gap-8 lg:flex-row">
       <div class="lg:w-[46%] lg:shrink-0">
         <BoardFigure
-          src={host.image!}
-          alt={host.imageAlt!}
+          src={host.shot!.src}
+          alt={host.shot!.alt}
+          media={host.shot!.media}
           rev={host.rev}
-          caption="rodeo-motherboard"
+          caption={host.shot!.caption}
           widths={[500, 800, 1200]}
           sizes="(max-width: 1024px) 100vw, 520px"
         />
@@ -84,7 +85,13 @@ import { statusLabel } from '../../data/site';
           satellites.map((b) => (
             <li>
               <a href={`/ecosystem/${b.slug}/`} class="flex flex-col gap-3 text-legend no-underline">
-                <BoardFigure src={b.image!} alt={b.imageAlt!} rev={b.rev} caption={b.name} />
+                <BoardFigure
+                  src={b.shot!.src}
+                  alt={b.shot!.alt}
+                  media={b.shot!.media}
+                  rev={b.rev}
+                  caption={b.name}
+                />
                 <div class="flex flex-wrap items-center gap-2">
                   <h3 class="display m-0 text-[18px] normal-case">{b.name}</h3>
                   <Chip variant="status" status={b.status}>

@@ -9,7 +9,8 @@
     "check": "astro check && node scripts/check-claims.mjs && node scripts/check-assets.mjs",
     "assets": "node scripts/check-assets.mjs",
     "claims": "node scripts/check-claims.mjs",
-    "renders": "node scripts/shrink-renders.mjs"
+    "renders": "node scripts/shrink-renders.mjs",
+    "photos": "node scripts/prepare-photos.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.0.0",
