@@ -70,8 +70,8 @@ There are **no jumper components** in the design — no `SolderJumper`, `NetTie`
 the KiCad `duplicate_pin_numbers_are_jumpers` syntax token). The only new
 power-related parts are five **3-pin JST-ZH connectors J45–J49**, each
 `1=GND, 2=+3V3, 3=VIN` — power *taps/distribution*, not selectable jumpers.
-If the intent was a rail-select or source-select jumper, it isn't on the board
-yet. **Reconcile with what you thought you added.**
+**Closed (Derek, 2026-10-04):** "power jumpers" was a miscommunication. The
+five taps J45–J49 are what was meant, and Rev B keeps them as they are.
 
 ---
 
@@ -218,6 +218,9 @@ header is the same USART1 as MIDI — only one of the two can be used at a time.
 ---
 
 ## Issues found
+
+> Everything planned for the next board, including the items below that it
+> resolves, is collected in [`rev-b.md`](rev-b.md).
 
 ### 1. RESOLVED AS BUILT — SPI MOSI/MISO were swapped in the layout
 
