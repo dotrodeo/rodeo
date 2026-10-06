@@ -46,13 +46,63 @@
 // in one detent -- and the menu now has precedence over the panel: nothing you
 // touch closes it, so it cannot go away mid-thought.
 
+// v4.0.0 drops Grainlet, Particle, String and Karplus (Derek, 2026-09-29,
+// after living with the instrument): four engines nobody reached for, two of
+// which could not be played polyphonically. MAJOR because a preset that names
+// one no longer loads intact -- it falls back to virtual-analog and says so.
+// Their stored ids 8..11 are retired, never reused.
+//
+// Two things fell out of it. Every engine left is polyphonic, so the voice-mode
+// override (Mono forced on the physical models) is gone: Poly is Poly on every
+// engine. And `StringVoice` alone was 5368 bytes of the per-voice engine union
+// against 148 for everything remaining, so DTCM fell from 85.5% to 53.8%.
+//
+// It also adds the analog behaviour that room paid for, at no panel cost: every
+// voice is tuned slightly wrong and wanders slowly, and every voice has a place
+// in the stereo field. SPREAD NOW MEANS STEREO WIDTH in every polyphonic mode,
+// where it used to do nothing outside Unison -- at 0 the output is the mono sum
+// it always was, sample for sample. Unison's own detune was +/-6 cents under a
+// comment claiming a semitone; it is +/-25 cents now. Presets load unchanged
+// but SOUND different: wider, and actually stacked in Unison rather than eight
+// phase-locked copies of one oscillator.
+//
+// And a SUB-OSCILLATOR: a plain waveform under or over the note, on the two
+// shift knobs Env->Timbre and Env->Morph gave up (both moved to the patch page,
+// losing nothing but the travel). Not a second macro engine -- that would have
+// halved the polyphony on the dearer engines to buy beating, which Unison
+// already gives. Level 0 is off and is charged nothing. It fits the last two
+// spare bytes of StoredPreset, so no version bump and no preset lost; those
+// bytes have always been zero, which decodes as off, -12, sine.
+//
+// The FACTORY BANK is rebuilt from nothing for all of the above: sixteen sounds
+// covering all seven engines, all three voice modes, all three filter types, all
+// five Space types, and the sub above the note, below it and off. Factory Reset
+// is what loads it -- the stored bank is otherwise kept, since the format did
+// not change.
+
+// v5.0.0 gives every preset its own GAIN, because the factory bank spanned 19 dB
+// of peak level and switching presets meant riding the master volume (Derek,
+// 2026-10-01). It is a trim after the chain, so turning a preset down does not
+// also turn its drive down, and it is on the patch settings page in dB.
+//
+// MAJOR because the stored format moved: PresetBank::kVersion 2 -> 3. NOTHING
+// SAVED IS LOST -- v3 only reinterprets the four bytes `release` used to hold,
+// which had been dead since the envelope became ADS, so the layout is identical
+// and a v2 bank is migrated in place by putting unity in that field. The
+// factory bank's own levels all changed, though, which every preset notices.
+//
+// Also: the sub's triangle is DaisySP's naive one rather than its polyblep one.
+// WAVE_POLYBLEP_TRI is the only waveform built on a leaky integrator and
+// Oscillator::Init never initialises its state, so on the host two factory
+// presets produced NaN from the first sample. BSS zeroing hid it on the board.
+
 #pragma once
 
 namespace rodeo002
 {
-constexpr int  kVersionMajor = 3;
+constexpr int  kVersionMajor = 5;
 constexpr int  kVersionMinor = 0;
 constexpr int  kVersionPatch = 0;
-constexpr char kVersionString[] = "3.0.0";
+constexpr char kVersionString[] = "5.0.0";
 
 } // namespace rodeo002

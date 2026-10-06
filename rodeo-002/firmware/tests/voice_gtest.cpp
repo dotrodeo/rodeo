@@ -27,6 +27,19 @@ struct Rendered
     float tail   = 0.f; // peak over the last 50 ms
 };
 
+/** The voices are panned now, so Render writes a pair. Everything below
+ *  measures one signal, so fold to mono the way a mono listener would. Equal
+ *  power puts a centred voice at s * 0.7071 in each channel, and 1/sqrt(2)
+ *  turns that back into exactly what the old mono Render produced -- so every
+ *  measurement in this file still means what it meant. */
+void RenderMono(VoiceManager& vm, float* buf, size_t n)
+{
+    static float l[kBlock], r[kBlock];
+    vm.Render(l, r, n);
+    for(size_t i = 0; i < n; i++)
+        buf[i] = (l[i] + r[i]) * 0.70710678f;
+}
+
 Rendered Render(VoiceManager& vm, float seconds, float tail_seconds = 0.05f)
 {
     const size_t total = static_cast<size_t>(kSr * seconds);
@@ -35,7 +48,7 @@ Rendered Render(VoiceManager& vm, float seconds, float tail_seconds = 0.05f)
     float        buf[kBlock];
     for(size_t i = 0; i + kBlock <= total; i += kBlock)
     {
-        vm.Render(buf, kBlock);
+        RenderMono(vm, buf, kBlock);
         for(size_t j = 0; j < kBlock; j++)
         {
             if(!std::isfinite(buf[j]))
@@ -227,12 +240,12 @@ TEST(VoiceManager, ControlChangesRampRatherThanStep)
 
     // One block must move only a fraction of the way -- that is the point.
     float  buf[kBlock];
-    vm.Render(buf, kBlock);
+    RenderMono(vm, buf, kBlock);
     EXPECT_LT(vm.SmoothedHarmonics(), 0.2f) << "a single block jumped most of the way";
 
     // ...and it must still arrive promptly: ~20 ms, not a slow drift.
     for(int i = 0; i < 60; i++) // 60 blocks = 60 ms
-        vm.Render(buf, kBlock);
+        RenderMono(vm, buf, kBlock);
     EXPECT_GT(vm.SmoothedHarmonics(), 0.9f);
     EXPECT_GT(vm.SmoothedCutoff(), 0.85f);
 }
@@ -247,14 +260,14 @@ TEST(VoiceManager, ControlSmoothingReachesHalfwayWithinAboutTwentyMilliseconds)
     vm.ApplyPatch(p);
     float buf[kBlock];
     for(int i = 0; i < 50; i++)
-        vm.Render(buf, kBlock);
+        RenderMono(vm, buf, kBlock);
 
     p.harmonics = 1.f;
     vm.ApplyPatch(p);
     int blocks = 0;
     while(vm.SmoothedHarmonics() < 0.5f && blocks < 200)
     {
-        vm.Render(buf, kBlock);
+        RenderMono(vm, buf, kBlock);
         blocks++;
     }
     EXPECT_GT(blocks, 3) << "too abrupt to be smoothing";
@@ -283,7 +296,7 @@ double LfoHz(float rate, float seconds = 4.f)
     size_t blocks    = static_cast<size_t>(kSr * seconds) / kBlock;
     for(size_t i = 0; i < blocks; i++)
     {
-        vm.Render(buf, kBlock);
+        RenderMono(vm, buf, kBlock);
         const float v = vm.LfoValue();
         if(i > 0 && (v > 0.f) != (prev > 0.f))
             crossings++;
@@ -313,7 +326,7 @@ TEST(VoiceManager, TheLfoRateKnobIsMonotonic)
 
 // ADS, Moog style (2026-09-24): there is no separate release time. The Decay
 // knob sets the fall whether the key is still held or not, so a short decay has
-// to give a short tail after note-off -- p.release is not consulted at all.
+// to give a short tail after note-off. There is no release field any more.
 TEST(VoiceManager, DecayIsTheReleaseTime)
 {
     for(float decay : {0.05f, 0.9f})
@@ -323,7 +336,6 @@ TEST(VoiceManager, DecayIsTheReleaseTime)
         Patch p;
         p.decay   = decay;
         p.sustain = 1.f;             // hold the level so only the tail differs
-        p.release = 1.f;             // must be ignored
         vm.ApplyPatch(p);
         vm.NoteOn(60, 0.8f);
         Render(vm, 0.3f);
@@ -461,7 +473,7 @@ double StartPitch(VoiceManager& vm, float seconds = 0.06f)
     float        prev      = 0.f;
     for(size_t i = 0; i + kBlock <= n; i += kBlock)
     {
-        vm.Render(buf, kBlock);
+        RenderMono(vm, buf, kBlock);
         for(size_t j = 0; j < kBlock; j++)
         {
             if((buf[j] > 0.f) != (prev > 0.f))
@@ -543,4 +555,229 @@ TEST(VoiceManager, AStolenPolyVoiceStartsAtPitch)
     vm.NoteOn(72, 0.8f);
     const double hz = StartPitch(vm);
     EXPECT_GT(hz, 380.0) << "the stolen voice glided in from the note it was playing";
+}
+
+
+// ------------------------------------------------------------------ STEREO
+//
+// The voices are panned across the field (VoiceManager::PanFor) and each one
+// carries a small fixed tuning error plus a slow wander. Both exist to stop
+// eight identical digital oscillators summing to one loud oscillator.
+
+namespace
+{
+struct Stereo
+{
+    double el = 0, er = 0, diff = 0;
+    double total() const { return el + er; }
+    /** How far the image leans, 0 centred and 1 entirely on one side. */
+    double lean() const { return total() > 0 ? fabs(el - er) / total() : 0.0; }
+};
+
+Stereo RenderStereo(VoiceManager& vm, float seconds)
+{
+    static float l[kBlock], r[kBlock];
+    const size_t total = static_cast<size_t>(kSr * seconds);
+    Stereo       s;
+    for(size_t i = 0; i + kBlock <= total; i += kBlock)
+    {
+        vm.Render(l, r, kBlock);
+        for(size_t j = 0; j < kBlock; j++)
+        {
+            s.el += double(l[j]) * l[j];
+            s.er += double(r[j]) * r[j];
+            s.diff += double(l[j] - r[j]) * (l[j] - r[j]);
+        }
+    }
+    return s;
+}
+
+VoiceManager& Chord(VoiceManager& vm, float spread, VoiceMode mode = VoiceMode::kPoly)
+{
+    vm.Init(kSr);
+    Patch p;
+    p.sustain    = 1.f;
+    p.spread     = spread;
+    p.voice_mode = mode;
+    vm.ApplyPatch(p);
+    for(int n : {60, 64, 67, 71})
+        vm.NoteOn(n, 1.f);
+    return vm;
+}
+} // namespace
+
+// Spread at zero has to be the mono sum it always was, sample for sample.
+// Anyone who wants the old behaviour must be able to have it exactly.
+TEST(VoiceManager, SpreadAtZeroIsExactlyMono)
+{
+    VoiceManager vm;
+    Chord(vm, 0.f);
+    static float l[kBlock], r[kBlock];
+    for(int b = 0; b < 200; b++)
+    {
+        vm.Render(l, r, kBlock);
+        for(size_t j = 0; j < kBlock; j++)
+            ASSERT_FLOAT_EQ(l[j], r[j]) << "block " << b << " sample " << j;
+    }
+}
+
+// Opening the field must not quieten the instrument: the pan law is equal
+// power, so the energy in the pair stays put and only its distribution moves.
+TEST(VoiceManager, SpreadOpensTheFieldWithoutChangingLevel)
+{
+    VoiceManager a, b;
+    const Stereo mono = RenderStereo(Chord(a, 0.f), 0.5f);
+    const Stereo wide = RenderStereo(Chord(b, 1.f), 0.5f);
+
+    EXPECT_NEAR(wide.total(), mono.total(), mono.total() * 0.05)
+        << "spreading the voices changed how loud they are";
+    EXPECT_LT(mono.diff, 1e-9) << "spread 0 was not mono";
+    EXPECT_GT(wide.diff, mono.total() * 0.01)
+        << "spread 1 left the channels identical: nothing was panned";
+}
+
+// THE REGRESSION THIS EXISTS FOR. Poly fills voices from index 0 upward, so
+// spreading them along a linear ramp puts every chord smaller than the full
+// polyphony on the left -- measured at L=371 against R=101 before the pan
+// positions were reordered to alternate outward from the centre.
+TEST(VoiceManager, AChordIsNotPushedToOneSide)
+{
+    VoiceManager vm;
+    const Stereo s = RenderStereo(Chord(vm, 1.f), 0.5f);
+    EXPECT_LT(s.lean(), 0.15) << "the chord is lopsided: L=" << s.el << " R=" << s.er;
+}
+
+// Mono runs voice 0 and nothing else, so it must sit in the middle whatever
+// Spread is doing -- a lead line panned to one side is a bug, not a feature.
+TEST(VoiceManager, MonoIsCentredWhateverSpreadSays)
+{
+    VoiceManager vm;
+    vm.Init(kSr);
+    Patch p;
+    p.sustain    = 1.f;
+    p.spread     = 1.f;
+    p.voice_mode = VoiceMode::kMono;
+    vm.ApplyPatch(p);
+    vm.NoteOn(60, 1.f);
+    const Stereo s = RenderStereo(vm, 0.3f);
+    EXPECT_LT(s.lean(), 1e-6) << "Mono was panned";
+    EXPECT_LT(s.diff, 1e-9);
+}
+
+// Eight copies of one oscillator, started together at the same pitch, are one
+// oscillator eight times as loud -- which is what Unison sounded like with
+// Spread at zero. The per-voice tuning errors decorrelate them, so the sum is
+// well under eight times a single voice. This is the test that fails if the
+// drift is ever removed or zeroed.
+TEST(VoiceManager, UnisonVoicesAreNotPhaseLocked)
+{
+    VoiceManager one;
+    one.Init(kSr);
+    Patch p;
+    p.sustain    = 1.f;
+    p.voice_mode = VoiceMode::kMono;
+    one.ApplyPatch(p);
+    one.NoteOn(60, 1.f);
+    const float single = Render(one, 0.5f).peak;
+    ASSERT_GT(single, 0.01f);
+
+    VoiceManager stack;
+    stack.Init(kSr);
+    Patch q;
+    q.sustain    = 1.f;
+    q.voice_mode = VoiceMode::kUnison;
+    q.spread     = 0.f; // no detune at all: only the voices' own drift
+    stack.ApplyPatch(q);
+    stack.NoteOn(60, 1.f);
+    const float stacked = Render(stack, 0.5f).peak;
+
+    const float ratio = stacked / single;
+    EXPECT_LT(ratio, 6.f) << "the unison voices are phase-locked (ratio " << ratio
+                          << " of a possible 8)";
+    EXPECT_GT(ratio, 1.5f) << "the unison voices are cancelling rather than thickening";
+}
+
+// -------------------------------------------------------------- SUB-OSCILLATOR
+
+namespace
+{
+/** Magnitude at one frequency (Goertzel). Enough to answer "is there energy an
+ *  octave down", which is the only question these tests ask. */
+double Magnitude(VoiceManager& vm, float hz, float seconds)
+{
+    static float l[kBlock], r[kBlock];
+    const size_t total = static_cast<size_t>(kSr * seconds);
+    const double w     = 2.0 * M_PI * hz / kSr;
+    const double coeff = 2.0 * cos(w);
+    double       s1 = 0, s2 = 0;
+    for(size_t i = 0; i + kBlock <= total; i += kBlock)
+    {
+        vm.Render(l, r, kBlock);
+        for(size_t j = 0; j < kBlock; j++)
+        {
+            const double s = double(l[j]) + r[j] + coeff * s1 - s2;
+            s2             = s1;
+            s1             = s;
+        }
+    }
+    return sqrt(s1 * s1 + s2 * s2 - coeff * s1 * s2);
+}
+
+VoiceManager& SubNote(VoiceManager& vm, float level, SubInterval interval)
+{
+    vm.Init(kSr);
+    Patch p;
+    p.sustain      = 1.f;
+    p.voice_mode   = VoiceMode::kMono; // one voice, centred, nothing else moving
+    p.sub_level    = level;
+    p.sub_interval = interval;
+    p.sub_wave     = SubWave::kSine;
+    vm.ApplyPatch(p);
+    vm.NoteOn(60, 1.f); // 261.6 Hz
+    return vm;
+}
+} // namespace
+
+// Level 0 is off, and off has to mean off: the interval and waveform must make
+// no difference at all, because a preset that does not use the sub should sound
+// exactly as it did before the sub existed.
+TEST(VoiceManager, TheSubAtZeroIsSilentWhateverElseItIsSetTo)
+{
+    VoiceManager a, b;
+    const double x = Magnitude(SubNote(a, 0.f, SubInterval::kMinus12), 130.8f, 0.4f);
+    const double y = Magnitude(SubNote(b, 0.f, SubInterval::kPlus12), 130.8f, 0.4f);
+    EXPECT_NEAR(x, y, fmax(x, y) * 1e-6 + 1e-9) << "a silent sub still changed the sound";
+}
+
+// ...and with the level up there is energy where the interval says there should
+// be. An octave down is the default and the one that has to work.
+TEST(VoiceManager, TheSubPutsEnergyAtItsInterval)
+{
+    VoiceManager off, on;
+    const double quiet = Magnitude(SubNote(off, 0.f, SubInterval::kMinus12), 130.8f, 0.4f);
+    const double loud  = Magnitude(SubNote(on, 1.f, SubInterval::kMinus12), 130.8f, 0.4f);
+    EXPECT_GT(loud, quiet * 4.0) << "nothing arrived an octave down";
+
+    VoiceManager up_off, up_on;
+    const double up_quiet = Magnitude(SubNote(up_off, 0.f, SubInterval::kPlus12), 523.3f, 0.4f);
+    const double up_loud  = Magnitude(SubNote(up_on, 1.f, SubInterval::kPlus12), 523.3f, 0.4f);
+    EXPECT_GT(up_loud, up_quiet * 2.0) << "the interval is not being applied";
+}
+
+// The sub is charged for only when a patch uses it. Z-osc is the case that
+// matters: it is the dearest engine left, and seven of them plus seven subs do
+// not fit in the budget.
+TEST(CostModel, TheSubIsOnlyPaidForWhenItIsOn)
+{
+    for(int e = 0; e < static_cast<int>(EngineId::kCount); e++)
+    {
+        const EngineId id = static_cast<EngineId>(e);
+        SCOPED_TRACE(EngineName(id));
+        EXPECT_LE(CostModel::MaxVoices(id, 0.f, true), CostModel::MaxVoices(id, 0.f, false))
+            << "switching the sub on somehow bought voices";
+        EXPECT_GE(CostModel::MaxVoices(id, 0.f, true), 2) << "the sub made this engine mono";
+        EXPECT_LE(CostModel::PredictLoad(id, CostModel::MaxVoices(id, 0.f, true), 0.f, true),
+                  70.f)
+            << "the cap it hands out does not fit the budget";
+    }
 }

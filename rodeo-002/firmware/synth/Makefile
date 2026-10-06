@@ -1,7 +1,7 @@
 # rodeo-002 — the instrument. Build rules are in ../common/app.mk.
 #
 # The platform's drivers (ADC scanner, encoder-hub master, OLED transport) live
-# in rodeo-motherboard/firmware/common and are compiled in here.
+# in rodeo-sdk/common and are compiled in here.
 
 TARGET      = synth
 CPP_SOURCES = src/main.cpp \

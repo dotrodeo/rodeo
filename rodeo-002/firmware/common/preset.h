@@ -38,11 +38,11 @@ enum class EngineStableId : uint8_t
     kVosim         = 5,
     kHarmonic      = 6,
     kZOsc          = 7,
-    kGrainlet      = 8,
-    kParticle      = 9,
-    kString        = 10,
-    kKarplus       = 11,
     kUnknown       = 0,
+    // 8 Grainlet, 9 Particle, 10 String, 11 Karplus -- RETIRED 2026-09-29.
+    // Listed so nobody hands one of these out again: a preset saved by an
+    // earlier build still carries the number, and it has to keep meaning "an
+    // engine this firmware does not have" rather than whatever gets added next.
 };
 
 inline uint8_t EngineToStableId(EngineId e)
@@ -56,10 +56,6 @@ inline uint8_t EngineToStableId(EngineId e)
         case EngineId::kVosim: return 5;
         case EngineId::kHarmonic: return 6;
         case EngineId::kZOsc: return 7;
-        case EngineId::kGrainlet: return 8;
-        case EngineId::kParticle: return 9;
-        case EngineId::kString: return 10;
-        case EngineId::kKarplus: return 11;
         default: return 0;
     }
 }
@@ -80,10 +76,9 @@ inline EngineId EngineFromStableId(uint8_t id, bool* known = nullptr)
         case 5: e = EngineId::kVosim; break;
         case 6: e = EngineId::kHarmonic; break;
         case 7: e = EngineId::kZOsc; break;
-        case 8: e = EngineId::kGrainlet; break;
-        case 9: e = EngineId::kParticle; break;
-        case 10: e = EngineId::kString; break;
-        case 11: e = EngineId::kKarplus; break;
+        // 8..11 are the retired engines: they fall through to the default and
+        // come back as "not known to this build", which is the whole point of
+        // never reusing a number.
         default: ok = false; break;
     }
     // An id this build knows nothing about, or one whose engine has since been
@@ -114,7 +109,12 @@ struct StoredPreset
     uint8_t voice_mode, lfo_dest, filter, lfo_shape;
     int8_t  bend_range;
 
-    float harmonics, timbre, morph, spread, cutoff, resonance, attack, release;
+    /** `release` occupied this slot until 2026-10-01. It had been dead since
+     *  the envelope became ADS -- written in step with decay, read by nothing --
+     *  so the patch gain took its four bytes rather than growing the struct.
+     *  kVersion went to 3 for it, with a migration: a v2 bank is accepted and
+     *  every slot's gain set to unity, so nothing saved is lost. */
+    float harmonics, timbre, morph, spread, cutoff, resonance, attack, gain;
     float env_to_timbre, env_to_morph, decay, sustain, filter_env, lfo_rate, lfo_depth;
     float keytrack, glide, vel_to_filter;
 
@@ -125,7 +125,18 @@ struct StoredPreset
     uint8_t bypass[fx::TextureChain::kNumSlots];
     uint8_t freeze;
     uint8_t mod_dest;    // was reserved; 0 is LFO depth, which is what it always did
-    uint8_t reserved[2]; // keeps the floats aligned with nothing implicit
+    /** The sub-oscillator, in the last two spare bytes (2026-09-29). Both were
+     *  `reserved` and both have always been written as zero, so every preset
+     *  ever saved decodes as: level 0 -- the sub off -- with interval -12 and a
+     *  sine, which is what you would pick anyway. That is what let the sub
+     *  arrive WITHOUT bumping PresetBank::kVersion, which would have rejected
+     *  the stored bank and lost every saved preset.
+     *
+     *  Level is 0..255 over 0..1; that is finer than the pot reads. The second
+     *  byte packs the waveform in the high nibble and the interval in the low
+     *  one -- four and eight values, so a nibble each with room to spare. */
+    uint8_t sub_level;
+    uint8_t sub_shape; // wave << 4 | interval
 
     float   space_time, space_feedback, space_grain, grain_pitch, grain_spread;
     float   tilt;
@@ -135,6 +146,11 @@ struct StoredPreset
 // layout changed: bump PresetBank::kVersion so old banks are not misread.
 static_assert(sizeof(StoredPreset) == 164, "StoredPreset layout changed");
 
+// THERE IS NO SLACK LEFT. The last two bytes went to the sub-oscillator on
+// 2026-09-29. Anything added from here grows the struct, which means bumping
+// PresetBank::kVersion, which means every saved preset is lost -- so the next
+// thing that needs storage needs a migration first, not another field.
+
 namespace detail
 {
 inline float Clamp01(float v)
@@ -142,6 +158,12 @@ inline float Clamp01(float v)
     if(!(v >= 0.f)) // also catches NaN out of a corrupt store
         return 0.f;
     return v > 1.f ? 1.f : v;
+}
+inline float ClampGain(float g)
+{
+    if(!(g >= kGainMin)) // also catches NaN out of a corrupt store
+        return 1.f;
+    return g > kGainMax ? kGainMax : g;
 }
 inline uint8_t ClampEnum(uint8_t v, int count)
 {
@@ -159,9 +181,11 @@ inline void CopyName(char* dst, const char* src)
 
 inline void PatchToPreset(const Patch& p, const char* name, StoredPreset& s)
 {
-    for(int i = 0; i < 2; i++)
-        s.reserved[i] = 0; // never left to chance: it is compared
     s.mod_dest = static_cast<uint8_t>(p.mod_dest);
+    s.sub_level
+        = static_cast<uint8_t>(detail::Clamp01(p.sub_level) * 255.f + 0.5f);
+    s.sub_shape = static_cast<uint8_t>((static_cast<int>(p.sub_wave) << 4)
+                                       | static_cast<int>(p.sub_interval));
     detail::CopyName(s.name, name);
     s.used       = 1;
     s.engine_id  = EngineToStableId(p.engine);
@@ -178,7 +202,7 @@ inline void PatchToPreset(const Patch& p, const char* name, StoredPreset& s)
     s.cutoff    = p.cutoff;
     s.resonance = p.resonance;
     s.attack    = p.attack;
-    s.release   = p.release;
+    s.gain      = detail::ClampGain(p.gain);
 
     s.env_to_timbre = p.env_to_timbre;
     s.env_to_morph  = p.env_to_morph;
@@ -234,8 +258,13 @@ inline void PresetToPatch(const StoredPreset& s, Patch& p, bool* engine_known = 
     p.cutoff    = detail::Clamp01(s.cutoff);
     p.resonance = detail::Clamp01(s.resonance);
     p.attack    = detail::Clamp01(s.attack);
-    p.release   = detail::Clamp01(s.release);
+    p.gain      = detail::ClampGain(s.gain);
 
+    p.sub_level    = static_cast<float>(s.sub_level) * (1.f / 255.f);
+    p.sub_interval = static_cast<SubInterval>(
+        detail::ClampEnum(s.sub_shape & 0x0F, static_cast<int>(SubInterval::kCount)));
+    p.sub_wave = static_cast<SubWave>(
+        detail::ClampEnum((s.sub_shape >> 4) & 0x0F, static_cast<int>(SubWave::kCount)));
     p.env_to_timbre = detail::Clamp01(s.env_to_timbre);
     p.env_to_morph  = detail::Clamp01(s.env_to_morph);
     p.decay         = detail::Clamp01(s.decay);
@@ -282,7 +311,7 @@ struct PresetBank
     /** 2: 24 slots rather than 16, which changes this struct's size. A stored
      *  bank from v1 is rejected and the factory sixteen come back -- no
      *  migration, by Derek's call (2026-09-29). */
-    static constexpr uint16_t kVersion = 2;
+    static constexpr uint16_t kVersion = 3;
 
     uint32_t     magic;
     uint16_t     version;
@@ -292,6 +321,26 @@ struct PresetBank
     bool Valid() const
     {
         return magic == kMagic && version == kVersion && slots == kNumSlots;
+    }
+
+    /** Bring a v2 bank up to v3 in place, and say whether anything was done.
+     *
+     *  v3 reinterprets one field: the four bytes that held `release` now hold
+     *  the patch gain. The LAYOUT IS UNCHANGED -- same offset, same size -- so
+     *  the whole migration is to put unity in that field and move the version
+     *  on. Nothing saved is lost, which is the only reason the version could be
+     *  bumped at all (2026-10-01).
+     *
+     *  A v2 slot holds a copy of `decay` there, which as a gain would be a
+     *  quiet preset that nobody asked for, so it cannot simply be left. */
+    bool MigrateFromV2()
+    {
+        if(magic != kMagic || version != 2 || slots != kNumSlots)
+            return false;
+        for(int i = 0; i < kNumSlots; i++)
+            slot[i].gain = 1.f;
+        version = kVersion;
+        return true;
     }
     bool operator==(const PresetBank& o) const
     {

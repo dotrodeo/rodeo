@@ -31,3 +31,6 @@ config.mk
 *.hex
 *.map
 *.lst
+
+# --- Non-public files ---
+kickstarter/

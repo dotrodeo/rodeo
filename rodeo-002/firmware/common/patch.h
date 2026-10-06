@@ -48,6 +48,87 @@ inline const char* VoiceModeShort(VoiceMode m)
     }
 }
 
+/** Patch gain limits, linear. -18 dB to +12 dB: enough to pull the loudest
+ *  factory preset down to the quietest and more, measured at a 19 dB spread of
+ *  peak level across the bank (2026-10-01). */
+constexpr float kGainMin = 0.12589254f; // -18 dB
+constexpr float kGainMax = 3.98107171f; // +12 dB
+
+inline float GainToDb(float g) { return 20.f * log10f(g < 1e-6f ? 1e-6f : g); }
+inline float DbToGain(float db) { return powf(10.f, db / 20.f); }
+
+/** The sub-oscillator's interval, in the order the knob steps through it.
+ *
+ *  MONOTONIC, and index 0 is -12 on purpose: the two stored bytes this rides in
+ *  were `reserved`, so every preset ever saved reads them as zero, and zero has
+ *  to decode to the most useful setting rather than to an accident. -24 is not
+ *  on the list -- an octave below a bass note is already subsonic, and two is
+ *  just wasted travel. */
+enum class SubInterval
+{
+    kMinus12 = 0,
+    kMinus7,
+    kMinus5,
+    kUnison,
+    kPlus5,
+    kPlus7,
+    kPlus12,
+    kPlus19,
+    kCount
+};
+
+inline float SubIntervalSemitones(SubInterval i)
+{
+    switch(i)
+    {
+        case SubInterval::kMinus12: return -12.f;
+        case SubInterval::kMinus7: return -7.f;
+        case SubInterval::kMinus5: return -5.f;
+        case SubInterval::kUnison: return 0.f;
+        case SubInterval::kPlus5: return 5.f;
+        case SubInterval::kPlus7: return 7.f;
+        case SubInterval::kPlus12: return 12.f;
+        default: return 19.f;
+    }
+}
+
+inline const char* SubIntervalName(SubInterval i)
+{
+    switch(i)
+    {
+        case SubInterval::kMinus12: return "-12";
+        case SubInterval::kMinus7: return "-7";
+        case SubInterval::kMinus5: return "-5";
+        case SubInterval::kUnison: return "unison";
+        case SubInterval::kPlus5: return "+5";
+        case SubInterval::kPlus7: return "+7";
+        case SubInterval::kPlus12: return "+12";
+        default: return "+19";
+    }
+}
+
+/** The sub's waveform. Sine is index 0, so a zeroed byte gives the one that
+ *  adds weight without adding harmonics -- what a sub is usually for. */
+enum class SubWave
+{
+    kSine = 0,
+    kTriangle,
+    kSaw,
+    kSquare,
+    kCount
+};
+
+inline const char* SubWaveName(SubWave w)
+{
+    switch(w)
+    {
+        case SubWave::kSine: return "sine";
+        case SubWave::kTriangle: return "triangle";
+        case SubWave::kSaw: return "saw";
+        default: return "square";
+    }
+}
+
 /** LFO destinations -- one LFO, one destination (no mod matrix). */
 /** One LFO, one destination (no mod matrix).
  *
@@ -138,10 +219,32 @@ struct Patch
     float cutoff    = 0.8f;
     float resonance = 0.2f;
     float attack    = 0.05f;
-    float release   = 0.25f;
+
+    /** PATCH GAIN: a trim after the chain, so one preset can be brought level
+     *  with the next without re-voicing it.
+     *
+     *  Linear, 1.0 = unity, clamped to kGainMin..kGainMax (-18 to +12 dB). It
+     *  lives in the four bytes `release` used to occupy -- same offset, same
+     *  size -- which is how it arrived without growing StoredPreset. `release`
+     *  had been dead since the envelope became ADS on 2026-09-24: written in
+     *  step with decay, read by nothing. */
+    float gain      = 1.f;
 
     // --- voice, shift layer -------------------------------------------------
-    float env_to_timbre = 0.5f; // 0.5 = no modulation; either side signs it
+    /** The sub-oscillator: a plain waveform under (or over) the note, mixed in
+     *  before the filter. Not a second macro engine -- it costs a fraction of
+     *  one, so switching it on barely moves the polyphony cap, and what it adds
+     *  is weight rather than the beating Unison already gives. Level 0 is off
+     *  and costs nothing at all. */
+    float       sub_level    = 0.f;
+    SubInterval sub_interval = SubInterval::kMinus12;
+    SubWave     sub_wave     = SubWave::kSine;
+
+    /** Env -> Timbre/Morph moved to the patch settings page on 2026-09-29: they
+     *  are depths you set for a patch and leave, and the two knobs they held
+     *  went to the sub-oscillator, which you do play with. Still signed, still
+     *  0.5 for none. */
+    float env_to_timbre = 0.5f;
     float env_to_morph  = 0.5f;
     float decay         = 0.4f;
     float sustain       = 0.7f;

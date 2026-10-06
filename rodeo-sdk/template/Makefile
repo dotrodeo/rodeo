@@ -1,5 +1,5 @@
 # Rodeo app template. Copy this whole folder to examples/<name>/ to start a new
-# app, then edit TARGET + CPP_SOURCES. If you copy it two levels below firmware/
+# app, then edit TARGET + CPP_SOURCES. If you copy it two levels below rodeo-sdk/
 # (like examples/<name>/), delete the RODEO_ROOT line below — ../.. is the default.
 RODEO_ROOT := ..
 

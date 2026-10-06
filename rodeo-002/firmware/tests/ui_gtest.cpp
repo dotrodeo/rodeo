@@ -89,17 +89,19 @@ TEST(Ui, ShiftSwapsTheLayerAndPickupProtectsBothSides)
     r.MovePot(0, 0.2f); // catch and set Harmonics
     ASSERT_NEAR(r.ui.patch().harmonics, 0.2f, 1e-5f);
 
-    // Hold shift: pot 0 now addresses Env>Timbre (stored 0.5) and must be
-    // caught again before it moves anything.
+    // Hold shift: pot 0 now addresses Sub level, which it must catch again
+    // before it moves anything. Parked at 0.5 so the pot has somewhere to
+    // cross from -- the stored default is 0, which is the end of the travel.
+    r.ui.mutable_patch().sub_level = 0.5f;
     r.HoldMain(true);
     r.Tick();
-    const float env_before = r.ui.patch().env_to_timbre;
+    const float sub_before = r.ui.patch().sub_level;
     r.MovePot(0, 0.3f);
-    EXPECT_FLOAT_EQ(r.ui.patch().env_to_timbre, env_before);
+    EXPECT_FLOAT_EQ(r.ui.patch().sub_level, sub_before);
     EXPECT_NEAR(r.ui.patch().harmonics, 0.2f, 1e-5f) << "the main layer must not move";
 
     r.MovePot(0, 0.7f); // crosses 0.5
-    EXPECT_NEAR(r.ui.patch().env_to_timbre, 0.7f, 1e-5f);
+    EXPECT_NEAR(r.ui.patch().sub_level, 0.7f, 1e-5f);
 
     // Release shift: the pot is at 0.7 but Harmonics is 0.2 -- it must not jump.
     r.HoldMain(false);
@@ -740,15 +742,15 @@ TEST(Ui, AnEnvelopePotAsksForTheWholeEnvelope)
 }
 
 // ADS, Moog style: Decay is the fall time whether or not the key is still down,
-// so the drawing's release segment follows it and the patch keeps both fields in
-// step -- what a preset stores is what the panel can express.
-TEST(Ui, DecaySetsTheReleaseAsWell)
+// so the drawing's release segment follows it. There is only one field for the
+// fall time now: the separate `release` was dead weight and its bytes are the
+// patch gain.
+TEST(Ui, DecayIsAlsoTheRelease)
 {
     Rig r;
     r.MovePot(9, 0.2f);  // down across the stored value, so the pot catches
     r.MovePot(9, 0.62f);
     EXPECT_NEAR(r.ui.patch().decay, 0.62f, 0.02f);
-    EXPECT_FLOAT_EQ(r.ui.patch().release, r.ui.patch().decay);
     EXPECT_FLOAT_EQ(r.ui.display().env[3], r.ui.patch().decay)
         << "the picture shows a release the sound does not have";
 }
@@ -927,52 +929,47 @@ TEST(Ui, LeavingAPageKeepsWhatWasChanged)
 
 // ------------------------------------------------ ENGINES THAT CANNOT BE POLY
 //
-// The physical models cannot carry eight voices, so the concept doc restricts
-// them to Mono or Unison. Turning onto one in Poly moves the mode rather than
-// letting the engine sound broken, and puts it back afterwards.
+// Nothing overrides the voice mode any more. String and Karplus were the only
+// engines that could not carry eight voices, and they went on 2026-09-29, so
+// turning through the engine list must leave the mode exactly where you put it
+// and Poly must be reachable on every one of them.
 
-TEST(Ui, TurningOntoAPhysicalModelLeavesPolyAndComesBack)
+TEST(Ui, NoEngineTakesTheVoiceModeAwayFromYou)
 {
     Rig r;
     ASSERT_EQ(r.ui.patch().voice_mode, VoiceMode::kPoly);
 
-    for(int i = 0; i < static_cast<int>(EngineId::kCount); i++)
+    for(int i = 0; i < static_cast<int>(EngineId::kCount) * 2; i++)
     {
-        if(r.ui.patch().engine == EngineId::kString)
-            break;
         r.Turn(kMain, 1);
+        SCOPED_TRACE(EngineName(r.ui.patch().engine));
+        EXPECT_EQ(r.ui.patch().voice_mode, VoiceMode::kPoly)
+            << "an engine moved the voice mode";
+        EXPECT_STREQ(r.ui.display().notice, "")
+            << "an engine announced a constraint it no longer has";
     }
-    ASSERT_EQ(r.ui.patch().engine, EngineId::kString);
-    EXPECT_EQ(r.ui.patch().voice_mode, VoiceMode::kMono) << "String was left in Poly";
-    EXPECT_STRNE(r.ui.display().message, "") << "the mode changed without saying so";
-
-    r.Turn(kMain, -1); // back to a polyphonic engine
-    EXPECT_NE(r.ui.patch().engine, EngineId::kString);
-    EXPECT_EQ(r.ui.patch().voice_mode, VoiceMode::kPoly) << "Poly was not given back";
 }
 
-TEST(Ui, PolyCannotBeChosenByHandOnAPhysicalModel)
+TEST(Ui, PolyIsOfferedOnEveryEngine)
 {
     Rig r;
-    for(int i = 0; i < static_cast<int>(EngineId::kCount); i++)
+    for(int e = 0; e < static_cast<int>(EngineId::kCount); e++)
     {
-        if(r.ui.patch().engine == EngineId::kKarplus)
-            break;
-        r.Turn(kMain, 1);
+        SCOPED_TRACE(EngineName(r.ui.patch().engine));
+        // Push-turn all the way round the modes; Poly has to come up.
+        r.HoldMain(true);
+        r.Tick();
+        bool saw_poly = false;
+        for(int i = 0; i < static_cast<int>(VoiceMode::kCount); i++)
+        {
+            r.Turn(kMain, 1);
+            saw_poly |= r.ui.patch().voice_mode == VoiceMode::kPoly;
+        }
+        r.HoldMain(false);
+        r.Tick();
+        EXPECT_TRUE(saw_poly) << "Poly was skipped on this engine";
+        r.Turn(kMain, 1); // next engine
     }
-    ASSERT_EQ(r.ui.patch().engine, EngineId::kKarplus);
-
-    // Push-turn through every mode: Poly must never be one of them.
-    r.HoldMain(true);
-    r.Tick();
-    for(int i = 0; i < 6; i++)
-    {
-        r.Turn(kMain, 1);
-        EXPECT_NE(r.ui.patch().voice_mode, VoiceMode::kPoly)
-            << "Poly was offered on an engine that cannot do it";
-    }
-    r.HoldMain(false);
-    r.Tick();
 }
 
 // ------------------------------------------------------- NAMING A PRESET
@@ -1118,31 +1115,6 @@ TEST(Ui, TheMidiOutChannelIsSeparateFromTheInputChannelAndHasNoOmni)
     EXPECT_EQ(r.ui.globals().midi_channel, 0) << "the input channel moved with it";
 }
 
-// Turning onto a physical model posts two things at once: the engine's name,
-// and the fact that the voice mode had to move. With one slot the second
-// overwrote the first, so you could not see which engine you had turned onto
-// (Derek, 2026-09-25). They have separate slots and separate places on screen.
-TEST(Ui, AConstraintNoticeDoesNotHideTheEngineYouTurnedOnto)
-{
-    Rig r;
-    for(int i = 0; i < static_cast<int>(EngineId::kCount); i++)
-    {
-        if(r.ui.patch().engine == EngineId::kString)
-            break;
-        r.Turn(kMain, 1);
-    }
-    ASSERT_EQ(r.ui.patch().engine, EngineId::kString);
-    ASSERT_EQ(r.ui.patch().voice_mode, VoiceMode::kMono);
-
-    EXPECT_STREQ(r.ui.display().message, EngineName(EngineId::kString))
-        << "the engine name was overwritten by the notice";
-    EXPECT_STRNE(r.ui.display().notice, "") << "the mode changed without saying so";
-
-    // Both expire on their own.
-    r.Tick(Ui::kPopupMs + 100);
-    EXPECT_STREQ(r.ui.display().message, "");
-    EXPECT_STREQ(r.ui.display().notice, "");
-}
 
 // ------------------------------------------------------- FACTORY RESET
 //
@@ -1196,4 +1168,55 @@ TEST(Ui, FactoryResetStartsOnNoEveryTimeAndNeedsNavToFire)
     EXPECT_FALSE(r.ui.TakeFactoryReset());
     OpenMenu(r, MenuItem::kFactoryReset);
     EXPECT_FALSE(r.ui.display().reset_armed) << "it remembered YES";
+}
+
+// A readout that shows the same text for two different settings tells you the
+// knob did nothing. Patch gain steps half a decibel, so it has to SHOW the half
+// decibel -- it was rounding to whole dB and printing "+8 dB" twice (Derek,
+// 2026-10-01). Walked end to end, every detent must read differently from the
+// one before it, and the ends must stop.
+TEST(Ui, EveryGainDetentReadsDifferentlyFromTheLast)
+{
+    Rig r;
+    OpenMenu(r, MenuItem::kPatch);
+    ASSERT_EQ(r.ui.Mode(), UiMode::kPatchPage);
+    for(int guard = 0;
+        r.ui.display().page_index != static_cast<int>(PatchSetting::kGain) && guard < 20;
+        guard++)
+        r.Turn(kNav, 1);
+    ASSERT_EQ(r.ui.display().page_index, static_cast<int>(PatchSetting::kGain));
+
+    // Down to the bottom of the range, counting how far it actually goes.
+    for(int i = 0; i < 80; i++)
+        r.Turn(kMain, -1);
+    r.Tick();
+    std::string bottom = r.ui.display().page_value;
+    EXPECT_EQ(bottom, "-18.0 dB") << "the gain did not stop at -18 dB";
+
+    std::string prev = bottom;
+    int         seen = 1;
+    for(int i = 0; i < 60; i++)
+    {
+        r.Turn(kMain, 1);
+        r.Tick();
+        const std::string now = r.ui.display().page_value;
+        if(now == "+12.0 dB")
+        {
+            seen++;
+            break;
+        }
+        EXPECT_NE(now, prev) << "two detents in a row read \"" << now << "\"";
+        prev = now;
+        seen++;
+    }
+    // -18 to +12 in half-decibel steps is 61 distinct readings.
+    EXPECT_EQ(seen, 61) << "the range is not what the half-decibel step implies";
+    EXPECT_EQ(std::string(r.ui.display().page_value), "+12.0 dB")
+        << "the gain did not stop at +12 dB";
+
+    for(int i = 0; i < 5; i++)
+        r.Turn(kMain, 1);
+    r.Tick();
+    EXPECT_EQ(std::string(r.ui.display().page_value), "+12.0 dB")
+        << "the top of the range does not hold";
 }

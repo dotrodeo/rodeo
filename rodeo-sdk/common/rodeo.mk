@@ -1,4 +1,4 @@
-# common/rodeo.mk — shared build rules for Rodeo motherboard firmware.
+# common/rodeo.mk — shared build rules for every app built on the Rodeo SDK.
 #
 # Each app / example Makefile defines TARGET and CPP_SOURCES, then includes this
 # file. It wires up the vendored libDaisy + DaisySP, the shared Rodeo headers
@@ -8,7 +8,9 @@
 #   CPP_SOURCES = src/main.cpp
 #   include ../../common/rodeo.mk
 #
-# RODEO_ROOT is the firmware/ root, two levels up from an example/template dir.
+# RODEO_ROOT is the rodeo-sdk/ root. The default suits an app two levels down
+# (examples/<name>/); anywhere else sets it explicitly, as the template and the
+# instruments do.
 
 RODEO_ROOT ?= ../..
 
@@ -23,7 +25,7 @@ C_INCLUDES += -I$(RODEO_ROOT)/common
 # BOTH firmwares, so the byte layout can never drift. Path is relative to the
 # ecosystem root (../../ from firmware/). Harmless if the sibling repo is absent
 # (gcc just ignores a missing -I dir) — only the encoder master driver needs it.
-C_INCLUDES += -I$(RODEO_ROOT)/../../rodeo-encoder-hub/firmware/include
+C_INCLUDES += -I$(RODEO_ROOT)/../rodeo-encoder-hub/firmware/include
 
 LIBDAISY_DIR = $(RODEO_ROOT)/libDaisy
 DAISYSP_DIR  = $(RODEO_ROOT)/DaisySP

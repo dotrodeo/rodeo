@@ -41,7 +41,7 @@
 #include "ui.h"
 #include "voice.h"
 
-// Platform drivers (rodeo-motherboard/firmware/common).
+// Platform drivers (rodeo-sdk/common).
 #include "encoder_hub.h"
 #include "oled_ssd130x_bulk.h"
 #include "rodeo_adc.h"
@@ -262,6 +262,7 @@ VoiceManager    voices;
 TextureChain    chain;
 EngineId        current_engine = EngineId::kVirtualAnalog;
 static int      g_boot_preset       = -1;
+static bool     g_bank_migrated     = false;
 static int      g_slots_filled      = 0;
 static bool     g_boot_engine_known = true;
 static bool     g_boot_gesture      = false;
@@ -273,7 +274,6 @@ volatile uint32_t g_busy_blocks   = 0;
 static uint32_t   g_block_ticks   = 1;
 static float      g_last_load     = 0.f; // for the screen's footer
 
-static float g_mix[kBlockSize];
 
 // The output as a picture; the triggering, normalising and clamping all live
 // in scope.h, where they can be tested.
@@ -285,14 +285,13 @@ void AudioCallback(AudioHandle::InputBuffer  in,
 {
     const uint32_t t0 = System::GetTick();
 
+    // The voices write the pair themselves now: each one is panned, so there
+    // is no mono sum to copy across (see VoiceManager::Render).
     if(g_voices_locked)
         for(size_t i = 0; i < size; i++)
-            g_mix[i] = 0.f;
+            out[0][i] = out[1][i] = 0.f;
     else
-        voices.Render(g_mix, size);
-
-    for(size_t i = 0; i < size; i++)
-        out[0][i] = out[1][i] = g_mix[i];
+        voices.Render(out[0], out[1], size);
 
     // LFO destinations that live in the CHAIN rather than in a voice, applied
     // here once per block. ApplyPatch runs at ~200 Hz, which a 40 Hz LFO would
@@ -380,10 +379,10 @@ static void HandleCc(uint8_t cc, uint8_t value)
         case kCcMovementRate: patch.secondary[TextureChain::kMovement] = f; return;
         // ADS: one fall time, held or not -- kept in step so the stored patch
         // says the same thing the panel does.
-        case kCcDecay:
-            patch.decay   = f;
-            patch.release = f;
-            return;
+        // ADS: one fall time, held or not. `release` used to be kept in step
+        // here; it is the patch gain now and has nothing to do with the
+        // envelope.
+        case kCcDecay: patch.decay = f; return;
         case kCcGlide: patch.glide = f; return;
         case kCcSustain: patch.sustain = f; return;
         case kCcLfoDepth: patch.lfo_depth = f; return;
@@ -633,6 +632,7 @@ static void ApplyPatch()
     sp.SetSpread(patch.grain_spread);
     sp.SetFreeze(patch.freeze);
     chain.SetTilt(patch.tilt);
+    chain.SetTrim(patch.gain);
     chain.SetVolume(globals.volume);
 }
 
@@ -907,8 +907,14 @@ int main(void)
     {
         BuildFactoryBank(g_factory_bank);
         preset_store.Init(g_factory_bank, kPresetStoreOffset);
+        // A v2 bank is brought forward rather than thrown away: v3 only
+        // reinterprets the four bytes `release` used to sit in, so the layout
+        // is identical and the migration is to set every gain to unity.
+        g_bank_migrated = preset_store.GetSettings().MigrateFromV2();
         if(!preset_store.GetSettings().Valid())
             preset_store.GetSettings() = g_factory_bank; // older layout, or corrupt
+        if(g_bank_migrated)
+            preset_store.Save();
         // New factory sounds reach an instrument that has already been saved to
         // by filling its empty slots. Nothing already there is touched.
         g_slots_filled = FillEmptySlots(preset_store.GetSettings(), g_factory_bank);
@@ -1204,7 +1210,8 @@ int main(void)
             }
             ApplyPatch();
             // Recompute the cap: an expensive Space type costs voices.
-            voices.SetMaxVoices(CostModel::MaxVoices(patch.engine, CostModel::ChainCost(chain)));
+            voices.SetMaxVoices(CostModel::MaxVoices(
+                patch.engine, CostModel::ChainCost(chain), patch.sub_level > 0.f));
         }
 
         if(g_blocks - last_apply >= 5) // ~200 Hz

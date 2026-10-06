@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-#include "hid/disp/oled_display.h"
+#include "host_display.h"
 
 #include "factory_presets.h"
 #include "screen.h"
@@ -26,109 +26,22 @@ using namespace rodeo002;
 
 namespace
 {
-/** Everything OledDisplay asks of a driver, and nothing else. */
-/** The framebuffer is a FILE-SCOPE array rather than a member, and that is not
- *  a style choice. OledDisplay has a vtable, so a reinterpret_cast from the
- *  display to its driver lands 12 bytes before the driver's own storage and
- *  every screen comes out shifted -- which is exactly the kind of quiet lie a
- *  preview exists to avoid. Reading it here needs no cast at all. */
-static bool g_fb[128 * 64];
+/** The driver, the framebuffer, and the ASCII/PBM writers are the platform's --
+ *  see rodeo-sdk/tools/screens/host_display.h, which also
+ *  explains why the framebuffer is not a member. What is left here is this
+ *  instrument's: a rig that drives its Ui, and the list of screens worth
+ *  looking at. */
+using rodeo::host::Capture;
+using rodeo::host::PrintAscii;
+using rodeo::host::Shot;
+using rodeo::host::TheDisplay;
+using rodeo::host::WritePbm;
 
-struct HostDriver
+/** Draw one screen with the instrument's own Draw(), then take a copy of it. */
+Shot DrawShot(const std::string& name, const DisplayState& d, Scope& scope)
 {
-    struct Config
-    {
-    };
-    static constexpr int kW = 128, kH = 64;
-
-    void     Init(Config) {}
-    uint16_t Height() const { return kH; }
-    uint16_t Width() const { return kW; }
-    void     Fill(bool on)
-    {
-        for(auto& p : g_fb)
-            p = on;
-    }
-    void DrawPixel(uint_fast8_t x, uint_fast8_t y, bool on)
-    {
-        if(x < kW && y < kH)
-            g_fb[y * kW + x] = on;
-    }
-    void Update() {}
-    bool UpdateFinished() { return true; }
-    void Reset() {}
-    void SendCommand(uint8_t) {}
-    void SendData(uint8_t*, size_t) {}
-};
-
-using Display = daisy::OledDisplay<HostDriver>;
-
-Display& TheDisplay()
-{
-    static Display  d;
-    static bool     init = false;
-    if(!init)
-    {
-        Display::Config c;
-        d.Init(c);
-        init = true;
-    }
-    return d;
-}
-
-/** Reaches the framebuffer the only way the template allows: ask the display
- *  what it drew, pixel by pixel. Slow, and 8192 pixels is nothing. */
-struct Shot
-{
-    std::string       name;
-    std::vector<bool> px;
-};
-
-Shot Capture(const std::string& name, const DisplayState& d, Scope& scope)
-{
-    Display& disp = TheDisplay();
-    screen::Draw(disp, d, scope);
-    Shot s;
-    s.name = name;
-    s.px.resize(128 * 64);
-    for(int i = 0; i < 128 * 64; i++)
-        s.px[i] = g_fb[i];
-    return s;
-}
-
-void PrintAscii(const Shot& s)
-{
-    printf("\n%s\n+", s.name.c_str());
-    for(int x = 0; x < 128; x++)
-        printf("-");
-    printf("+\n");
-    for(int y = 0; y < 64; y++)
-    {
-        printf("|");
-        for(int x = 0; x < 128; x++)
-            printf("%c", s.px[y * 128 + x] ? '#' : ' ');
-        printf("|\n");
-    }
-    printf("+");
-    for(int x = 0; x < 128; x++)
-        printf("-");
-    printf("+\n");
-}
-
-void WritePbm(const Shot& s)
-{
-    std::string path = "build/" + s.name + ".pbm";
-    FILE*       f    = fopen(path.c_str(), "wb");
-    if(!f)
-        return;
-    fprintf(f, "P1\n128 64\n");
-    for(int y = 0; y < 64; y++)
-    {
-        for(int x = 0; x < 128; x++)
-            fprintf(f, "%d ", s.px[y * 128 + x] ? 1 : 0);
-        fprintf(f, "\n");
-    }
-    fclose(f);
+    screen::Draw(TheDisplay(), d, scope);
+    return Capture(name);
 }
 
 /** A scope with something in it, so the idle screen is not a flat line. */
@@ -227,7 +140,7 @@ int main(int argc, char** argv)
     Scope&            scope = TheScope();
 
     auto shot = [&](const char* name, Rig& r) {
-        shots.push_back(Capture(name, r.ui.display(), scope));
+        shots.push_back(DrawShot(name, r.ui.display(), scope));
     };
 
     { Rig r; shot("01-idle", r); }
@@ -251,6 +164,12 @@ int main(int argc, char** argv)
       shot("11-name", r); }
     { Rig r; r.Menu(MenuItem::kPatch); r.Turn(Ui::kNavEncoder, 1); r.Turn(Ui::kNavEncoder, 1);
       shot("12-patch-page", r); }
+    // The widest value on any settings page: "+12.0 dB" beside "Patch gain".
+    { Rig r; r.Menu(MenuItem::kPatch);
+      for(int i = 0; i < 20 && r.ui.display().page_index != int(PatchSetting::kGain); i++)
+          r.Turn(Ui::kNavEncoder, 1);
+      for(int i = 0; i < 80; i++) r.Turn(Ui::kMainEncoder, 1);
+      shot("17-patch-gain", r); }
     { Rig r; r.Menu(MenuItem::kGlobal); r.Turn(Ui::kNavEncoder, 1); shot("13-global-page", r); }
     { Rig r; r.Menu(MenuItem::kFactoryReset); r.Turn(Ui::kMainEncoder, 1);
       shot("14-factory-reset", r); }

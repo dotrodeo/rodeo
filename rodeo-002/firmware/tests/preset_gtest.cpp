@@ -11,6 +11,7 @@
 #include <cstring>
 #include <set>
 
+#include "cost_model.h"
 #include "factory_presets.h"
 #include "preset.h"
 
@@ -21,7 +22,7 @@ TEST(Preset, EveryFieldSurvivesARoundTrip)
     Patch p;
     // Something different in every field, so a missed one shows up.
     p.harmonics = 0.11f; p.timbre = 0.22f; p.morph = 0.33f; p.spread = 0.44f;
-    p.cutoff = 0.55f; p.resonance = 0.66f; p.attack = 0.77f; p.release = 0.88f;
+    p.cutoff = 0.55f; p.resonance = 0.66f; p.attack = 0.77f; p.gain = 1.41f;
     p.env_to_timbre = 0.12f; p.env_to_morph = 0.23f; p.decay = 0.34f;
     p.sustain = 0.45f; p.filter_env = 0.56f; p.lfo_rate = 0.67f; p.lfo_depth = 0.78f;
     p.keytrack = 0.19f; p.glide = 0.29f; p.vel_to_filter = 0.39f;
@@ -60,7 +61,7 @@ TEST(Preset, EveryFieldSurvivesARoundTrip)
     EXPECT_FLOAT_EQ(q.cutoff, p.cutoff);
     EXPECT_FLOAT_EQ(q.resonance, p.resonance);
     EXPECT_FLOAT_EQ(q.attack, p.attack);
-    EXPECT_FLOAT_EQ(q.release, p.release);
+    EXPECT_FLOAT_EQ(q.gain, p.gain);
     EXPECT_FLOAT_EQ(q.env_to_timbre, p.env_to_timbre);
     EXPECT_FLOAT_EQ(q.env_to_morph, p.env_to_morph);
     EXPECT_FLOAT_EQ(q.decay, p.decay);
@@ -99,10 +100,23 @@ TEST(Preset, StableIdsAreTheseExactNumbersForever)
     EXPECT_EQ(EngineToStableId(EngineId::kVosim), 5);
     EXPECT_EQ(EngineToStableId(EngineId::kHarmonic), 6);
     EXPECT_EQ(EngineToStableId(EngineId::kZOsc), 7);
-    EXPECT_EQ(EngineToStableId(EngineId::kGrainlet), 8);
-    EXPECT_EQ(EngineToStableId(EngineId::kParticle), 9);
-    EXPECT_EQ(EngineToStableId(EngineId::kString), 10);
-    EXPECT_EQ(EngineToStableId(EngineId::kKarplus), 11);
+
+    // 8..11 were Grainlet, Particle, String and Karplus, dropped 2026-09-29.
+    // A preset saved by an older build still names one, and it has to keep
+    // meaning "an engine this firmware does not have" rather than being handed
+    // to whatever is added next. This is the test that stops that happening.
+    for(uint8_t retired : {8, 9, 10, 11})
+    {
+        bool known = true;
+        EXPECT_EQ(EngineFromStableId(retired, &known), EngineId::kVirtualAnalog)
+            << "retired id " << static_cast<int>(retired) << " resolved to an engine";
+        EXPECT_FALSE(known) << "retired id " << static_cast<int>(retired)
+                            << " was reported as a preset that loaded intact";
+    }
+    for(int e = 0; e < static_cast<int>(EngineId::kCount); e++)
+        for(uint8_t retired : {8, 9, 10, 11})
+            EXPECT_NE(EngineToStableId(static_cast<EngineId>(e)), retired)
+                << "a live engine was handed a retired id";
 }
 
 TEST(Preset, EveryEngineHasItsOwnIdAndComesBack)
@@ -224,10 +238,7 @@ TEST(Preset, NoFactoryPresetUsesAnEngineOnTheChoppingBlock)
         Patch p;
         PresetToPatch(b.slot[i], p);
         SCOPED_TRACE(testing::Message() << b.slot[i].name);
-        EXPECT_NE(p.engine, EngineId::kGrainlet);
-        EXPECT_NE(p.engine, EngineId::kParticle);
-        EXPECT_NE(p.engine, EngineId::kString);
-        EXPECT_NE(p.engine, EngineId::kKarplus);
+        EXPECT_LT(static_cast<int>(p.engine), static_cast<int>(EngineId::kCount));
     }
 }
 
@@ -307,3 +318,176 @@ TEST(Preset, FillingRefusesABankItDoesNotUnderstand)
     stored.magic        = 0xFFFFFFFFu; // erased
     EXPECT_EQ(FillEmptySlots(stored, factory), 0);
 }
+
+// ------------------------------------------------------------ SUB-OSCILLATOR
+//
+// The sub rides in the two bytes that were `reserved`. Those have always been
+// written as zero, which is what let it arrive without bumping
+// PresetBank::kVersion -- and a version bump would have rejected the stored
+// bank and lost every preset already saved. These tests are what that promise
+// rests on.
+
+TEST(Preset, APresetFromBeforeTheSubLoadsWithItOff)
+{
+    // Exactly what an older build wrote: a valid preset with both spare bytes
+    // zero, which is all `reserved` ever contained.
+    Patch        original;
+    original.cutoff = 0.42f;
+    StoredPreset s;
+    PatchToPreset(original, "Old", s);
+    s.sub_level = 0;
+    s.sub_shape = 0;
+
+    Patch p;
+    PresetToPatch(s, p);
+    EXPECT_FLOAT_EQ(p.sub_level, 0.f) << "an old preset came back with the sub audible";
+    EXPECT_EQ(p.sub_interval, SubInterval::kMinus12)
+        << "a zeroed byte has to decode to the interval you would have picked";
+    EXPECT_EQ(p.sub_wave, SubWave::kSine);
+    EXPECT_FLOAT_EQ(p.cutoff, 0.42f) << "the rest of the preset did not survive";
+
+    // And it still round-trips to the same bytes, so loading an old preset and
+    // saving it back does not mark the bank dirty or rewrite flash.
+    StoredPreset again;
+    PatchToPreset(p, "Old", again);
+    EXPECT_EQ(std::memcmp(&s, &again, sizeof(StoredPreset)), 0);
+}
+
+TEST(Preset, TheSubSurvivesARoundTrip)
+{
+    for(int w = 0; w < static_cast<int>(SubWave::kCount); w++)
+        for(int i = 0; i < static_cast<int>(SubInterval::kCount); i++)
+        {
+            Patch p;
+            p.sub_level    = 0.6f;
+            p.sub_wave     = static_cast<SubWave>(w);
+            p.sub_interval = static_cast<SubInterval>(i);
+            SCOPED_TRACE(testing::Message()
+                         << SubWaveName(p.sub_wave) << " " << SubIntervalName(p.sub_interval));
+
+            StoredPreset s;
+            PatchToPreset(p, "Sub", s);
+            Patch q;
+            PresetToPatch(s, q);
+
+            EXPECT_EQ(q.sub_wave, p.sub_wave);
+            EXPECT_EQ(q.sub_interval, p.sub_interval);
+            // 8 bits over 0..1, so half a step is the most it can be out.
+            EXPECT_NEAR(q.sub_level, p.sub_level, 1.f / 255.f);
+        }
+}
+
+// A corrupt byte must not index past either table.
+TEST(Preset, AnImpossibleSubByteFallsBackRatherThanIndexingOut)
+{
+    Patch        p;
+    StoredPreset s;
+    PatchToPreset(p, "Sub", s);
+    s.sub_shape = 0xFF; // wave 15, interval 15: neither exists
+
+    Patch q;
+    PresetToPatch(s, q);
+    EXPECT_LT(static_cast<int>(q.sub_wave), static_cast<int>(SubWave::kCount));
+    EXPECT_LT(static_cast<int>(q.sub_interval), static_cast<int>(SubInterval::kCount));
+}
+
+// ---------------------------------------------------------------- FACTORY BANK
+//
+// The bank was rebuilt from nothing on 2026-09-29 for the instrument as it then
+// was. These tests are what keep the claims in factory_presets.h's header from
+// quietly going stale as engines and effects come and go.
+
+TEST(FactoryBank, CoversTheInstrument)
+{
+    PresetBank b;
+    BuildFactoryBank(b);
+
+    bool engine_seen[static_cast<int>(EngineId::kCount)]   = {};
+    bool mode_seen[static_cast<int>(VoiceMode::kCount)]    = {};
+    bool filter_seen[static_cast<int>(FilterType::kCount)] = {};
+    bool space_seen[fx::Space::kNumTypes]                  = {};
+    bool sub_below = false, sub_above = false, sub_off = false;
+
+    int used = 0;
+    for(int i = 0; i < PresetBank::kNumSlots; i++)
+    {
+        if(!b.slot[i].used)
+            continue;
+        used++;
+        Patch p;
+        PresetToPatch(b.slot[i], p);
+        engine_seen[static_cast<int>(p.engine)]     = true;
+        mode_seen[static_cast<int>(p.voice_mode)]   = true;
+        filter_seen[static_cast<int>(p.filter)]     = true;
+        if(!p.bypass[fx::TextureChain::kSpace] && p.amount[fx::TextureChain::kSpace] > 0.f)
+            space_seen[p.type[fx::TextureChain::kSpace]] = true;
+        const float semis = SubIntervalSemitones(p.sub_interval);
+        if(p.sub_level <= 0.f)
+            sub_off = true;
+        else if(semis < 0.f)
+            sub_below = true;
+        else if(semis > 0.f)
+            sub_above = true;
+    }
+    EXPECT_EQ(used, 16) << "the factory bank is not sixteen sounds";
+
+    for(int e = 0; e < static_cast<int>(EngineId::kCount); e++)
+        EXPECT_TRUE(engine_seen[e]) << "no factory preset uses " << EngineName(static_cast<EngineId>(e));
+    for(int m = 0; m < static_cast<int>(VoiceMode::kCount); m++)
+        EXPECT_TRUE(mode_seen[m]) << "voice mode " << m << " is never used";
+    for(int f = 0; f < static_cast<int>(FilterType::kCount); f++)
+        EXPECT_TRUE(filter_seen[f]) << "filter type " << f << " is never used";
+    for(int t = 0; t < fx::Space::kNumTypes; t++)
+        EXPECT_TRUE(space_seen[t]) << "Space type " << fx::Space::TypeName(t) << " is never used";
+
+    EXPECT_TRUE(sub_below) << "nothing uses the sub below the note";
+    EXPECT_TRUE(sub_above) << "nothing uses the sub above the note";
+    EXPECT_TRUE(sub_off) << "every preset uses the sub: none shows it switched off";
+}
+
+// A factory sound the board cannot run is worse than no sound at all. Checked
+// against the cost model the firmware itself uses to set the polyphony cap.
+TEST(FactoryBank, EveryPresetFitsTheBudget)
+{
+    PresetBank b;
+    BuildFactoryBank(b);
+    for(int i = 0; i < PresetBank::kNumSlots; i++)
+    {
+        if(!b.slot[i].used)
+            continue;
+        Patch p;
+        PresetToPatch(b.slot[i], p);
+        SCOPED_TRACE(testing::Message() << b.slot[i].name);
+
+        float chain = 0.f;
+        for(int s = 0; s < fx::TextureChain::kNumSlots; s++)
+            if(!p.bypass[s])
+                chain += CostModel::EffectCost(s, p.type[s]);
+
+        const bool sub = p.sub_level > 0.f;
+        EXPECT_FALSE(CostModel::Overcommitted(p.engine, chain))
+            << "not even one voice fits";
+        const int v = CostModel::MaxVoices(p.engine, chain, sub);
+        EXPECT_GE(v, 1);
+        EXPECT_LE(CostModel::PredictLoad(p.engine, v, chain, sub), 70.f);
+        // A polyphonic patch that only gets two voices is not really playable.
+        if(p.voice_mode == VoiceMode::kPoly)
+            EXPECT_GE(v, 4) << "a Poly factory preset that only fits " << v << " voices";
+    }
+}
+
+// Twelve characters and a terminator. A name that does not survive the store is
+// a name nobody chose.
+TEST(FactoryBank, EveryNameFits)
+{
+    PresetBank b;
+    BuildFactoryBank(b);
+    for(int i = 0; i < PresetBank::kNumSlots; i++)
+    {
+        if(!b.slot[i].used)
+            continue;
+        EXPECT_LT(strlen(b.slot[i].name), static_cast<size_t>(StoredPreset::kNameLen))
+            << "slot " << i + 1 << " name was truncated: " << b.slot[i].name;
+    }
+}
+

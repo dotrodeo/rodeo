@@ -55,15 +55,15 @@ running**. Poly mode caps at 8 regardless — a higher number here is headroom, 
 |---|---|---|---|
 | Virtual analog (synced variable-shape) | DaisySP `VariableShapeOscillator` | 3.3% | **16** |
 | Variable saw | DaisySP `VariableSawOscillator` | 3.0% | **16** |
-| Particle (resonant noise grains) | DaisySP `Particle` | 3.6% | **12** |
+| ~~Particle (resonant noise grains)~~ | ~~DaisySP `Particle`~~ | ~~3.6%~~ | **DROPPED 2026-09-29** |
 | Formant / vowel | DaisySP `FormantOscillator` | 4.6% | **12** |
 | Harmonic / additive (16 partials) | DaisySP `HarmonicOscillator<16>` | 6.7% | **8** |
 | 2-op FM | DaisySP `Fm2` | 6.8% | **8** |
-| Grainlet | DaisySP `GrainletOscillator` | 6.9% | **8** |
+| ~~Grainlet~~ | ~~DaisySP `GrainletOscillator`~~ | ~~6.9%~~ | **DROPPED 2026-09-29** |
 | Vosim | DaisySP `VosimOscillator` | 8.9% | 6 |
 | Z-osc | DaisySP `ZOscillator` | 9.5% | 6 |
-| Karplus string | DaisySP `String` | 14.0% | **Mono · Unison-2** |
-| String voice | DaisySP `StringVoice` | 16.4% | **Mono · Unison-2** |
+| ~~Karplus string~~ | ~~DaisySP `String`~~ | ~~14.0%~~ | **DROPPED 2026-09-29** |
+| ~~String voice~~ | ~~DaisySP `StringVoice`~~ | ~~16.4%~~ | **DROPPED 2026-09-29** |
 | ~~Modal~~ | ~~DaisySP `ModalVoice`~~ | ~~46.2%~~ | **DROPPED** |
 | Wavetable | *deferred* — would port from Plaits (MIT) | unmeasured | — |
 | Chord | *deferred* — would port from Plaits (MIT) | unmeasured, ~4–6 osc/voice | — |
@@ -72,15 +72,24 @@ running**. Poly mode caps at 8 regardless — a higher number here is headroom, 
 engine list is the twelve measured above.
 
 **MODAL IS DROPPED** (Derek, 2026-09-22): at 46% for a single voice it could not run at all
-beside an expensive Space type, and designing around it was not worth it. The DSP stays in
-DaisySP if it is ever worth optimising back in. **String and Karplus remain, as monophonic
-engines** — they are struck and plucked models that suit monophonic playing anyway. That
-leaves **eleven engines**, and no combination that fails to fit.
+beside an expensive Space type, and designing around it was not worth it.
+
+**GRAINLET, PARTICLE, STRING AND KARPLUS ARE DROPPED** (Derek, 2026-09-29, after living with
+the instrument): four engines nobody reached for, two of which could not be played
+polyphonically at all. That leaves **seven engines** — virtual analog, variable saw, 2-op FM,
+formant, Vosim, harmonic-16, Z-osc — every one of them polyphonic, so nothing overrides the
+voice mode any more. The DSP stays in DaisySP if any of it is ever worth having back.
+
+**The removal paid for itself twice over.** `Engine` holds one union sized by its largest
+member, and `StringVoice` is **5368 bytes** against **148** for everything that remains. Per
+voice storage fell 5220 bytes; across eight voices that is **~41.6 KB of DTCM**, and the build
+went from **85.5% to 53.8%** of the 128 KB budget. The CPU ceiling moved too: the dearest engine
+left is Z-osc at 9.02%, where String was 16.43%.
 
 Per-voice costs above are the 2026-09-22 hardware fit (raw ticks, post-optimisation); they
 are the numbers [`cost_model.h`](../firmware/common/cost_model.h) uses.
 
-Most of the list is already vendored in `rodeo-motherboard/firmware/DaisySP` — these are the
+Most of the list is already vendored in `rodeo-sdk/DaisySP` — these are the
 Plaits-derived modules Émilie Gillet contributed upstream, so the "Plaits-like" feel is mostly
 a matter of *driving* them from common macros rather than porting new DSP. Anything still
 missing comes from the MIT-licensed Mutable source.
@@ -96,14 +105,168 @@ it is how the platform's `06_poly_synth` example works.
 **Voice modes:** Poly (8, or 6 on Vosim/Z-osc) · Mono (legato + glide) · Unison (stacked,
 detuned by Spread).
 
-**Mono-only engines (decided 2026-09-20).** Modal, String and Karplus cost too much per voice
-to be polyphonic, so each engine declares which voice modes it supports:
+### Patch gain (2026-10-01)
+
+Derek: *"the maximum volume output has quite a wide range. Some patches are very loud, other
+patches are very quiet."* Measured, that was **19.3 dB of peak spread** across the sixteen factory
+presets — a lot more than "some patches are just louder".
+
+**Where it comes from.** Not the engines: at identical settings all seven sit within **5.7 dB** of
+each other, so a per-engine trim would have bought almost nothing. It comes from the patches —
+envelope, filter, voice mode and how much of the chain is in play — which means nothing but a
+stored, per-preset number can fix it.
+
+**So every preset carries a gain**, linear, −18 to +12 dB, on the patch settings page in dB and
+adjusted half a decibel at a time — **and shown to the half decibel**, since the step is half a
+decibel. It first rounded to whole dB, which printed `+8 dB` for two different settings and so said
+the knob had done nothing; a readout that cannot tell two states apart is worse than no readout
+(Derek, 2026-10-01). Each adjustment also snaps to the half-decibel grid rather than running the
+value through log and exp and keeping the error, so the text is exactly the state. Sixty-one
+distinct readings end to end, enforced by `Ui.EveryGainDetentReadsDifferentlyFromTheLast`. It is applied **after the chain**, as a separate trim from the
+master volume, for two reasons: turning a preset down must not also turn its drive down, and the
+master is squared for feel, which would make a trim folded into it mean something else.
+
+Why not a normaliser, the other option on the table: an automatic one fights the player. Close the
+filter and it gets louder; it cannot tell "quiet because it is a pluck" from "quiet because it
+needs gain". A number set once per sound is predictable, and it is what every synth with this
+problem does.
+
+**The factory bank is balanced with it**, to a −6 dB peak on a four-note chord at full velocity.
+`Level.SuggestedFactoryGains` prints the figure each preset needs, and those are the numbers in
+`factory_presets.h`. Peak spread is **2.4 dB** now, enforced by `Level.TheFactoryBankIsLevel`.
+Peak is what is matched and RMS deliberately is not: a pluck carries less energy than a pad at the
+same peak, and forcing their RMS together would mean boosting the pluck until it clipped.
+
+**It cost no new storage.** `release` had been dead since the envelope became ADS on 2026-09-24 —
+written in step with `decay`, read by nothing — so the gain took its four bytes at the same offset.
+That still needed `PresetBank::kVersion` 2 → 3, because a v2 slot holds a copy of `decay` there and
+a decay value read as a gain is a quiet preset nobody asked for. **A v2 bank is migrated rather
+than rejected**: the layout is identical, so the whole migration is to put unity in that one field
+and move the version on. Nothing saved is lost, which is the only reason the version could be
+bumped at all.
+
+### Effects review (2026-09-29)
+
+Derek: *"I suspected some of them may not be working as expected."* All twenty types were measured
+against what their names claim, not just for stability — the existing tests already asked whether
+each type was stable, transparent at zero and audible at full, and a phaser that is really a
+low-pass passes all three. `tests/fx_review_gtest.cpp` holds the harness and prints every number.
+
+**Character, Movement and Space came out clean.** All five waveshapers add harmonics and none leaks
+DC; Bias brings in even harmonics on four of them and takes them *away* on Rectify, which is
+correct and documented (centred, Rectify is already full-wave). The Movement LFO runs at exactly the
+0.05–12 Hz it claims, Vibrato is the only type without stereo motion (by design, no dry path), and
+every Space type responds properly to both Time and Feedback.
+
+**Two real faults, both in Texture:**
+
+* **Crush was sending −0.125 of DC to the output.** `Decimator` quantises with an arithmetic shift,
+  which truncates toward minus infinity instead of rounding, so every sample rounds down by up to a
+  step; at full crush the step is a quarter of full scale and the mean error is half of that.
+  Nothing downstream removed it — the output stage is tilt, volume and the limiter — so it reached
+  the codec, and reached Space's feedback, where DC is amplified and a railed output is heard as
+  *silence* because the line out is AC-coupled. **The Texture wet path is DC-blocked now**, the same
+  arrangement Character has always had. `FxReview.NoSlotSendsDcDownTheChain` is the guard.
+* **Squash was a volume control with a compressor attached.** Its make-up gain applied half the
+  theoretical compensation, leaving a nominal −6 dB signal 7.5 dB down on Soft and 11.3 dB down on
+  Pump. At 0.85 all three options land within half a decibel of unity, *together* — that they agree
+  across ratios is what says 0.85 is right rather than a fudge.
+
+**Two things that looked wrong and were not**, both worth recording so they are not "fixed" later:
+
+* Crush's Smooth/Stepped option makes no difference at full crush. That is arithmetic, not a bug:
+  `Decimator`'s `bit_overflow_` works out to exactly 2 at a whole-bit setting, and shifting by
+  `bits+1` after a 2× pre-scale is the same as shifting by `bits`. The option is about the *sweep* —
+  measured across the knob, Smooth changes on 19 of 28 steps and Stepped on 12.
+* Dust barely registers in an energy measurement because it is crackle *on top of* the signal rather
+  than a bed replacing it. It puts peaks at 0.85 against a 0.5 input, which is the thing to measure.
+
+**One design observation, not a fault:** Chorus, Phaser and Flanger all show ~0.9 amplitude
+modulation on a sine. That is a single delay tap combing against the dry, and the nulls sweep
+through the fundamental. It is thin and wobbly where a multi-tap chorus would be lush. Left alone.
+
+### The factory bank (rebuilt 2026-09-29)
+
+Sixteen sounds, written from nothing for the instrument as it now is. The old bank predated the
+sub-oscillator, Spread-as-width and the per-voice drift, so half of those controls sat at their
+defaults in every slot.
+
+It is built to **cover the instrument** rather than to be sixteen good sounds in one corner of it:
+all seven engines, all three voice modes, all three filter types, all five Space types, and the sub
+above the note, below it and switched off. `FactoryBank.CoversTheInstrument` enforces exactly that,
+so the claim cannot quietly stop being true as engines and effects come and go, and
+`FactoryBank.EveryPresetFitsTheBudget` checks every slot against the same cost model the firmware
+uses — a factory sound the board cannot run is worse than no sound. Polyphony across the bank
+lands between 4 and 8 voices, worst predicted load 68.7%.
+
+Slot 1 is still **Init** and is not really a sound: it is the zero point, it is what every empty
+user slot plays, and it is one detent away whatever you are doing.
+
+**Editing this file does not change an instrument that already has a bank.** The stored bank is
+replaced only when it is invalid or when asked, and the version is unchanged — *Factory Reset* in
+the menu is what loads a new one. That also clears gestures and instrument state, which is what it
+is for.
+
+### Analog behaviour (2026-09-29)
+
+Derek: *"I mostly just want to add a little more complexity/depth/richness."* Two things every
+analog polysynth does for free and a digital one has to be told to do. Both cost effectively
+nothing — no CPU worth measuring, no RAM, and **no panel controls at all**.
+
+**Every voice is tuned slightly wrong, and wanders.** A fixed error per voice in cents
+(`kVoiceCents`, irregular on purpose — evenly spaced offsets comb rather than thicken), plus a
+slow wander from one-pole filtered noise, ~0.5 s to settle so it reads as drift and not vibrato.
+Peak deviation is about 6 cents. Voice 0 is exactly in tune, because Mono only ever plays voice 0
+and a lead should not be detuned from the rest of the band.
+
+**Every voice has a place in the stereo field**, scaled by Spread (`kVoicePan`). The pan law is
+equal power, so opening the field does not change how loud the instrument is, and Spread at 0 is
+the old mono sum sample for sample.
+
+The ordering of those positions is the whole point, and the first attempt got it wrong. A linear
+ramp across all eight looks right and is not: Poly fills voices from index 0 upward, so a chord
+smaller than the full polyphony takes the first few positions and sits entirely on one side —
+measured, a C major 7th came out **L=371 against R=101**. The positions alternate outward from
+the centre instead, so every even number of voices is balanced and a single held note lands 20%
+off centre rather than hard left. `VoiceManager.AChordIsNotPushedToOneSide` is the regression
+test.
+
+### The sub-oscillator (2026-09-29)
+
+A plain waveform under (or over) the note, mixed in before the filter. **Not a second macro
+engine**, and that is the whole design: a second engine would roughly double the per-voice cost,
+taking FM and Harmonic from 8 voices to 5 and Vosim and Z-osc to 3. What a second engine would
+mostly buy is beating, which **Unison already gives** now that its detune works. What Poly lacked
+was *weight*, and that is what a sub is for.
+
+**Two knobs on the shift layer**: Sub level, and Sub interval (stepped — the screen names the
+value rather than drawing a meter). Intervals are −12, −7, −5, unison, +5, +7, +12, +19; the
+waveform (sine, triangle, saw, square) is on the patch settings page, being a set-once choice.
+**Env→Timbre and Env→Morph moved to that page** to free the knobs — they are depths you set for a
+patch and leave, so nothing was lost but the travel.
+
+**Level 0 is off and costs nothing**, in CPU and in sound: `CostModel::MaxVoices` charges for the
+sub only when a patch uses one, so presets that do not stay at full polyphony.
+
+**It fits in the two bytes `StoredPreset` had left**, which is why it needed no
+`PresetBank::kVersion` bump — a bump rejects the stored bank and loses every saved preset. Both
+bytes were `reserved` and have always been written as zero, so every preset ever saved decodes as
+*sub off, −12, sine*: silent, and set to what you would have picked anyway. Level is 0..255 over
+0..1; the second byte packs waveform in the high nibble and interval in the low one.
+
+**There is no slack left in the format.** The next thing that needs preset storage needs a
+migration first, not another field.
+
+**There are no mono-only engines any more (2026-09-29).** Modal, String and Karplus were the
+three that cost too much per voice to be polyphonic, and all three are gone. Every engine that
+remains plays in every voice mode; the polyphony cap is budget arithmetic in `CostModel` rather
+than a property an engine declares, and `IsMonoOnly` / `ConstrainVoiceMode` have gone with them.
+Poly is Poly on every engine.
 
 | Engine class | Poly | Mono | Unison |
 |---|---|---|---|
-| Everything 8-voice or better | 8 *(see below)* | yes | up to 4 |
-| Vosim, Z-osc | 6 | yes | up to 4 |
-| String, Karplus | — | yes | 2 only |
+| Everything 8-voice or better | 8 | yes | up to 4 |
+| Vosim, Z-osc | 7 | yes | up to 4 |
 
 **The voice outranks the voice count** (Derek, 2026-09-21). FM, Harmonic and Grainlet run 8
 voices at 66–69% in the plain build, 63.5–64.7% under the bootloader — close to the ceiling
@@ -570,8 +733,8 @@ slots erases it properly anyway.
   free.
 
 Still deferred by choice: Wavetable and Chord engines, a lighter in-house reverb to replace
-ReverbSc, audio input, more preset slots and banks. Still Derek's to decide: whether Grainlet,
-Particle, String and Karplus stay.
+ReverbSc, audio input, more preset slots and banks. **Grainlet, Particle, String and Karplus
+were dropped on 2026-09-29** — that question is closed.
 
 ## Open questions
 

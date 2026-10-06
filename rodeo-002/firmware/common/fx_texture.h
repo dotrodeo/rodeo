@@ -97,6 +97,7 @@ class Texture
             tone_[c].Reset();
             band_hp_[c].Reset();
             band_lp_[c].Reset();
+            dc_[c].Reset();
             pop_[c] = 0.f;
         }
         follow_       = 0.f;
@@ -169,10 +170,21 @@ class Texture
             srr_[c].SetFreq(ExpMap(a, 1.f, 0.01f)); // full rate down to ~480 Hz
         }
         // Squash: threshold falls with intensity; the option sets the character.
+        //
+        // kMakeup is the share of the theoretical make-up gain that is actually
+        // applied. It was 0.5, which left a nominal -6 dB signal coming out 7.5
+        // dB down on Soft and 11.3 dB down on Pump -- Squash was a volume
+        // control with a compressor attached, and nobody would reach for it
+        // twice. At 0.85 all three options land within half a decibel of unity,
+        // and they land there TOGETHER, which is what says 0.85 is the right
+        // number rather than a fudge: the compensation now tracks the ratio
+        // instead of undershooting it (measured 2026-09-29, see
+        // FxReview.SquashLosesLevelOnANominalSignal).
+        static constexpr float kMakeup = 0.85f;
         const float thr_db = -6.f - 30.f * a;
         comp_ratio_        = option_ == 0 ? 3.f : (option_ == 1 ? 10.f : 20.f);
         comp_thr_          = powf(10.f, thr_db / 20.f);
-        comp_makeup_ = powf(10.f, (-thr_db * (1.f - 1.f / comp_ratio_) * 0.5f) / 20.f);
+        comp_makeup_ = powf(10.f, (-thr_db * (1.f - 1.f / comp_ratio_) * kMakeup) / 20.f);
         comp_atk_ = TimeCoeff(option_ == 2 ? 0.001f : (option_ == 1 ? 0.003f : 0.01f),
                               sample_rate_);
         comp_rel_ = TimeCoeff(option_ == 2 ? 0.3f : (option_ == 1 ? 0.1f : 0.15f),
@@ -199,7 +211,7 @@ class Texture
                 const float dry = *ch[c];
                 float       y   = T == kCrush ? crush_[c].Process(dry)
                                               : srr_[c].Process(dry);
-                y      = tone_[c].Lp(y);
+                y      = dc_[c].Process(tone_[c].Lp(y));
                 *ch[c] = dry + (y - dry) * wet;
             }
         }
@@ -243,7 +255,7 @@ class Texture
                 tape_[c].Write(dry);
                 float y = tape_[c].ReadHermite(delay);
                 y       = FastTanh(y * drive) / (1.f + 0.5f * in) + hiss * rng_.Bipolar();
-                y       = tone_[c].Lp(y);
+                y       = dc_[c].Process(tone_[c].Lp(y));
                 *ch[c]  = dry + (y - dry) * wet;
             }
         }
@@ -274,7 +286,7 @@ class Texture
                     pop_[c] = pop_amp * rng_.Bipolar();
                 pop_[c] *= 0.7f;
                 y += (pop_[c] + bed * rng_.Bipolar()) * in * level;
-                y      = tone_[c].Lp(y);
+                y      = dc_[c].Process(tone_[c].Lp(y));
                 *ch[c] = dry + (y - dry) * wet;
             }
         }
@@ -305,7 +317,7 @@ class Texture
             for(int c = 0; c < 2; c++)
             {
                 const float dry = *ch[c];
-                const float y   = tone_[c].Lp(FastTanh(dry * g));
+                const float y   = dc_[c].Process(tone_[c].Lp(FastTanh(dry * g)));
                 *ch[c]          = dry + (y - dry) * wet;
             }
         }
@@ -318,6 +330,20 @@ class Texture
     float                                 amount_      = 0.f;
     Smoother                              wet_, intensity_;
     OnePole                               tone_[2], band_hp_[2], band_lp_[2];
+    /** THE WET PATH IS DC-BLOCKED, the dry path is not -- the same arrangement
+     *  the Character slot has had all along, and for a sharper reason here.
+     *
+     *  Crush quantises by an arithmetic shift, which truncates toward minus
+     *  infinity rather than rounding, so every sample is rounded DOWN by up to
+     *  a step. At full crush the step is 0.25 of full scale and the mean error
+     *  is half of that: measured -0.125 of DC at the chain output, which
+     *  nothing downstream removed. The output stage is tilt, volume and the
+     *  limiter, so that went to the codec -- and into Space's feedback, where
+     *  DC is amplified, and where a railed output is heard as SILENCE because
+     *  the line out is AC-coupled. That is the fault we already fixed once
+     *  inside Space; this is the same fault arriving from upstream
+     *  (2026-09-29). */
+    DcBlocker                             dc_[2];
     Rng                                   rng_;
     daisysp::Decimator                    crush_[2];
     daisysp::SampleRateReducer            srr_[2];

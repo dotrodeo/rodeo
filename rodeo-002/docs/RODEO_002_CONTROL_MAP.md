@@ -93,8 +93,8 @@ Within each chip the grid is read left-to-right, top-to-bottom onto consecutive 
 
 | `ch` | Grid | Main layer | Shift layer | Chip | AINx | Conn |
 |---|---|---|---|---|---|---|
-| 0  | R1C1 | Harmonics         | Env→Timbre               | U3 | AIN0 | J6  |
-| 1  | R1C2 | Timbre            | Env→Morph                | U3 | AIN1 | J7  |
+| 0  | R1C1 | Harmonics         | **Sub level**            | U3 | AIN0 | J6  |
+| 1  | R1C2 | Timbre            | **Sub interval** *(stepped)* | U3 | AIN1 | J7  |
 | 2  | R1C3 | Morph             | LFO rate                 | U3 | AIN2 | J8  |
 | 3  | R1C4 | **Character amt** | Character **Bias**       | U3 | AIN3 | J9  |
 | 4  | R2C1 | Cutoff            | Filter type *(stepped)*  | U3 | AIN4 | J10 |
@@ -138,11 +138,24 @@ envelope — Attack, Decay, Sustain — on the **main** layer, where it had been
 `Patch` keeps a `release` field, moved in step by the panel, so the stored preset format is
 unchanged and a later firmware could separate them again without a version bump.
 
-**Spread moved to the shift layer.** Not a taste judgement: `VoiceManager` passes a detune of
-zero in Poly and Mono and only spreads voices in **Unison**, so the knob is inert in normal
-playing. That is the profile of a shift-layer parameter, not a main one. (If Spread should do
-something polyphonic — per-voice detune or stereo placement — that is a separate change, and it
-would earn its way back.)
+**Spread moved to the shift layer** (2026-09-22). Not a taste judgement: `VoiceManager` passed a
+detune of zero in Poly and Mono and only spread voices in **Unison**, so the knob was inert in
+normal playing. The note ended: *"If Spread should do something polyphonic — per-voice detune or
+stereo placement — that is a separate change, and it would earn its way back."*
+
+**It did, on 2026-09-29: Spread is now stereo width.** It places the voices across the field in
+every polyphonic mode, so a held chord opens out instead of stacking on one point. At 0 the
+output is the mono sum it always was, sample for sample. It still sets the detune in Unison, and
+the two readings are one idea — *how wide* — rather than two jobs on one knob.
+
+Two things were wrong underneath it, and both are why it felt inert:
+
+* **Unison detune was ±6 cents, not the ±1 semitone its comment claimed** — a factor of sixteen.
+  It is ±25 cents now, which is what a unison stack wants.
+* **The voices were phase-locked.** Eight copies of one oscillator, started together at one
+  pitch, are one oscillator eight times as loud. Measured: the stack peaked at 8.00× a single
+  voice. With the per-voice tuning errors below it peaks at **3.95×** — the same notes, actually
+  stacked.
 
 **Master volume moved behind SHIFT**, and the freed slots went to **Sustain** and **Filter env**
 — the latter promoted out of the shift layer onto R2C3, beside Cutoff and Resonance, so the
@@ -198,12 +211,11 @@ bottom; the isolated encoder under the OLED is slot 5. Slots 6–9 unpopulated.
   press means a slow turn still counts while dither never does. Once a clean hold passes 600 ms the OLED shows what releasing will do,
   so the pending action is never invisible. Slot encoders 1–4 are never shift, so their own
   long-press (Freeze) can fire at the threshold without waiting for release.
-* **Voice mode is constrained by the engine** (concept doc, *Voice modes*), **built
-  2026-09-25**. String and Karplus are Mono or Unison only (Modal is gone). Turning MAIN onto
-  one of them while in Poly switches the mode to Mono and posts it on the OLED, restoring the
-  previous mode when a polyphonic engine is selected again. Push-turning the mode on such an
-  engine **skips past Poly** rather than offering something that would be ignored. Engine order
-  never changes — nothing is hidden or skipped, the instrument just says what it did.
+* **Voice mode is never constrained by the engine** (2026-09-29). It was, between 2026-09-25 and
+  then: String and Karplus could not carry eight voices, so turning onto one in Poly moved the
+  mode to Mono, said so, and put it back afterwards. Both engines are gone and every engine
+  that remains is polyphonic, so the override went with them. **Poly is Poly on every engine**,
+  and the only thing that limits voices now is the cost model's budget arithmetic.
 * Encoders are incremental, so **all encoder-owned state persists in the patch/flash**
   (engine, slot types, voice mode) — same rule as rodeo-001.
 * Encoder satellites take **straight** cables (`A / B / S / GND` both ends).

@@ -8,7 +8,7 @@ and a run takes milliseconds.
 ## Run them
 
 ```sh
-cd rodeo-motherboard/firmware/common/tests
+cd rodeo-sdk/common/tests
 make test      # build + run everything
 make clean
 ```

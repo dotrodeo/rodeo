@@ -8,7 +8,9 @@ libDaisy `seed::Dxx` ↔ STM32 mapping is carried from ElectroSmith's original
 Daisy Seed pinout; the `seed::` numbering is identical across Seed rev4 and the
 Seed2 DFM for D0–D30.
 
-**This describes the board AS LAID OUT, including a wiring error — see Issue 1.**
+**This describes the board AS LAID OUT.** It once included a wiring error (Issue
+1, SPI MOSI/MISO); that was corrected before fab, so the board in hand is
+correct and Issue 1 is history rather than a caveat.
 
 ---
 
@@ -68,8 +70,8 @@ There are **no jumper components** in the design — no `SolderJumper`, `NetTie`
 the KiCad `duplicate_pin_numbers_are_jumpers` syntax token). The only new
 power-related parts are five **3-pin JST-ZH connectors J45–J49**, each
 `1=GND, 2=+3V3, 3=VIN` — power *taps/distribution*, not selectable jumpers.
-If the intent was a rail-select or source-select jumper, it isn't on the board
-yet. **Reconcile with what you thought you added.**
+**Closed (Derek, 2026-10-04):** "power jumpers" was a miscommunication. The
+five taps J45–J49 are what was meant, and Rev B keeps them as they are.
 
 ---
 
@@ -108,6 +110,38 @@ Front-panel pots are 3-pin JST (`1=+3V3, 2=signal, 3=GND`):
 | J18 – J29 | `ADC2_1` – `ADC2_12` | B (U4) | AIN0 – AIN11 |
 
 `ADCn_k` → `AIN(k−1)`, uniformly.
+
+#### Pot cables: STRAIGHT THROUGH. Both ends are pinned the same way.
+
+Checked against both schematics on 2026-10-01, because rodeo-002 spent a session
+on it and its firmware briefly claimed the opposite:
+
+| | pin 1 | pin 2 | pin 3 |
+|---|---|---|---|
+| motherboard `J6`–`J29` | `+3V3` | signal | `GND` |
+| `rodeo-potentiometer` `J1` | supply in (→ 1 K → pot top leg, 100 n to GND) | wiper out | `GND` |
+
+**They agree, so pin 1 goes to pin 1.** The satellites are *not* mirrored and a
+reversed cable is *not* required.
+
+What a reversed cable does, since one harness was built that way: supply and
+ground swap, the same divider runs from the other end, and the travel becomes
+**~0.30 V … 3.30 V** instead of **0.00 V … ~3.00 V**. The knob can no longer
+reach 0 V and can now reach the full 3.3 V, which correct wiring cannot — the
+1 K series resistor forbids it even for a +20 % pot (3.3 × 12/13 = 3.046 V).
+That asymmetry is the cheapest way to tell the two apart in firmware.
+
+Nothing is damaged by it: the satellite is passive. rodeo-002 detects and
+rescales rather than rebuilding sixteen cables (`rodeo-002/firmware/common/panel_pot.h`),
+but that tolerates a **mistake**, not a design, which is why it is not in this
+library.
+
+#### The 1 K series resistor means a pot never reaches 3.3 V
+
+The satellite feeds the pot's top leg through 1 K, so full travel is
+3.3 × Rpot/(Rpot + 1 K) — **~3.00 V for a nominal 10 K pot, not 3.3 V**.
+Uncorrected, every knob tops out at 91 %. `adc_convert.h`'s `AdcCodeToNormSpan`
+is what accounts for it; `common/tests/pot_span_gtest.cpp` guards it.
 
 ---
 
@@ -185,7 +219,10 @@ header is the same USART1 as MIDI — only one of the two can be used at a time.
 
 ## Issues found
 
-### 1. CRITICAL — SPI MOSI/MISO are swapped; the MCU cannot talk to the ADCs
+> Everything planned for the next board, including the items below that it
+> resolves, is collected in [`rev-b.md`](rev-b.md).
+
+### 1. RESOLVED AS BUILT — SPI MOSI/MISO were swapped in the layout
 
 The ADC data lines are crossed at the Daisy header:
 
@@ -202,13 +239,31 @@ that swaps them. So with hardware SPI:
 * the MCU can never drive `DIN`, so it can never send `RDATA`/config commands;
 * the MCU's MOSI output is short-circuited against the ADCs' `DOUT` output.
 
-**Firmware cannot work around this.** Options:
+**Firmware cannot work around this.** Options were:
 1. **Board fix (recommended):** swap the two Daisy-side connections — route
    `ADC_MOSI` (DIN) to Daisy pin11/PB5 and `ADC_MISO` (DOUT) to pin10/PB4. Two
    short reroutes near the header, or swap where R13 and R16 land.
 2. Bit-bang SPI on plain GPIO (slow, not worth it here).
 
-This blocks bring-up milestones 1–5 and 7. Fix before fab.
+**Option 1 is what the board in hand has.** Three pieces of evidence, all
+pointing the same way:
+
+* `firmware/common/board.h` carries the *corrected* mapping —
+  `kSpiMiso = 10 // seed::D9 (PB4) <- ADC DOUT`,
+  `kSpiMosi = 11 // seed::D10 (PB5) -> ADC DIN`.
+* `firmware/README.md`: the SPI orientation and conversion path are
+  **bench-confirmed on real hardware** (`04_adc_1ch`, 2026-08-14).
+* rodeo-002 has been reading sixteen pots through these ADCs since September.
+
+This section read **"CRITICAL … the MCU cannot talk to the ADCs … fix before
+fab"** until 2026-10-01, long after all three of those were true, so anyone
+reading the doc would have concluded the hardware was dead. The analysis above
+is kept because it is why the fix was needed; only the status was wrong.
+
+**How it was resolved: the fix went into the layout before the board was
+fabbed** (Derek, 2026-10-01). So there is no rework on the board and nothing to
+look for with a meter — the copper is correct as delivered, and the table above
+describes a layout that never reached fabrication.
 
 ### 2. USB-C is still power-only, and the Daisy's USB pins now dead-end
 
@@ -304,7 +359,10 @@ addressing and both are cheap.
 
 ## Firmware-relevant summary
 
-* **Blocked by Issue 1:** all ADC bring-up (milestones 1–5, 7) until the SPI
+* **Issue 1 is resolved as built** (see above); ADC bring-up is done and
+  rodeo-002 ships on it. The paragraph below is the historical note from when
+  it was still open.
+* ~~**Blocked by Issue 1:** all ADC bring-up (milestones 1–5, 7) until the SPI
   data lines are un-swapped in hardware.
 * **Unblocked:** audio (milestone 6) and MIDI are correctly wired on this
   revision; power is sound and in-spec for the original Seed.

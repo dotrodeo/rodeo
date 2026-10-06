@@ -9,7 +9,7 @@
 //     beyond what the type is supposed to hold),
 //   * be transparent at amount 0, where the panel promises "off".
 // The platform learned the first point the hard way: DaisySP's Svf diverges
-// under drive (see rodeo-motherboard/firmware/common/tests/svf_stability_gtest).
+// under drive (see rodeo-sdk/common/tests/svf_stability_gtest).
 
 #include "gtest/gtest.h"
 

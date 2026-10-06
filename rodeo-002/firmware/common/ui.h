@@ -64,7 +64,7 @@ enum class ParamId
     kAttack, kDecay, kSustain, kTextureAmt,
     kSpaceTime, kSpaceFeedback, kSpaceGrain, kSpaceMix,
     // shift layer, same pots
-    kEnvToTimbre, kEnvToMorph, kLfoRate, kCharacterBias,
+    kSubLevel, kSubInterval, kLfoRate, kCharacterBias,
     kFilterType, kLfoDepth, kLfoDest, kMovementRate,
     kSpread, kGlide, kVolume, kTextureTone,
     kGrainPitch, kGrainSpread, kTilt, kSpaceDamp,
@@ -76,7 +76,7 @@ inline const char* ParamName(ParamId p)
     static const char* kNames[] = {
         "Harmonics", "Timbre",    "Morph",     "Character", "Cutoff",    "Resonance",
         "Filt env",  "Movement",  "Attack",    "Decay",     "Sustain",   "Texture",
-        "Time",      "Feedback",  "Grain",     "Space mix", "Env>Timbre", "Env>Morph",
+        "Time",      "Feedback",  "Grain",     "Space mix", "Sub level", "Sub oct",
         "LFO rate",  "Bias",      "Filter",    "LFO depth", "LFO dest",  "Rate",
         "Spread",    "Glide",     "Volume",    "Tone",      "Pitch",     "Spread",
         "Tilt",      "Damp"};
@@ -91,6 +91,8 @@ inline int ParamSteps(ParamId p)
         return static_cast<int>(FilterType::kCount);
     if(p == ParamId::kLfoDest)
         return static_cast<int>(LfoDest::kCount);
+    if(p == ParamId::kSubInterval)
+        return static_cast<int>(SubInterval::kCount);
     return 0;
 }
 
@@ -158,6 +160,15 @@ enum class PatchSetting
     kBendRange,
     kLfoShape,
     kModDest,
+    // Moved off the shift layer on 2026-09-29 to make room for the sub. They
+    // are depths you set for a patch and leave; the knobs went to something you
+    // actually play with.
+    kEnvToTimbre,
+    kEnvToMorph,
+    kSubWave,
+    /** Added 2026-10-01: the factory bank spanned 19 dB of peak level, which is
+     *  more than "some patches are just louder". */
+    kGain,
     kCount
 };
 
@@ -889,6 +900,10 @@ class Ui
             case PatchSetting::kVelToFilter: return "Vel>filter";
             case PatchSetting::kBendRange: return "Bend range";
             case PatchSetting::kLfoShape: return "LFO shape";
+            case PatchSetting::kEnvToTimbre: return "Env>timbre";
+            case PatchSetting::kEnvToMorph: return "Env>morph";
+            case PatchSetting::kSubWave: return "Sub wave";
+            case PatchSetting::kGain: return "Patch gain";
             default: return "Mod wheel";
         }
     }
@@ -912,17 +927,7 @@ class Ui
         }
         switch(static_cast<PatchSetting>(i))
         {
-            case PatchSetting::kKeytrack:
-            {
-                // Signed: 0.5 is none, either side tracks the keyboard.
-                const int pct = static_cast<int>((patch_.keytrack - 0.5f) * 200.f
-                                                 + (patch_.keytrack >= 0.5f ? 0.5f : -0.5f));
-                if(pct > 0)
-                    *d++ = '+';
-                Int(d, pct);
-                Copy(d, "%");
-                break;
-            }
+            case PatchSetting::kKeytrack: SignedPercent(d, patch_.keytrack); break;
             case PatchSetting::kVelToFilter:
                 Int(d, static_cast<int>(patch_.vel_to_filter * 100.f + 0.5f));
                 Copy(d, "%");
@@ -934,8 +939,47 @@ class Ui
             case PatchSetting::kLfoShape:
                 Copy(d, fx::Lfo::ShapeName(patch_.lfo_shape));
                 break;
+            case PatchSetting::kEnvToTimbre: SignedPercent(d, patch_.env_to_timbre); break;
+            case PatchSetting::kEnvToMorph: SignedPercent(d, patch_.env_to_morph); break;
+            case PatchSetting::kSubWave: Copy(d, SubWaveName(patch_.sub_wave)); break;
+            case PatchSetting::kGain:
+                // Shown in dB with the half decibel, because the step IS half a
+                // decibel. Rounding to whole dB printed the same number for two
+                // different settings -- "+8 dB" twice, where the second one is
+                // +8.5 -- which tells you the knob did nothing (Derek,
+                // 2026-10-01). A readout that cannot distinguish two states is
+                // worse than no readout.
+                SignedHalves(d, GainToDb(patch_.gain));
+                Copy(d, " dB");
+                break;
             default: Copy(d, ModDestName(patch_.mod_dest)); break;
         }
+    }
+
+    /** A signed value to one decimal, for anything stepped in halves. */
+    static void SignedHalves(char*& d, float v)
+    {
+        // Snapped to the same grid the step uses, so the text is exactly the
+        // state rather than a rounding of it.
+        const int halves = static_cast<int>(v * 2.f + (v >= 0.f ? 0.5f : -0.5f));
+        const int tenths  = halves * 5;
+        const int mag     = tenths < 0 ? -tenths : tenths;
+        *d++              = tenths < 0 ? '-' : '+';
+        Int(d, mag / 10);
+        *d++ = '.';
+        Int(d, mag % 10);
+    }
+
+    /** A 0..1 value where 0.5 means none, written the way it reads on the
+     *  panel: -100% to +100% with the sign shown. */
+    static void SignedPercent(char*& d, float v)
+    {
+        const int pct
+            = static_cast<int>((v - 0.5f) * 200.f + (v >= 0.5f ? 0.5f : -0.5f));
+        if(pct > 0)
+            *d++ = '+';
+        Int(d, pct);
+        Copy(d, "%");
     }
 
     void AdjustPage(int i, int dir)
@@ -973,6 +1017,32 @@ class Ui
             {
                 const int n      = fx::Lfo::kNumShapes;
                 patch_.lfo_shape = ((patch_.lfo_shape + dir) % n + n) % n;
+                break;
+            }
+            case PatchSetting::kEnvToTimbre:
+                patch_.env_to_timbre = Clamp01(patch_.env_to_timbre + 0.02f * dir);
+                break;
+            case PatchSetting::kEnvToMorph:
+                patch_.env_to_morph = Clamp01(patch_.env_to_morph + 0.02f * dir);
+                break;
+            case PatchSetting::kGain:
+            {
+                // SNAPPED TO THE HALF-DECIBEL GRID on every step. Without it,
+                // each adjustment runs the value through log and then exp
+                // again, and the error accumulates until the reading sits
+                // between two detents and the display has to round.
+                const float now   = GainToDb(patch_.gain);
+                const float want  = now + 0.5f * static_cast<float>(dir);
+                const float snap  = roundf(want * 2.f) * 0.5f;
+                const float clamp = snap < -18.f ? -18.f : (snap > 12.f ? 12.f : snap);
+                patch_.gain       = DbToGain(clamp);
+                break;
+            }
+            case PatchSetting::kSubWave:
+            {
+                const int n     = static_cast<int>(SubWave::kCount);
+                patch_.sub_wave = static_cast<SubWave>(
+                    ((static_cast<int>(patch_.sub_wave) + dir) % n + n) % n);
                 break;
             }
             default:
@@ -1031,36 +1101,12 @@ class Ui
         }
     }
 
-    /** The physical models cannot carry eight voices, so they are Mono or
-     *  Unison only (concept doc, *Voice modes*). Turning onto one in Poly moves
-     *  the mode rather than letting the engine sound broken, says so, and puts
-     *  the mode back when a polyphonic engine is chosen again -- the engine
-     *  order never changes and nothing is hidden, the instrument just says what
-     *  it did. */
-    static bool EngineIsMonophonic(EngineId e)
-    {
-        return e == EngineId::kString || e == EngineId::kKarplus;
-    }
-
-    void ConstrainVoiceMode(uint32_t now)
-    {
-        if(EngineIsMonophonic(patch_.engine))
-        {
-            if(patch_.voice_mode == VoiceMode::kPoly)
-            {
-                poly_before_       = patch_.voice_mode;
-                had_poly_before_   = true;
-                patch_.voice_mode  = VoiceMode::kMono;
-                PostNotice("MONO: THIS ENGINE", now);
-            }
-        }
-        else if(had_poly_before_)
-        {
-            had_poly_before_  = false;
-            patch_.voice_mode = poly_before_;
-            PostNotice("POLY RESTORED", now);
-        }
-    }
+    // ConstrainVoiceMode and EngineIsMonophonic lived here. They moved the
+    // voice mode to Mono when you turned onto String or Karplus and put it back
+    // afterwards, because those two could not carry eight voices. Both engines
+    // are gone (2026-09-29) and every engine that remains is polyphonic, so
+    // there is no longer a case where the instrument overrides the mode you
+    // chose. Poly is Poly on every engine.
 
     void Post(const char* msg, uint32_t now)
     {
@@ -1068,7 +1114,14 @@ class Ui
         display_.message_ms = now ? now : 1;
     }
 
-    /** For what the instrument decided, as opposed to what you asked for. */
+    /** For what the instrument decided, as opposed to what you asked for.
+     *
+     *  NOTHING CALLS THIS at the moment: its only caller was the voice-mode
+     *  override that went with String and Karplus. Kept because the channel is
+     *  a real distinction the header already draws -- what you did on the left,
+     *  what the instrument did to you in its own slot -- and the next thing
+     *  that decides something on your behalf will want it. Delete it if that
+     *  does not arrive. */
     void PostNotice(const char* msg, uint32_t now)
     {
         display_.notice    = msg;
@@ -1125,12 +1178,6 @@ class Ui
                 int m = static_cast<int>(patch_.voice_mode) + (delta > 0 ? 1 : -1);
                 const int n = static_cast<int>(VoiceMode::kCount);
                 patch_.voice_mode = static_cast<VoiceMode>(((m % n) + n) % n);
-                if(EngineIsMonophonic(patch_.engine) && patch_.voice_mode == VoiceMode::kPoly)
-                {
-                    // Skip past Poly rather than offering it and ignoring it.
-                    patch_.voice_mode = delta > 0 ? VoiceMode::kMono : VoiceMode::kUnison;
-                    had_poly_before_  = false;
-                }
                 Post(VoiceModeName(patch_.voice_mode), now);
                 return true;
             }
@@ -1138,7 +1185,6 @@ class Ui
             const int n = static_cast<int>(EngineId::kCount);
             patch_.engine = static_cast<EngineId>(((eng % n) + n) % n);
             Post(EngineName(patch_.engine), now);
-            ConstrainVoiceMode(now);
             return true;
         }
         if(shift)
@@ -1312,6 +1358,7 @@ class Ui
         switch(p)
         {
             case ParamId::kFilterType: return FilterTypeName(patch_.filter);
+            case ParamId::kSubInterval: return SubIntervalName(patch_.sub_interval);
             case ParamId::kLfoDest: return LfoDestName(patch_.lfo_dest);
             default: return "";
         }
@@ -1338,8 +1385,10 @@ class Ui
             case ParamId::kSpaceFeedback: return x.space_feedback;
             case ParamId::kSpaceGrain: return x.space_grain;
             case ParamId::kSpaceMix: return x.amount[fx::TextureChain::kSpace];
-            case ParamId::kEnvToTimbre: return x.env_to_timbre;
-            case ParamId::kEnvToMorph: return x.env_to_morph;
+            case ParamId::kSubLevel: return x.sub_level;
+            case ParamId::kSubInterval:
+                return StepToPot(static_cast<int>(x.sub_interval),
+                                 static_cast<int>(SubInterval::kCount));
             case ParamId::kLfoRate: return x.lfo_rate;
             case ParamId::kCharacterBias: return x.secondary[fx::TextureChain::kCharacter];
             case ParamId::kFilterType:
@@ -1379,8 +1428,11 @@ class Ui
             case ParamId::kSpaceFeedback: x.space_feedback = v; break;
             case ParamId::kSpaceGrain: x.space_grain = v; break;
             case ParamId::kSpaceMix: x.amount[fx::TextureChain::kSpace] = v; break;
-            case ParamId::kEnvToTimbre: x.env_to_timbre = v; break;
-            case ParamId::kEnvToMorph: x.env_to_morph = v; break;
+            case ParamId::kSubLevel: x.sub_level = v; break;
+            case ParamId::kSubInterval:
+                x.sub_interval = static_cast<SubInterval>(
+                    PotToStep(v, static_cast<int>(SubInterval::kCount)));
+                break;
             case ParamId::kLfoRate: x.lfo_rate = v; break;
             case ParamId::kCharacterBias: x.secondary[fx::TextureChain::kCharacter] = v; break;
             case ParamId::kFilterType:
@@ -1394,12 +1446,10 @@ class Ui
                 break;
             case ParamId::kMovementRate: x.secondary[fx::TextureChain::kMovement] = v; break;
             // ADS, Moog style: one knob for the fall time, whether the note is
-            // still held or not. The patch keeps both fields in step so that
-            // what a preset stores is what the panel can express.
-            case ParamId::kDecay:
-                x.decay = v;
-                x.release = v;
-                break;
+            // still held or not. There is only one field for it now -- the
+            // separate `release` was dead weight kept in step with this, and
+            // its four bytes are the patch gain (2026-10-01).
+            case ParamId::kDecay: x.decay = v; break;
             case ParamId::kGlide: x.glide = v; break;
             case ParamId::kSustain: x.sustain = v; break;
             case ParamId::kLfoDepth: x.lfo_depth = v; break;
@@ -1452,8 +1502,6 @@ class Ui
     int      page_index_ = 0;
     bool     reset_armed_ = false;
     bool     factory_reset_ = false;
-    VoiceMode poly_before_ = VoiceMode::kPoly;
-    bool      had_poly_before_ = false;
     char     page_value_[20] = {};
     char     row_value_[DisplayState::kListRows][20] = {};
     char     slot_label_[DisplayState::kListRows][24] = {};

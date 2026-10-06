@@ -1,7 +1,7 @@
 # rodeo-002 — firmware
 
 Instance firmware for rodeo-002. Shares the platform's toolchain, vendored
-libDaisy/DaisySP and build rules with `rodeo-motherboard/firmware` — each app
+libDaisy/DaisySP and build rules with `rodeo-sdk` — each app
 here just points `RODEO_ROOT` back at that tree.
 
 | App | What it is |
@@ -14,10 +14,10 @@ here just points `RODEO_ROOT` back at that tree.
 
 ## Building
 
-Same toolchain as the motherboard firmware (see
-[`rodeo-motherboard/firmware/README.md`](../../rodeo-motherboard/firmware/README.md)):
+Same toolchain as the SDK (see
+[`rodeo-sdk/README.md`](../../rodeo-sdk/README.md)):
 the official Arm GNU Toolchain with newlib, `GCC_PATH` set in
-`rodeo-motherboard/firmware/config.mk`, and the submodules initialised
+`rodeo-sdk/config.mk`, and the submodules initialised
 (`git submodule update --init --recursive`).
 
 **rodeo-002 runs under the Daisy bootloader** (`APP_TYPE = BOOT_SRAM`): the Seed's 128 KB
@@ -67,7 +67,7 @@ If you are building inside a git worktree where the submodules aren't checked
 out, point at the main checkout instead of initialising them again:
 
 ```bash
-make RODEO_ROOT=/path/to/rodeo/rodeo-motherboard/firmware
+make RODEO_ROOT=/path/to/rodeo/rodeo-sdk
 ```
 
 ## `bench_voices` — what it measures and how to read it
