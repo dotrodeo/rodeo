@@ -3,7 +3,7 @@ title: "Rodeo Web — Brand & Design Tokens"
 tags: [rodeo, web, brand, design-tokens, typography]
 status: active
 created: 2026-09-17
-updated: 2026-09-17
+updated: 2026-10-05
 ---
 
 # Rodeo Web — Brand & Design Tokens
@@ -17,17 +17,23 @@ layer in `web/src/styles/` is a **transcription of this file**, not an independe
 ## The governing principle: the board is the brand
 
 Rodeo's visual identity was not designed for the website. It already existed, on the
-silkscreen of `rodeo-motherboard`. The palette below is **sampled from a render of the
-actual board**, and the typefaces are **the ones specified in the board's own KiCad text
-objects**. Nothing here was invented for the web.
+silkscreen of `rodeo-motherboard`: black soldermask, white legend, plated yellow, heavy
+caps, mono designators. Three of the four typefaces are still **the ones specified in the
+board's own KiCad text objects**, and the graphic devices below are lifted off the
+silkscreen unchanged.
 
 This matters beyond convenience. A platform sold to builders is credible in proportion to
-how much of it is verifiable, and a brand lifted off the product is verifiable by opening
-the board file. It also means the physical object and the website cannot drift apart: change
-the soldermask colour and the site is wrong, which is the correct direction for that
-dependency to run.
+how much of it is verifiable, and a brand taken off the product is verifiable by opening the
+board file.
 
-### How the palette was derived
+**What changed on 2026-10-05.** The exact colour values are no longer measured — Derek chose
+round hex codes, and two accents were added that are not on any board. So the accurate claim
+is now: *the identity derives from the board; the values are chosen for the screen.* The
+earlier, stronger claim ("every value is sampled") is retired. It was a good story, and
+repeating it once it stopped being true would cost more than it bought — a reader can open
+the KiCad file and check.
+
+### How the original palette was derived (historical)
 
 `kicad-cli pcb render --quality high` on
 `rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb`, then a pixel histogram over the
@@ -45,40 +51,47 @@ and `(copper_finish "None")`.
 
 ## Palette
 
+**Revised 2026-10-05.** The values were originally sampled from a render of the motherboard.
+Derek chose round, legible hex codes over measured ones, and added two accents. The board is
+still where the identity *comes from* — black mask, white legend, plated yellow — but the
+numbers are now chosen for the screen. Do not reintroduce the "every value is measured"
+claim; it is no longer true, and the honesty of these docs is worth more than the story.
+
 Dark is the **only** mode — see "Why there is no light mode" below.
 
-| Token | Hex | What it is on the board | Contrast on field |
+| Token | Hex | Job | Contrast on field |
 |---|---|---|---|
-| `--color-field` | `#141416` | Black soldermask. The ground. | — |
-| `--color-field-raised` | `#1C1C20` | One step up: cards, wells, code blocks. No border needed. | — |
-| `--color-legend` | `#FEFEFE` | Silkscreen white. Headings, labels, knockout chips. | **18.2:1** |
-| `--color-legend-prose` | `#E4E4E2` | Softened white for long body copy (see note). | **14.4:1** |
-| `--color-hardware` | `#B6B6B6` | Connector shells and tin pads. Secondary text, captions. | **9.1:1** |
-| `--color-plating` | `#F0D81E` | Gold plated through-holes. **The only accent.** | **12.7:1** |
-| `--color-trace` | `#2A1E18` | Copper seen through black mask. **Hairlines and rules only.** | 1.2:1 — never text |
-| `--color-copper` | `#7E604E` | Copper mid-tone. Decorative, or text at 24 px+. | 3.2:1 — large only |
+| `--color-field` | `#111111` | The page | — |
+| `--color-field-raised` | `#1C1C1C` | Cards, wells, code blocks | — |
+| `--color-rule` | `#2E2E2E` | Hairlines | — |
+| `--color-legend` | `#FFFFFF` | Headings, labels, knockout chips | **18.9:1** |
+| `--color-legend-prose` | `#E0E0E0` | Long-form body | **14.3:1** |
+| `--color-hardware` | `#B0B0B0` | Captions, secondary text | **8.7:1** |
+| `--color-yellow` | `#FFCC00` | Primary action, `shipped` status | **12.5:1** |
+| `--color-indigo` | `#6655FF` | Section bands — **surface only** | 3.9:1 |
+| `--color-indigo-text` | `#8888FF` | Eyebrows and labels on dark | **6.3:1** |
+| `--color-cyan` | `#00CCFF` | Code, SDK, technical reference | **10:1** |
 
-Status colours reuse the palette rather than adding to it:
+### Why three accents
 
-| Token | Value | Reads as |
-|---|---|---|
-| `--color-status-shipped` | `--color-plating` fill, `--color-field` text | verified on hardware |
-| `--color-status-progress` | `--color-legend` 1px outline, `--color-legend` text | in bring-up |
-| `--color-status-planned` | `--color-hardware` 1px outline, `--color-hardware` text | designed, not built |
-| `--color-status-retired` | `--color-hardware` text, struck through | dropped |
+The earlier rule was one accent, on the reasoning that the board has exactly one
+non-monochrome colour. That was a good argument for a short page and a bad one for a long
+one: a dark page with a single accent has no way to signal a new section except another
+yellow band, and two in a row is too much. Indigo earns its place as a sectioning device.
+
+Cyan has a narrower job — code, the SDK, inline technical reference — and should not be used
+decoratively. If it ends up unused, remove it rather than finding work for it.
 
 ### Rules that are not negotiable
 
-1. **`#F0D81E` is never used on a light ground.** Gold on white is **1.4:1** — it fails
-   every threshold. On the field it is 12.7:1. Inverted (black text on a gold fill) it is
-   also 12.7:1, which is why the gold chip and the gold button both work.
-2. **`--color-trace` never carries text.** It exists because the board's traces read as
-   near-black-warm hairlines, and that is the only job it has.
-3. **One accent.** The board has exactly one non-monochrome colour and so does the site.
-   Resist adding a second; a cool companion was considered and rejected as un-earned.
-4. **Long prose uses `--color-legend-prose`, not `--color-legend`.** Pure silkscreen white
-   at 18.2:1 is right for labels and headings, and causes visible halation over a paragraph
-   on a near-black ground. Verified on the log-post artboard. Headings stay `--color-legend`.
+1. **`--color-indigo` never carries text.** At 3.9:1 it fails as a foreground on the field.
+   This is not theoretical: the eyebrow label in the original mockup did exactly this.
+   `--color-indigo-text` exists for that job. White on indigo is 5.5:1 and fine.
+2. **`#FFCC00` is never used on a light ground.** On the field it is 12.5:1; inverted, with
+   black text on a yellow fill, also 12.5:1. On white it is around 1.4:1 and unusable. On
+   indigo it is 3.2:1 — acceptable for display type at 24px+, never for body.
+3. **Long prose uses `--color-legend-prose`, not `--color-legend`.** Pure white at 18.9:1 is
+   right for labels and headings and causes visible halation over a paragraph on near-black.
 
 ## Typography
 
@@ -86,11 +99,22 @@ All three faces are already specified in the boards' KiCad text objects and all 
 freely available. Self-host them (`@fontsource-variable/barlow`,
 `@fontsource/ibm-plex-mono`) — a performance decision and a GDPR one.
 
-| Role | Face | Weights | Where it comes from |
-|---|---|---|---|
-| Display / wordmark | **Barlow Black** (Barlow 900) | 900 | `(face "Barlow Black")` — the `RODEO` wordmark and every section label on all six boards |
-| Body / UI | **Barlow** | 400, 500, 600 | `(face "Barlow")` — motherboard and hub secondary labels |
-| Mono | **IBM Plex Mono** | 400, 500 | `(face "IBM Plex Mono")` — designators on the potentiometer and rotary-switch boards |
+| Role | Face | Where it comes from |
+|---|---|---|
+| Display / wordmark | **Barlow Black** (900) | `(face "Barlow Black")` — the `RODEO` wordmark and every section label on all six boards |
+| UI / short copy | **Barlow** 400–600 | `(face "Barlow")` — motherboard and hub secondary labels |
+| Technical | **IBM Plex Mono** 400/500 | `(face "IBM Plex Mono")` — designators on the satellite boards |
+| Long-form reading | **pending** | Not from the board. A third family, for build-log posts |
+
+**The long-form face is an open decision.** Three candidates are rendered side by side with
+real copy on `/style-guide`: Source Serif 4, Newsreader, Literata. Once one is chosen, drop
+the other two imports from `global.css` and uninstall their packages.
+
+**Why a third family at all.** The mockup set body copy in mono, which is distinctive and
+right for short copy, but mono is measurably slower to read at paragraph length and eats the
+measure on a phone — the hero paragraph already runs ten lines at 375px. The rule:
+**mono up to about three lines, the reading face beyond.** `global.css` provides `.copy-tech`
+and `.copy-read` for exactly this split.
 
 Setting conventions, taken from how the board sets type:
 

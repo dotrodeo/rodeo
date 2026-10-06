@@ -27,7 +27,7 @@ const files = [
 
 <BaseLayout title={board.name} description={board.summary}>
   <p class="pt-5 font-mono text-[13px] text-hardware">
-    <a href="/ecosystem/" class="text-hardware no-underline hover:text-plating">boards</a> / {board.name}
+    <a href="/ecosystem/" class="text-hardware no-underline hover:text-yellow">boards</a> / {board.name}
   </p>
 
   <section class="flex flex-col gap-10 pt-6 lg:flex-row lg:gap-12">
@@ -103,7 +103,7 @@ const files = [
       {
         files.map((f) => (
           <li class="flex flex-col gap-1.5 bg-field-raised p-4">
-            <span class="font-mono text-[12px] text-plating">{f.ext}</span>
+            <span class="font-mono text-[12px] text-yellow">{f.ext}</span>
             <span class="display text-[17px] normal-case">{f.name}</span>
             <span class="text-[14px] leading-relaxed text-hardware">{f.note}</span>
             <span class="mt-1 font-mono text-[11.5px] text-hardware">

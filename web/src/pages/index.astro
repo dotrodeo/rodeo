@@ -29,12 +29,12 @@ const figures = [
       <div class="flex flex-wrap items-center gap-3.5">
         <a
           href="/ecosystem/"
-          class="bg-plating px-5 py-3.5 font-display text-[15px] font-black uppercase tracking-[0.06em] text-field no-underline hover:bg-legend"
+          class="bg-yellow px-5 py-3.5 font-display text-[15px] font-black uppercase tracking-[0.06em] text-field no-underline hover:bg-legend"
           >See the boards</a
         >
         <a
           href="/ecosystem/rodeo-encoder-hub/"
-          class="border-[1.5px] border-legend px-5 py-3 font-display text-[15px] font-black uppercase tracking-[0.06em] text-legend no-underline hover:border-plating hover:text-plating"
+          class="border-[1.5px] border-legend px-5 py-3 font-display text-[15px] font-black uppercase tracking-[0.06em] text-legend no-underline hover:border-yellow hover:text-yellow"
           >Read a pinout</a
         >
       </div>
@@ -57,7 +57,7 @@ const figures = [
     {
       figures.map((f) => (
         <div class="flex flex-col gap-1 py-6">
-          <div class="font-display text-[40px] font-black leading-none text-plating">{f.n}</div>
+          <div class="font-display text-[40px] font-black leading-none text-yellow">{f.n}</div>
           <div class="text-[14px] text-hardware">{f.label}</div>
         </div>
       ))
@@ -94,7 +94,7 @@ const figures = [
           },
         ].map((c) => (
           <div class="flex flex-col gap-3 bg-field-raised p-5">
-            <div class="font-mono text-[12px] text-plating">{c.n}</div>
+            <div class="font-mono text-[12px] text-yellow">{c.n}</div>
             <h3 class="display m-0 text-[19px]">{c.h}</h3>
             <p class="m-0 text-[14.5px] leading-relaxed text-hardware">{c.p}</p>
           </div>
