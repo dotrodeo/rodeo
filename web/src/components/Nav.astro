@@ -6,31 +6,126 @@ const path = Astro.url.pathname;
 
 // '/' would prefix-match everything, so the home item is matched exactly.
 const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
+
+const link = 'font-mono text-[14px] no-underline';
 ---
 
 <header class="border-b border-rule">
-  <nav
-    class="wrap flex flex-wrap items-center gap-x-6 gap-y-3 py-4"
-    aria-label="Primary"
-  >
+  <nav class="wrap flex flex-wrap items-center gap-x-6 py-4" aria-label="Primary">
     <Wordmark href="/" />
     <div class="grow"></div>
-    {
-      site.nav.map((item) =>
-        isActive(item.href) ? (
-          <span class="font-mono text-[14px] text-yellow" aria-current="page">
-            {item.label}
-          </span>
-        ) : item.pending ? (
-          <span class="font-mono text-[14px] text-hardware" title="Coming soon">
-            {item.label}
-          </span>
-        ) : (
-          <a href={item.href} class="font-mono text-[14px] text-legend no-underline hover:text-yellow">
-            {item.label}
-          </a>
-        )
-      )
-    }
+
+    <ul class="m-0 hidden list-none items-center gap-6 p-0 md:flex">
+      {
+        site.nav.map((item) => (
+          <li>
+            {isActive(item.href) ? (
+              <span class={`${link} text-yellow`} aria-current="page">
+                {item.label}
+              </span>
+            ) : item.pending ? (
+              <span class={`${link} text-hardware`} title="Coming soon">
+                {item.label}
+              </span>
+            ) : (
+              <a href={item.href} class={`${link} text-legend hover:text-yellow`}>
+                {item.label}
+              </a>
+            )}
+          </li>
+        ))
+      }
+    </ul>
+
+    <button
+      id="nav-toggle"
+      type="button"
+      class="-mr-2.5 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent text-legend hover:text-yellow md:hidden"
+      aria-expanded="false"
+      aria-controls="nav-menu"
+    >
+      <span class="sr-only">Menu</span>
+      <svg
+        class="icon-menu"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="square"
+        aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"></path></svg
+      >
+      <svg
+        class="icon-close"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="square"
+        aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"></path></svg
+      >
+    </button>
+
+    <div id="nav-menu" class="w-full basis-full md:hidden">
+      <ul class="m-0 flex list-none flex-col p-0 pt-3">
+        {
+          site.nav.map((item) => (
+            <li class="border-t border-rule">
+              {isActive(item.href) ? (
+                <span class={`${link} block py-3.5 text-yellow`} aria-current="page">
+                  {item.label}
+                </span>
+              ) : item.pending ? (
+                <span class={`${link} block py-3.5 text-hardware`}>
+                  {item.label} <span class="text-[12px]">— soon</span>
+                </span>
+              ) : (
+                <a href={item.href} class={`${link} block py-3.5 text-legend hover:text-yellow`}>
+                  {item.label}
+                </a>
+              )}
+            </li>
+          ))
+        }
+      </ul>
+    </div>
   </nav>
 </header>
+
+<style>
+  /* Icon state is driven off aria-expanded, so the button's accessible state
+     and its appearance cannot drift apart. */
+  #nav-toggle[aria-expanded='true'] .icon-menu,
+  #nav-toggle[aria-expanded='false'] .icon-close {
+    display: none;
+  }
+</style>
+
+<script>
+  const btn = document.getElementById('nav-toggle');
+  const menu = document.getElementById('nav-menu');
+
+  if (btn && menu) {
+    const isOpen = () => btn.getAttribute('aria-expanded') === 'true';
+    const setOpen = (open: boolean) => {
+      btn.setAttribute('aria-expanded', String(open));
+      menu.hidden = !open;
+    };
+
+    // The panel ships visible, so without JS every link is still reachable.
+    // It only collapses once this runs and the button can reopen it.
+    setOpen(false);
+
+    btn.addEventListener('click', () => setOpen(!isOpen()));
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isOpen()) {
+        setOpen(false);
+        btn.focus();
+      }
+    });
+  }
+</script>
