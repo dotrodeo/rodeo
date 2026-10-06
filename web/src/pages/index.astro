@@ -1,148 +1,133 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import Chip from '../components/Chip.astro';
 import BoardFigure from '../components/BoardFigure.astro';
 import { host, satellites } from '../data/boards';
 import { site } from '../data/site';
 
-// Headline figures are rev-scoped: these describe the Rev-A board shown below.
-// Path A (a third converter) would take the channel count to 36 in Rev-B, so
-// nothing here states a number without the revision attached.
-const figures = [
-  { n: '24', label: 'analog channels, 16-bit' },
-  { n: '12', label: 'digital inputs' },
-  { n: '9', label: 'encoders per I²C hub' },
-  { n: '25', label: 'mm satellite panel grid' },
+// Numbered in the data so they cannot run 01, 02, 01 again.
+const steps = [
+  {
+    title: 'Pick your controls',
+    body: 'Pots, encoders, buttons — a satellite for every function, on a uniform 25 mm grid. I²C and SPI breakouts for displays, sensors and anything else on a bus.',
+  },
+  {
+    title: 'Connect the cables',
+    body: 'Satellites join the motherboard with standard JST-SH cables. No solder, no custom looms. Every link’s pinout is published, including which runs take a reversed cable.',
+  },
+  {
+    title: 'Give it a voice',
+    body: 'A Daisy Seed does the DSP with libDaisy and DaisySP. Driver libraries for the additional ADC, the encoder hub and the rest come with rodeo-sdk.',
+  },
 ];
+
+const gallery = [host.shot!, satellites[0].shot!, satellites[0].gallery![0]];
 ---
 
 <BaseLayout title={site.name} description={site.description}>
-  <section class="flex flex-col gap-12 py-14 lg:flex-row lg:items-center lg:gap-14">
-    <div class="flex min-w-0 shrink flex-col gap-6 lg:max-w-[600px]">
-      <Chip class="self-start">Open-source synth platform</Chip>
-      <h1 class="display m-0 text-[clamp(44px,8vw,76px)]">Build the panel.<br />Skip the PCB.</h1>
-      <p class="prose-body m-0 text-[19px]">
-        Rodeo is a host board and a family of drag-drop control satellites. Twenty-four 16-bit
-        analog channels, twelve digital inputs and an I²C bus — wire up the control surface your
-        instrument needs and spend the weekend on the voice instead of on routing.
+  <section class="wrap flex flex-col gap-12 pb-4 pt-14 lg:flex-row lg:gap-16">
+    <h1 class="display m-0 max-w-[560px] text-[clamp(48px,7.5vw,78px)] lg:shrink-0">
+      Maybe it is your first rodeo
+    </h1>
+    <div class="flex min-w-0 flex-col gap-7 lg:pt-2">
+      <p class="copy-tech m-0 max-w-[560px] text-[17px]">
+        <span class="font-display font-black text-legend">RODEO</span> is a plug-and-play audio
+        platform designed to help you build your dream synthesizer. Breakouts for the best parts
+        of Daisy, 24 additional 16-bit analog inputs, a family of control satellites, and an SDK
+        to help you write the code.
       </p>
-      <div class="flex flex-wrap items-center gap-3.5">
+      <div class="flex flex-wrap items-stretch gap-4">
         <a
-          href="/ecosystem/"
-          class="bg-yellow px-5 py-3.5 font-display text-[15px] font-black uppercase tracking-[0.06em] text-field no-underline hover:bg-legend"
-          >See the boards</a
+          href="#waitlist"
+          class="bg-yellow px-7 py-4 font-display text-[16px] font-black uppercase tracking-[0.04em] text-field no-underline hover:bg-legend"
+          >Join the waitlist</a
         >
         <a
-          href="/ecosystem/rodeo-encoder-hub/"
-          class="border-[1.5px] border-legend px-5 py-3 font-display text-[15px] font-black uppercase tracking-[0.06em] text-legend no-underline hover:border-yellow hover:text-yellow"
-          >Read a pinout</a
+          href="/ecosystem/"
+          class="border-[1.5px] border-legend px-7 py-[14.5px] font-display text-[16px] font-black uppercase tracking-[0.04em] text-legend no-underline hover:border-yellow hover:text-yellow"
+          >See the boards</a
         >
       </div>
     </div>
-    <div class="min-w-0 grow lg:w-[46%] lg:shrink-0">
-      <BoardFigure
-        src={host.shot!.src}
-        alt={host.shot!.alt}
-        media={host.shot!.media}
-        rev={host.rev}
-        caption={host.shot!.caption}
-        loading="eager"
-        widths={[600, 900, 1400]}
-        sizes="(max-width: 1024px) 100vw, 640px"
-      />
-    </div>
   </section>
 
-  <section class="grid grid-cols-2 border-y border-rule sm:grid-cols-4">
-    {
-      figures.map((f) => (
-        <div class="flex flex-col gap-1 py-6">
-          <div class="font-display text-[40px] font-black leading-none text-yellow">{f.n}</div>
-          <div class="text-[14px] text-hardware">{f.label}</div>
-        </div>
-      ))
-    }
+  <section class="wrap pb-16 pt-10">
+    <BoardFigure
+      src={host.shot!.src}
+      alt={host.shot!.alt}
+      media={host.shot!.media}
+      rev={host.rev}
+      caption="rodeo motherboard, assembled"
+      loading="eager"
+      widths={[700, 1100, 1600]}
+      sizes="(max-width: 1240px) 100vw, 1176px"
+    />
   </section>
 
-  <section class="flex flex-col gap-10 py-14 lg:flex-row">
-    <div class="flex max-w-[380px] flex-col gap-4">
-      <Chip class="self-start">How it works</Chip>
-      <h2 class="display m-0 text-[36px]">One hub,<br />many satellites</h2>
-      <p class="m-0 text-[16px] leading-relaxed text-hardware">
-        Every control type is its own small board on a uniform 25 mm grid. Pots and switches land
-        on an ADC channel over JST; encoders aggregate through a smart I²C hub. Your panel layout
-        becomes a tiling problem instead of a routing problem.
-      </p>
-    </div>
-    <div class="grid grow gap-5 sm:grid-cols-3">
+  <section class="bg-yellow py-10">
+    <ul class="wrap m-0 grid list-none grid-cols-1 gap-7 sm:grid-cols-3">
       {
-        [
-          {
-            n: '01',
-            h: 'Pick your controls',
-            p: 'Pots, encoders, buttons. Each is a stocked satellite board, so the panel drawing comes out of a kit of parts.',
-          },
-          {
-            n: '02',
-            h: 'Cable them up',
-            p: 'JST-SH to a numbered header. Every link’s pinout is published — including which runs need a reversed cable and what happens if you get it wrong.',
-          },
-          {
-            n: '03',
-            h: 'Write the voice',
-            p: 'A Daisy Seed does the DSP with libDaisy and DaisySP. Driver libraries for the ADC scan and the encoder hub come with the board.',
-          },
-        ].map((c) => (
-          <div class="flex flex-col gap-3 bg-field-raised p-5">
-            <div class="font-mono text-[12px] text-yellow">{c.n}</div>
-            <h3 class="display m-0 text-[19px]">{c.h}</h3>
-            <p class="m-0 text-[14.5px] leading-relaxed text-hardware">{c.p}</p>
-          </div>
-        ))
-      }
-    </div>
-  </section>
-
-  <section class="py-6">
-    <div class="flex flex-col gap-4">
-      <Chip class="self-start">Two instruments, same boards</Chip>
-      <p class="prose-body m-0 max-w-[760px] text-[17px]">
-        <strong class="text-legend">rodeo-001</strong> gives every parameter its own control — 35 of
-        them, no menu diving. <strong class="text-legend">rodeo-002</strong> takes the opposite bet:
-        16 pots, an encoder hub, one shift layer, and a multi-engine voice running into a texture
-        chain that ends in a granular delay. Different philosophies, different panels, the same host
-        board and the same satellites underneath. That is the platform working.
-      </p>
-      <p class="m-0 font-mono text-[12.5px] text-hardware">
-        Instrument pages are being written — the boards they are built from are below.
-      </p>
-    </div>
-  </section>
-
-  <section class="flex flex-col gap-6 pb-10 pt-6">
-    <div class="flex items-baseline gap-4">
-      <Chip>The satellites</Chip>
-      <a href="/ecosystem/" class="font-display text-[14px] font-black uppercase tracking-[0.06em] no-underline"
-        >All boards →</a
-      >
-    </div>
-    <ul class="m-0 grid list-none gap-6 p-0 sm:grid-cols-2 lg:grid-cols-4">
-      {
-        satellites.map((b) => (
+        gallery.map((shot) => (
           <li>
-            <a href={`/ecosystem/${b.slug}/`} class="flex flex-col gap-3 text-legend no-underline">
-              <BoardFigure
-                src={b.shot!.src}
-                alt={b.shot!.alt}
-                media={b.shot!.media}
-                rev={b.rev}
-                caption={b.name}
-              />
-              <p class="m-0 text-[14.5px] leading-relaxed text-hardware">{b.summary}</p>
-            </a>
+            <img
+              src={shot.src.src}
+              width={shot.src.width}
+              height={shot.src.height}
+              alt={shot.alt}
+              loading="lazy"
+              decoding="async"
+              class="block aspect-square w-full rounded-[10px] object-cover"
+            />
           </li>
         ))
       }
     </ul>
+  </section>
+
+  <section class="wrap py-20">
+    <p class="m-0 font-display text-[15px] font-black uppercase tracking-[0.08em] text-indigo-text">
+      How does it work?
+    </p>
+    <h2 class="display mb-10 mt-4 max-w-[760px] text-[clamp(34px,5.5vw,54px)]">
+      A motherboard and her satellites
+    </h2>
+    <ul class="m-0 grid list-none gap-6 p-0 md:grid-cols-3">
+      {
+        steps.map((s, i) => (
+          <li class="flex flex-col gap-3 border border-rule bg-field-raised p-6">
+            <span class="font-mono text-[13px] text-indigo-text">
+              {String(i + 1).padStart(2, '0')}
+            </span>
+            <h3 class="display m-0 text-[20px]">{s.title}</h3>
+            <p class="copy-tech m-0 text-[14.5px]">{s.body}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <section id="waitlist" class="bg-indigo py-20">
+    <div class="wrap flex flex-col gap-7">
+      <h2 class="display m-0 text-[clamp(44px,7vw,68px)] text-yellow">Want in?</h2>
+      <p class="copy-tech m-0 max-w-[560px] text-[17px] text-legend">
+        Rodeo will be launching on Kickstarter in January 2027. Join the waitlist now to be the
+        first to know, get special deals, and follow the journey.
+      </p>
+      <form class="flex max-w-[560px] flex-col gap-3 sm:flex-row" method="post" action="/subscribe">
+        <label for="email" class="sr-only">Email address</label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          required
+          placeholder="you@example.com"
+          class="min-w-0 grow border-[1.5px] border-legend bg-field px-4 py-3.5 font-mono text-[15px] text-legend placeholder:text-hardware"
+        />
+        <button
+          type="submit"
+          class="shrink-0 cursor-pointer border-none bg-yellow px-7 py-4 font-display text-[16px] font-black uppercase tracking-[0.04em] text-field hover:bg-legend"
+          >Join the waitlist</button
+        >
+      </form>
+    </div>
   </section>
 </BaseLayout>

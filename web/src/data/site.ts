@@ -20,10 +20,13 @@ export const site: {
   tagline: 'Open-source synth platform',
   description:
     'A host board and a family of drag-drop control satellites. Build an instrument’s control surface without designing a PCB.',
+  // Lowercase, mono, per the mockup. `pending` renders unlinked.
   nav: [
-    { href: '/ecosystem/', label: 'Boards' },
-    { href: '/log/', label: 'Build log', pending: true },
-    { href: '/docs/', label: 'Docs', pending: true },
+    { href: '/', label: 'home' },
+    { href: '/ecosystem/', label: 'boards' },
+    { href: '/sdk/', label: 'rodeo-sdk', pending: true },
+    { href: '/log/', label: 'build log', pending: true },
+    { href: '/docs/', label: 'docs', pending: true },
   ],
 };
 

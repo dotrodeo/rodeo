@@ -68,7 +68,7 @@ export interface Board {
 
 const MAP = 'rodeo-motherboard/docs/hardware-map.md';
 const HUB = 'rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md';
-const FW = 'rodeo-motherboard/firmware/README.md';
+const SDK = 'rodeo-sdk/README.md';
 const HUBFW = 'rodeo-encoder-hub/firmware/README.md';
 const CMAP = 'rodeo-001/docs/RODEO_CONTROL_MAP.md';
 
@@ -112,7 +112,7 @@ export const boards: Board[] = [
       { label: 'analog in', value: '24 × 16-bit', evidence: `${MAP}:76` },
       { label: 'converters', value: '2 × ADS114S08 on SPI1', evidence: `${MAP}:76` },
       { label: 'digital in', value: '12 × GPIO', evidence: `${MAP}:114` },
-      { label: 'buses', value: 'I²C · SPI · UART', evidence: `${MAP}:173` },
+      { label: 'buses', value: 'I²C · SPI · UART', evidence: `${MAP}:211` },
       { label: 'audio', value: 'line in + out, 3.5 mm', evidence: `${MAP}:143` },
       { label: 'MIDI', value: 'TRS in + out', evidence: `${MAP}:165-166` },
       { label: 'host', value: 'Daisy Seed3, 40-pin', evidence: `${MAP}:15` },
@@ -127,12 +127,12 @@ export const boards: Board[] = [
       {
         status: 'not-planned',
         text: 'MIDI and the J44 UART header share USART1, so only one of the two can be used at a time.',
-        evidence: `${MAP}:182`,
+        evidence: `${MAP}:216`,
       },
       {
         status: 'in-progress',
         text: 'The ADC conversion path is bench-proven, but absolute-voltage accuracy is still unverified pending a jumper/pot test.',
-        evidence: `${FW}:90-92`,
+        evidence: `${SDK}:123-126`,
       },
     ],
   },

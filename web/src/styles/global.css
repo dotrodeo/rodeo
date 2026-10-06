@@ -11,11 +11,8 @@
 @import '@fontsource/ibm-plex-mono/400.css';
 @import '@fontsource/ibm-plex-mono/500.css';
 
-/* Long-form reading — three candidates, side by side on /style-guide.
- * Once one is chosen, drop the other two imports and their packages. */
+/* Long-form reading — chosen 2026-10-05 (candidate A). */
 @import '@fontsource-variable/source-serif-4';
-@import '@fontsource-variable/newsreader';
-@import '@fontsource-variable/literata';
 
 /* Layer 2 — semantic tokens. Components use these names, never the palette. */
 @theme {
@@ -41,11 +38,8 @@
   --font-sans: 'Barlow', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
-  /* Long-form candidates. --font-read is the one in play. */
+  /* Long-form reading: build-log posts and anything over ~3 lines. */
   --font-read: 'Source Serif 4 Variable', Georgia, serif;
-  --font-read-a: 'Source Serif 4 Variable', Georgia, serif;
-  --font-read-b: 'Newsreader Variable', Georgia, serif;
-  --font-read-c: 'Literata Variable', Georgia, serif;
 }
 
 /* Element defaults MUST live in @layer base. Unlayered rules beat every
@@ -87,6 +81,24 @@
 /* Named devices from the board. In @layer components so utilities still win —
  * `normal-case` has to be able to override `.display` on a board name. */
 @layer components {
+  /* Page gutter. NOT named `.container` — Tailwind v4 ships its own
+   * `.container` utility that caps width at the current breakpoint, and
+   * utilities beat @layer components, so that name silently wins.
+   *
+   * `main` is unconstrained so sections can run full-bleed (the gold and
+   * indigo bands) without 100vw tricks, which overflow by the scrollbar
+   * width. Each section brings its own gutter. */
+  .wrap {
+    margin-inline: auto;
+    max-width: 1240px;
+    padding-inline: 1rem;
+  }
+  @media (min-width: 640px) {
+    .wrap {
+      padding-inline: 2rem;
+    }
+  }
+
   /* The board sets display type in caps, tight. */
   .display {
     font-weight: 900;

@@ -104,11 +104,11 @@ freely available. Self-host them (`@fontsource-variable/barlow`,
 | Display / wordmark | **Barlow Black** (900) | `(face "Barlow Black")` — the `RODEO` wordmark and every section label on all six boards |
 | UI / short copy | **Barlow** 400–600 | `(face "Barlow")` — motherboard and hub secondary labels |
 | Technical | **IBM Plex Mono** 400/500 | `(face "IBM Plex Mono")` — designators on the satellite boards |
-| Long-form reading | **pending** | Not from the board. A third family, for build-log posts |
+| Long-form reading | **Source Serif 4** | Not from the board. Chosen 2026-10-05 from three candidates, for build-log posts |
 
-**The long-form face is an open decision.** Three candidates are rendered side by side with
-real copy on `/style-guide`: Source Serif 4, Newsreader, Literata. Once one is chosen, drop
-the other two imports from `global.css` and uninstall their packages.
+**Source Serif 4, chosen 2026-10-05** from three candidates rendered side by side with real
+copy. It is the sturdiest of the three in reverse — the stems hold where lighter serifs thin
+out on black. Newsreader and Literata have been uninstalled.
 
 **Why a third family at all.** The mockup set body copy in mono, which is distinctive and
 right for short copy, but mono is measurably slower to read at paragraph length and eats the

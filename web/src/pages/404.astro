@@ -4,6 +4,7 @@ import Chip from '../components/Chip.astro';
 ---
 
 <BaseLayout title="Not found" description="That page does not exist.">
+  <div class="wrap">
   <section class="flex flex-col gap-5 py-24">
     <Chip class="self-start">404</Chip>
     <h1 class="display m-0 text-[clamp(40px,7vw,64px)]">No continuity</h1>
@@ -16,4 +17,5 @@ import Chip from '../components/Chip.astro';
       >See the boards</a
     >
   </section>
+</div>
 </BaseLayout>

@@ -1,28 +1,32 @@
 ---
 import Wordmark from './Wordmark.astro';
-import Chip from './Chip.astro';
 import { site } from '../data/site';
 
 const path = Astro.url.pathname;
+
+// '/' would prefix-match everything, so the home item is matched exactly.
+const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
 ---
 
 <header class="border-b border-rule">
   <nav
-    class="mx-auto flex max-w-[1240px] flex-wrap items-center gap-x-6 gap-y-3 px-4 py-4 sm:px-8"
+    class="wrap flex flex-wrap items-center gap-x-6 gap-y-3 py-4"
     aria-label="Primary"
   >
     <Wordmark href="/" />
     <div class="grow"></div>
     {
       site.nav.map((item) =>
-        path.startsWith(item.href) ? (
-          <Chip>{item.label}</Chip>
+        isActive(item.href) ? (
+          <span class="font-mono text-[14px] text-yellow" aria-current="page">
+            {item.label}
+          </span>
         ) : item.pending ? (
-          <span class="text-[15px] font-semibold text-hardware" title="Coming soon">
+          <span class="font-mono text-[14px] text-hardware" title="Coming soon">
             {item.label}
           </span>
         ) : (
-          <a href={item.href} class="text-[15px] font-semibold text-legend no-underline hover:text-yellow">
+          <a href={item.href} class="font-mono text-[14px] text-legend no-underline hover:text-yellow">
             {item.label}
           </a>
         )
