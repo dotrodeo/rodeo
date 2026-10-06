@@ -1,9 +1,16 @@
 # Rodeo Motherboard — Rev B
 
-**Status: planning.** Brainstormed with Derek on 2026-10-04. Nothing here is laid
-out yet. The board in hand is Rev A, described in [`hardware-map.md`](hardware-map.md).
-Later the same day, the hybrid satellite chain replaced the third ADC (see
-[Satellite chain](#satellite-chain-on-usart2-hybrid-analog)).
+**Status: schematic in progress.** Brainstormed with Derek on 2026-10-04. Later
+the same day, the hybrid satellite chain replaced the third ADC (see
+[Satellite chain](#satellite-chain-on-usart2-hybrid-analog)). The power sheet was
+drawn and reviewed on 2026-10-05/06 (see [Power](#power)). Everything else is
+still a plan. The board in hand is Rev A, described in
+[`hardware-map.md`](hardware-map.md).
+
+The Rev B KiCad project is `rodeo-motherboard/rev-b/kicad/rodeo-motherboard/`
+on the `rev-b` branch. Parts KiCad doesn't ship are in its project library,
+`lib/rodeo_jlc.*` (symbols, footprints and STEP models imported from LCSC, each
+checked against its datasheet).
 
 **Rev B is a breaking change.** Harness, connector-numbering and `board.h`
 compatibility with Rev A are not constraints. rodeo-001 and rodeo-002 get
@@ -101,11 +108,11 @@ frame format gets its own contract doc next to
   plus a terminator plug.
 * A 33–100 Ω series resistor on TX for the cable, and ESD protection on both
   lines.
-* **The chain gets its own filtered 3V3 feed:** a ferrite and bulk cap off U2,
-  or its own regulator. U2's rail is the ADC reference and every analog pot's
-  supply, and 20–30 satellite MCUs switching on it would show up as pot jitter
-  on the analog channels. Budget ~3 mA per satellite, about 100 mA for 30. U2
-  is rated 1 A. Size the filter once the satellite MCU is chosen.
+* **The chain gets its own filtered 3V3 feed, `+3V3_SAT`:** FB4 (BLM21PG221SN1D)
+  plus 10 µF and 100 µF electrolytic off `+3V3_D`. The ADC reference and the
+  pots are on a separate rail, `+3V3_A` (see [Power](#power)), so 20–30
+  satellite MCUs switching can't show up as pot jitter. Budget ~3 mA per
+  satellite, about 100 mA for 30.
 
 **Firmware side: libDaisy cannot drive this as it stands**
 * libDaisy's `UartHandler` uses one fixed RX DMA stream (`DMA1_Stream5`) and
@@ -140,9 +147,9 @@ at the ends), well inside the pot's own tolerance.
   which is at the limit. The value gets sized once the tap count and cable
   lengths are settled.
 * 4–6 tap connectors on the one bus. No pins needed.
-* No multiplexer footprint. There are only four hub addresses (0x30–0x33) plus
-  the OLED (0x3C), so nothing collides. An off-the-shelf Qwiic multiplexer can
-  plug into a tap if that ever changes.
+* No multiplexer footprint. There are only four hub addresses (0x30–0x33), the
+  OLED (0x3C) and the MAX17048 fuel gauge (0x36), so nothing collides. An
+  off-the-shelf Qwiic multiplexer can plug into a tap if that ever changes.
 
 *From: RODEO_CONTROL_MAP.md (I²C pull-ups) and RODEO_HUB_I2C_CONTRACT.md.*
 
@@ -163,8 +170,12 @@ is fixed to pins 2–7.
 **To verify:** that the Seed3 has the same 64 MB SDRAM as the classic Seed.
 
 ### USB data on the panel USB-C, including firmware flashing
-Wire J1's D+/D− to Seed pins 36/37, with ESD protection on the data lines. The
-CC pull-downs (R6/R8) stay as they are.
+Wire the USB-C's D+/D− to Seed pins 36/37 through a USBLC6-2SC6 (U2), with
+5.1 kΩ CC pull-downs (R3/R4). The connector is now an HRO TYPE-C-31-M-12 (J2):
+Rev A's GCT USB4105-GF-A had run out at LCSC. No external USB PHY or "OTG" chip
+is needed: the STM32H750's USB_OTG_HS peripheral has a built-in full-speed PHY
+on these pins (libDaisy sets `USB_OTG_EMBEDDED_PHY`), and Rodeo is always the
+USB device. Daisy's own dev-kit schematic is wired the same way.
 * Gives USB-MIDI, USB audio and serial through libDaisy's `FS_EXTERNAL`.
 * **Flashing:** libDaisy ships Daisy bootloader builds marked `extdfu`, which
   accept DFU over pins 36/37 (`rodeo-sdk/libDaisy/doc/md/_a7_Getting-Started-Daisy-Bootloader.md`).
@@ -178,8 +189,97 @@ DFU, not both. If so, after the switch the micro-USB only works for the STM32's
 ROM recovery mode.
 *Closes hardware-map.md Issue 2.*
 
+### Power
+Drawn on the power sheet and reviewed against every part's datasheet, 2026-10-06.
+USB-C is a plain 5 V input (no USB-PD), so a laptop can run and flash the board.
+A built-in single-cell Li-ion battery and an optional power daughterboard are the
+other two sources. Anything big (LED strips and the like) is powered by the
+daughterboard directly, never through the motherboard.
+
+```
+USB-C 5 V (J2) ─ SMBJ5.0A ─┐
+                           ├─ U3 TPS2121 ─ U1 BQ24073 ─ BATT_VCC ─ U6 TPS63070 ─ +5V_SYS
+Power board 5 V (J3) ──────┘  mux          charger +               buck-boost,
+                              J3 first     power path              EN ← SW1
+                                                 │ BAT ─ U5 MAX17048 (I²C 0x36)
+1S Li-ion (J1) ─ U4 DW01A + Q1 FS8205A ──────────┘
+
++5V_SYS ─┬─ U7 TPS563208 buck ─────────► +3V3_D   ─ FB4 ─► +3V3_SAT (satellite chain)
+         ├─ FB1 ─ U8 TPS7A2033 LDO ────► +3V3_A   (ADC AVDD/REFP0 + the 24 pots only)
+         ├─ FB2 + 10 µF + 100 µF ──────► SEED_VIN (Seed pin 39)
+         └─ FB3 + 10 µF + 100 µF ──────► +5V_A    (headphone-amp / CV daughterboards)
+```
+
+**Inputs**
+* **USB-C (J2):** 5 V only, 5.1 kΩ CC pull-downs, SMBJ5.0A on VBUS, USBLC6 on
+  D+/D−.
+* **Power daughterboard (J3, JST B4B-XH-A):** pins 1–2 GND, 3–4 `EXT_PWR`, a
+  regulated 5 V from the board's own barrel-jack supply. XH can't be confused
+  with the battery's PH plug.
+* **Mux (U3, TPS2121), automatic switchover with priority:** PR1 = 28 k/15 k
+  from `EXT_PWR`, CP2 = 34 k/15 k from USB, so the power board wins while it is
+  above ≈0.88 × the USB voltage (≈4.4 V). ILM 61.9 kΩ (≈2 A), SS 100 nF, OV1/OV2/ST
+  grounded. It also stops either source back-feeding the other.
+
+**Charger and battery**
+* **U1, BQ24073** (charger with power path). The system runs from the input and
+  the cell charges from what's left. It runs with no battery or a dead one, and
+  the cell tops up the system when the input can't keep up. VIN-DPM backs off
+  at 4.5 V, so a weak laptop port doesn't crash. ILIM 1.18 kΩ sets the input
+  limit to ≈1.36 A (fits a 1.5 A USB-C port). ISET 1.13 kΩ sets 0.79 A charge.
+  TS has 10 kΩ (no thermistor in typical packs). TMR is left open (default
+  safety timers) and TD is grounded. PGOOD drives a green LED (D2) and CHG a red
+  one (D3).
+* **Battery connector (J1):** JST PH 2-pin, side entry. Hobby packs disagree on
+  PH polarity, so the silkscreen must mark +.
+* **Protection:** DW01A (U4) + FS8205A (Q1) in the cell's negative lead. Trips at
+  4.30 V overcharge, 2.50 V overdischarge, and 150 mV across the FETs (≈3–3.75 A).
+  **Board ground is the cell's negative after the FETs (`BATT_N` → S1–S2 →
+  `GND`);** `BATT_N` touches only J1, U4, Q1 and C6.
+* **Fuel gauge:** MAX17048 (U5) on the I²C bus at 0x36, CELL/VDD on `BATT_P`.
+* **No reverse-polarity protection.** A high-side PMOS doesn't protect a
+  low-side DW01A. Rely on the keyed connector and the silkscreen.
+
+**+5V_SYS: U6, TPS63070 buck-boost**
+* 2.0–16 V in, 2 A out, forced PWM at 2.4 MHz (PS/SYNC grounded), so 5 V holds
+  from a sagging laptop port and from a 3.0 V cell alike. FB divider 100 k/19.1 k
+  gives 4.99 V. L1 Sunlord MWSA0518S-1R5MT (1.5 µH, 8 A sat). Caps per TI's
+  reference BOM: 3 × 10 µF in, 10 µF + 3 × 22 µF out, 100 nF on VAUX.
+* **Power switch (SW1):** Yuandi TK-6580A-1, right-angle latching push button
+  (5.8 × 5.1 × 5.8 mm, plunger 4.8 mm past the body). Latched in connects EN to
+  `BATT_VCC`. R18 1 MΩ pulls EN down, so off draws nothing. The cell still
+  charges with the switch off. Mount the body against the panel: the plunger
+  only clears a ~1.6 mm panel by ≈3 mm.
+
+**Rails below +5V_SYS**
+* **`+3V3_D`, U7 TPS563208:** forced-continuous 580 kHz buck. L2 MWSA0518S-2R2MT
+  (2.2 µH), 33.2 k/10 k divider (3.32 V), 2 × 22 µF out. Feeds satellites (via
+  `+3V3_SAT`), hubs, OLED, I²C taps, power taps, and the ADCs' DVDD/IOVDD.
+* **`+3V3_A`, U8 TPS7A2033:** 7 µV RMS, 95 dB PSRR at 1 kHz, fed from +5V_SYS
+  through FB1 (BLM18KG601SN1D) with 1 + 10 µF either side. Feeds only the ADCs'
+  AVDD and REFP0 and the 24 pots (≈10 mA), so readings stay ratiometric.
+  Replaces Rev A's U2 TLV76733.
+* **`SEED_VIN`, `+5V_A`, `+3V3_SAT`:** each a BLM21PG221SN1D ferrite feeding
+  10 µF ceramic + 100 µF electrolytic. The electrolytic's ESR damps the
+  ferrite/ceramic resonance; don't swap it for a low-ESR part. `SEED_VIN`'s caps
+  sit at Seed pin 39. `+5V_A` is filtered but not re-regulated.
+
+**Budget.** Design to a 1.5 A USB-C port (7.5 W). Rodeo itself is ≈2 W, which
+leaves ≈1 A at 5 V for LEDs and taps: ~15–20 LEDs at full white, many more
+dimmed. On battery, keep +5V_SYS under ≈1.2 A or the DW01A's overcurrent trip
+gets close. A 500 mA USB-A port runs Rodeo with LEDs dark; there are no spare
+pins for detecting the port's current, so firmware should default to dim LEDs.
+Runtime is roughly 3 h on 2000 mAh, 5 h on a 3400 mAh 18650.
+
+**Layout notes:** BQ24073 can dissipate 1–1.4 W while charging and running, so
+it needs a solid ground pour with vias under its pad. Keep the TPS563208 and
+TPS63070 switch nodes small, with their input caps at the pins. Put power entry
+and LED connectors at one end, and the Seed audio and ADCs at the other.
+
+Every part has an `LCSC Part` field. All are stocked at JLC as of 2026-10-06.
+
 ### CV header, pins 29/30 reserved
-The Seed's only DACs. They go to a small header (DAC 1, DAC 2, GND, +3V3, VIN)
+The Seed's only DACs. They go to a small header (DAC 1, DAC 2, GND, `+3V3_D`, `+5V_A`)
 for a future CV daughterboard. The DACs only output 0–3.3 V, so useful CV ranges
 need an op-amp stage, and that belongs on the daughterboard. Both pins can also
 read analog voltages, so the same header can take CV inputs.
@@ -194,7 +294,8 @@ read analog voltages, so the same header can take CV inputs.
 
 ### Not happening
 * **Power jumpers.** That was a miscommunication. The five power taps J45–J49
-  as on Rev A are all that's needed.
+  as on Rev A are all that's needed. Their pin 3 was `VIN`; on Rev B it will be
+  `+5V_SYS`, and pin 2 `+3V3_D` (not drawn yet).
 
 ---
 
@@ -205,21 +306,18 @@ These hang together through the grounding question. The bench tests in
 so they come first.
 
 * **The hum on the line out that grows with each held key** (hardware-map.md
-  Issue 4). Candidate fixes from there: bulk capacitance at the Seed's VIN/GND,
-  a dedicated ground return for the J4/J5 sleeves, a series R on J5, a ferrite
-  or LC between VBUS and VIN, a clean-supply input option.
-* **More power filtering.** The same items as above, plus filtering ahead of the
-  3.3 V regulator U2. That rail is both the ADC reference and every pot's
-  supply, so its noise shows up as pot jitter. The satellite chain's separate
-  filtered feed belongs to the same design pass. Chained controls read against
-  their own supply, so this jitter only affects the 24 analog channels.
+  Issue 4). The power design now covers three of the candidate fixes: bulk at
+  the Seed's VIN (C28 100 µF), a ferrite between the supply and VIN (FB2), and a
+  clean-supply option (the battery takes the USB host's ground out of the path).
+  Still open: a dedicated ground return for the J4/J5 sleeves, and a series R on
+  J5. Running Rev B from the battery against USB is now a useful A/B test.
 * **Filtering on audio I/O.** An RC on the outputs (J5 has no series R today),
   ESD protection on every jack contact, and a check of the input against hot
   line-level sources.
 * **Headphone output with volume control**, probably as a daughterboard. Which
   amp, and whether volume is an analog pot after the amp (0 pins) or software.
   Optionally 1 pin for mute (pop suppression) and 1 for headphone detect, which
-  would come out of the 10 digital jacks.
+  would come out of the 9 digital jacks. Its supply is `+5V_A`.
 * **1/4" vs 1/8" jacks, and whether the audio jacks move to a daughterboard.**
   If they move, the connector needs its own audio-ground pins rather than the
   shared board ground. Done carelessly it makes the hum worse; done deliberately
@@ -239,6 +337,12 @@ so they come first.
 | Second hardware I²C bus | Per the STM32H750 datasheet (from memory, not re-checked), the only other I²C peripheral that reaches the header is on the MIDI pins. Several taps on one bus covers the need. |
 | Multichannel audio (SAI2) | Not a goal. It would need pins 31–35, including 32/33 back from the ADC chip-selects. |
 | SD card-detect switch | Costs a jack, see above. |
+| USB-PD input (HUSB238 + 9–12 V) with 5 V and 3.3 V rails at 3 A each | 25 W needs a 30 W+ PD charger and leaves a laptop unable to run the board. LEDs were the only reason for 3 A, and they go on the power daughterboard. The HUSB238 also runs BC1.2 detection on D+/D−, which would fight the Seed's USB link. |
+| Separate LED rail (TPS55288, firmware-enabled, current-limited) | Only needed with the PD design. Its output also stays off until I²C enables it, so it can't power the Seed. |
+| Power daughterboard carrying the battery | Battery is wanted on the motherboard. The daughterboard is now only a 5 V barrel-jack supply. |
+| Alps SPUJ190900 power switch | Right type and quality, but 7.5 × 15.2 × 8.8 mm. The TK-6580A-1 does the job in a quarter of the area. |
+| Slide switch for power | Smallest and cheapest, but fiddly through a panel slot. Fallback if the panel turns out too thick for the TK-6580's reach. |
+| Reverse-polarity PMOS on the battery | Doesn't protect a DW01A in the negative lead. |
 
 ---
 
@@ -254,4 +358,9 @@ so they come first.
   protocol, plus the satellite firmware itself.
 * SPI1 hand-off between the ADC scanner and a J43 device.
 * Bootloader: `extdfu` build. App makefiles keep `BOOT_SRAM`.
+* New: a MAX17048 driver (I²C 0x36) for battery % and a save-state-and-dim
+  warning before the cell runs out.
+* LED brightness defaults low, since the board can't tell a 500 mA USB-A port
+  from a 1.5 A one. The charger's PGOOD/CHG and the mux's ST don't reach the
+  Seed.
 * The hub firmware is unaffected. The Rev B hub only loses two resistors.
