@@ -2,9 +2,11 @@
 
 **Status: schematic in progress.** Brainstormed with Derek on 2026-10-04. Later
 the same day, the hybrid satellite chain replaced the third ADC (see
-[Satellite chain](#satellite-chain-on-usart2-hybrid-analog)). The power sheet was
-drawn and reviewed on 2026-10-05/06 (see [Power](#power)). Everything else is
-still a plan. The board in hand is Rev A, described in
+[Satellite chain](#satellite-chain-on-usart3-hybrid-analog)). The power sheet was
+drawn and reviewed on 2026-10-05/06 (see [Power](#power)). On 2026-10-06 the two
+on-board ADCs gave way to a second audio codec (see
+[Second codec](#second-codec-on-sai2-4-in--4-out)), which reshaped the pin map.
+Everything else is still a plan. The board in hand is Rev A, described in
 [`hardware-map.md`](hardware-map.md).
 
 The Rev B KiCad project is `rodeo-motherboard/rev-b/kicad/rodeo-motherboard/`
@@ -28,80 +30,90 @@ spread across `hardware-map.md`, `rodeo-001/docs/RODEO_CONTROL_MAP.md`,
 Every pin on the 40-pin header is now spoken for. Rev A had seven unconnected
 (1, 8, 29, 30, 31, 34, 35), plus USB 36/37 going nowhere.
 
-| Seed pin | STM32 | Rev A | **Rev B** |
-|---|---|---|---|
-| 1 | PB12 | unconnected | **J43 SPI chip-select** (10 kΩ pull-up) |
-| 2–7 | PC11, PC10, PC9, PC8, PD2, PC12 | `DIG_1`–`DIG_6` | **SD card, native 4-bit SDMMC** |
-| 8 | PG10 | unconnected | **digital jack** |
-| 9–11 | PG11, PB4, PB5 | SPI1 (ADCs) | SPI1, shared bus (unchanged) |
-| 12–13 | PB8, PB9 | I²C1 | I²C1, 4–6 taps, pull-ups on the motherboard |
-| 14–15 | PB6, PB7 | MIDI (USART1) | MIDI (unchanged) |
-| 16–19 | — | audio in/out | audio in/out (see open items) |
-| 22 | PC0 | `DIG_7` | digital jack |
-| 23 | PA3 | `DIG_8` | **satellite chain RX** (USART2) |
-| 24–27 | PB1, PA7, PA6, PC1 | `DIG_9`–`DIG_12` | digital jacks |
-| 28 | PC4 | status LED | **digital jack** (LED removed) |
-| 29–30 | PA5, PA4 | unconnected | **CV header** (DAC 2, DAC 1) |
-| 31 | PA1 | unconnected | **digital jack** |
-| 32–33 | PA0, PD11 | ADC A/B chip-selects | ADC A/B chip-selects, **now with pull-ups** |
-| 34 | PG9 | unconnected | **digital jack** |
-| 35 | PA2 | unconnected | **satellite chain TX** (USART2) |
-| 36–37 | PB14, PB15 | USB D−/D+, dead-end | **USB data to J1** |
+| Seed pin | STM32 | libDaisy | Rev A | **Rev B** | Net |
+|---|---|---|---|---|---|
+| 1 | PB12 | `D0` | unconnected | **SPI expansion header chip-select** (10 kΩ pull-up) | `SPI_EXT_CS` |
+| 2 | PC11 | `D1` | `DIG_1` | **satellite chain RX** (USART3) | `SAT_RX` |
+| 3 | PC10 | `D2` | `DIG_2` | **satellite chain TX** (USART3) | `SAT_TX` |
+| 4 | PC9 | `D3` | `DIG_3` | **second codec reset** (10 kΩ pull-down) | `CODEC2_RST` |
+| 5–7 | PC8, PD2, PC12 | `D4`–`D6` | `DIG_4`–`DIG_6` | **SD card, 1-bit SDMMC** (D0, CMD, CLK) | `SD_D_0`, `SD_CMD`, `SD_CLK` |
+| 8 | PG10 | `D7` | unconnected | digital jack | `DIG_1` |
+| 9–11 | PG11, PB4, PB5 | `D8`–`D10` | SPI1 (ADCs) | SPI1, to the expansion header | `SPI_SCK`, `SPI_MISO`, `SPI_MOSI` |
+| 12–13 | PB8, PB9 | `D11`, `D12` | I²C1 | I²C1, 4 taps, 2.2 kΩ pull-ups | `DAISY_SCL`, `DAISY_SDA` |
+| 14–15 | PB6, PB7 | `D13`, `D14` | MIDI (USART1) | MIDI (unchanged) | `MIDI_TX`, `MIDI_RX` |
+| 16–19 | — | — | audio in/out | onboard codec in/out (SAI1) | `AUDIO_IN_1/2`, `AUDIO_OUT_1/2` |
+| 20 | — | — | GND | audio ground, 0 Ω (R21) to `GND` at the Seed | `GNDA` |
+| 22 | PC0 | `D15`/`A0` | `DIG_7` | digital or analog jack | `DIG_2` |
+| 23 | PA3 | `D16`/`A1` | `DIG_8` | digital or analog jack | `DIG_3` |
+| 24–28 | PB1, PA7, PA6, PC1, PC4 | `D17`–`D21`/`A2`–`A6` | `DIG_9`–`DIG_12`, status LED | digital or analog jacks (LED removed) | `DIG_4`–`DIG_8` |
+| 29–30 | PA5, PA4 | `D22`, `D23` | unconnected | **CV header** (DAC 2, DAC 1) | `CV_DAC2`, `CV_DAC1` |
+| 31 | PA1 | `D24` | unconnected | **second codec MCLK** (SAI2) | `CODEC2_MCLK` |
+| 32 | PA0 | `D25` | ADC A chip-select | **second codec ADC data in** (SAI2 SD_B) | `CODEC2_SDOUT` |
+| 33 | PD11 | `D26` | ADC B chip-select | **second codec DAC data out** (SAI2 SD_A) | `CODEC2_SDIN` |
+| 34 | PG9 | `D27` | unconnected | **second codec LRCK** (SAI2 FS) | `CODEC2_LRCK` |
+| 35 | PA2 | `D28` | unconnected | **second codec SCLK** (SAI2 SCK) | `CODEC2_SCLK` |
+| 36–37 | PB14, PB15 | `D29`, `D30` | USB D−/D+, dead-end | **USB data to J2** | `USB_OTG_HS_N/P` |
+| 21, 38 | — | — | Seed 3V3 outputs, unconnected | unconnected (the Seed's own rails) | — |
+| 39, 40 | — | — | VIN, GND | `SEED_VIN`, `GND` | |
 
-**Digital jacks: 9** (Rev A had 12). They are pins 8, 22, 24–28, 31 and 34.
-All of them except pins 8 (PG10) and 34 (PG9) are ADC-capable. Jack numbering
-is left to layout. Buttons are expected to move onto the satellite chain, so
-fewer jacks are needed than before.
+`CODEC2_SDIN`/`SDOUT` are named from the CS4272's side: SDIN feeds its DAC, SDOUT
+comes from its ADC. The SAI2 pins and directions are the ones Daisy Patch uses for
+its second codec (`rodeo-sdk/libDaisy/src/daisy_patch.cpp`).
+
+**Digital jacks: 8** (Rev A had 12). They are pins 8 and 22–28. All but pin 8
+(PG10) can also read analog through the Seed's own ADC (`A0`–`A6`), and the CV
+header's two pins can too (`A7`/`A8`). PB1 (pin 24) and PC1 (pin 27) share
+external-interrupt line 1, so don't plan both as interrupt-driven clock or gate
+inputs. Jack numbering is left to layout. Buttons are expected to move onto the
+satellite chain, so fewer jacks are needed than before.
 
 ---
 
 ## Decided
 
-### Chip-select pull-ups on every SPI device
-10 kΩ to +3V3 on all three chip-selects: ADC A (pin 32), ADC B (pin 33)
-and J43 (pin 1). Without them a chip-select floats during boot, reset
-or reflashing, which can enable a chip and make two devices drive the shared
-data line. Firmware parks them high (`611f48a`), but only once it is running.
-*From: RODEO_CONTROL_MAP.md Issue 6.*
+### Chip-select pull-up on the SPI bus
+10 kΩ to `+3V3_D` on `SPI_EXT_CS` (pin 1), the only chip-select left on the
+motherboard. Without it the line floats during boot, reset or reflashing, which
+can enable whatever is plugged into the expansion header. Firmware parks it
+high (`611f48a`), but only once it is running. The ADC chip-selects (pins
+32/33) went with the on-board ADCs. *From: RODEO_CONTROL_MAP.md Issue 6.*
 
-### One SPI bus, made shareable (no second bus)
-Two ADCs use under 2% of SPI1. Each scan step is ~1.16 ms of conversion at
-1000 SPS, and the bus only carries ~10 µs of traffic per chip in that time. The
-ADS114S08 stops driving `DOUT` while its chip-select is high. On Rev A, what
-stopped anything else sharing the bus was hardware: the chip-selects floated,
-and **J43 had no chip-select pin at all** (Seed pin 8 dead-ended).
+### SPI1 goes to an expansion header (was J43)
+With the ADCs off the board (see [ADC expander](#adc-bank-moves-to-an-optional-spi-expander-board)),
+SPI1 only serves the expansion header: Rev A's J43, which had no chip-select. It
+gets a new reference designator; nets are `SPI_SCK`, `SPI_MISO`, `SPI_MOSI` and
+`SPI_EXT_CS`, plus `+3V3_D`, `+3V3_A` and GND. An off-the-shelf SPI OLED or the
+ADC expander board plugs in with a plain cable.
 
-Rev B fixes both:
-* J43 gets a chip-select from pin 1, so an off-the-shelf SPI OLED connects with
-  a plain cable. J43 becomes power, ground, clock, both data lines and
-  chip-select.
-* The pull-ups above.
+* 33 Ω series resistors where each line is driven: SCK and MOSI at the Seed.
+  A device's MISO resistor belongs on that device.
+* Firmware hand-off only matters if an OLED and the expander ever share the
+  bus: SPI mode changes on every switch (the ADCs need mode 1, most displays
+  mode 0 or 3), and OLED frames go out in chunks between ADC reads. A second
+  device would also need a second chip-select on the header.
 
-The firmware side, for later: the bus hand-off reconfigures SPI mode on every
-switch (the ADCs need mode 1, most displays mode 0 or 3), and OLED frames go out
-in chunks that fit the ADC scan's idle gaps. A full frame is ~1 KB, which is
-longer than one scan step at the current clock.
+**To verify on the bench:** a long or noisy cable on the header adds load to
+the bus. The 33 Ω resistors and a modest clock should cover it.
 
-**To verify on the bench:** a long or noisy cable on J43 adds load to the ADC
-bus. The 33 Ω series resistors and the slow clock should cover it.
-
-### Satellite chain on USART2 (hybrid analog)
-Decided 2026-10-04. The two ADCs and their 24 pot connectors stay. Anything
-beyond them, and every button, goes on a **daisy-chain of smart satellites**
-instead of more motherboard channels. Each satellite carries a ~$0.10 MCU that
-reads its control against its own supply, which is also its ADC reference, and
-passes data along a UART ring. A satellite's position in the chain is its
-address. Growth means adding satellites, not respinning the motherboard. The
-frame format gets its own contract doc next to
-[`RODEO_HUB_I2C_CONTRACT.md`](RODEO_HUB_I2C_CONTRACT.md). It is not written yet.
+### Satellite chain on USART3 (hybrid analog)
+Decided 2026-10-04; moved from USART2 to USART3 on 2026-10-06 (below). Every
+control beyond the Seed's own ADC jacks, and every button, goes on a
+**daisy-chain of smart satellites** instead of motherboard channels. Each
+satellite carries a ~$0.10 MCU that reads its control against its own supply,
+which is also its ADC reference, and passes data along a UART ring. A
+satellite's position in the chain is its address. Growth means adding
+satellites, not respinning the motherboard. The frame format gets its own
+contract doc next to [`RODEO_HUB_I2C_CONTRACT.md`](RODEO_HUB_I2C_CONTRACT.md).
+It is not written yet.
 
 **Board side**
-* **USART2: TX on pin 35 (PA2), RX on pin 23 (PA3), alternate function AF7.**
-  Checked 2026-10-04 against libDaisy's `src/per/uart.cpp` pin table and ST's
-  pin database (via Zephyr's generated `stm32h750` pinctrl). Both list exactly
-  those pins. libDaisy's `seed::D28`/`seed::D16` are PA2/PA3, which matches
-  this pin map. Nothing on the module uses them. libDaisy only touches them
-  for SAI2 (rejected below) or when they are set up as ADC inputs.
+* **USART3: TX on pin 3 (PC10), RX on pin 2 (PC11), alternate function AF7**
+  (libDaisy `seed::D2`/`seed::D1`). It was USART2 on pins 35/23, but USART2's
+  TX exists only on PA2, which the second codec needs as SAI2's bit clock.
+  Checked 2026-10-06 against libDaisy's `src/per/uart.cpp` pin table: every
+  other UART pair on the header lands on pins already used by SD, I²C, SPI,
+  MIDI or USB. PC10/PC11 are free only because the SD card drops to 1-bit
+  mode.
 * One connector: chain 3V3, GND, TX and RX. Its pinout, and how the ring
   closes, come with the contract doc. The ring closes either with a return
   cable from the last satellite or with a return wire through every satellite
@@ -109,65 +121,100 @@ frame format gets its own contract doc next to
 * A 33–100 Ω series resistor on TX for the cable, and ESD protection on both
   lines.
 * **The chain gets its own filtered 3V3 feed, `+3V3_SAT`:** FB4 (BLM21PG221SN1D)
-  plus 10 µF and 100 µF electrolytic off `+3V3_D`. The ADC reference and the
-  pots are on a separate rail, `+3V3_A` (see [Power](#power)), so 20–30
-  satellite MCUs switching can't show up as pot jitter. Budget ~3 mA per
+  plus 10 µF and 100 µF electrolytic off `+3V3_D`, so 20–30 satellite MCUs
+  switching stay off the other rails (see [Power](#power)). Budget ~3 mA per
   satellite, about 100 mA for 30.
 
 **Firmware side: libDaisy cannot drive this as it stands**
 * libDaisy's `UartHandler` uses one fixed RX DMA stream (`DMA1_Stream5`) and
   one TX stream (`DMA2_Stream4`) for every UART. MIDI's `MidiUartHandler` keeps
   the RX stream running permanently in circular listen mode, so starting a DMA
-  listen on USART2 would take the stream away from MIDI. Interrupt-only receive
+  listen on USART3 would take the stream away from MIDI. Interrupt-only receive
   is not viable at ~1 Mbaud.
-* libDaisy also defines `USART2_IRQHandler` itself, so a Rodeo driver cannot
-  own that interrupt without a duplicate-symbol link error.
-* **Plan:** write a small USART2 driver in `rodeo-sdk`, built on the HAL and on
+* libDaisy also defines `USART3_IRQHandler` (and `USART2_IRQHandler`) itself,
+  so a Rodeo driver cannot own that interrupt without a duplicate-symbol link
+  error.
+* **Plan:** write a small USART3 driver in `rodeo-sdk`, built on the HAL and on
   DMA streams libDaisy leaves free: `DMA1_Stream7` for RX and `DMA2_Stream5` for
   TX. `DMA2_Stream6`/`7` are also free; `DMA2_Stream0`/`1` belong to the DAC,
-  which the CV header uses. Ring frames are a fixed length, so RX can be one
-  normal (non-circular) DMA transfer of exactly a frame, finished by the DMA
-  stream's own interrupt. The USART interrupt is never needed. The fallback is
-  to patch the libDaisy submodule so each UART gets its own streams, which is a
-  TODO in libDaisy already ("dynamic DMA Stream acquisition").
-* **Bench testing on Rev A:** pin 23 is already `DIG_8`, but pin 35 is
-  unconnected, so it needs a bodge wire. The easier option is UART4 on
-  `DIG_2`/`DIG_1` (PC10 TX, PC11 RX), which libDaisy also supports.
+  which the CV header uses, and `DMA1_Stream3`/`4` to SAI2. Ring frames are a
+  fixed length, so RX can be one normal (non-circular) DMA transfer of exactly a
+  frame, finished by the DMA stream's own interrupt. The USART interrupt is
+  never needed. The fallback is to patch the libDaisy submodule so each UART
+  gets its own streams, which is a TODO in libDaisy already ("dynamic DMA Stream
+  acquisition").
+* **Bench testing on Rev A:** PC10/PC11 are Rev A's `DIG_2`/`DIG_1`
+  connectors, so USART3 can be tested on Rev A as it stands, no bodge wires.
 
-### 1 MΩ pull-downs on all 24 ADC inputs
-Any channel can be unused on a given build, and a floating input reads noise.
-With a 10 K satellite the loading error is under 0.3% at worst (mid-travel, zero
-at the ends), well inside the pot's own tolerance.
-*Replaces RODEO_CONTROL_MAP.md's rodeo-001-specific "tie AIN0/AIN3 to GND".*
+### ADC bank moves to an optional SPI expander board
+Decided 2026-10-06. Rev A's two ADS114S08s added 24 high-quality analog inputs,
+which mattered before the satellite chain existed. Now satellites give nearly
+unlimited inputs, so the bank leaves the motherboard and becomes an optional
+board on the SPI expansion header. Its pins (32/33) go to the second codec, and
+~$19 of ADCs per board goes with it.
 
-### I²C: pull-ups move to the motherboard, 4–6 taps
+* **The expander, when it's built:** one ADS114S08 on `SPI_EXT_CS` (a second
+  chip needs a second chip-select on the header), AVDD and REFP0 from the
+  header's `+3V3_A` with the pots on the same rail (ratiometric), DVDD/IOVDD on
+  `+3V3_D`. CLK to GND, START high, ~RESET pulled up, DRDY and REFOUT unused,
+  as on Rev A.
+* **Carried over from the Rev A review:** 1 MΩ pull-downs on every input (an
+  unused channel otherwise reads noise; under 0.3% loading error with a 10 K
+  pot); 330 nF + 1 µF on AVDD, 100 nF on DVDD and IOVDD; JST SH 3-pin pot
+  connectors wired 1 = supply, 2 = wiper, 3 = GND (matches `rodeo-potentiometer`).
+* **New for the expander:** 100 nF from REFP0 to REFN0; 1 kΩ + 10 nF on each
+  input (cable ESD and RF pickup); 33 Ω on each ADC's DOUT.
+* **Part:** Rev A's ADS114S08**B**IPBSR is down to 18 at JLC. The plain
+  ADS114S08IPBSR (C2670036, 244 in stock) runs the existing driver unchanged; the
+  24-bit ADS124S08IPBSR (C2870171, 1,380) is a drop-in whose `RDATA` returns 3
+  bytes, not 2. All three have identical pinouts (checked against TI's three
+  datasheets). Symbol: `rodeo_jlc:ADS1x4S08_TQFP32`.
+
+### I²C: pull-ups move to the motherboard, 4 taps
 * Pull-ups go on the motherboard, so the bus works with no hub attached. The
   Rev B encoder hub drops its own 2× 2.2 kΩ. **Hub and motherboard revisions
   must match:** a Rev A hub on a Rev B motherboard puts ~1.1 kΩ on the bus,
-  which is at the limit. The value gets sized once the tap count and cable
-  lengths are settled.
-* 4–6 tap connectors on the one bus. No pins needed.
+  which is at the limit.
+* **2.2 kΩ to `+3V3_D`.** Four taps with the default 150 mm cables come to about
+  125 pF, which 2.2 kΩ handles at 400 kHz (≈2.8 kΩ is the limit). Long cables
+  (≈215 pF for 4 × 500 mm) need 100 kHz, or 1.5 kΩ for 400 kHz. The contract
+  boots the bus at 100 kHz. Capacitances are estimates; measure rise time with
+  the longest shipped cable.
+* 4 tap connectors on the one bus. No pins needed.
 * No multiplexer footprint. There are only four hub addresses (0x30–0x33), the
   OLED (0x3C) and the MAX17048 fuel gauge (0x36), so nothing collides. An
   off-the-shelf Qwiic multiplexer can plug into a tap if that ever changes.
 
 *From: RODEO_CONTROL_MAP.md (I²C pull-ups) and RODEO_HUB_I2C_CONTRACT.md.*
 
-### SD card slot (native mode)
-For samples and wavetables, so it uses the Seed's 4-bit SDMMC interface, which
-is fixed to pins 2–7.
-* The slot goes **on the motherboard**, close to pins 2–7, at a board edge
+### SD card slot (native mode, 1-bit)
+For samples and wavetables, loaded into the Seed's SDRAM. It uses the Seed's
+SDMMC interface in **1-bit mode** on pins 5–7 (D0, CMD, CLK). It was 4-bit on
+pins 2–7 until 2026-10-06; 1-bit frees PC9–PC11 for the satellite chain and the
+second codec's reset.
+* **Speed:** 6.25 MB/s raw at libDaisy's default 50 MHz, an estimated 3–5 MB/s
+  through FatFS (4-bit would be ~10–15 MB/s). That loads a wavetable in well
+  under a second and a minute of stereo audio in ~3 s, and fills all 64 MB of
+  SDRAM in ~16 s. Load in the background where it matters. Streaming many
+  voices straight from the card is where 1-bit would pinch.
+* **Lost:** the Daisy bootloader's update-from-SD, which needs all four data
+  lines. USB DFU still works.
+* The slot goes **on the motherboard**, close to pins 5–7, at a board edge
   reachable through the case. 25–50 MHz SDMMC does not tolerate a ribbon to a
   daughterboard well.
-* Pull-ups on CMD and DAT0–3 as the SD spec requires, plus ESD protection.
-* **No card-detect switch.** It would cost a digital jack, and the bootloader
-  and firmware check for a card when they need one.
-* libDaisy has SDMMC and FatFS built in. Samples load into the Seed's external
-  SDRAM.
-* **Bonus:** the Daisy bootloader also updates firmware from an SD card at
-  boot, and that needs all four data lines.
+* Pull-ups on CMD and on **all four** DAT lines at the socket, as the SD spec
+  requires. DAT1–DAT3 stay on the card even though the Seed doesn't use them,
+  and DAT3 also selects the card's mode at power-up. ESD protection on the
+  socket.
+* **No card-detect switch.** It would cost a jack, and firmware checks for a
+  card when it needs one.
+* libDaisy supports 1-bit with `SdmmcHandler::Config::width =
+  BusWidth::BITS_1`, and FatFS is built in.
 
-**To verify:** that the Seed3 has the same 64 MB SDRAM as the classic Seed.
+**To verify:** that the Seed3 has the same 64 MB SDRAM as the classic Seed; and
+the real 1-bit speed. Rev A's `DIG_1`–`DIG_6` connectors are the SDMMC pins, so a
+microSD breakout on them can benchmark 1-bit against 4-bit (at 25 MHz over
+flying leads).
 
 ### USB data on the panel USB-C, including firmware flashing
 Wire the USB-C's D+/D− to Seed pins 36/37 through a USBLC6-2SC6 (U2), with
@@ -189,6 +236,33 @@ DFU, not both. If so, after the switch the micro-USB only works for the STM32's
 ROM recovery mode.
 *Closes hardware-map.md Issue 2.*
 
+### Second codec on SAI2 (4 in / 4 out)
+Decided 2026-10-06. A CS4272 on SAI2 adds two audio inputs and two outputs to
+the Seed's onboard codec, the way Daisy Patch adds its second codec. It costs
+pins 31–35 (from two jacks and the ADC chip-selects) and pin 4 for its reset.
+
+* **CS4272-CZZR** (C2151111, 1,367 at JLC, ~$4.12): 24-bit, 114 dB dynamic
+  range on both ADC and DAC, differential inputs and outputs (better ground-noise
+  rejection, which helps with Issue 4). Stand-alone mode: pin-strapped (M0/M1,
+  I²S/LJ), no control bus. Set for left-justified 24-bit, which is what
+  libDaisy's 24-bit SAI mode sends.
+* **Clocks:** the Seed is master. SAI2 drives MCLK at 256 × fs (12.288 MHz at
+  48 kHz), SCLK and LRCK, as for Daisy Patch's codec.
+* **Reset (`CODEC2_RST`, pin 4, 10 kΩ pull-down):** the datasheet requires RST
+  low until MCLK and LRCK are stable, and they only start once firmware starts
+  SAI2. So firmware releases it; an RC can't guarantee the order.
+* **Supplies:** VA from `+5V_A`; VD and VL from `+3V3_D` (VL sets the logic
+  level, matching the Seed). Full scale at VA = 5 V is ≈5.65 Vpp differential in
+  and ≈4.8 Vpp differential out.
+* **Analog front end (to design with the audio sheet):** a dual op-amp per
+  direction on `+5V_A`: single-ended line in to differential, and differential
+  to single-ended line out, biased at the codec's VCOM.
+
+**To verify:** Daisy Patch's dual-codec setup re-initialises SAI1 with its own
+Seed's settings. Ours must reuse whatever libDaisy configures for the Seed3,
+which libDaisy doesn't name (it knows the AK4556, WM8731 and PCM3060 Seeds).
+See the Seed3 check in `hardware-map.md`.
+
 ### Power
 Drawn on the power sheet and reviewed against every part's datasheet, 2026-10-06.
 USB-C is a plain 5 V input (no USB-PD), so a laptop can run and flash the board.
@@ -205,7 +279,7 @@ Power board 5 V (J3) ──────┘  mux          charger +              
 1S Li-ion (J1) ─ U4 DW01A + Q1 FS8205A ──────────┘
 
 +5V_SYS ─┬─ U7 TPS563208 buck ─────────► +3V3_D   ─ FB4 ─► +3V3_SAT (satellite chain)
-         ├─ FB1 ─ U8 TPS7A2033 LDO ────► +3V3_A   (ADC AVDD/REFP0 + the 24 pots only)
+         ├─ FB1 ─ U8 TPS7A2033 LDO ────► +3V3_A   (SPI expansion header: ADC expander)
          ├─ FB2 + 10 µF + 100 µF ──────► SEED_VIN (Seed pin 39)
          └─ FB3 + 10 µF + 100 µF ──────► +5V_A    (headphone-amp / CV daughterboards)
 ```
@@ -254,10 +328,12 @@ Power board 5 V (J3) ──────┘  mux          charger +              
 **Rails below +5V_SYS**
 * **`+3V3_D`, U7 TPS563208:** forced-continuous 580 kHz buck. L2 MWSA0518S-2R2MT
   (2.2 µH), 33.2 k/10 k divider (3.32 V), 2 × 22 µF out. Feeds satellites (via
-  `+3V3_SAT`), hubs, OLED, I²C taps, power taps, and the ADCs' DVDD/IOVDD.
+  `+3V3_SAT`), hubs, OLED, I²C taps, power taps, the second codec's VD/VL, and
+  the expansion header.
 * **`+3V3_A`, U8 TPS7A2033:** 7 µV RMS, 95 dB PSRR at 1 kHz, fed from +5V_SYS
-  through FB1 (BLM18KG601SN1D) with 1 + 10 µF either side. Feeds only the ADCs'
-  AVDD and REFP0 and the 24 pots (≈10 mA), so readings stay ratiometric.
+  through FB1 (BLM18KG601SN1D) with 1 + 10 µF either side. Designed for the
+  ADCs' AVDD/REFP0 and their pots; since the ADCs moved off-board (2026-10-06)
+  it goes to the SPI expansion header as the expander's analog supply.
   Replaces Rev A's U2 TLV76733.
 * **`SEED_VIN`, `+5V_A`, `+3V3_SAT`:** each a BLM21PG221SN1D ferrite feeding
   10 µF ceramic + 100 µF electrolytic. The electrolytic's ESR damps the
@@ -274,7 +350,8 @@ Runtime is roughly 3 h on 2000 mAh, 5 h on a 3400 mAh 18650.
 **Layout notes:** BQ24073 can dissipate 1–1.4 W while charging and running, so
 it needs a solid ground pour with vias under its pad. Keep the TPS563208 and
 TPS63070 switch nodes small, with their input caps at the pins. Put power entry
-and LED connectors at one end, and the Seed audio and ADCs at the other.
+and LED connectors at one end, and the Seed audio and the second codec at the
+other.
 
 Every part has an `LCSC Part` field. All are stocked at JLC as of 2026-10-06.
 
@@ -286,6 +363,9 @@ read analog voltages, so the same header can take CV inputs.
 
 ### Removed
 * **Status LED** (D5, R10). The Seed's own LED stays. Pin 28 becomes a jack.
+* **The two on-board ADS114S08s,** their 24 pot connectors, pull-downs and
+  chip-select pull-ups. They become the optional
+  [ADC expander](#adc-bank-moves-to-an-optional-spi-expander-board).
 
 ### Housekeeping
 * **Fix the schematic hierarchy.** The root sheet instantiates its subsheets,
@@ -313,11 +393,15 @@ so they come first.
   J5. Running Rev B from the battery against USB is now a useful A/B test.
 * **Filtering on audio I/O.** An RC on the outputs (J5 has no series R today),
   ESD protection on every jack contact, and a check of the input against hot
-  line-level sources.
+  line-level sources. Now for both codecs' jacks.
+* **The second codec's analog front end** (see
+  [Second codec](#second-codec-on-sai2-4-in--4-out)): op-amp choice for 5 V
+  single supply, gain staging to line level, and whether its jacks share the
+  onboard codec's ground scheme (`GNDA`).
 * **Headphone output with volume control**, probably as a daughterboard. Which
   amp, and whether volume is an analog pot after the amp (0 pins) or software.
   Optionally 1 pin for mute (pop suppression) and 1 for headphone detect, which
-  would come out of the 9 digital jacks. Its supply is `+5V_A`.
+  would come out of the 8 digital jacks. Its supply is `+5V_A`.
 * **1/4" vs 1/8" jacks, and whether the audio jacks move to a daughterboard.**
   If they move, the connector needs its own audio-ground pins rather than the
   shared board ground. Done carelessly it makes the hum worse; done deliberately
@@ -331,11 +415,15 @@ so they come first.
 | Option | Why not |
 |---|---|
 | Third ADS114S08 (U5), 36 analog channels | Planned until 2026-10-04. The satellite chain goes past 24 controls by adding satellites, with no extra motherboard channels, connectors (J50–J61) or pull-downs. Dropping it frees pin 8. *Was: RODEO_CONTROL_MAP.md, "REV-B UPGRADE PATH".* |
-| Encoder hub as the satellite-ring master | Costs no Seed pins, but adds a hop, puts every reading through I²C (~60 bytes a scan) and changes the hub firmware. USART2 on the Seed is direct and DMA-capable. |
+| Encoder hub as the satellite-ring master | Costs no Seed pins, but adds a hop, puts every reading through I²C (~60 bytes a scan) and changes the hub firmware. A UART on the Seed is direct and DMA-capable. |
 | Second SPI bus (SPI6 on pins 29/30 + `DIG_10`/`DIG_11`) | SPI6 is the only one that reaches the header (SPI2's clock isn't broken out, SPI3 sits on the SDMMC pins). It would take the DAC pins and 1–2 jacks, and libDaisy has no DMA for SPI6. SPI devices are uncommon in DIY synths, and the OLED is the likely one, which a shared SPI1 serves. |
 | SD card over SPI | Too slow for samples and wavetables, and libDaisy's FatFS path is SDMMC. |
 | Second hardware I²C bus | Per the STM32H750 datasheet (from memory, not re-checked), the only other I²C peripheral that reaches the header is on the MIDI pins. Several taps on one bus covers the need. |
-| Multichannel audio (SAI2) | Not a goal. It would need pins 31–35, including 32/33 back from the ADC chip-selects. |
+| Two (or one) ADS114S08 on the motherboard | Rejected 2026-10-06 for the second codec. Satellites now provide analog inputs; the ADC bank lives on as an optional expander board. One on-board ADC plus the codec (chip-select on pin 4) was the compromise considered: 12 inputs for ~$9 and a jack. |
+| Multichannel codec on SAI2 (PCM3168A, 6 in / 8 out) | libDaisy's SAI driver is stereo I²S only (two slots per frame), so anything past 2 + 2 on SAI2 needs TDM written into `SaiHandle` and `AudioHandle`, plus 14 channels of analog front end. Revisit if 4 / 4 isn't enough. |
+| PCM1808 + PCM5102A, CS4270, AK4556 | The pair is cheaper (~$2.14) but 99 dB on the ADC and single-ended. CS4270 is a step below the CS4272. AK4556 (Daisy Patch's codec) has no JLC stock. |
+| Satellite chain on USART2 (pins 35/23) | USART2 TX only exists on PA2, which SAI2 needs as SCK. |
+| 4-bit SD | Needs PC9–PC11, which became the satellite chain and the codec reset. Costs speed and the bootloader's update-from-SD. |
 | SD card-detect switch | Costs a jack, see above. |
 | USB-PD input (HUSB238 + 9–12 V) with 5 V and 3.3 V rails at 3 A each | 25 W needs a 30 W+ PD charger and leaves a laptop unable to run the board. LEDs were the only reason for 3 A, and they go on the power daughterboard. The HUSB238 also runs BC1.2 detection on D+/D−, which would fight the Seed's USB link. |
 | Separate LED rail (TPS55288, firmware-enabled, current-limited) | Only needed with the PD design. Its output also stays off until I²C enables it, so it can't power the Seed. |
@@ -348,16 +436,23 @@ so they come first.
 
 ## Firmware consequences (when Rev B exists)
 
-* `rodeo-sdk/common/board.h`: new digital-jack map (9 jacks), J43 chip-select
-  on `seed::D0` (pin 1), satellite chain on `seed::D28` (TX) / `seed::D16` (RX),
-  CV pins.
-* `RodeoAdc`: still two chips and 24 channels. Park all three chip-selects high
-  before probing (the pull-ups make it belt and braces).
-* New: the satellite-chain driver (USART2 on `DMA1_Stream7`/`DMA2_Stream5`, see
-  [Satellite chain](#satellite-chain-on-usart2-hybrid-analog)) and the ring
+* `rodeo-sdk/common/board.h`: new map. 8 jacks on `seed::D7`, `D15`–`D21` (seven
+  of them analog-capable as `A0`–`A6`); expansion-header chip-select on
+  `seed::D0`; satellite chain on USART3, `seed::D2` (TX) / `seed::D1` (RX);
+  second codec reset on `seed::D3`; CV pins on `D22`/`D23`.
+* **Audio:** run SAI1 (onboard codec) and SAI2 (CS4272) together through
+  `AudioHandle::Init(cfg, sai1, sai2)`, as `daisy_patch.cpp` does, for 4 in /
+  4 out in one callback. Release `CODEC2_RST` after SAI2's clocks are running.
+* **SD:** `SdmmcHandler` with `BusWidth::BITS_1`.
+* `RodeoAdc` moves with the ADCs to the expander: one chip on `SPI_EXT_CS`.
+  The existing driver works unchanged with an ADS114S08; an ADS124S08 needs
+  `ReadData()` to take 3 bytes.
+* New: the satellite-chain driver (USART3 on `DMA1_Stream7`/`DMA2_Stream5`, see
+  [Satellite chain](#satellite-chain-on-usart3-hybrid-analog)) and the ring
   protocol, plus the satellite firmware itself.
-* SPI1 hand-off between the ADC scanner and a J43 device.
-* Bootloader: `extdfu` build. App makefiles keep `BOOT_SRAM`.
+* SPI1 hand-off only if an OLED and the ADC expander are both connected.
+* Bootloader: `extdfu` build. App makefiles keep `BOOT_SRAM`. Update-from-SD is
+  no longer available.
 * New: a MAX17048 driver (I²C 0x36) for battery % and a save-state-and-dim
   warning before the cell runs out.
 * LED brightness defaults low, since the board can't tell a 500 mA USB-A port
