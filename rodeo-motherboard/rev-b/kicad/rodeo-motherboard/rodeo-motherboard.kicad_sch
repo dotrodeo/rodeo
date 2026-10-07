@@ -6,8 +6,146 @@
 	(paper "A4")
 	(lib_symbols)
 	(sheet
-		(at 33.02 31.75)
-		(size 33.02 17.78)
+		(at 63.5 25.4)
+		(size 25.4 17.78)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "119dcf1a-ada1-48ad-9504-143795bb6b1c")
+		(property "Sheetname" "Daisy"
+			(at 63.5 24.6884 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "daisy.kicad_sch"
+			(at 63.5 43.7646 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "rodeo-motherboard"
+				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3"
+					(page "3")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 101.6 25.4)
+		(size 25.4 19.05)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "12b690ae-b215-40e2-bdfb-13a5998aef0e")
+		(property "Sheetname" "Codec"
+			(at 101.6 24.6884 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "codec.kicad_sch"
+			(at 101.6 45.0346 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "rodeo-motherboard"
+				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3"
+					(page "4")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 25.4 52.07)
+		(size 25.4 17.78)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "563fcfff-b63e-4a46-b4ab-39d8806fa922")
+		(property "Sheetname" "Audio Interface"
+			(at 25.4 51.3584 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "audio_interface.kicad_sch"
+			(at 25.4 70.4346 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "rodeo-motherboard"
+				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3"
+					(page "5")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 25.4 25.4)
+		(size 25.4 17.78)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
@@ -22,7 +160,7 @@
 		)
 		(uuid "6958c190-6886-45a7-bee2-b7d58d12da3f")
 		(property "Sheetname" "Power"
-			(at 33.02 31.0384 0)
+			(at 25.4 24.6884 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -33,7 +171,7 @@
 			)
 		)
 		(property "Sheetfile" "power.kicad_sch"
-			(at 33.02 50.1146 0)
+			(at 25.4 43.7646 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects

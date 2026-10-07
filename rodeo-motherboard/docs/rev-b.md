@@ -6,6 +6,8 @@ the same day, the hybrid satellite chain replaced the third ADC (see
 drawn and reviewed on 2026-10-05/06 (see [Power](#power)). On 2026-10-06 the two
 on-board ADCs gave way to a second audio codec (see
 [Second codec](#second-codec-on-sai2-4-in--4-out)), which reshaped the pin map.
+The Daisy, Codec and Audio Interface sheets were drawn and reviewed on
+2026-10-06/07 (see [Audio interface](#audio-interface-and-jack-board)).
 Everything else is still a plan. The board in hand is Rev A, described in
 [`hardware-map.md`](hardware-map.md).
 
@@ -254,14 +256,69 @@ pins 31–35 (from two jacks and the ADC chip-selects) and pin 4 for its reset.
 * **Supplies:** VA from `+5V_A`; VD and VL from `+3V3_D` (VL sets the logic
   level, matching the Seed). Full scale at VA = 5 V is ≈5.65 Vpp differential in
   and ≈4.8 Vpp differential out.
-* **Analog front end (to design with the audio sheet):** a dual op-amp per
-  direction on `+5V_A`: single-ended line in to differential, and differential
-  to single-ended line out, biased at the codec's VCOM.
+* **Analog front end:** see [Audio interface](#audio-interface-and-jack-board).
 
 **To verify:** Daisy Patch's dual-codec setup re-initialises SAI1 with its own
 Seed's settings. Ours must reuse whatever libDaisy configures for the Seed3,
 which libDaisy doesn't name (it knows the AK4556, WM8731 and PCM3060 Seeds).
 See the Seed3 check in `hardware-map.md`.
+
+### Audio interface and jack board
+Decided and drawn 2026-10-07 (`audio_interface.kicad_sch`). The audio jacks move
+to a passive jack board on a 2×10 IDC ribbon. All eight audio signals (the
+Seed's 2 in / 2 out and the CS4272's 2 in / 2 out) are aimed at the same level,
+about 4 Vpp single-ended at the jack.
+
+**Measured Seed levels** (bench, 2026-10-07, with `rodeo-sdk/examples/10_audio_levels`,
+which steps a 1 kHz sine through 1.0/0.5/0.25/0.125 and prints input peaks).
+The module reports itself to libDaisy as an AK4556 Seed (Rev4).
+
+| | Full scale | Notes |
+|---|---|---|
+| Seed output | ≈4 Vpp | AC-coupled, ≈250 Ω out (2 V → 1.6 V peak into 1 kΩ) |
+| Seed input | ≈3.9–4.1 Vpp | out → in loopback is unity within ±3 % |
+
+The Seed's own path gets no front end: its outputs go straight to the ribbon,
+and its inputs get 100 Ω in series (R28/R29) on the motherboard.
+
+**Ribbon (J4, DC3-2.54-20PAS box header, C2977593).** Odd pins 1–19 are all GND,
+interleaved with the signals; the jack board ties its jack sleeves to them and
+the motherboard returns them at a single point in the audio corner.
+
+| Pin | Signal | Pin | Signal |
+|---|---|---|---|
+| 2 | `AUDIO_OUT_1` (Seed) | 12 | `JACK_IN_1` (→ 100 Ω → Seed in 1) |
+| 4 | `AUDIO_OUT_2` (Seed) | 14 | `JACK_IN_2` (→ 100 Ω → Seed in 2) |
+| 6 | `CODEC2_OUT_A` | 16 | `CODEC2_IN_A` |
+| 8 | `CODEC2_OUT_B` | 18 | `CODEC2_IN_B` |
+| 10 | `+5V_A` (spare, for jack-board extras) | 20 | not connected |
+
+**CS4272 inputs (U10, U11: THS4521, C170157).** One fully differential amp per
+channel on `+5V_A`, single-ended to differential with a gain of 1.4
+(7.5 kΩ in, 10.5 kΩ ∥ 150 pF feedback), so a 4 Vpp jack signal is ≈5.6 Vpp
+differential, the codec's full scale. Input: 1 MΩ to GND, 10 µF electrolytic
+(+ toward the amp); the other input leg goes to GND through a matching 10 µF and
+7.5 kΩ. VOCM is left to the internal divider (2.5 V) with 0.1 µF. Outputs go
+through 91 Ω each, with 2.7 nF C0G across the codec pins.
+
+**CS4272 outputs (U12: OPA2376, C46316).** The Cirrus datasheet's
+differential-to-single-ended filter (CS4272 Fig. 14) per channel, then 22 µF
+(+ toward the amp), 560 Ω series and 47 kΩ to GND. Output is ≈3.7 Vpp, within
+1 dB of the Seed's.
+
+All capacitors in the signal path are C0G; at 1.5–6.8 nF that means 0603. Every
+part on the sheet has its LCSC number, all in stock at JLC on 2026-10-07.
+
+**Known trade-offs:**
+* **Power-up thump** on `CODEC2_OUT_A/B`: the 22 µF caps charge to ≈2.5 V through
+  47 kΩ (τ ≈ 1 s). Same as the Seed's own outputs. Firmware fade-in, or a mute
+  on the jack board later, if it matters.
+* **Polarised input caps** carry ≈+1 V. A sustained negative DC input (Eurorack
+  CV) would reverse-bias them; swap to bipolar electrolytics, same footprint, if
+  Rodeo gets patched with modular gear.
+* **Protection:** the codec inputs see ≤1.6 mA from ±12 V through 7.5 kΩ, fine
+  for the THS4521's clamps. The Seed inputs have only 100 Ω, so ESD and
+  over-voltage protection belongs on the jack board.
 
 ### Power
 Drawn on the power sheet and reviewed against every part's datasheet, 2026-10-06.
@@ -391,22 +448,21 @@ so they come first.
   clean-supply option (the battery takes the USB host's ground out of the path).
   Still open: a dedicated ground return for the J4/J5 sleeves, and a series R on
   J5. Running Rev B from the battery against USB is now a useful A/B test.
-* **Filtering on audio I/O.** An RC on the outputs (J5 has no series R today),
-  ESD protection on every jack contact, and a check of the input against hot
-  line-level sources. Now for both codecs' jacks.
-* **The second codec's analog front end** (see
-  [Second codec](#second-codec-on-sai2-4-in--4-out)): op-amp choice for 5 V
-  single supply, gain staging to line level, and whether its jacks share the
-  onboard codec's ground scheme (`GNDA`).
+* **Filtering on audio I/O.** The second codec's outputs now have 560 Ω series
+  R; the Seed's outputs still go to the jacks direct. ESD protection on every
+  jack contact belongs on the jack board (see
+  [Audio interface](#audio-interface-and-jack-board)).
 * **Headphone output with volume control**, probably as a daughterboard. Which
   amp, and whether volume is an analog pot after the amp (0 pins) or software.
   Optionally 1 pin for mute (pop suppression) and 1 for headphone detect, which
   would come out of the 8 digital jacks. Its supply is `+5V_A`.
-* **1/4" vs 1/8" jacks, and whether the audio jacks move to a daughterboard.**
-  If they move, the connector needs its own audio-ground pins rather than the
-  shared board ground. Done carelessly it makes the hum worse; done deliberately
-  it is the dedicated return Issue 4 asks for. The Seed's outputs are
-  single-ended, so a 1/4" TRS jack would not be balanced on its own.
+* **1/4" vs 1/8" jacks on the jack board.** The jacks moved to a passive board
+  on a ribbon with interleaved grounds (see
+  [Audio interface](#audio-interface-and-jack-board)); its layout and jack size
+  are still open. All eight audio signals are single-ended, so a 1/4" TRS jack
+  would not be balanced on its own.
+* **Seed input impedance** is not measured yet. It decides how much the 100 Ω
+  series resistors and any jack-board protection load the Seed's inputs.
 
 ---
 

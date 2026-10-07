@@ -648,7 +648,7 @@
         "uuid": "b0783762-3587-4fed-8d02-bf2bc4e55dd3"
       }
     ],
-    "used_designators": "",
+    "used_designators": "J4-6,R22-23,R26-59,C33-72,#PWR72-121,#FLG1,#FLG8-9,U9-17",
     "variants": []
   },
   "sheets": [
@@ -659,6 +659,18 @@
     [
       "6958c190-6886-45a7-bee2-b7d58d12da3f",
       "Power"
+    ],
+    [
+      "119dcf1a-ada1-48ad-9504-143795bb6b1c",
+      "Daisy"
+    ],
+    [
+      "12b690ae-b215-40e2-bdfb-13a5998aef0e",
+      "Codec"
+    ],
+    [
+      "563fcfff-b63e-4a46-b4ab-39d8806fa922",
+      "Audio Interface"
     ]
   ],
   "text_variables": {},
