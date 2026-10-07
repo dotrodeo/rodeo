@@ -2484,7 +2484,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
+		(property "LCSC Part" "C25744"
 			(at 109.22 125.73 90)
 			(hide yes)
 			(show_name no)
@@ -3075,7 +3075,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
+		(property "LCSC Part" "C25744"
 			(at 124.46 130.81 90)
 			(hide yes)
 			(show_name no)
@@ -3261,7 +3261,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
+		(property "LCSC Part" "C25792"
 			(at 102.87 111.76 90)
 			(hide yes)
 			(show_name no)
@@ -3913,7 +3913,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
+		(property "LCSC Part" "C25744"
 			(at 93.98 123.19 90)
 			(hide yes)
 			(show_name no)
@@ -4416,6 +4416,17 @@
 			)
 		)
 		(property "Description" "24-Bit, 192 kHz Stereo Audio CODEC, TSSOP-28"
+			(at 143.51 115.57 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C2151111"
 			(at 143.51 115.57 0)
 			(hide yes)
 			(show_name no)

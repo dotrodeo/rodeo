@@ -1474,6 +1474,121 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "power:PWR_FLAG"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#FLG"
+				(at 0 1.905 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "PWR_FLAG"
+				(at 0 3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Special symbol for telling ERC where power comes from"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "flag power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "PWR_FLAG_0_0"
+				(pin power_out line
+					(at 0 0 90)
+					(length 0)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(symbol "PWR_FLAG_0_1"
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 1.27) (xy -1.016 1.905) (xy 0 2.54) (xy 1.016 1.905) (xy 0 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 	)
 	(junction
 		(at 200.66 86.36)
@@ -1674,6 +1789,30 @@
 		(uuid "2082ee98-0395-4514-a77d-cfaf66446451")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 200.66 109.3628 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+	)
+	(global_label "SEED_VIN"
+		(shape input)
+		(at 200.66 125.73 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "27496131-fc5f-497b-b35e-2284c9ee5fc9")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 188.9058 125.73 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2502,6 +2641,163 @@
 		)
 	)
 	(symbol
+		(lib_id "power:GNDA")
+		(at 200.66 133.35 270)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "04e4a233-e21f-4070-8ee7-e3393a63de94")
+		(property "Reference" "#PWR122"
+			(at 194.31 133.35 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GNDA"
+			(at 199.39 129.54 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 200.66 133.35 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 200.66 133.35 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GNDA\" , analog ground"
+			(at 200.66 133.35 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "dea661d7-9dc6-4562-b717-6dc4ad8a95d0")
+		)
+		(instances
+			(project "rodeo-motherboard"
+				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/119dcf1a-ada1-48ad-9504-143795bb6b1c"
+					(reference "#PWR122")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:PWR_FLAG")
+		(at 200.66 133.35 270)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "190071b4-fc3a-4782-b19f-8f87d4face44")
+		(property "Reference" "#FLG11"
+			(at 198.76 133.35 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 204.47 133.3499 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 200.66 133.35 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 200.66 133.35 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Special symbol for telling ERC where power comes from"
+			(at 200.66 133.35 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "ce8ef575-6abf-4ee9-b310-02a78ad7349a")
+		)
+		(instances
+			(project "rodeo-motherboard"
+				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/119dcf1a-ada1-48ad-9504-143795bb6b1c"
+					(reference "#FLG11")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:R")
 		(at 139.7 147.32 90)
 		(unit 1)
@@ -2566,7 +2862,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
+		(property "LCSC Part" "C17168"
 			(at 139.7 147.32 90)
 			(hide yes)
 			(show_name no)
@@ -2737,7 +3033,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
+		(property "LCSC Part" "C25879"
 			(at 200.66 95.25 90)
 			(hide yes)
 			(show_name no)
@@ -2828,7 +3124,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
+		(property "LCSC Part" "C25744"
 			(at 176.53 68.58 90)
 			(hide yes)
 			(show_name no)
@@ -2921,7 +3217,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
+		(property "LCSC Part" "C25879"
 			(at 181.61 95.25 90)
 			(hide yes)
 			(show_name no)
@@ -3021,6 +3317,85 @@
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/119dcf1a-ada1-48ad-9504-143795bb6b1c"
 					(reference "#PWR070")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:PWR_FLAG")
+		(at 200.66 125.73 270)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "beb39b7f-7eba-4688-828d-04c44ed0145c")
+		(property "Reference" "#FLG10"
+			(at 198.76 125.73 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 204.47 125.7299 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 200.66 125.73 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 200.66 125.73 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Special symbol for telling ERC where power comes from"
+			(at 200.66 125.73 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "e24c90e8-c68e-4f49-8df4-471df842efa7")
+		)
+		(instances
+			(project "rodeo-motherboard"
+				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/119dcf1a-ada1-48ad-9504-143795bb6b1c"
+					(reference "#FLG10")
 					(unit 1)
 				)
 			)
