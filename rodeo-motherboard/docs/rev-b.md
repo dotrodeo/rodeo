@@ -590,10 +590,15 @@ one list. Where a note came from a section, the reason is there.
   charger and the switchers at one end; the Seed's audio pins, the CS4272, its
   front end and the audio ribbon J4 at the other (the "audio corner"). The Seed
   sits between them.
-* **One unbroken ground plane** under everything; no splits. Recommended: 4
-  layers with layer 2 solid GND. Return currents then stay under their own
-  traces, which is what keeps switcher and digital noise out of the audio
-  (hardware-map.md Issue 4).
+* **4 layers, as on Rev A** (Rev A: In1.Cu `GND`, In2.Cu `+3V3`). Keep **In1.Cu
+  one unbroken `GND` plane** under everything, with no splits or slots. Return
+  currents then stay under their own traces, which is what keeps switcher and
+  digital noise out of the audio (hardware-map.md Issue 4). In2.Cu carries the
+  power pours (Rev B has several rails, so it's zoned rather than one `+3V3`
+  plane).
+* **Route audio and fast signals on F.Cu**, directly over the In1 ground: the
+  codec's analog nets, SAI2 clocks, SD, USB and the satellite chain. Signals on
+  B.Cu reference the In2 power pours, so keep those to slow or short runs.
 * **`GNDA`** (Seed pin 20) joins `GND` through R21 (0 Ω) right at the Seed, not
   elsewhere.
 * **J4's grounds** (all ten odd pins) go straight into the plane at J4. That is
