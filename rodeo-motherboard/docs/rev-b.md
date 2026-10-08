@@ -372,10 +372,30 @@ differential-to-single-ended filter (CS4272 Fig. 14) per channel, then 22 µF
 All capacitors in the signal path are C0G; at 1.5–6.8 nF that means 0603. Every
 part on the sheet has its LCSC number, all in stock at JLC on 2026-10-07.
 
+**Output mute (added 2026-10-08).** The CS4272's active-low mute outputs
+(`~AMUTEC` pin 23, `~BMUTEC` pin 28, as `CODEC2_MUTE_A/B`) drive a shunt on each
+output's connector node (`CODEC2_OUT_A/B`, J4 pins 6/8). Cirrus's suggested circuit
+(datasheet Fig. 16) needs a negative rail to hold its transistor off; ours runs from
+`+5V_A`:
+* Two N-FETs back-to-back (Q3, Q4: 2N7002DW, C83571), sources joined, one drain on
+  the output and one on GND. Their body diodes oppose, so when off the output swings
+  ±1.85 V without clipping. 1 MΩ (R84/R86) from the gates to the joined sources holds
+  them off with no negative supply.
+* A P-FET (Q2: BSS84DW, C161617, one half per channel) from `+5V_A` pulls the gates
+  up through 10 kΩ (R83/R85) when the mute pin is low.
+* Muted: the output is shorted through ≈4–15 Ω against R36/R44 (560 Ω), at least
+  30 dB down.
+* **Power-up:** the mute pins are low from the moment `+5V_A` rises and the codec
+  stays in reset until firmware starts SAI2, so the 22 µF coupling caps charge
+  through 560 Ω into the shunt (≈12 ms) instead of into the jack. No thump.
+* The codec also mutes a channel after 8,192 zero samples (≈170 ms of digital
+  silence), so idle outputs sit at true 0 V.
+* Not covered: power-down. Gate drive collapses with `+5V_A`, so a small pop at
+  switch-off can remain. Put Q3/Q4 right at R36/R37, R44/R45 and J4.
+
 **Known trade-offs:**
-* **Power-up thump** on `CODEC2_OUT_A/B`: the 22 µF caps charge to ≈2.5 V through
-  47 kΩ (τ ≈ 1 s). Same as the Seed's own outputs. Firmware fade-in, or a mute
-  on the jack board later, if it matters.
+* **Power-up thump on the Seed's own outputs** (`AUDIO_OUT_1/2`): the Seed
+  AC-couples them on the module, out of reach. Firmware fade-in if it matters.
 * **Polarised input caps** carry ≈+1 V. A sustained negative DC input (Eurorack
   CV) would reverse-bias them; swap to bipolar electrolytics, same footprint, if
   Rodeo gets patched with modular gear.
@@ -545,6 +565,10 @@ use, so those boards plug straight into any analog-capable connector:
   [ADC expander](#adc-bank-moves-to-an-optional-spi-expander-board).
 
 ### Housekeeping
+* **The Seed is socketed:** two 1×20 female headers, 2.54 mm, 8.5 mm tall
+  (Kinghelm KH-2.54FH-1X20P-H8.5, C2905423), in A1's own holes. Add them as two
+  BOM-only `Conn_01x20_Socket` symbols (excluded from the board) and hand-solder
+  them with the Seed seated, so they line up.
 * **Fix the schematic hierarchy.** The root sheet instantiates its subsheets,
   so ERC and "update PCB from schematic" work and the schematic becomes the
   source of truth again. *Closes hardware-map.md Issue 3.*
