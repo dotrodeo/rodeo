@@ -118,12 +118,47 @@ It is not written yet.
   other UART pair on the header lands on pins already used by SD, I²C, SPI,
   MIDI or USB. PC10/PC11 are free only because the SD card drops to 1-bit
   mode.
-* One connector: chain 3V3, GND, TX and RX. Its pinout, and how the ring
-  closes, come with the contract doc. The ring closes either with a return
-  cable from the last satellite or with a return wire through every satellite
-  plus a terminator plug.
-* A 33–100 Ω series resistor on TX for the cable, and ESD protection on both
-  lines.
+* **One chain connector: JST SH 5-pin** (decided 2026-10-08), the same
+  connector on each satellite's IN and OUT:
+
+  | Pin | Signal | Satellite IN | Satellite OUT | Motherboard |
+  |---|---|---|---|---|
+  | 1 | GND | GND | GND | GND |
+  | 2 | 3V3 | supply in | supply out | `+3V3_SAT` through a PTC fuse |
+  | 3 | `DATA_FWD` | MCU RX | MCU TX (normally) | `SAT_TX` through 33 Ω |
+  | 4 | `DATA_RET` | pass-through trace to OUT pin 4, MCU return pin tapped on | ← | `SAT_RX`, 10 kΩ pull-up |
+  | 5 | `PRESENT` | tied to GND | MCU input, pull-up | not connected |
+
+* **The ring closes itself, with nothing plugged into the last satellite.** A
+  satellite whose OUT `PRESENT` reads high (nothing downstream) is last: it
+  moves its UART TX from the `DATA_FWD` pin to its `DATA_RET` tap, so its frames
+  turn around and pass back through every satellite to the Seed. Everyone else
+  leaves the tap high-impedance. Considered and set aside: a terminator plug (a
+  part to make and lose), a return cable to a second motherboard connector
+  (a long cable across the enclosure), and a firmware handshake on `DATA_FWD`
+  instead of the `PRESENT` pin (timing-dependent at power-up).
+* **Satellite MCU requirement:** UART TX must be remappable at runtime to a
+  second pin (the `DATA_RET` tap). Copying TX in software can't keep up at
+  ~1 Mbaud. The CH32V003's USART1 has four pin mappings; check the chosen MCU's
+  datasheet.
+* **Contract requirement: a "close the ring here" command.** A dead or unflashed
+  satellite still pulls `PRESENT` low, so the board before it keeps sending into
+  a dead end and the whole ring goes quiet. Commands still reach every satellite
+  up to the break, so the Seed can tell satellite *k* to close the ring, step
+  *k* until frames return, and keep the chain running up to the fault.
+* **Power budget: ≈6 mA per satellite at 30 satellites** (MCU plus a 1–2 mA
+  LED). The chain is fed from one end; each link (150 mm of 28 AWG plus two
+  connector matings, out and back) is ≈0.14 Ω, so the last of 30 satellites sits
+  ≈67 Ω × (current per satellite) below the motherboard: 0.4 V at 6 mA, leaving
+  2.9 V. The chain stays on 3.3 V rather than 5 V so logic levels match the
+  Seed. Anything LED-heavy gets its own power, outside the chain.
+* **Motherboard protection:** a 0.75 A PTC (nSMD075, C70078) between
+  `+3V3_SAT` and the connector, so a crushed cable can't pull down `+3V3_D`;
+  33 Ω on `SAT_TX`; ESD protection on pins 3 and 4.
+* A cable plugged into the wrong 5-pin SH (the MIDI connector) is harmless both
+  ways: a satellite on the MIDI port gets no power, and the passive MIDI board on
+  the chain port puts 3.3 V only on an unplugged jack's ring. Label both on the
+  silkscreen.
 * **The chain gets its own filtered 3V3 feed, `+3V3_SAT`:** FB4 (BLM21PG221SN1D)
   plus 10 µF and 100 µF electrolytic off `+3V3_D`, so 20–30 satellite MCUs
   switching stay off the other rails (see [Power](#power)). Budget ~3 mA per
