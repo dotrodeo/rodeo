@@ -121,9 +121,10 @@ control beyond the Seed's own ADC jacks, and every button, goes on a
 satellite carries a ~$0.10 MCU that reads its control against its own supply,
 which is also its ADC reference, and passes data along a UART ring. A
 satellite's position in the chain is its address. Growth means adding
-satellites, not respinning the motherboard. The frame format gets its own
-contract doc next to [`RODEO_HUB_I2C_CONTRACT.md`](RODEO_HUB_I2C_CONTRACT.md).
-It is not written yet.
+satellites, not respinning the motherboard. The frame format, discovery
+and fault handling are in
+[`RODEO_SATELLITE_CHAIN_CONTRACT.md`](RODEO_SATELLITE_CHAIN_CONTRACT.md) (draft v1,
+2026-10-08).
 
 **Board side**
 * **USART3: TX on pin 3 (PC10), RX on pin 2 (PC11), alternate function AF7**
