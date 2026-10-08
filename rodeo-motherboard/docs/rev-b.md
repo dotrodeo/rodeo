@@ -7,7 +7,9 @@ drawn and reviewed on 2026-10-05/06 (see [Power](#power)). On 2026-10-06 the two
 on-board ADCs gave way to a second audio codec (see
 [Second codec](#second-codec-on-sai2-4-in--4-out)), which reshaped the pin map.
 The Daisy, Codec and Audio Interface sheets were drawn and reviewed on
-2026-10-06/07 (see [Audio interface](#audio-interface-and-jack-board)).
+2026-10-06/07 (see [Audio interface](#audio-interface-and-jack-board)), then the
+[SD](#sd-card-slot-native-mode-1-bit) and [MIDI](#midi-moves-to-a-daughterboard)
+sheets on 2026-10-07. Every placed part has an LCSC number, audited against JLC.
 Everything else is still a plan. The board in hand is Rev A, described in
 [`hardware-map.md`](hardware-map.md).
 
@@ -213,6 +215,15 @@ second codec's reset.
 * libDaisy supports 1-bit with `SdmmcHandler::Config::width =
   BusWidth::BITS_1`, and FatFS is built in.
 
+**As drawn** (`sd.kicad_sch`, 2026-10-07):
+* Socket: SHOU HAN TF PUSH, push-push (C393941), in the project library with
+  its 3D model. Its CD pin is left unconnected.
+* 47 kΩ pull-ups to `+3V3_D` on CMD and DAT0–DAT3; 10 µF + 0.1 µF at VDD.
+* 22 Ω series on CLK as a source termination. **On the PCB it goes next to the
+  Seed**, not the socket.
+* SRV05-4 ESD array (C13612) at the socket on CLK (socket side of the 22 Ω),
+  CMD, DAT0 and DAT3.
+
 **To verify:** that the Seed3 has the same 64 MB SDRAM as the classic Seed; and
 the real 1-bit speed. Rev A's `DIG_1`–`DIG_6` connectors are the SDMMC pins, so a
 microSD breakout on them can benchmark 1-bit against 4-bit (at 25 MHz over
@@ -319,6 +330,37 @@ part on the sheet has its LCSC number, all in stock at JLC on 2026-10-07.
 * **Protection:** the codec inputs see ≤1.6 mA from ±12 V through 7.5 kΩ, fine
   for the THS4521's clamps. The Seed inputs have only 100 Ω, so ESD and
   over-voltage protection belongs on the jack board.
+
+### MIDI moves to a daughterboard
+Drawn 2026-10-07 (`midi.kicad_sch`). Still TRS Type A on USART1 (`MIDI_TX`
+pin 14, `MIDI_RX` pin 15), but the two 3.5 mm jacks move to a small
+daughterboard, like the audio jacks. Two changes from Rev A:
+* **TLP2361 (C107626) replaces the 6N138.** The 6N138 is DIP-only at JLC with
+  next to no stock. The TLP2361 runs on `+3V3_D` and has a totem-pole output, so
+  Rev A's 470 Ω pull-up goes. Its logic is inverting (LED on → low), the same
+  sense as the 6N138's. KiCad has no symbol for it; the sheet uses
+  `Isolator:TLP2310`, which has the same pinout and footprint but is drawn as
+  non-inverting.
+* **The MIDI IN sleeve is not connected**, as the MIDI spec requires. Rev A
+  grounded it, which closes a ground loop through the cable (another suspect
+  for Issue 4). The MIDI OUT sleeve is grounded.
+
+IN: ring → 220 Ω → opto anode, tip → cathode, 1N4148W reverse across the LED.
+OUT: ring → 100 Ω → `+3V3_D`, tip → 100 Ω → `MIDI_TX`. Rev A's 100 Ω values are
+kept rather than the spec's 3.3 V values (33 Ω/10 Ω): they work with the gear in
+hand and hold a tip-to-sleeve short while plugging to ≈33 mA from the Seed pin.
+
+**Connector (J5): JST SH 5-pin vertical, BM05B-SRSS-TB (C160391)**, matching
+the other satellites. MIDI's ≈5 mA opto-isolated loops don't need the audio
+ribbon's interleaved grounds, and shrouded IDC starts at 10 pins.
+
+| Pin | Signal |
+|---|---|
+| 1 | GND (the OUT jack's sleeve) |
+| 2 | `MIDI_IN_R` |
+| 3 | `MIDI_IN_T` |
+| 4 | `MIDI_OUT_R` |
+| 5 | `MIDI_OUT_T` |
 
 ### Power
 Drawn on the power sheet and reviewed against every part's datasheet, 2026-10-06.
