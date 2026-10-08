@@ -648,7 +648,7 @@
         "uuid": "b0783762-3587-4fed-8d02-bf2bc4e55dd3"
       }
     ],
-    "used_designators": "J4-6,R22-23,R26-59,C33-72,#PWR72-121,#FLG1,#FLG8-9,U9-17",
+    "used_designators": "U13-14,D4,#PWR126-135,C73-75,R60-68,J5-6",
     "variants": []
   },
   "sheets": [
@@ -671,6 +671,14 @@
     [
       "563fcfff-b63e-4a46-b4ab-39d8806fa922",
       "Audio Interface"
+    ],
+    [
+      "f7d90c91-71b0-455d-9d40-9f9de2a206f4",
+      "SD Slot"
+    ],
+    [
+      "70b305d6-3331-4f13-ac55-81ff9916a37a",
+      "MIDI"
     ]
   ],
   "text_variables": {},

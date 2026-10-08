@@ -4032,17 +4032,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C72484"
-			(at 127 116.5352 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 130.81 115.57 0)
 			(hide yes)
@@ -4056,6 +4045,17 @@
 		)
 		(property "Description" "Polarized capacitor"
 			(at 130.81 115.57 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C72484"
+			(at 127 116.5352 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4125,17 +4125,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C107039"
-			(at 76.5048 57.15 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 77.47 60.96 0)
 			(hide yes)
@@ -4149,6 +4138,17 @@
 		)
 		(property "Description" "Unpolarized capacitor"
 			(at 77.47 60.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C107039"
+			(at 76.5048 57.15 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5081,17 +5081,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C72502"
-			(at 102.87 87.9348 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 99.06 88.9 0)
 			(hide yes)
@@ -5105,6 +5094,17 @@
 		)
 		(property "Description" "Polarized capacitor"
 			(at 99.06 88.9 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C72502"
+			(at 102.87 87.9348 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5343,17 +5343,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C296055"
-			(at 46.0248 77.47 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 46.99 81.28 0)
 			(hide yes)
@@ -5367,6 +5356,17 @@
 		)
 		(property "Description" "Unpolarized capacitor"
 			(at 46.99 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C296055"
+			(at 46.0248 77.47 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5525,17 +5525,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C72484"
-			(at 127 126.6952 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 130.81 125.73 0)
 			(hide yes)
@@ -5549,6 +5538,17 @@
 		)
 		(property "Description" "Polarized capacitor"
 			(at 130.81 125.73 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C72484"
+			(at 127 126.6952 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5804,17 +5804,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C513559"
-			(at 52.3748 119.38 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 53.34 123.19 0)
 			(hide yes)
@@ -5828,6 +5817,17 @@
 		)
 		(property "Description" "Unpolarized capacitor"
 			(at 53.34 123.19 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C513559"
+			(at 52.3748 119.38 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6156,17 +6156,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C106259"
-			(at 80.01 153.3652 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 83.82 152.4 0)
 			(hide yes)
@@ -6180,6 +6169,17 @@
 		)
 		(property "Description" "Unpolarized capacitor"
 			(at 83.82 152.4 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C106259"
+			(at 80.01 153.3652 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6403,17 +6403,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C106259"
-			(at 80.01 100.0252 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 83.82 99.06 0)
 			(hide yes)
@@ -6427,6 +6416,17 @@
 		)
 		(property "Description" "Unpolarized capacitor"
 			(at 83.82 99.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C106259"
+			(at 80.01 100.0252 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6980,17 +6980,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C107039"
-			(at 76.5048 110.49 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 77.47 114.3 0)
 			(hide yes)
@@ -7004,6 +6993,17 @@
 		)
 		(property "Description" "Unpolarized capacitor"
 			(at 77.47 114.3 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C107039"
+			(at 76.5048 110.49 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7166,17 +7166,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C72502"
-			(at 64.4652 81.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 63.5 77.47 0)
 			(hide yes)
@@ -7190,6 +7179,17 @@
 		)
 		(property "Description" "Polarized capacitor"
 			(at 63.5 77.47 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C72502"
+			(at 64.4652 81.28 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7428,17 +7428,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C72502"
-			(at 64.4652 134.62 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 63.5 130.81 0)
 			(hide yes)
@@ -7452,6 +7441,17 @@
 		)
 		(property "Description" "Polarized capacitor"
 			(at 63.5 130.81 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C72502"
+			(at 64.4652 134.62 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7705,17 +7705,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C72502"
-			(at 102.87 141.2748 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 99.06 142.24 0)
 			(hide yes)
@@ -7729,6 +7718,17 @@
 		)
 		(property "Description" "Polarized capacitor"
 			(at 99.06 142.24 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C72502"
+			(at 102.87 141.2748 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8304,17 +8304,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2977593"
-			(at 255.27 88.9 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 255.27 88.9 0)
 			(hide yes)
@@ -8327,6 +8316,17 @@
 			)
 		)
 		(property "Description" "Generic connector, double row, 02x10, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers), script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 255.27 88.9 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C2977593"
 			(at 255.27 88.9 0)
 			(hide yes)
 			(show_name no)
@@ -8530,17 +8530,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C513559"
-			(at 52.3748 66.04 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 53.34 69.85 0)
 			(hide yes)
@@ -8554,6 +8543,17 @@
 		)
 		(property "Description" "Unpolarized capacitor"
 			(at 53.34 69.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C513559"
+			(at 52.3748 66.04 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9143,17 +9143,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C46316"
-			(at 85.09 88.9 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" "http://www.ti.com/lit/ds/symlink/opa376.pdf"
 			(at 85.09 88.9 0)
 			(hide yes)
@@ -9166,6 +9155,17 @@
 			)
 		)
 		(property "Description" "Dual Low-Noise, Low Quiescent Current, Precision Operational Amplifier e-trim Series, SOIC-8"
+			(at 85.09 88.9 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C46316"
 			(at 85.09 88.9 0)
 			(hide yes)
 			(show_name no)
@@ -9747,17 +9747,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C46316"
-			(at 85.09 142.24 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" "http://www.ti.com/lit/ds/symlink/opa376.pdf"
 			(at 85.09 142.24 0)
 			(hide yes)
@@ -9780,29 +9769,40 @@
 				)
 			)
 		)
+		(property "LCSC Part" "C46316"
+			(at 85.09 142.24 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
-			(uuid "97fa5107-54e0-44fe-90e9-dc75799473ea")
+			(uuid "97fa5107-54e0-44fe-90e9-dc75799473eb")
 		)
 		(pin "6"
-			(uuid "de727f66-7469-457c-9726-75132dc7faa3")
+			(uuid "de727f66-7469-457c-9726-75132dc7faa4")
 		)
 		(pin "4"
-			(uuid "6f0d596b-bd42-4d4f-b1f0-d57960eaa6cf")
+			(uuid "6f0d596b-bd42-4d4f-b1f0-d57960eaa6d0")
 		)
 		(pin "8"
-			(uuid "6c53f90c-9ea6-4fea-9648-60d8b935129e")
+			(uuid "6c53f90c-9ea6-4fea-9648-60d8b935129f")
 		)
 		(pin "3"
-			(uuid "f62c03d4-9fd9-42a3-9084-bc8b61b66a19")
+			(uuid "f62c03d4-9fd9-42a3-9084-bc8b61b66a1a")
 		)
 		(pin "5"
-			(uuid "92793a76-67c2-4097-b733-ddcd6574da1e")
+			(uuid "92793a76-67c2-4097-b733-ddcd6574da1f")
 		)
 		(pin "7"
-			(uuid "bc48c73d-1d57-4568-b193-46efc2cfd7d0")
+			(uuid "bc48c73d-1d57-4568-b193-46efc2cfd7d1")
 		)
 		(pin "2"
-			(uuid "1a85fdda-ee83-4a84-ad94-f7086ae52bf8")
+			(uuid "1a85fdda-ee83-4a84-ad94-f7086ae52bf9")
 		)
 		(instances
 			(project "rodeo-motherboard"
@@ -10040,17 +10040,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C296055"
-			(at 46.0248 130.81 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 46.99 134.62 0)
 			(hide yes)
@@ -10064,6 +10053,17 @@
 		)
 		(property "Description" "Unpolarized capacitor"
 			(at 46.99 134.62 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C296055"
+			(at 46.0248 130.81 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11254,17 +11254,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C46316"
-			(at 66.04 39.37 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" "http://www.ti.com/lit/ds/symlink/opa376.pdf"
 			(at 66.04 39.37 0)
 			(hide yes)
@@ -11287,29 +11276,40 @@
 				)
 			)
 		)
+		(property "LCSC Part" "C46316"
+			(at 66.04 39.37 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
-			(uuid "97fa5107-54e0-44fe-90e9-dc75799473ea")
+			(uuid "97fa5107-54e0-44fe-90e9-dc75799473ec")
 		)
 		(pin "6"
-			(uuid "de727f66-7469-457c-9726-75132dc7faa3")
+			(uuid "de727f66-7469-457c-9726-75132dc7faa5")
 		)
 		(pin "4"
-			(uuid "6f0d596b-bd42-4d4f-b1f0-d57960eaa6cf")
+			(uuid "6f0d596b-bd42-4d4f-b1f0-d57960eaa6d1")
 		)
 		(pin "8"
-			(uuid "6c53f90c-9ea6-4fea-9648-60d8b935129e")
+			(uuid "6c53f90c-9ea6-4fea-9648-60d8b93512a0")
 		)
 		(pin "3"
-			(uuid "f62c03d4-9fd9-42a3-9084-bc8b61b66a19")
+			(uuid "f62c03d4-9fd9-42a3-9084-bc8b61b66a1b")
 		)
 		(pin "5"
-			(uuid "92793a76-67c2-4097-b733-ddcd6574da1e")
+			(uuid "92793a76-67c2-4097-b733-ddcd6574da20")
 		)
 		(pin "7"
-			(uuid "bc48c73d-1d57-4568-b193-46efc2cfd7d0")
+			(uuid "bc48c73d-1d57-4568-b193-46efc2cfd7d2")
 		)
 		(pin "2"
-			(uuid "1a85fdda-ee83-4a84-ad94-f7086ae52bf8")
+			(uuid "1a85fdda-ee83-4a84-ad94-f7086ae52bfa")
 		)
 		(instances
 			(project "rodeo-motherboard"
@@ -11875,17 +11875,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C170157"
-			(at 156.21 77.47 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ths4521.pdf"
 			(at 156.21 74.93 0)
 			(hide yes)
@@ -11899,6 +11888,17 @@
 		)
 		(property "Description" "Very Low Power, Negative Rail Input, Rail to Rail Output, Fully Differential Amplifier, VSSOP-8"
 			(at 156.21 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C170157"
+			(at 156.21 77.47 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12682,17 +12682,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C72484"
-			(at 114.3 64.4652 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 118.11 63.5 0)
 			(hide yes)
@@ -12706,6 +12695,17 @@
 		)
 		(property "Description" "Polarized capacitor"
 			(at 118.11 63.5 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C72484"
+			(at 114.3 64.4652 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12961,17 +12961,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C170157"
-			(at 168.91 139.7 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ths4521.pdf"
 			(at 168.91 137.16 0)
 			(hide yes)
@@ -12985,6 +12974,17 @@
 		)
 		(property "Description" "Very Low Power, Negative Rail Input, Rail to Rail Output, Fully Differential Amplifier, VSSOP-8"
 			(at 168.91 120.65 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C170157"
+			(at 168.91 139.7 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13070,17 +13070,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C72484"
-			(at 114.3 54.3052 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 118.11 53.34 0)
 			(hide yes)
@@ -13094,6 +13083,17 @@
 		)
 		(property "Description" "Polarized capacitor"
 			(at 118.11 53.34 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C72484"
+			(at 114.3 54.3052 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
