@@ -46,7 +46,7 @@ Every pin on the 40-pin header is now spoken for. Rev A had seven unconnected
 | 12–13 | PB8, PB9 | `D11`, `D12` | I²C1 | I²C1, 4 taps, 2.2 kΩ pull-ups | `DAISY_SCL`, `DAISY_SDA` |
 | 14–15 | PB6, PB7 | `D13`, `D14` | MIDI (USART1) | MIDI (unchanged) | `MIDI_TX`, `MIDI_RX` |
 | 16–19 | — | — | audio in/out | onboard codec in/out (SAI1) | `AUDIO_IN_1/2`, `AUDIO_OUT_1/2` |
-| 20 | — | — | GND | audio ground, 0 Ω (R21) to `GND` at the Seed | `GNDA` |
+| 20 | — | — | GND | audio ground, 0 Ω (R14) to `GND` at the Seed | `GNDA` |
 | 22 | PC0 | `D15`/`A0` | `DIG_7` | I/O connector (digital or analog) | `DIG_2` |
 | 23 | PA3 | `D16`/`A1` | `DIG_8` | I/O connector (digital or analog) | `DIG_3` |
 | 24–28 | PB1, PA7, PA6, PC1, PC4 | `D17`–`D21`/`A2`–`A6` | `DIG_9`–`DIG_12`, status LED | I/O connectors, digital or analog (LED removed) | `DIG_4`–`DIG_8` |
@@ -56,7 +56,7 @@ Every pin on the 40-pin header is now spoken for. Rev A had seven unconnected
 | 33 | PD11 | `D26` | ADC B chip-select | **second codec DAC data out** (SAI2 SD_A) | `CODEC2_SDIN` |
 | 34 | PG9 | `D27` | unconnected | **second codec LRCK** (SAI2 FS) | `CODEC2_LRCK` |
 | 35 | PA2 | `D28` | unconnected | **second codec SCLK** (SAI2 SCK) | `CODEC2_SCLK` |
-| 36–37 | PB14, PB15 | `D29`, `D30` | USB D−/D+, dead-end | **USB data to J2** | `USB_OTG_HS_N/P` |
+| 36–37 | PB14, PB15 | `D29`, `D30` | USB D−/D+, dead-end | **USB data to the power board (J2)** | `USB_OTG_HS_N/P` |
 | 21, 38 | — | — | Seed 3V3 outputs, unconnected | unconnected (the Seed's own rails) | — |
 | 39, 40 | — | — | VIN, GND | `SEED_VIN`, `GND` | |
 
@@ -281,13 +281,15 @@ the real 1-bit speed. Rev A's `DIG_1`–`DIG_6` connectors are the SDMMC pins, s
 microSD breakout on them can benchmark 1-bit against 4-bit (at 25 MHz over
 flying leads).
 
-### USB data on the panel USB-C, including firmware flashing
-Wire the USB-C's D+/D− to Seed pins 36/37 through a USBLC6-2SC6 (U2), with
-5.1 kΩ CC pull-downs (R3/R4). The connector is now an HRO TYPE-C-31-M-12 (J2):
-Rev A's GCT USB4105-GF-A had run out at LCSC. No external USB PHY or "OTG" chip
-is needed: the STM32H750's USB_OTG_HS peripheral has a built-in full-speed PHY
-on these pins (libDaisy sets `USB_OTG_EMBEDDED_PHY`), and Rodeo is always the
-USB device. Daisy's own dev-kit schematic is wired the same way.
+### USB data through the power board, including firmware flashing
+Seed pins 36/37 go to the power input connector (J2 pins 3/4), and the power
+daughterboard carries them to its panel USB-C (see [Power](#power)). That board
+holds the receptacle's 5.1 kΩ CC pull-downs and a USBLC6-2SC6 at the jack. Until
+2026-10-08 the USB-C (HRO TYPE-C-31-M-12; Rev A's GCT USB4105-GF-A had run out at
+LCSC) was on the motherboard. No external USB PHY or "OTG" chip is needed: the
+STM32H750's USB_OTG_HS peripheral has a built-in full-speed PHY on these pins
+(libDaisy sets `USB_OTG_EMBEDDED_PHY`), and Rodeo is always the USB device.
+Daisy's own dev-kit schematic is wired the same way.
 * Gives USB-MIDI, USB audio and serial through libDaisy's `FS_EXTERNAL`.
 * **Flashing:** libDaisy ships Daisy bootloader builds marked `extdfu`, which
   accept DFU over pins 36/37 (`rodeo-sdk/libDaisy/doc/md/_a7_Getting-Started-Daisy-Bootloader.md`).
@@ -295,6 +297,8 @@ USB device. Daisy's own dev-kit schematic is wired the same way.
   The Rev B builds install `dsy_bootloader_v6_4-extdfu-2000ms.bin` instead of
   libDaisy's default (`intdfu-2000ms`, `rodeo-sdk/libDaisy/core/Makefile`). The
   bootloader itself still goes in once over the Seed's micro-USB.
+* A power board without USB data (barrel only) leaves flashing to the Seed's
+  micro-USB.
 
 **To verify:** the bootloader builds look like either internal *or* external
 DFU, not both. If so, after the switch the micro-USB only works for the STM32's
@@ -342,7 +346,7 @@ The module reports itself to libDaisy as an AK4556 Seed (Rev4).
 | Seed input | ≈3.9–4.1 Vpp | out → in loopback is unity within ±3 % |
 
 The Seed's own path gets no front end: its outputs go straight to the ribbon,
-and its inputs get 100 Ω in series (R28/R29) on the motherboard.
+and its inputs get 100 Ω in series (R56/R57) on the motherboard.
 
 **Ribbon (J4, DC3-2.54-20PAS box header, C2977593).** Odd pins 1–19 are all GND,
 interleaved with the signals; the jack board ties its jack sleeves to them and
@@ -356,7 +360,7 @@ the motherboard returns them at a single point in the audio corner.
 | 8 | `CODEC2_OUT_B` | 18 | `CODEC2_IN_B` |
 | 10 | `+5V_A` (spare, for jack-board extras) | 20 | not connected |
 
-**CS4272 inputs (U10, U11: THS4521, C170157).** One fully differential amp per
+**CS4272 inputs (U9, U10: THS4521, C170157).** One fully differential amp per
 channel on `+5V_A`, single-ended to differential with a gain of 1.4
 (7.5 kΩ in, 10.5 kΩ ∥ 150 pF feedback), so a 4 Vpp jack signal is ≈5.6 Vpp
 differential, the codec's full scale. Input: 1 MΩ to GND, 10 µF electrolytic
@@ -364,7 +368,7 @@ differential, the codec's full scale. Input: 1 MΩ to GND, 10 µF electrolytic
 7.5 kΩ. VOCM is left to the internal divider (2.5 V) with 0.1 µF. Outputs go
 through 91 Ω each, with 2.7 nF C0G across the codec pins.
 
-**CS4272 outputs (U12: OPA2376, C46316).** The Cirrus datasheet's
+**CS4272 outputs (U8: OPA2376, C46316).** The Cirrus datasheet's
 differential-to-single-ended filter (CS4272 Fig. 14) per channel, then 22 µF
 (+ toward the amp), 560 Ω series and 47 kΩ to GND. Output is ≈3.7 Vpp, within
 1 dB of the Seed's.
@@ -379,11 +383,11 @@ output's connector node (`CODEC2_OUT_A/B`, J4 pins 6/8). Cirrus's suggested circ
 `+5V_A`:
 * Two N-FETs back-to-back (Q3, Q4: 2N7002DW, C83571), sources joined, one drain on
   the output and one on GND. Their body diodes oppose, so when off the output swings
-  ±1.85 V without clipping. 1 MΩ (R84/R86) from the gates to the joined sources holds
+  ±1.85 V without clipping. 1 MΩ (R31/R45) from the gates to the joined sources holds
   them off with no negative supply.
 * A P-FET (Q2: BSS84DW, C161617, one half per channel) from `+5V_A` pulls the gates
-  up through 10 kΩ (R83/R85) when the mute pin is low.
-* Muted: the output is shorted through ≈4–15 Ω against R36/R44 (560 Ω), at least
+  up through 10 kΩ (R28/R42) when the mute pin is low.
+* Muted: the output is shorted through ≈4–15 Ω against R36/R37 (560 Ω), at least
   30 dB down.
 * **Power-up:** the mute pins are low from the moment `+5V_A` rises and the codec
   stays in reset until firmware starts SAI2, so the 22 µF coupling caps charge
@@ -391,7 +395,7 @@ output's connector node (`CODEC2_OUT_A/B`, J4 pins 6/8). Cirrus's suggested circ
 * The codec also mutes a channel after 8,192 zero samples (≈170 ms of digital
   silence), so idle outputs sit at true 0 V.
 * Not covered: power-down. Gate drive collapses with `+5V_A`, so a small pop at
-  switch-off can remain. Put Q3/Q4 right at R36/R37, R44/R45 and J4.
+  switch-off can remain. Put Q3/Q4 right at R36/R39, R37/R40 and J4.
 
 **Known trade-offs:**
 * **Power-up thump on the Seed's own outputs** (`AUDIO_OUT_1/2`): the Seed
@@ -422,7 +426,7 @@ OUT: ring → 100 Ω → `+3V3_D`, tip → 100 Ω → `MIDI_TX`. Rev A's 100 Ω 
 kept rather than the spec's 3.3 V values (33 Ω/10 Ω): they work with the gear in
 hand and hold a tip-to-sleeve short while plugging to ≈33 mA from the Seed pin.
 
-**Connector (J5): JST SH 5-pin vertical, BM05B-SRSS-TB (C160391)**, matching
+**Connector (J6): JST SH 5-pin vertical, BM05B-SRSS-TB (C160391)**, matching
 the other satellites. MIDI's ≈5 mA opto-isolated loops don't need the audio
 ribbon's interleaved grounds, and shrouded IDC starts at 10 pins.
 
@@ -436,79 +440,100 @@ ribbon's interleaved grounds, and shrouded IDC starts at 10 pins.
 
 ### Power
 Drawn on the power sheet and reviewed against every part's datasheet, 2026-10-06.
-USB-C is a plain 5 V input (no USB-PD), so a laptop can run and flash the board.
-A built-in single-cell Li-ion battery and an optional power daughterboard are the
-other two sources. Anything big (LED strips and the like) is powered by the
-daughterboard directly, never through the motherboard.
+**Reworked 2026-10-08: the input jacks, the power switch and the status LEDs moved
+to cabled daughterboards**, so each build picks its input (USB-C, barrel jack, both)
+and puts it where its panel wants it. The motherboard keeps one 5 V input, the
+battery, the charger and everything downstream. Anything big (LED strips and the
+like) is powered by the daughterboard directly, never through the motherboard.
 
 ```
-USB-C 5 V (J2) ─ SMBJ5.0A ─┐
-                           ├─ U3 TPS2121 ─ U1 BQ24073 ─ BATT_VCC ─ U6 TPS63070 ─ +5V_SYS
-Power board 5 V (J3) ──────┘  mux          charger +               buck-boost,
-                              J3 first     power path              EN ← SW1
-                                                 │ BAT ─ U5 MAX17048 (I²C 0x36)
-1S Li-ion (J1) ─ U4 DW01A + Q1 FS8205A ──────────┘
+Power board (J2) ─ VIN 5 V ─ U2 BQ24073 ─ BATT_VCC ─ U5 TPS63070 ─ +5V_SYS
+  + USB D+/D− to Seed     charger +                buck-boost,
+  + PGOOD/CHG LEDs        power path               EN ← switch (J3)
+                                │ BAT ─ U4 MAX17048 (I²C 0x36)
+1S Li-ion (J1) ─ U3 DW01A + Q1 FS8205A ──┘
 
-+5V_SYS ─┬─ U7 TPS563208 buck ─────────► +3V3_D   ─ FB4 ─► +3V3_SAT (satellite chain)
-         ├─ FB1 ─ U8 TPS7A2033 LDO ────► +3V3_A   (SPI expansion header: ADC expander)
-         ├─ FB2 + 10 µF + 100 µF ──────► SEED_VIN (Seed pin 39)
-         └─ FB3 + 10 µF + 100 µF ──────► +5V_A    (headphone-amp / CV daughterboards)
++5V_SYS ─┬─ U1 TPS563208 buck ─────────► +3V3_D   ─ FB4 ─► +3V3_SAT (satellite chain)
+         ├─ FB2 ─ U6 TPS7A2033 LDO ────► +3V3_A   (I/O connectors, SPI header pin 7)
+         ├─ FB3 + 10 µF + 100 µF ──────► SEED_VIN (Seed pin 39)
+         └─ FB1 + 10 µF + 100 µF ──────► +5V_A    (codec, front end, jack board)
 ```
 
-**Inputs**
-* **USB-C (J2):** 5 V only, 5.1 kΩ CC pull-downs, SMBJ5.0A on VBUS, USBLC6 on
-  D+/D−.
-* **Power daughterboard (J3, JST B4B-XH-A):** pins 1–2 GND, 3–4 `EXT_PWR`, a
-  regulated 5 V from the board's own barrel-jack supply. XH can't be confused
-  with the battery's PH plug.
-* **Mux (U3, TPS2121), automatic switchover with priority:** PR1 = 28 k/15 k
-  from `EXT_PWR`, CP2 = 34 k/15 k from USB, so the power board wins while it is
-  above ≈0.88 × the USB voltage (≈4.4 V). ILM 61.9 kΩ (≈2 A), SS 100 nF, OV1/OV2/ST
-  grounded. It also stops either source back-feeding the other.
+**Power input (J2): JST PH 8-pin, side entry, S8B-PH-K-S (C157915)**
+
+| Pin | Signal | Motherboard |
+|---|---|---|
+| 1, 6 | `VIN` | U2 IN, input caps, TVS |
+| 2, 5 | GND | GND |
+| 3 | `USB_D−` | Seed pin 36 (`USB_OTG_HS_N`) |
+| 4 | `USB_D+` | Seed pin 37 (`USB_OTG_HS_P`) |
+| 7 | `~PGOOD` | U2 pin 7, open-drain, sinks ≤15 mA |
+| 8 | `~CHG` | U2 pin 9, open-drain, sinks ≤15 mA |
+
+**The daughterboard contract:**
+* Supply **one regulated 5 V on `VIN`: 4.5–5.5 V, up to 1.5 A.** The charger
+  limits input to ≈1.36 A and starts backing off at 4.5 V, so use 24–26 AWG wire.
+  Power and ground each have two pins (PH is 2 A per pin).
+* **USB data is optional.** A USB-C board wires D+/D− through; a barrel-only board
+  leaves pins 3–4 unconnected. Full speed (12 Mbit/s) only, so a short internal
+  cable (under ≈30 cm) with the pair adjacent is fine; the pair sits between the
+  two grounds.
+* **The USB-C receptacle's own parts live on the daughterboard**, at the jack: the
+  5.1 kΩ CC pull-downs and a USBLC6-2SC6 on D+/D−.
+* **LEDs (optional):** each LED's anode through its resistor to the board's own
+  `VIN`, cathode to pin 7 (power good, green) or pin 8 (charging, red). Both only
+  light with an input present, so the board's `VIN` is the right supply. Aim for
+  2–5 mA. With no input (on battery) neither lights; a running indicator on
+  battery has to come from firmware.
+* **A board with two inputs** (USB-C and barrel, say) carries its own source
+  selection, e.g. the TPS2121 priority mux the motherboard used to have.
+* Reference boards to design: USB-C only (the default build), and barrel jack
+  plus USB-C data.
+
+**Power switch (J3): JST SH 2-pin, BM02B-SRSS-TB (C160388).** Any latching panel
+switch on two wires: toggle, rocker or push button.
+* Pin 1: `BATT_VCC` through R12 (10 kΩ), so a pinched cable can't short the
+  battery rail. Pin 2: U5's EN, with R13 (1 MΩ) to GND and 10 nF to GND.
+* Unplugged means off. The cell still charges with the switch off.
 
 **Charger and battery**
-* **U1, BQ24073** (charger with power path). The system runs from the input and
+* **U2, BQ24073** (charger with power path). The system runs from the input and
   the cell charges from what's left. It runs with no battery or a dead one, and
   the cell tops up the system when the input can't keep up. VIN-DPM backs off
   at 4.5 V, so a weak laptop port doesn't crash. ILIM 1.18 kΩ sets the input
   limit to ≈1.36 A (fits a 1.5 A USB-C port). ISET 1.13 kΩ sets 0.79 A charge.
   TS has 10 kΩ (no thermistor in typical packs). TMR is left open (default
-  safety timers) and TD is grounded. PGOOD drives a green LED (D2) and CHG a red
-  one (D3).
+  safety timers) and TD is grounded. PGOOD and CHG go to the power board's LEDs.
+* **Input protection:** an SMBJ5.0A TVS on `VIN` at J2, for hot-plug transients
+  on the cable. The charger itself withstands 28 V and cuts off above 6.6 V.
 * **Battery connector (J1):** JST PH 2-pin, side entry. Hobby packs disagree on
   PH polarity, so the silkscreen must mark +.
-* **Protection:** DW01A (U4) + FS8205A (Q1) in the cell's negative lead. Trips at
+* **Protection:** DW01A (U3) + FS8205A (Q1) in the cell's negative lead. Trips at
   4.30 V overcharge, 2.50 V overdischarge, and 150 mV across the FETs (≈3–3.75 A).
   **Board ground is the cell's negative after the FETs (`BATT_N` → S1–S2 →
-  `GND`);** `BATT_N` touches only J1, U4, Q1 and C6.
-* **Fuel gauge:** MAX17048 (U5) on the I²C bus at 0x36, CELL/VDD on `BATT_P`.
+  `GND`);** `BATT_N` touches only J1, U3, Q1 and C10.
+* **Fuel gauge:** MAX17048 (U4) on the I²C bus at 0x36, CELL/VDD on `BATT_P`.
 * **No reverse-polarity protection.** A high-side PMOS doesn't protect a
   low-side DW01A. Rely on the keyed connector and the silkscreen.
 
-**+5V_SYS: U6, TPS63070 buck-boost**
+**+5V_SYS: U5, TPS63070 buck-boost**
 * 2.0–16 V in, 2 A out, forced PWM at 2.4 MHz (PS/SYNC grounded), so 5 V holds
   from a sagging laptop port and from a 3.0 V cell alike. FB divider 100 k/19.1 k
-  gives 4.99 V. L1 Sunlord MWSA0518S-1R5MT (1.5 µH, 8 A sat). Caps per TI's
+  gives 4.99 V. L2 Sunlord MWSA0518S-1R5MT (1.5 µH, 8 A sat). Caps per TI's
   reference BOM: 3 × 10 µF in, 10 µF + 3 × 22 µF out, 100 nF on VAUX.
-* **Power switch (SW1):** Yuandi TK-6580A-1, right-angle latching push button
-  (5.8 × 5.1 × 5.8 mm, plunger 4.8 mm past the body). Latched in connects EN to
-  `BATT_VCC`. R18 1 MΩ pulls EN down, so off draws nothing. The cell still
-  charges with the switch off. Mount the body against the panel: the plunger
-  only clears a ~1.6 mm panel by ≈3 mm.
+* EN comes from the power switch (J3, above).
 
 **Rails below +5V_SYS**
-* **`+3V3_D`, U7 TPS563208:** forced-continuous 580 kHz buck. L2 MWSA0518S-2R2MT
+* **`+3V3_D`, U1 TPS563208:** forced-continuous 580 kHz buck. L1 MWSA0518S-2R2MT
   (2.2 µH), 33.2 k/10 k divider (3.32 V), 2 × 22 µF out. Feeds satellites (via
-  `+3V3_SAT`), hubs, OLED, I²C taps, power taps, the second codec's VD/VL, and
-  the expansion header.
-* **`+3V3_A`, U8 TPS7A2033:** 7 µV RMS, 95 dB PSRR at 1 kHz, fed from +5V_SYS
-  through FB1 (BLM18KG601SN1D) with 1 + 10 µF either side. Designed for the
-  ADCs' AVDD/REFP0 and their pots; since the ADCs moved off-board (2026-10-06)
-  it goes to the SPI expansion header as the expander's analog supply.
+  `+3V3_SAT`), hubs, OLED, I²C taps, the second codec's VD/VL, and the SPI header.
+* **`+3V3_A`, U6 TPS7A2033:** 7 µV RMS, 95 dB PSRR at 1 kHz, fed from +5V_SYS
+  through FB2 (BLM18KG601SN1D) with 1 + 10 µF either side. Supplies the generic I/O
+  connectors (pots) and the SPI header's pin 7 (the ADC expander's analog supply).
   Replaces Rev A's U2 TLV76733.
-* **`SEED_VIN`, `+5V_A`, `+3V3_SAT`:** each a BLM21PG221SN1D ferrite feeding
-  10 µF ceramic + 100 µF electrolytic. The electrolytic's ESR damps the
-  ferrite/ceramic resonance; don't swap it for a low-ESR part. `SEED_VIN`'s caps
+* **`SEED_VIN`, `+5V_A`, `+3V3_SAT`:** each a BLM21PG221SN1D ferrite (FB3, FB1,
+  FB4) feeding 10 µF ceramic + 100 µF electrolytic. The electrolytic's ESR damps
+  the ferrite/ceramic resonance; don't swap it for a low-ESR part. `SEED_VIN`'s caps
   sit at Seed pin 39. `+5V_A` is filtered but not re-regulated.
 
 **Budget.** Design to a 1.5 A USB-C port (7.5 W). Rodeo itself is ≈2 W, which
@@ -518,13 +543,7 @@ gets close. A 500 mA USB-A port runs Rodeo with LEDs dark; there are no spare
 pins for detecting the port's current, so firmware should default to dim LEDs.
 Runtime is roughly 3 h on 2000 mAh, 5 h on a 3400 mAh 18650.
 
-**Layout notes:** BQ24073 can dissipate 1–1.4 W while charging and running, so
-it needs a solid ground pour with vias under its pad. Keep the TPS563208 and
-TPS63070 switch nodes small, with their input caps at the pins. Put power entry
-and LED connectors at one end, and the Seed audio and the second codec at the
-other.
-
-Every part has an `LCSC Part` field. All are stocked at JLC as of 2026-10-06.
+Every part has an `LCSC Part` field. All are stocked at JLC as of 2026-10-08.
 
 ### Generic I/O connectors
 Decided 2026-10-08, replacing a dedicated CV header. Every leftover Seed pin
@@ -544,7 +563,7 @@ use, so those boards plug straight into any analog-capable connector:
 | `A1`–`A7` | `DIG_2`–`DIG_8` | 22–28 | digital or analog in |
 | `CV1`, `CV2` | `CV_DAC1`, `CV_DAC2` | 30, 29 | DAC out (0–3.3 V) or analog in |
 
-* **Supply `+3V3_A`**, the quiet LDO rail (U8, TPS7A2033), which otherwise only
+* **Supply `+3V3_A`**, the quiet LDO rail (U6, TPS7A2033), which otherwise only
   feeds SPI header pin 7. Ten 10 kΩ pots draw ≈3 mA of its 300 mA; a shorted
   panel cable hits the LDO's current limit and takes down only these connectors.
 * **1 kΩ series** protects the pins, two of which (PB1, PA7) aren't 5 V
@@ -586,7 +605,7 @@ Gathered 2026-10-08 from the decisions above, so the PCB can be laid out from
 one list. Where a note came from a section, the reason is there.
 
 **Floorplan and ground**
-* **Two ends:** power entry (USB-C J2, battery J1, power board J3, SW1), the
+* **Two ends:** power entry (power input J2, switch J3, battery J1), the
   charger and the switchers at one end; the Seed's audio pins, the CS4272, its
   front end and the audio ribbon J4 at the other (the "audio corner"). The Seed
   sits between them.
@@ -599,60 +618,60 @@ one list. Where a note came from a section, the reason is there.
 * **Route audio and fast signals on F.Cu**, directly over the In1 ground: the
   codec's analog nets, SAI2 clocks, SD, USB and the satellite chain. Signals on
   B.Cu reference the In2 power pours, so keep those to slow or short runs.
-* **`GNDA`** (Seed pin 20) joins `GND` through R21 (0 Ω) right at the Seed, not
+* **`GNDA`** (Seed pin 20) joins `GND` through R14 (0 Ω) right at the Seed, not
   elsewhere.
 * **J4's grounds** (all ten odd pins) go straight into the plane at J4. That is
   the jack board's single ground point; nothing else from the jack board
   returns anywhere else.
 
 **Power**
-* **U1 BQ24073** dissipates 1–1.4 W while charging and running: solid ground
+* **U2 BQ24073** dissipates 1–1.4 W while charging and running: solid ground
   pour and thermal vias under its pad.
-* **U6 TPS63070 and U7 TPS563208:** smallest possible switch-node copper, input
+* **U5 TPS63070 and U1 TPS563208:** smallest possible switch-node copper, input
   caps at the pins, inductors (L1, L2) right next to them, and keep both away
   from the audio corner.
-* **Ferrite branches** (FB1–FB4) with their caps at the point of use: FB2 and its
-  100 µF (C28) near the Seed's VIN pin, FB3's `+5V_A` caps near the CS4272 and
-  op-amps, FB4 near J7.
-* **Q1/U4 (battery protection):** `BATT_N` touches only J1, U4, Q1 and C6. Keep
+* **Ferrite branches** (FB1–FB4) with their caps at the point of use: FB3 and its
+  100 µF (C21) near the Seed's VIN pin, FB1's `+5V_A` caps near the CS4272 and
+  op-amps, FB4 near J18.
+* **Q1/U3 (battery protection):** `BATT_N` touches only J1, U3, Q1 and C10. Keep
   it short and off the ground plane; board ground starts after Q1.
 
 **Seed and digital**
 * **Seed socket:** two 1×20 female headers in A1's holes; the Seed then sits
   ≈8.5 mm plus its own height above the board. Check enclosure clearance.
 * **Series resistors go at the Seed (the driving end), not the connector:**
-  R69 (`SAT_TX`, 33 Ω), R71/R72 (SPI MOSI/SCK, 33 Ω), R63 (SD CLK, 22 Ω).
-* **SD socket (J6)** at a board edge reachable through the case, close to Seed
-  pins 5–7, with short, direct CLK/CMD/D0 traces. U13 (ESD) at the socket.
-* **USB (J2 → U2 → Seed pins 36/37):** route D+/D− as a 90 Ω differential pair,
-  short, U2 right at J2.
+  R80 (`SAT_TX`, 33 Ω), R73/R72 (SPI MOSI/SCK, 33 Ω), R59 (SD CLK, 22 Ω).
+* **SD socket (J5)** at a board edge reachable through the case, close to Seed
+  pins 5–7, with short, direct CLK/CMD/D0 traces. U11 (ESD) at the socket.
+* **USB (J2 pins 3/4 → Seed pins 36/37):** route D+/D− as a 90 Ω differential
+  pair, short. The ESD part is on the power board, at its jack.
 * **CS4272 clocks and data** (Seed pins 31–35) short and away from the codec's
   VCOM, FILT+ and analog pins.
 
 **Audio**
-* **CS4272 (U9):** VCOM and FILT+ caps at their pins, small value nearest
+* **CS4272 (U7):** VCOM and FILT+ caps at their pins, small value nearest
   (datasheet §5.7); VA/VD/VL decoupling at each pin.
-* **C64, C72 (2.7 nF)** right at the CS4272's AIN pins.
-* **THS4521s (U10, U11):** 150 pF feedback caps and the VOCM cap tight to the
+* **C68, C69 (2.7 nF)** right at the CS4272's AIN pins.
+* **THS4521s (U9, U10):** 150 pF feedback caps and the VOCM cap tight to the
   chip; inputs and outputs symmetric (differential).
-* **Output filters (U12 OPA2376):** keep each channel's Fig. 14 network compact;
+* **Output filters (U8 OPA2376):** keep each channel's Fig. 14 network compact;
   its decoupling at the chip.
-* **Mute shunts Q3/Q4** right at R36/R37, R44/R45 and J4, so they short the
+* **Mute shunts Q3/Q4** right at R36/R39, R37/R40 and J4, so they short the
   connector node.
-* **Seed audio pins 16–19** to J4 and R28/R29 by short routes, over solid ground.
+* **Seed audio pins 16–19** to J4 and R56/R57 by short routes, over solid ground.
 
 **Connectors and protection**
-* **ESD at the connector it protects:** U15 at J7 (flow-through: the signal runs
-  through pins 1→6 and 3→4), U2 at J2, U13 at J6.
-* **1 kΩ I/O resistors** (R73–R82) at their connectors (J13–J22).
-* **F1 (PTC)** between FB4's caps and J7.
+* **ESD at the connector it protects:** U13 at J18 (flow-through: the signal runs
+  through pins 1→6 and 3→4), U11 at J5. The SMBJ5.0A TVS on `VIN` at J2.
+* **1 kΩ I/O resistors** (R67–R71, R74–R78) at their connectors (J8–J17).
+* **F1 (PTC)** between FB4's caps and J18.
 * **Silkscreen:**
-  * I/O connectors: `D1`, `A1`–`A7`, `CV1` (J22), `CV2` (J21).
-  * Label J7 (satellite chain) and J5 (MIDI) clearly: both are 5-pin JST SH.
+  * I/O connectors: `D1`, `A1`–`A7`, `CV1` (J17), `CV2` (J16).
+  * Label J18 (satellite chain) and J6 (MIDI) clearly: both are 5-pin JST SH.
   * Battery J1: mark +. Hobby packs disagree on PH polarity.
   * Pin 1 / key on J4 (IDC) and every JST.
-* **SW1** mounts with its body against the panel: the plunger clears a
-  ≈1.6 mm panel by only ≈3 mm.
+* **J2 (power input)** and **J3 (switch)** go where cables reach the panel's
+  power board and switch; neither needs a board edge.
 
 ## Open — audio and power
 
@@ -662,7 +681,7 @@ so they come first.
 
 * **The hum on the line out that grows with each held key** (hardware-map.md
   Issue 4). The power design now covers three of the candidate fixes: bulk at
-  the Seed's VIN (C28 100 µF), a ferrite between the supply and VIN (FB2), and a
+  the Seed's VIN (C21 100 µF), a ferrite between the supply and VIN (FB3), and a
   clean-supply option (the battery takes the USB host's ground out of the path).
   Still open: a dedicated ground return for the J4/J5 sleeves, and a series R on
   J5. Running Rev B from the battery against USB is now a useful A/B test.

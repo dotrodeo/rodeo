@@ -30,9 +30,9 @@ is on.
 ### 1.1 Connector
 
 Every satellite has an **IN** and an **OUT** connector, both **JST SH 5-pin**. The
-motherboard has one chain connector, J7, which is wired like a satellite's OUT.
+motherboard has one chain connector, J18, which is wired like a satellite's OUT.
 
-| Pin | Signal | Satellite IN | Satellite OUT | Motherboard J7 |
+| Pin | Signal | Satellite IN | Satellite OUT | Motherboard J18 |
 |---|---|---|---|---|
 | 1 | GND | GND | GND | GND |
 | 2 | 3V3 | supply in | supply out (straight through) | `+3V3_SAT`, through a 0.75 A PTC |

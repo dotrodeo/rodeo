@@ -3104,7 +3104,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "033df82b-449d-4ea9-b94e-5e284e1e0b75")
-		(property "Reference" "R78"
+		(property "Reference" "R74"
 			(at 114.3 69.85 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3177,7 +3177,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "R78")
+					(reference "R74")
 					(unit 1)
 				)
 			)
@@ -3195,7 +3195,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "09c17067-e4da-4a56-8040-2b96e53d94cc")
-		(property "Reference" "R77"
+		(property "Reference" "R71"
 			(at 74.93 130.81 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3268,7 +3268,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "R77")
+					(reference "R71")
 					(unit 1)
 				)
 			)
@@ -3286,7 +3286,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "13ddf8e6-acdd-4bdb-8ef1-b9adec164c8f")
-		(property "Reference" "J13"
+		(property "Reference" "J8"
 			(at 55.88 67.31 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3362,7 +3362,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "J13")
+					(reference "J8")
 					(unit 1)
 				)
 			)
@@ -3380,7 +3380,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "17684177-317c-4294-a7b8-22538f96798c")
-		(property "Reference" "#PWR0125"
+		(property "Reference" "#PWR0133"
 			(at 224.79 44.45 0)
 			(hide yes)
 			(show_name no)
@@ -3441,7 +3441,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "#PWR0125")
+					(reference "#PWR0133")
 					(unit 1)
 				)
 			)
@@ -3459,7 +3459,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "1859d1ca-174f-4a8d-92b1-17355d08be93")
-		(property "Reference" "R75"
+		(property "Reference" "R69"
 			(at 74.93 100.33 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3532,7 +3532,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "R75")
+					(reference "R69")
 					(unit 1)
 				)
 			)
@@ -3550,7 +3550,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "1b8d41ef-52a8-4c4c-b1c9-01ea4e4e489f")
-		(property "Reference" "U15"
+		(property "Reference" "U13"
 			(at 146.4311 31.75 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3640,7 +3640,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "U15")
+					(reference "U13")
 					(unit 1)
 				)
 			)
@@ -3658,7 +3658,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "21759978-764e-476a-9e65-87afe26f7be9")
-		(property "Reference" "J19"
+		(property "Reference" "J14"
 			(at 95.25 82.55 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3734,7 +3734,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "J19")
+					(reference "J14")
 					(unit 1)
 				)
 			)
@@ -3752,7 +3752,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "22353ded-7cac-4340-9a55-a03dc75233bf")
-		(property "Reference" "J21"
+		(property "Reference" "J16"
 			(at 95.25 113.03 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3828,7 +3828,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "J21")
+					(reference "J16")
 					(unit 1)
 				)
 			)
@@ -3846,7 +3846,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "230fd366-79f7-4c63-a02a-b4029e54ac89")
-		(property "Reference" "R82"
+		(property "Reference" "R78"
 			(at 114.3 130.81 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3919,7 +3919,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "R82")
+					(reference "R78")
 					(unit 1)
 				)
 			)
@@ -3937,7 +3937,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "32e5baba-2757-4ef1-8b66-f71873b746ac")
-		(property "Reference" "R70"
+		(property "Reference" "R79"
 			(at 156.21 44.4499 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4012,7 +4012,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "R70")
+					(reference "R79")
 					(unit 1)
 				)
 			)
@@ -4030,7 +4030,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "39f1a1ca-e6a3-4459-b28a-ff12e6644724")
-		(property "Reference" "J14"
+		(property "Reference" "J9"
 			(at 55.88 82.55 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4106,7 +4106,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "J14")
+					(reference "J9")
 					(unit 1)
 				)
 			)
@@ -4124,7 +4124,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "3b1c0c14-a1a3-4077-b317-dd51921b3b56")
-		(property "Reference" "#PWR0140"
+		(property "Reference" "#PWR0121"
 			(at 67.31 93.98 0)
 			(hide yes)
 			(show_name no)
@@ -4185,7 +4185,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "#PWR0140")
+					(reference "#PWR0121")
 					(unit 1)
 				)
 			)
@@ -4203,7 +4203,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "3cce3573-4b12-402f-9862-8a93ee5c195b")
-		(property "Reference" "#PWR0139"
+		(property "Reference" "#PWR0120"
 			(at 67.31 78.74 0)
 			(hide yes)
 			(show_name no)
@@ -4264,7 +4264,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "#PWR0139")
+					(reference "#PWR0120")
 					(unit 1)
 				)
 			)
@@ -4282,7 +4282,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "43a25368-343f-461a-9923-f0c14af8cb96")
-		(property "Reference" "R76"
+		(property "Reference" "R70"
 			(at 74.93 115.57 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4355,7 +4355,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "R76")
+					(reference "R70")
 					(unit 1)
 				)
 			)
@@ -4373,7 +4373,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "4e220c8b-8fe8-44f9-943e-9718039dc3c1")
-		(property "Reference" "#PWR0148"
+		(property "Reference" "#PWR0129"
 			(at 106.68 139.7 0)
 			(hide yes)
 			(show_name no)
@@ -4434,7 +4434,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "#PWR0148")
+					(reference "#PWR0129")
 					(unit 1)
 				)
 			)
@@ -4452,7 +4452,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "535a2351-b7e5-45ca-ad55-77a6a67d74b0")
-		(property "Reference" "J18"
+		(property "Reference" "J13"
 			(at 95.25 67.31 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4528,7 +4528,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "J18")
+					(reference "J13")
 					(unit 1)
 				)
 			)
@@ -4546,7 +4546,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "537127ad-5d17-46fe-8623-efe503f7e8a0")
-		(property "Reference" "J10"
+		(property "Reference" "J21"
 			(at 236.22 30.48 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4625,7 +4625,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "J10")
+					(reference "J21")
 					(unit 1)
 				)
 			)
@@ -4643,7 +4643,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "73d26553-a060-4e51-a218-c8d9e8e04f3b")
-		(property "Reference" "R81"
+		(property "Reference" "R77"
 			(at 114.3 115.57 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4716,7 +4716,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "R81")
+					(reference "R77")
 					(unit 1)
 				)
 			)
@@ -4734,7 +4734,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "78c03f51-afdb-41d8-afb7-be1f5cb1b99e")
-		(property "Reference" "J20"
+		(property "Reference" "J15"
 			(at 95.25 97.79 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4810,7 +4810,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "J20")
+					(reference "J15")
 					(unit 1)
 				)
 			)
@@ -4828,7 +4828,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "7d9a0733-285a-4901-90e0-d3812489fc4b")
-		(property "Reference" "J17"
+		(property "Reference" "J12"
 			(at 55.88 128.27 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4904,7 +4904,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "J17")
+					(reference "J12")
 					(unit 1)
 				)
 			)
@@ -4922,7 +4922,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "80b839b4-c259-4c91-9bc3-151facd12d03")
-		(property "Reference" "J16"
+		(property "Reference" "J11"
 			(at 55.88 113.03 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4998,7 +4998,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "J16")
+					(reference "J11")
 					(unit 1)
 				)
 			)
@@ -5016,7 +5016,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "82c9b6e1-0c96-4c56-a5dd-41e3a1656c7c")
-		(property "Reference" "J15"
+		(property "Reference" "J10"
 			(at 55.88 97.79 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5092,7 +5092,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "J15")
+					(reference "J10")
 					(unit 1)
 				)
 			)
@@ -5110,7 +5110,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "8a84df91-5f09-4429-94f8-21a788e531fe")
-		(property "Reference" "R69"
+		(property "Reference" "R80"
 			(at 163.83 33.02 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5183,7 +5183,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "R69")
+					(reference "R80")
 					(unit 1)
 				)
 			)
@@ -5201,7 +5201,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "8b01e60e-1ab4-4958-9f67-e72c017e8bfb")
-		(property "Reference" "J11"
+		(property "Reference" "J22"
 			(at 259.08 30.48 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5280,7 +5280,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "J11")
+					(reference "J22")
 					(unit 1)
 				)
 			)
@@ -5298,7 +5298,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "8cef45de-0f8e-44ea-b001-48e90cdf41cf")
-		(property "Reference" "#PWR0147"
+		(property "Reference" "#PWR0128"
 			(at 106.68 124.46 0)
 			(hide yes)
 			(show_name no)
@@ -5359,7 +5359,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "#PWR0147")
+					(reference "#PWR0128")
 					(unit 1)
 				)
 			)
@@ -5377,7 +5377,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "8f200919-eaf7-40c2-901f-91ba978c6994")
-		(property "Reference" "#PWR0124"
+		(property "Reference" "#PWR0132"
 			(at 201.93 44.45 0)
 			(hide yes)
 			(show_name no)
@@ -5438,7 +5438,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "#PWR0124")
+					(reference "#PWR0132")
 					(unit 1)
 				)
 			)
@@ -5456,7 +5456,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "909116ba-7ee7-45c8-a623-a89577bc6a5f")
-		(property "Reference" "#PWR0143"
+		(property "Reference" "#PWR0124"
 			(at 67.31 139.7 0)
 			(hide yes)
 			(show_name no)
@@ -5517,7 +5517,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "#PWR0143")
+					(reference "#PWR0124")
 					(unit 1)
 				)
 			)
@@ -5535,7 +5535,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "94b3b189-1904-4cb1-9caf-5e8e5dbb0303")
-		(property "Reference" "J12"
+		(property "Reference" "J7"
 			(at 55.88 27.94 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5623,7 +5623,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "J12")
+					(reference "J7")
 					(unit 1)
 				)
 			)
@@ -5641,7 +5641,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "998c86f9-10c1-4938-9b01-f0b19be00106")
-		(property "Reference" "#PWR0142"
+		(property "Reference" "#PWR0123"
 			(at 67.31 124.46 0)
 			(hide yes)
 			(show_name no)
@@ -5702,7 +5702,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "#PWR0142")
+					(reference "#PWR0123")
 					(unit 1)
 				)
 			)
@@ -5814,7 +5814,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "9df8150e-83c5-4e17-9471-d428ecf8ecd3")
-		(property "Reference" "#PWR0137"
+		(property "Reference" "#PWR0135"
 			(at 270.51 44.45 0)
 			(hide yes)
 			(show_name no)
@@ -5875,7 +5875,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "#PWR0137")
+					(reference "#PWR0135")
 					(unit 1)
 				)
 			)
@@ -5893,7 +5893,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "a98c3dca-8e46-4925-8ca3-5e68d840e135")
-		(property "Reference" "J22"
+		(property "Reference" "J17"
 			(at 95.25 128.27 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5969,7 +5969,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "J22")
+					(reference "J17")
 					(unit 1)
 				)
 			)
@@ -5987,7 +5987,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "ac814242-e692-49af-8c0d-3baefba8108b")
-		(property "Reference" "R79"
+		(property "Reference" "R75"
 			(at 114.3 85.09 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6060,7 +6060,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "R79")
+					(reference "R75")
 					(unit 1)
 				)
 			)
@@ -6078,7 +6078,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "af74e811-3e31-4355-92ca-d28b40ef1fe7")
-		(property "Reference" "J8"
+		(property "Reference" "J19"
 			(at 190.5 30.48 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6157,7 +6157,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "J8")
+					(reference "J19")
 					(unit 1)
 				)
 			)
@@ -6175,7 +6175,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "b7e879ca-5504-489a-848e-f187b436846b")
-		(property "Reference" "#PWR0149"
+		(property "Reference" "#PWR0131"
 			(at 144.78 53.34 0)
 			(hide yes)
 			(show_name no)
@@ -6235,7 +6235,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "#PWR0149")
+					(reference "#PWR0131")
 					(unit 1)
 				)
 			)
@@ -6253,7 +6253,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "c0f77cdb-faca-4201-9962-96e03a0864ee")
-		(property "Reference" "J7"
+		(property "Reference" "J18"
 			(at 114.3 27.94 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6335,7 +6335,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "J7")
+					(reference "J18")
 					(unit 1)
 				)
 			)
@@ -6353,7 +6353,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "d24b73fe-4bf7-4d4b-8ecd-e35979fcc1ad")
-		(property "Reference" "#PWR0136"
+		(property "Reference" "#PWR0134"
 			(at 247.65 44.45 0)
 			(hide yes)
 			(show_name no)
@@ -6414,7 +6414,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "#PWR0136")
+					(reference "#PWR0134")
 					(unit 1)
 				)
 			)
@@ -6432,7 +6432,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "d74ebe52-57cf-465b-977a-74162cf53037")
-		(property "Reference" "J9"
+		(property "Reference" "J20"
 			(at 213.36 30.48 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6511,7 +6511,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "J9")
+					(reference "J20")
 					(unit 1)
 				)
 			)
@@ -6529,7 +6529,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "deeab616-d2ad-4284-aad1-78a4a51dd896")
-		(property "Reference" "#PWR0146"
+		(property "Reference" "#PWR0127"
 			(at 106.68 109.22 0)
 			(hide yes)
 			(show_name no)
@@ -6590,7 +6590,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "#PWR0146")
+					(reference "#PWR0127")
 					(unit 1)
 				)
 			)
@@ -6608,7 +6608,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "e46d34dd-15c6-4b89-84c6-5e4466b1fe50")
-		(property "Reference" "R74"
+		(property "Reference" "R68"
 			(at 74.93 85.09 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6681,7 +6681,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "R74")
+					(reference "R68")
 					(unit 1)
 				)
 			)
@@ -6699,7 +6699,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "e60b73a0-2d45-453c-a469-280576819708")
-		(property "Reference" "R73"
+		(property "Reference" "R67"
 			(at 74.93 69.85 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6772,7 +6772,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "R73")
+					(reference "R67")
 					(unit 1)
 				)
 			)
@@ -6790,7 +6790,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "ec8f83af-60f1-493b-9eee-5928524295c8")
-		(property "Reference" "#PWR0123"
+		(property "Reference" "#PWR0130"
 			(at 125.73 44.45 0)
 			(hide yes)
 			(show_name no)
@@ -6851,7 +6851,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "#PWR0123")
+					(reference "#PWR0130")
 					(unit 1)
 				)
 			)
@@ -6869,7 +6869,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "edca2b6a-c48b-4749-ab35-665751e29cbd")
-		(property "Reference" "#PWR0138"
+		(property "Reference" "#PWR0119"
 			(at 67.31 46.99 0)
 			(hide yes)
 			(show_name no)
@@ -6930,7 +6930,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "#PWR0138")
+					(reference "#PWR0119")
 					(unit 1)
 				)
 			)
@@ -7039,7 +7039,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "eff8a6d9-4d14-4e65-8b98-7541e9cbb03d")
-		(property "Reference" "#PWR0145"
+		(property "Reference" "#PWR0126"
 			(at 106.68 93.98 0)
 			(hide yes)
 			(show_name no)
@@ -7100,7 +7100,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "#PWR0145")
+					(reference "#PWR0126")
 					(unit 1)
 				)
 			)
@@ -7118,7 +7118,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "f5bc1495-ce37-45d0-b9d7-c0b273ea2712")
-		(property "Reference" "#PWR0141"
+		(property "Reference" "#PWR0122"
 			(at 67.31 109.22 0)
 			(hide yes)
 			(show_name no)
@@ -7179,7 +7179,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "#PWR0141")
+					(reference "#PWR0122")
 					(unit 1)
 				)
 			)
@@ -7197,7 +7197,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "f690e3c1-d0b8-49f7-87cc-633c757882eb")
-		(property "Reference" "R71"
+		(property "Reference" "R73"
 			(at 81.28 38.1 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7270,7 +7270,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "R71")
+					(reference "R73")
 					(unit 1)
 				)
 			)
@@ -7288,7 +7288,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "f9f5012d-3fe8-4caa-9bb3-cc4eb6730428")
-		(property "Reference" "#PWR0144"
+		(property "Reference" "#PWR0125"
 			(at 106.68 78.74 0)
 			(hide yes)
 			(show_name no)
@@ -7349,7 +7349,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "#PWR0144")
+					(reference "#PWR0125")
 					(unit 1)
 				)
 			)
@@ -7367,7 +7367,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "fc567160-e23f-4d35-9ba9-d0326d26e18f")
-		(property "Reference" "R80"
+		(property "Reference" "R76"
 			(at 114.3 100.33 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7440,7 +7440,7 @@
 		(instances
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/c88a3aea-288f-4e3b-8969-48f6103a456d"
-					(reference "R80")
+					(reference "R76")
 					(unit 1)
 				)
 			)
