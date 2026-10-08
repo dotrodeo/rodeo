@@ -41,16 +41,16 @@ Every pin on the 40-pin header is now spoken for. Rev A had seven unconnected
 | 3 | PC10 | `D2` | `DIG_2` | **satellite chain TX** (USART3) | `SAT_TX` |
 | 4 | PC9 | `D3` | `DIG_3` | **second codec reset** (10 kΩ pull-down) | `CODEC2_RST` |
 | 5–7 | PC8, PD2, PC12 | `D4`–`D6` | `DIG_4`–`DIG_6` | **SD card, 1-bit SDMMC** (D0, CMD, CLK) | `SD_D_0`, `SD_CMD`, `SD_CLK` |
-| 8 | PG10 | `D7` | unconnected | digital jack | `DIG_1` |
+| 8 | PG10 | `D7` | unconnected | I/O connector (digital only) | `DIG_1` |
 | 9–11 | PG11, PB4, PB5 | `D8`–`D10` | SPI1 (ADCs) | SPI1, to the expansion header | `SPI_SCK`, `SPI_MISO`, `SPI_MOSI` |
 | 12–13 | PB8, PB9 | `D11`, `D12` | I²C1 | I²C1, 4 taps, 2.2 kΩ pull-ups | `DAISY_SCL`, `DAISY_SDA` |
 | 14–15 | PB6, PB7 | `D13`, `D14` | MIDI (USART1) | MIDI (unchanged) | `MIDI_TX`, `MIDI_RX` |
 | 16–19 | — | — | audio in/out | onboard codec in/out (SAI1) | `AUDIO_IN_1/2`, `AUDIO_OUT_1/2` |
 | 20 | — | — | GND | audio ground, 0 Ω (R21) to `GND` at the Seed | `GNDA` |
-| 22 | PC0 | `D15`/`A0` | `DIG_7` | digital or analog jack | `DIG_2` |
-| 23 | PA3 | `D16`/`A1` | `DIG_8` | digital or analog jack | `DIG_3` |
-| 24–28 | PB1, PA7, PA6, PC1, PC4 | `D17`–`D21`/`A2`–`A6` | `DIG_9`–`DIG_12`, status LED | digital or analog jacks (LED removed) | `DIG_4`–`DIG_8` |
-| 29–30 | PA5, PA4 | `D22`, `D23` | unconnected | **CV header** (DAC 2, DAC 1) | `CV_DAC2`, `CV_DAC1` |
+| 22 | PC0 | `D15`/`A0` | `DIG_7` | I/O connector (digital or analog) | `DIG_2` |
+| 23 | PA3 | `D16`/`A1` | `DIG_8` | I/O connector (digital or analog) | `DIG_3` |
+| 24–28 | PB1, PA7, PA6, PC1, PC4 | `D17`–`D21`/`A2`–`A6` | `DIG_9`–`DIG_12`, status LED | I/O connectors, digital or analog (LED removed) | `DIG_4`–`DIG_8` |
+| 29–30 | PA5, PA4 | `D22`, `D23` | unconnected | **I/O connectors CV2/CV1** (DAC out or analog in) | `CV_DAC2`, `CV_DAC1` |
 | 31 | PA1 | `D24` | unconnected | **second codec MCLK** (SAI2) | `CODEC2_MCLK` |
 | 32 | PA0 | `D25` | ADC A chip-select | **second codec ADC data in** (SAI2 SD_B) | `CODEC2_SDOUT` |
 | 33 | PD11 | `D26` | ADC B chip-select | **second codec DAC data out** (SAI2 SD_A) | `CODEC2_SDIN` |
@@ -64,12 +64,13 @@ Every pin on the 40-pin header is now spoken for. Rev A had seven unconnected
 comes from its ADC. The SAI2 pins and directions are the ones Daisy Patch uses for
 its second codec (`rodeo-sdk/libDaisy/src/daisy_patch.cpp`).
 
-**Digital jacks: 8** (Rev A had 12). They are pins 8 and 22–28. All but pin 8
-(PG10) can also read analog through the Seed's own ADC (`A0`–`A6`), and the CV
-header's two pins can too (`A7`/`A8`). PB1 (pin 24) and PC1 (pin 27) share
-external-interrupt line 1, so don't plan both as interrupt-driven clock or gate
-inputs. Jack numbering is left to layout. Buttons are expected to move onto the
-satellite chain, so fewer jacks are needed than before.
+**General-purpose I/O: 10 connectors** (Rev A had 12 digital ones). They are
+pins 8 and 22–28 (`DIG_1`–`DIG_8`) plus the two DAC pins 29/30. All but pin 8
+(PG10) can also read analog through the Seed's own ADC (`A0`–`A8`). PB1 (pin 24)
+and PC1 (pin 27) share external-interrupt line 1, so don't plan both as
+interrupt-driven clock or gate inputs. Buttons are expected to move onto the
+satellite chain, so fewer are needed than before. See
+[Generic I/O connectors](#generic-io-connectors).
 
 ---
 
@@ -86,8 +87,22 @@ high (`611f48a`), but only once it is running. The ADC chip-selects (pins
 With the ADCs off the board (see [ADC expander](#adc-bank-moves-to-an-optional-spi-expander-board)),
 SPI1 only serves the expansion header: Rev A's J43, which had no chip-select. It
 gets a new reference designator; nets are `SPI_SCK`, `SPI_MISO`, `SPI_MOSI` and
-`SPI_EXT_CS`, plus `+3V3_D`, `+3V3_A` and GND. An off-the-shelf SPI OLED or the
-ADC expander board plugs in with a plain cable.
+`SPI_EXT_CS`, plus `+3V3_D`, `+3V3_A` and GND. It's a 7-pin JST SH
+(BM07B-SRSS-TB, C160393); pins 1–5 keep Rev A's J43 order:
+
+| Pin | Signal |
+|---|---|
+| 1 | `+3V3_D` |
+| 2 | GND |
+| 3 | `SPI_MOSI` (33 Ω at the Seed) |
+| 4 | `SPI_MISO` |
+| 5 | `SPI_SCK` (33 Ω at the Seed) |
+| 6 | `SPI_EXT_CS` (10 kΩ pull-up) |
+| 7 | `+3V3_A` (for the ADC expander's ratiometric pots) |
+
+The ADC expander board plugs in with a plain cable. An SPI OLED works too, but
+most need a data/command (DC) pin and often a reset pin beyond SPI; those would
+come from the generic I/O connectors.
 
 * 33 Ω series resistors where each line is driven: SCK and MOSI at the Seed.
   A device's MISO resistor belongs on that device.
@@ -176,7 +191,7 @@ It is not written yet.
 * **Plan:** write a small USART3 driver in `rodeo-sdk`, built on the HAL and on
   DMA streams libDaisy leaves free: `DMA1_Stream7` for RX and `DMA2_Stream5` for
   TX. `DMA2_Stream6`/`7` are also free; `DMA2_Stream0`/`1` belong to the DAC,
-  which the CV header uses, and `DMA1_Stream3`/`4` to SAI2. Ring frames are a
+  which the CV outputs use, and `DMA1_Stream3`/`4` to SAI2. Ring frames are a
   fixed length, so RX can be one normal (non-circular) DMA transfer of exactly a
   frame, finished by the DMA stream's own interrupt. The USART interrupt is
   never needed. The fallback is to patch the libDaisy submodule so each UART
@@ -200,7 +215,7 @@ board on the SPI expansion header. Its pins (32/33) go to the second codec, and
 * **Carried over from the Rev A review:** 1 MΩ pull-downs on every input (an
   unused channel otherwise reads noise; under 0.3% loading error with a 10 K
   pot); 330 nF + 1 µF on AVDD, 100 nF on DVDD and IOVDD; JST SH 3-pin pot
-  connectors wired 1 = supply, 2 = wiper, 3 = GND (matches `rodeo-potentiometer`).
+  connectors wired 1 = GND, 2 = wiper, 3 = supply (matches `rodeo-potentiometer`).
 * **New for the expander:** 100 nF from REFP0 to REFN0; 1 kΩ + 10 nF on each
   input (cable ESD and RF pickup); 33 Ω on each ADC's DOUT.
 * **Part:** Rev A's ADS114S08**B**IPBSR is down to 18 at JLC. The plain
@@ -219,7 +234,8 @@ board on the SPI expansion header. Its pins (32/33) go to the second codec, and
   (≈215 pF for 4 × 500 mm) need 100 kHz, or 1.5 kΩ for 400 kHz. The contract
   boots the bus at 100 kHz. Capacitances are estimates; measure rise time with
   the longest shipped cable.
-* 4 tap connectors on the one bus. No pins needed.
+* 4 tap connectors on the one bus. No pins needed. 4-pin JST SH (BM04B-SRSS-TB,
+  C160390), Rev A's J42 and Qwiic pinout: 1 GND, 2 `+3V3_D`, 3 SDA, 4 SCL.
 * No multiplexer footprint. There are only four hub addresses (0x30–0x33), the
   OLED (0x3C) and the MAX17048 fuel gauge (0x36), so nothing collides. An
   off-the-shelf Qwiic multiplexer can plug into a tap if that ever changes.
@@ -489,14 +505,40 @@ other.
 
 Every part has an `LCSC Part` field. All are stocked at JLC as of 2026-10-06.
 
-### CV header, pins 29/30 reserved
-The Seed's only DACs. They go to a small header (DAC 1, DAC 2, GND, `+3V3_D`, `+5V_A`)
-for a future CV daughterboard. The DACs only output 0–3.3 V, so useful CV ranges
-need an op-amp stage, and that belongs on the daughterboard. Both pins can also
-read analog voltages, so the same header can take CV inputs.
+### Generic I/O connectors
+Decided 2026-10-08, replacing a dedicated CV header. Every leftover Seed pin
+(`DIG_1`–`DIG_8` and both DACs) gets the same **3-pin JST SH** (BM03B-SRSS-TB,
+C160389), in the pinout `rodeo-potentiometer` and `rodeo-rotary-switch` already
+use, so those boards plug straight into any analog-capable connector:
+
+| Pin | Signal |
+|---|---|
+| 1 | GND |
+| 2 | signal, through 1 kΩ at the connector |
+| 3 | `+3V3_A` |
+
+| Silkscreen | Net | Seed pin | Use |
+|---|---|---|---|
+| `D1` | `DIG_1` | 8 | digital only |
+| `A1`–`A7` | `DIG_2`–`DIG_8` | 22–28 | digital or analog in |
+| `CV1`, `CV2` | `CV_DAC1`, `CV_DAC2` | 30, 29 | DAC out (0–3.3 V) or analog in |
+
+* **Supply `+3V3_A`**, the quiet LDO rail (U8, TPS7A2033), which otherwise only
+  feeds SPI header pin 7. Ten 10 kΩ pots draw ≈3 mA of its 300 mA; a shorted
+  panel cable hits the LDO's current limit and takes down only these connectors.
+* **1 kΩ series** protects the pins, two of which (PB1, PA7) aren't 5 V
+  tolerant. It doesn't affect internal pull-ups, pot readings or a DAC driving
+  an op-amp input.
+* **No 5 V on these connectors.** A 4-pin version would be the I²C taps'
+  connector, and an encoder hub plugged into it would take `+5V_A` on its SCL.
+* **CV outputs:** the DACs only reach 0–3.3 V, so useful CV ranges need an op-amp
+  stage. It belongs on the jack board, powered from the audio ribbon's `+5V_A`
+  (J4 pin 10), with `CV1`/`CV2` reaching it on their I/O connectors.
+* 2-pin `rodeo-button` boards no longer plug in directly; buttons move to the
+  satellite chain.
 
 ### Removed
-* **Status LED** (D5, R10). The Seed's own LED stays. Pin 28 becomes a jack.
+* **Status LED** (D5, R10). The Seed's own LED stays. Pin 28 becomes an I/O connector.
 * **The two on-board ADS114S08s,** their 24 pot connectors, pull-downs and
   chip-select pull-ups. They become the optional
   [ADC expander](#adc-bank-moves-to-an-optional-spi-expander-board).
@@ -532,7 +574,7 @@ so they come first.
 * **Headphone output with volume control**, probably as a daughterboard. Which
   amp, and whether volume is an analog pot after the amp (0 pins) or software.
   Optionally 1 pin for mute (pop suppression) and 1 for headphone detect, which
-  would come out of the 8 digital jacks. Its supply is `+5V_A`.
+  would come out of the generic I/O connectors. Its supply is `+5V_A`.
 * **1/4" vs 1/8" jacks on the jack board.** The jacks moved to a passive board
   on a ribbon with interleaved grounds (see
   [Audio interface](#audio-interface-and-jack-board)); its layout and jack size
