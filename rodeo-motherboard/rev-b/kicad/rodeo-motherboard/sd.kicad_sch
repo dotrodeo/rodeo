@@ -2126,17 +2126,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C13612"
-			(at 201.93 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" "http://www.onsemi.com/pub/Collateral/SRV05-4-D.PDF"
 			(at 184.15 87.63 0)
 			(hide yes)
@@ -2150,6 +2139,17 @@
 		)
 		(property "Description" "ESD Protection Diodes with Low Clamping Voltage, SOT-23-6"
 			(at 184.15 87.63 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C13612"
+			(at 201.93 99.06 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2798,17 +2798,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C25792"
-			(at 115.062 71.12 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 116.84 71.12 0)
 			(hide yes)
@@ -2822,6 +2811,17 @@
 		)
 		(property "Description" "Resistor"
 			(at 116.84 71.12 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C25792"
+			(at 115.062 71.12 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2970,17 +2970,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C25792"
-			(at 98.552 74.93 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 100.33 74.93 0)
 			(hide yes)
@@ -2994,6 +2983,17 @@
 		)
 		(property "Description" "Resistor"
 			(at 100.33 74.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C25792"
+			(at 98.552 74.93 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3142,17 +3142,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C25792"
-			(at 79.502 77.47 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 81.28 77.47 0)
 			(hide yes)
@@ -3166,6 +3155,17 @@
 		)
 		(property "Description" "Resistor"
 			(at 81.28 77.47 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C25792"
+			(at 79.502 77.47 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3235,17 +3235,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C25792"
-			(at 138.938 114.3 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 137.16 114.3 0)
 			(hide yes)
@@ -3259,6 +3248,17 @@
 		)
 		(property "Description" "Resistor"
 			(at 137.16 114.3 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C25792"
+			(at 138.938 114.3 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3482,17 +3482,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C25792"
-			(at 99.06 99.568 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 99.06 97.79 0)
 			(hide yes)
@@ -3506,6 +3495,17 @@
 		)
 		(property "Description" "Resistor"
 			(at 99.06 97.79 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C25792"
+			(at 99.06 99.568 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3573,17 +3573,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C25092"
-			(at 99.06 87.122 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 99.06 88.9 0)
 			(hide yes)
@@ -3597,6 +3586,17 @@
 		)
 		(property "Description" "Resistor"
 			(at 99.06 88.9 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C25092"
+			(at 99.06 87.122 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)

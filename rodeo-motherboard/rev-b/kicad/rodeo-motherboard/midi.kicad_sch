@@ -1793,17 +1793,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C107626"
-			(at 138.43 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" "https://toshiba.semicon-storage.com/info/TLP2310_datasheet_en_20220913.pdf?did=29657&prodName=TLP2310"
 			(at 138.43 86.36 0)
 			(hide yes)
@@ -1817,6 +1806,17 @@
 		)
 		(property "Description" "5-Mbps low-power non inverting photocouple, 3.75 kVrms, 2.7 - 5.5 Vdd, push-pull output"
 			(at 138.43 86.36 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C107626"
+			(at 138.43 99.06 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1971,17 +1971,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C160391"
-			(at 68.58 100.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 68.58 100.33 0)
 			(hide yes)
@@ -1994,6 +1983,17 @@
 			)
 		)
 		(property "Description" "Generic connector, single row, 01x05, script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 68.58 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C160391"
 			(at 68.58 100.33 0)
 			(hide yes)
 			(show_name no)
@@ -2150,17 +2150,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C25076"
-			(at 111.76 128.778 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 111.76 127 0)
 			(hide yes)
@@ -2174,6 +2163,17 @@
 		)
 		(property "Description" "Resistor"
 			(at 111.76 127 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C25076"
+			(at 111.76 128.778 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2241,17 +2241,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C25091"
-			(at 111.76 83.058 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 111.76 81.28 0)
 			(hide yes)
@@ -2265,6 +2254,17 @@
 		)
 		(property "Description" "Resistor"
 			(at 111.76 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C25091"
+			(at 111.76 83.058 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2334,17 +2334,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C81598"
-			(at 113.665 86.36 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" "https://www.vishay.com/docs/85748/1n4148w.pdf"
 			(at 118.11 86.36 0)
 			(hide yes)
@@ -2358,6 +2347,17 @@
 		)
 		(property "Description" "75V 0.15A Fast Switching Diode, SOD-123"
 			(at 118.11 86.36 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C81598"
+			(at 113.665 86.36 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2447,17 +2447,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C25076"
-			(at 111.76 119.888 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Datasheet" ""
 			(at 111.76 118.11 0)
 			(hide yes)
@@ -2471,6 +2460,17 @@
 		)
 		(property "Description" "Resistor"
 			(at 111.76 118.11 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C25076"
+			(at 111.76 119.888 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
