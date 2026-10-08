@@ -580,6 +580,75 @@ use, so those boards plug straight into any analog-capable connector:
 
 ---
 
+## Layout notes
+
+Gathered 2026-10-08 from the decisions above, so the PCB can be laid out from
+one list. Where a note came from a section, the reason is there.
+
+**Floorplan and ground**
+* **Two ends:** power entry (USB-C J2, battery J1, power board J3, SW1), the
+  charger and the switchers at one end; the Seed's audio pins, the CS4272, its
+  front end and the audio ribbon J4 at the other (the "audio corner"). The Seed
+  sits between them.
+* **One unbroken ground plane** under everything; no splits. Recommended: 4
+  layers with layer 2 solid GND. Return currents then stay under their own
+  traces, which is what keeps switcher and digital noise out of the audio
+  (hardware-map.md Issue 4).
+* **`GNDA`** (Seed pin 20) joins `GND` through R21 (0 Ω) right at the Seed, not
+  elsewhere.
+* **J4's grounds** (all ten odd pins) go straight into the plane at J4. That is
+  the jack board's single ground point; nothing else from the jack board
+  returns anywhere else.
+
+**Power**
+* **U1 BQ24073** dissipates 1–1.4 W while charging and running: solid ground
+  pour and thermal vias under its pad.
+* **U6 TPS63070 and U7 TPS563208:** smallest possible switch-node copper, input
+  caps at the pins, inductors (L1, L2) right next to them, and keep both away
+  from the audio corner.
+* **Ferrite branches** (FB1–FB4) with their caps at the point of use: FB2 and its
+  100 µF (C28) near the Seed's VIN pin, FB3's `+5V_A` caps near the CS4272 and
+  op-amps, FB4 near J7.
+* **Q1/U4 (battery protection):** `BATT_N` touches only J1, U4, Q1 and C6. Keep
+  it short and off the ground plane; board ground starts after Q1.
+
+**Seed and digital**
+* **Seed socket:** two 1×20 female headers in A1's holes; the Seed then sits
+  ≈8.5 mm plus its own height above the board. Check enclosure clearance.
+* **Series resistors go at the Seed (the driving end), not the connector:**
+  R69 (`SAT_TX`, 33 Ω), R71/R72 (SPI MOSI/SCK, 33 Ω), R63 (SD CLK, 22 Ω).
+* **SD socket (J6)** at a board edge reachable through the case, close to Seed
+  pins 5–7, with short, direct CLK/CMD/D0 traces. U13 (ESD) at the socket.
+* **USB (J2 → U2 → Seed pins 36/37):** route D+/D− as a 90 Ω differential pair,
+  short, U2 right at J2.
+* **CS4272 clocks and data** (Seed pins 31–35) short and away from the codec's
+  VCOM, FILT+ and analog pins.
+
+**Audio**
+* **CS4272 (U9):** VCOM and FILT+ caps at their pins, small value nearest
+  (datasheet §5.7); VA/VD/VL decoupling at each pin.
+* **C64, C72 (2.7 nF)** right at the CS4272's AIN pins.
+* **THS4521s (U10, U11):** 150 pF feedback caps and the VOCM cap tight to the
+  chip; inputs and outputs symmetric (differential).
+* **Output filters (U12 OPA2376):** keep each channel's Fig. 14 network compact;
+  its decoupling at the chip.
+* **Mute shunts Q3/Q4** right at R36/R37, R44/R45 and J4, so they short the
+  connector node.
+* **Seed audio pins 16–19** to J4 and R28/R29 by short routes, over solid ground.
+
+**Connectors and protection**
+* **ESD at the connector it protects:** U15 at J7 (flow-through: the signal runs
+  through pins 1→6 and 3→4), U2 at J2, U13 at J6.
+* **1 kΩ I/O resistors** (R73–R82) at their connectors (J13–J22).
+* **F1 (PTC)** between FB4's caps and J7.
+* **Silkscreen:**
+  * I/O connectors: `D1`, `A1`–`A7`, `CV1` (J22), `CV2` (J21).
+  * Label J7 (satellite chain) and J5 (MIDI) clearly: both are 5-pin JST SH.
+  * Battery J1: mark +. Hobby packs disagree on PH polarity.
+  * Pin 1 / key on J4 (IDC) and every JST.
+* **SW1** mounts with its body against the panel: the plunger clears a
+  ≈1.6 mm panel by only ≈3 mm.
+
 ## Open — audio and power
 
 These hang together through the grounding question. The bench tests in
