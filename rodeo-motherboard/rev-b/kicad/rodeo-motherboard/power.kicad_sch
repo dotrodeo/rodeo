@@ -9559,7 +9559,6 @@
 		(uuid "5b0be6fe-0cb3-4576-b256-b2758b4c6c15")
 		(property "Reference" "R12"
 			(at 234.95 20.32 90)
-			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9762,7 +9761,6 @@
 		(uuid "652ee5ae-c5a0-4945-8b8e-eb6ee2bdf048")
 		(property "Reference" "R13"
 			(at 245.11 41.91 90)
-			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
