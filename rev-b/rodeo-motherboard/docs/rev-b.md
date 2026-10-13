@@ -487,8 +487,10 @@ Power board (J2) ─ VIN 5 V ─ U2 BQ24073 ─ BATT_VCC ─ U5 TPS63070 ─ +5V
   battery has to come from firmware.
 * **A board with two inputs** (USB-C and barrel, say) carries its own source
   selection, e.g. the TPS2121 priority mux the motherboard used to have.
-* Reference boards to design: USB-C only (the default build), and barrel jack
-  plus USB-C data.
+* Reference boards, designed 2026-10-12:
+  [USB-C only](../../rodeo-power-usbc/README.md) (the default build) and
+  [USB-C + barrel jack](../../rodeo-power-barrel/README.md) (9–12 V adapter,
+  barrel first through a TPS2121, plus a 3 A 5 V output for LED strips).
 
 **Power switch (J3): JST SH 2-pin, BM02B-SRSS-TB (C160388).** Any latching panel
 switch on two wires: toggle, rocker or push button.
