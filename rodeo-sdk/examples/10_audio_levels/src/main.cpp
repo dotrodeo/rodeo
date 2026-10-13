@@ -1,7 +1,7 @@
 // Rodeo bench tool 10 — audio levels.
 //
 // Measures the Seed codec's full-scale levels on Rev A, to set the Rev B
-// front-end gains (rodeo-motherboard/docs/rev-b.md, "Audio interface and jack board").
+// front-end gains (rev-b/rodeo-motherboard/docs/rev-b.md, "Audio interface and jack board").
 //
 //   OUT L/R: a 1 kHz sine that steps every 5 s through 1.0, 0.5, 0.25 and
 //            0.125 of full scale, then repeats. Measure Vpp with a scope.

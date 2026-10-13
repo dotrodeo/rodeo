@@ -26,7 +26,7 @@ tools/kicad/.venv/bin/pip install -r tools/kicad/requirements.txt
 
 ```bash
 cd tools/kicad
-B=../../rodeo-motherboard/rev-b/kicad/rodeo-motherboard
+B=../../rev-b/rodeo-motherboard
 
 ./netlist.py parts $B/rodeo-motherboard.kicad_sch --sheet "/MIDI/"
 ./netlist.py nets  $B/rodeo-motherboard.kicad_sch --sheet "/SD Slot/"

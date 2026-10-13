@@ -11,9 +11,9 @@ The Daisy, Codec and Audio Interface sheets were drawn and reviewed on
 [SD](#sd-card-slot-native-mode-1-bit) and [MIDI](#midi-moves-to-a-daughterboard)
 sheets on 2026-10-07. Every placed part has an LCSC number, audited against JLC.
 Everything else is still a plan. The board in hand is Rev A, described in
-[`hardware-map.md`](hardware-map.md).
+[`hardware-map.md`](../../../rodeo-motherboard/docs/hardware-map.md).
 
-The Rev B KiCad project is `rodeo-motherboard/rev-b/kicad/rodeo-motherboard/`
+The Rev B KiCad project is `rev-b/rodeo-motherboard/`
 on the `rev-b` branch. Parts KiCad doesn't ship are in its project library,
 `lib/rodeo_jlc.*` (symbols, footprints and STEP models imported from LCSC, each
 checked against its datasheet).
@@ -676,7 +676,7 @@ one list. Where a note came from a section, the reason is there.
 ## Open — audio and power
 
 These hang together through the grounding question. The bench tests in
-[`hardware-map.md` Issue 4](hardware-map.md) decide how much of it is needed,
+[`hardware-map.md` Issue 4](../../../rodeo-motherboard/docs/hardware-map.md) decide how much of it is needed,
 so they come first.
 
 * **The hum on the line out that grows with each held key** (hardware-map.md

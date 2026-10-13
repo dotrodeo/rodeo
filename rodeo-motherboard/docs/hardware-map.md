@@ -220,7 +220,7 @@ header is the same USART1 as MIDI — only one of the two can be used at a time.
 ## Issues found
 
 > Everything planned for the next board, including the items below that it
-> resolves, is collected in [`rev-b.md`](rev-b.md).
+> resolves, is collected in [`rev-b.md`](../../rev-b/rodeo-motherboard/docs/rev-b.md).
 
 ### 1. RESOLVED AS BUILT — SPI MOSI/MISO were swapped in the layout
 

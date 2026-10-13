@@ -34,7 +34,7 @@ and the design docs that tie them together.
 
 ## Where the source-of-truth docs live
 
-- **Motherboard pin map / topology** → `rodeo-sdk/common/board.h` (generic board facts only) and [`rodeo-motherboard/docs/hardware-map.md`](rodeo-motherboard/docs/hardware-map.md) (verified against the PCB). The next revision's plan: [`rodeo-motherboard/docs/rev-b.md`](rodeo-motherboard/docs/rev-b.md).
+- **Motherboard pin map / topology** → `rodeo-sdk/common/board.h` (generic board facts only) and [`rodeo-motherboard/docs/hardware-map.md`](rodeo-motherboard/docs/hardware-map.md) (verified against the PCB). The next revision's plan: [`rev-b/rodeo-motherboard/docs/rev-b.md`](rev-b/rodeo-motherboard/docs/rev-b.md).
 - **Encoder-hub ↔ motherboard I²C register contract** → [`rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md`](rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md).
 - **ADC driver-library design** → [`rodeo-sdk/docs/RODEO_ADC_LIB_DESIGN.md`](rodeo-sdk/docs/RODEO_ADC_LIB_DESIGN.md).
 - **rodeo-001 control map** (which physical control does what) → [`rodeo-001/docs/RODEO_CONTROL_MAP.md`](rodeo-001/docs/RODEO_CONTROL_MAP.md). This is the instance contract shared by firmware, hardware, and the panel layout.
