@@ -6,8 +6,8 @@ adapter is plugged in it powers the motherboard; USB stays connected for data
 and takes over if the adapter is removed. The contract it meets is in
 [`rev-b.md`, "Power"](../rodeo-motherboard/docs/rev-b.md#power).
 
-Designed 2026-10-12. Mounting as the USB-C board: jacks and LEDs on one edge,
-two M2.5 standoffs.
+Designed 2026-10-12. Mounting as the USB-C board: jacks and LEDs on the I/O edge, the board on
+the [rear rail](../mounting/README.md) on M3 × 8 mm standoffs.
 
 ```
 Barrel 7–20 V ─ Q1 reverse-polarity P-FET ─ VBARREL ─┬─ U3 TPS54308 ─ +5V_BRL ─┐
@@ -95,12 +95,15 @@ The barrel side wins while `+5V_BRL` is above ≈0.88 × the USB voltage, so wit
 either source back-feeding the other.
 
 **J2, to the motherboard:** as on the USB-C board, but pins 1 and 6 are `VIN`
-(the mux output), not `VBUS`.
+(the mux output), not `VBUS`. Same orientation too: pin 1 at the right in KiCad.
 
 **LEDs:** as on the USB-C board, but R3/R4 go to `VIN`, so they light from
 either source.
 
-**Mounting:** two M2.5 holes.
+**Mounting:** M3 holes (`MountingHole:MountingHole_3.2mm_M3`) on rail row 2,
+35 mm from the I/O edge, behind the barrel jack (about 14 mm deep). Spacing
+along the edge a multiple of 10 mm; no copper within 3.5 mm of a hole. Check
+with `tools/kicad/grid_check.py rodeo-power-barrel.kicad_pcb --rear top`.
 
 ## Parts (in addition to the USB-C board's, with J2's pins 1/6 moved to VIN)
 

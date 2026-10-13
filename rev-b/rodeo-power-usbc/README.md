@@ -5,9 +5,9 @@ cabled to the motherboard's power input (J2). It carries 5 V, USB data for the
 Seed (USB-MIDI, audio, DFU flashing) and the charger's status LEDs. The
 contract it meets is in [`rev-b.md`, "Power"](../rodeo-motherboard/docs/rev-b.md#power).
 
-Designed 2026-10-12. Mounting: the jack and the LEDs sit on one edge and come
-through panel cut-outs; the board fixes to the panel or case on two M2.5
-standoffs.
+Designed 2026-10-12. Mounting: the jack and the LEDs sit on the I/O edge and come
+through panel cut-outs; the 40 × 20 mm board sits on the
+[rear rail](../mounting/README.md) on two M3 × 8 mm standoffs.
 
 ## Connections
 
@@ -35,7 +35,10 @@ standoffs.
 
 **J2, to the motherboard: JST PH 8-pin vertical, B8B-PH-K-S (C157974).**
 Same pin numbers as the motherboard's J2, so a standard PH cable (pin 1 to
-pin 1) connects them.
+pin 1) connects them. Pin 1 is at the right as seen in KiCad (I/O edge at the
+top). The motherboard's J2 faces the front of the case, so the cable leaves it
+forward and folds back to this board; with pin 1 here on that side, the cable
+arrives without a twist.
 
 | J2 pin | Net |
 |---|---|
@@ -59,7 +62,8 @@ that side at the board edge.
 ≈3 mA each. Both light only with USB plugged in: power good when the
 motherboard's charger accepts the input, red while the cell charges.
 
-**Mounting:** two M2.5 holes (`MountingHole:MountingHole_2.7mm_M2.5`).
+**Mounting:** two M3 holes (`MountingHole:MountingHole_3.2mm_M3`) at (5, 15)
+and (35, 15) mm from the I/O edge's left end: rail row 1, 30 mm apart.
 
 ## Parts
 
