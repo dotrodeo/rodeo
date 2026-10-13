@@ -255,9 +255,15 @@ second codec's reset.
   voices straight from the card is where 1-bit would pinch.
 * **Lost:** the Daisy bootloader's update-from-SD, which needs all four data
   lines. USB DFU still works.
-* The slot goes **on the motherboard**, close to pins 5–7, at a board edge
-  reachable through the case. 25–50 MHz SDMMC does not tolerate a ribbon to a
-  daughterboard well.
+* The slot goes **on the motherboard**, close to pins 5–7. 25–50 MHz SDMMC does
+  not tolerate a ribbon to a daughterboard well.
+* **The card is internal** (decided 2026-10-13): no panel access. Its contents
+  are loaded over USB instead, with Rodeo showing up on the computer as a USB
+  drive. That needs firmware: libDaisy carries ST's USB-device mass-storage class
+  in its middleware but doesn't build or use it (it uses only the host MSC class,
+  for USB sticks). A Rodeo build would add the MSC device class backed by the
+  SDMMC driver, composite with USB-MIDI and serial on the one port. Full-speed
+  USB moves roughly 0.5–1 MB/s, so a 64 MB sample set takes about a minute.
 * Pull-ups on CMD and on **all four** DAT lines at the socket, as the SD spec
   requires. DAT1–DAT3 stay on the card even though the Seed doesn't use them,
   and DAT3 also selects the card's mode at power-up. ESD protection on the
@@ -731,6 +737,9 @@ so they come first.
 
 ## Firmware consequences (when Rev B exists)
 
+* **SD over USB:** USB mass-storage device class on the SD card (composite with
+  USB-MIDI and serial), so samples load without opening the case. See
+  [SD card slot](#sd-card-slot-native-mode-1-bit).
 * `rodeo-sdk/common/board.h`: new map. 8 jacks on `seed::D7`, `D15`–`D21` (seven
   of them analog-capable as `A0`–`A6`); expansion-header chip-select on
   `seed::D0`; satellite chain on USART3, `seed::D2` (TX) / `seed::D1` (RX);
