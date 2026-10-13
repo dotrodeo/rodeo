@@ -1717,6 +1717,30 @@
 	)
 	(global_label "+3V3_D"
 		(shape input)
+		(at 161.29 105.41 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "4bd12e30-10cd-4545-ba4d-704a4d04a89e")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 161.29 95.1072 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+	)
+	(global_label "+3V3_D"
+		(shape input)
 		(at 81.28 73.66 90)
 		(fields_autoplaced yes)
 		(effects
@@ -2272,6 +2296,99 @@
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/f7d90c91-71b0-455d-9d40-9f9de2a206f4"
 					(reference "C71")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 161.29 109.22 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "44c7387a-3f46-4237-9eb5-9a5b686fa58e")
+		(property "Reference" "C74"
+			(at 165.1 107.9499 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "0.1u"
+			(at 165.1 110.4899 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+			(at 162.2552 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 161.29 109.22 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 161.29 109.22 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C1525"
+			(at 161.29 109.22 180)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "6a16aae6-c782-48e6-9030-66fafebc86ee")
+		)
+		(pin "2"
+			(uuid "9fec7c28-4225-472c-bb8a-1b197e4385af")
+		)
+		(instances
+			(project "rodeo-motherboard"
+				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/f7d90c91-71b0-455d-9d40-9f9de2a206f4"
+					(reference "C74")
 					(unit 1)
 				)
 			)
@@ -3525,6 +3642,84 @@
 			(project "rodeo-motherboard"
 				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/f7d90c91-71b0-455d-9d40-9f9de2a206f4"
 					(reference "R60")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 161.29 113.03 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "ea0a49b8-9605-413c-9d5f-616fb50dc4c0")
+		(property "Reference" "#PWR0138"
+			(at 161.29 119.38 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 161.29 118.11 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 161.29 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 161.29 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 161.29 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "e171dacc-7a9e-46e4-8cf8-d3142102d651")
+		)
+		(instances
+			(project "rodeo-motherboard"
+				(path "/b0783762-3587-4fed-8d02-bf2bc4e55dd3/f7d90c91-71b0-455d-9d40-9f9de2a206f4"
+					(reference "#PWR0138")
 					(unit 1)
 				)
 			)
