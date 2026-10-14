@@ -30,6 +30,11 @@ jobs:
   deploy:
     name: build and deploy
     runs-on: ubuntu-latest
+    # The Cloudflare credentials are environment secrets on the `deploy`
+    # environment, not repository secrets, so the job has to opt in by name —
+    # without this, secrets.CLOUDFLARE_API_TOKEN silently resolves to empty
+    # and wrangler fails as if no token were ever set.
+    environment: deploy
     permissions:
       contents: read
       deployments: write
