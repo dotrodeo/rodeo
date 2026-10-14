@@ -1,0 +1,75 @@
+name: claims
+
+# The loop-closer, and deliberately its own workflow.
+#
+# `on.paths` filters at the workflow level, not per job, so this cannot live
+# inside web.yml: a commit touching only the hardware tree would not trigger
+# that workflow at all, and the check that exists precisely for that commit
+# would never run.
+#
+# What it enforces: every public claim in web/src/data/boards.ts cites a real
+# line of evidence in the repo, and no claim marked shipped sits next to a
+# TODO. See web/docs/WEB_CLAIMS_AUDIT.md.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'rodeo-001/**'
+      - 'rodeo-002/**'
+      - 'rodeo-sdk/**'
+      - 'rodeo-motherboard/**'
+      - 'rodeo-encoder-hub/**'
+      - 'rodeo-encoder/**'
+      - 'rodeo-potentiometer/**'
+      - 'rodeo-button/**'
+      - 'web/src/data/**'
+      - '.github/workflows/claims.yml'
+  pull_request:
+    paths:
+      - 'rodeo-001/**'
+      - 'rodeo-002/**'
+      - 'rodeo-sdk/**'
+      - 'rodeo-motherboard/**'
+      - 'rodeo-encoder-hub/**'
+      - 'rodeo-encoder/**'
+      - 'rodeo-potentiometer/**'
+      - 'rodeo-button/**'
+      - 'web/src/data/**'
+      - '.github/workflows/claims.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: claims-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  claims:
+    name: claims still hold
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 1
+          sparse-checkout: |
+            web
+            rodeo-sdk
+            rodeo-motherboard/docs
+            rodeo-motherboard/kicad
+            rodeo-001/docs
+            rodeo-encoder-hub/firmware
+            rodeo-potentiometer
+            rodeo-encoder
+            rodeo-button
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install
+        working-directory: web
+        run: npm ci
+      - name: Verify evidence
+        working-directory: web
+        run: npm run claims

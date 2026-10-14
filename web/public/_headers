@@ -1,0 +1,22 @@
+# Cloudflare Pages headers.
+#
+# No Content-Security-Policy yet: Starlight and Pagefind both inject inline
+# script, and a CSP written without testing against the real search UI would
+# silently break it. Worth adding deliberately, with the search exercised.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), interest-cohort=()
+
+# Astro fingerprints these, so they can be cached hard.
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Pagefind's index is rebuilt each deploy and is not fingerprinted.
+/pagefind/*
+  Cache-Control: public, max-age=3600, must-revalidate
+
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable

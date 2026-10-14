@@ -1,0 +1,107 @@
+name: web
+
+# Deploys web/ to Cloudflare Pages.
+#
+# Uses GitHub Actions + `wrangler pages deploy` rather than Pages' own git
+# integration, because Pages cannot be told to skip submodules and would clone
+# libDaisy on every site build. See web/docs/WEB_ARCHITECTURE.md.
+#
+# The Pages project must be created as **Direct Upload**. A git-connected
+# project rejects `wrangler pages deploy`, and converting afterwards is awkward.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - '.github/workflows/web.yml'
+  pull_request:
+    paths:
+      - 'web/**'
+      - '.github/workflows/web.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: build and deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # submodules: false is already the default — stated because it is the
+          # whole reason this workflow exists instead of the Pages integration.
+          submodules: false
+          fetch-depth: 1
+          # The claim guardrail reads evidence out of the hardware tree, so
+          # those paths have to be present. Everything listed is a few MB; the
+          # submodules, gerbers and renders are not pulled.
+          sparse-checkout: |
+            web
+            rodeo-sdk
+            rodeo-motherboard/docs
+            rodeo-motherboard/kicad
+            rodeo-001/docs
+            rodeo-encoder-hub/firmware
+            rodeo-potentiometer
+            rodeo-encoder
+            rodeo-button
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        working-directory: web
+        run: npm ci
+
+      - name: Check
+        working-directory: web
+        # astro check + claim citations + asset budgets. A failure here stops
+        # the deploy rather than shipping copy that outran the hardware.
+        run: npm run check
+
+      - name: Build
+        working-directory: web
+        env:
+          # Gates the noindex tag in BaseHead. Anything other than 'production'
+          # ships noindex, so preview deployments cannot be indexed under the
+          # real brand.
+          SITE_ENV: ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }}
+        run: npm run build
+
+      - name: Deploy
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: web
+          command: >-
+            pages deploy dist
+            --project-name=rodeo-web
+            --branch=${{ github.head_ref || github.ref_name }}
+
+      - name: Comment the preview URL
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = `${{ steps.deploy.outputs.deployment-url }}`;
+            if (!url) return;
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `Preview: ${url}`,
+            });
+
