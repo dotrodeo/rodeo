@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+
+  // Rodeo's site deploys as a Worker with static assets, not as a Cloudflare
+  // Pages project. Pages now carries a migration banner in Cloudflare's own
+  // docs and the dashboard labels it the "legacy Pages workflow", so a site
+  // started in late 2026 belongs on Workers.
+  //
+  // Assets-only: there is no `main` and no `binding`, because nothing here
+  // runs server-side yet. When the /subscribe handler lands it becomes a real
+  // Worker script, and `main` plus an ASSETS binding get added then.
+  "name": "rodeo-web",
+  "compatibility_date": "2026-10-14",
+
+  "assets": {
+    "directory": "./dist",
+    // Astro emits a real 404 page; serve it rather than Cloudflare's.
+    "not_found_handling": "404-page"
+  },
+
+  // Per-PR preview URLs, produced by `wrangler versions upload`.
+  "preview_urls": true,
+
+  "observability": {
+    "enabled": true
+  }
+}

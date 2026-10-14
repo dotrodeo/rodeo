@@ -18,9 +18,9 @@ recorded alongside decisions, because several of these look arbitrary without th
 | Framework | **Astro 5**, `output: 'static'`, no adapter |
 | Styling | **Tailwind v4** via `@tailwindcss/vite` |
 | Content | Astro content collections (`glob()` loader), **MDX** for log posts |
-| Hosting | **Cloudflare Pages**, project type **Direct Upload** |
-| Deploy | **GitHub Actions** → `wrangler pages deploy` |
-| Dynamic | Exactly one Cloudflare Pages Function, at `/subscribe` |
+| Hosting | **Cloudflare Workers** with static assets (`web/wrangler.jsonc`) |
+| Deploy | **GitHub Actions** → `wrangler deploy` |
+| Dynamic | None yet — `/subscribe` becomes the Worker script when it lands |
 | Email | **Buttondown**, with RSS-to-email |
 | Node | 22 (pinned in `web/.nvmrc`) |
 
@@ -182,44 +182,44 @@ variant of any post's `hero` at 1200×630. Zero new dependencies, most of the va
 **PNG/JPEG** — Slack, iMessage and Twitter will not render AVIF, so these opt out of the
 AVIF pipeline.
 
-## Deploy: GitHub Actions, not the Pages git integration
+## Deploy: a Worker with static assets, from GitHub Actions
 
-The original case for Actions had two legs. Open-sourcing the repo removed one of them — with
-a public repo, granting Cloudflare's GitHub App read access costs nothing. **The remaining
-leg still decides it:** Pages supports a root directory and build watch paths, but it
-**cannot be told to skip submodules**, so every site build clones libDaisy for no reason.
+**Revised 2026-10-14.** This was planned for Cloudflare Pages. Cloudflare has
+since moved on: the dashboard's create flow offers Workers and relegates Pages
+to a "Need to use the legacy Pages workflow?" link, and the Pages docs carry a
+migration banner. A site starting now belongs on Workers.
 
-`.github/workflows/web.yml`:
+What that changes in practice:
 
-- Triggers: push to `main` and PRs, both filtered to `paths: ['web/**', '.github/workflows/web.yml']`, plus `workflow_dispatch`.
-- `actions/checkout@v4` with `submodules: false` (**already the default** — submodules must
-  be opted into, so this is free), `fetch-depth: 1`, and a sparse checkout of `web/`,
-  `rodeo-001/docs`, `rodeo-motherboard/docs`, `rodeo-001/firmware`,
-  `rodeo-motherboard/firmware`. The docs and firmware paths are needed by the claim
-  guardrail and are a few hundred KB. Checkout stays well under 5 MB.
-- `actions/setup-node@v4`, `node-version-file: web/.nvmrc`, `cache: npm`,
-  `cache-dependency-path: web/package-lock.json`.
-- `npm ci` → `npm run check` → `npm run build`, all `working-directory: web`.
-  `SITE_ENV=production` on `main`, `preview` otherwise.
-- `cloudflare/wrangler-action@v3`, `command: pages deploy dist --project-name=rodeo-web --branch=${{ github.head_ref || github.ref_name }}`,
-  `workingDirectory: web`. Secrets: `CLOUDFLARE_API_TOKEN` (scoped to *Cloudflare Pages:
-  Edit* on one account) and `CLOUDFLARE_ACCOUNT_ID`. Run from `web/`, `wrangler` picks up
-  `web/functions/` automatically — no `@astrojs/cloudflare` adapter, the site stays static.
-- `concurrency: { group: web-${{ github.ref }}, cancel-in-progress: true }`.
-- A second job `claims`, filtered to `paths: ['rodeo-001/**', 'rodeo-motherboard/**', 'web/src/data/specs.ts']`,
-  runs only `npm run claims`. **This is the loop-closer**: a firmware commit that invalidates
-  a marketing claim fails CI on that commit, not three weeks later.
+- `wrangler deploy`, not `wrangler pages deploy`.
+- Config lives in `web/wrangler.jsonc` rather than in command flags.
+- **No project to pre-create.** The Worker is created by the first deploy.
+- The API token needs **Workers Scripts · Edit**, not Pages · Edit.
+- PR previews come from `wrangler versions upload` with `preview_urls: true`,
+  which uploads a version and gives it a URL without promoting it.
+- `_headers` and `_redirects` still work — supported natively on Workers — so
+  `web/public/_headers` carries over unchanged.
+- The Worker is **assets-only**: no `main`, no ASSETS binding. Both get added
+  when the `/subscribe` handler lands and there is real server code.
+- `not_found_handling: "404-page"` serves Astro's 404 rather than Cloudflare's.
 
-Two gotchas worth planning for:
+Still deploying from Actions rather than Workers Builds, for the original
+reason: the checkout stays sparse and submodule-free. The repo carries libDaisy
+and DaisySP and the site has no use for either.
 
-- Create the Pages project as **Direct Upload**. A git-connected project rejects
-  `wrangler pages deploy`, and converting afterwards is tedious.
-- A required status check with a `paths` filter never runs on unrelated PRs and blocks merge
-  forever. Either don't mark it required, or add a no-op `web-gate` job that always succeeds.
+`actions/checkout@v4` with `submodules: false` (already the default) plus a
+sparse checkout of `web/` and the handful of hardware paths the claim guardrail
+reads evidence from — roughly 4 MB. `npm run check` gates the deploy, so copy
+that has outrun the hardware fails before it ships.
 
-Repo size, for the record, is **not** an argument here: the repo is ~2.8 MiB packed, and
-`.step` is ASCII that compresses roughly 10:1. The costs were the submodule and the missing
-path filter.
+`SITE_ENV` is set per branch and drives the `noindex` tag, so preview
+deployments cannot be indexed under the real brand. Astro does not expose
+arbitrary env vars the way it does `PUBLIC_` ones, so this was verified
+empirically rather than assumed.
+
+One gotcha worth keeping: a required status check with a `paths` filter never
+runs on unrelated PRs, and GitHub treats "never ran" as "not passed". Either
+don't mark these required, or add an always-passing gate job.
 
 ## Email capture
 
