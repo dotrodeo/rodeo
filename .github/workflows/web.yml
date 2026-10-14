@@ -96,6 +96,18 @@ jobs:
           workingDirectory: web
           command: deploy
 
+      # Token scope is the thing that goes wrong here, and the API error
+      # ("No access to the specified resource") does not say which permission
+      # is missing. Printing whoami on failure shows the account and the
+      # granted scopes, so the next attempt is a diagnosis rather than a guess.
+      - name: Diagnose token scope
+        if: failure()
+        working-directory: web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler whoami || true
+
       # PRs -> a preview version with its own URL, never promoted to
       # production. `preview_urls: true` in wrangler.jsonc enables these.
       - name: Upload preview version
