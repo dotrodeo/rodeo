@@ -80,6 +80,10 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
   .link {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 0.875rem;
+    /* Matches the site's leading-none: without it the bar's inherited
+       line-height makes this box 24.5px against the site's 18px, and the two
+       centre a pixel apart. */
+    line-height: 1;
     text-decoration: none;
     color: var(--palette-white);
     white-space: nowrap;

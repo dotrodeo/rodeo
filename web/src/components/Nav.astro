@@ -7,7 +7,7 @@ const path = Astro.url.pathname;
 // '/' would prefix-match everything, so the home item is matched exactly.
 const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
 
-const link = 'font-mono text-[14px] no-underline';
+const link = 'font-mono text-[14px] leading-none no-underline';
 ---
 
 <header class="min-h-16 border-b border-rule">
@@ -18,7 +18,7 @@ const link = 'font-mono text-[14px] no-underline';
     <ul class="m-0 hidden list-none items-center gap-6 p-0 md:flex">
       {
         site.nav.map((item) => (
-          <li>
+          <li class="flex">
             {isActive(item.href) ? (
               <span class={`${link} text-yellow`} aria-current="page">
                 {item.label}
