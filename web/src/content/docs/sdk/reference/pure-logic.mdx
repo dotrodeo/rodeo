@@ -1,0 +1,36 @@
+---
+title: Pure-logic headers
+description: The headers with no hardware in them — adc_convert, pot_ui, rodeo_dsp, rodeo_scope and rodeo_screen — which build on the host and are covered by GoogleTest.
+---
+
+Five headers contain no libDaisy and no hardware. They compile on your laptop,
+`common/tests/` exercises them there, and the firmware calls **these** functions
+rather than a parallel implementation that drifts from the tested one.
+
+| Header | What is in it |
+|---|---|
+| `adc_convert.h` | The ADC value pipeline, and `PotSpan` knob-travel calibration |
+| `pot_ui.h` | Panel logic: stepped pots, and "which knob is the user moving?" |
+| `rodeo_dsp.h` | `Smoother`, `OnePole`, `DcBlocker`, `Lfo`, `Rng` |
+| `rodeo_scope.h` | A triggered, normalised waveform for a small display |
+| `rodeo_screen.h` | 128×64 primitives: title bar, list rows, scroll bar |
+
+## Why this matters
+
+Most of what makes an instrument feel right is not hardware access — it is smoothing,
+stepping, hysteresis and display state. Keeping that in host-testable headers means
+it can be exercised without a board, and a change that breaks a knob's behaviour
+fails a test rather than being discovered by ear.
+
+```sh
+cd rodeo-sdk/common/tests
+make && ./build/tests
+```
+
+The rule the SDK follows: **anything that is just maths and state belongs here.**
+
+## Seeing screens without hardware
+
+`tools/screens/` renders an instrument's real OLED screens on your laptop, using the
+same `rodeo_screen.h` primitives the firmware uses. The screen you are looking at is
+drawn by the same code that will draw it on the panel.

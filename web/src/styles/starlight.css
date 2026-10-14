@@ -1,0 +1,106 @@
+/* Rodeo theming for Starlight.
+ *
+ * Starlight has its own design system driven by CSS custom properties, so the
+ * site's look is applied by remapping those rather than fighting its CSS with
+ * overrides. Values come from src/styles/tokens.css — this file must not
+ * invent colours. See web/docs/WEB_BRAND.md.
+ */
+
+@import './tokens.css';
+
+@import '@fontsource/barlow/400.css';
+@import '@fontsource/barlow/500.css';
+@import '@fontsource/barlow/600.css';
+@import '@fontsource/barlow/900.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource-variable/source-serif-4';
+
+:root,
+:root[data-theme='dark'],
+:root[data-theme='light'] {
+  /* Dark only: the light scale is mapped to the same values so that if the
+     theme ever flips — a stray data-theme, a cached preference — the page
+     stays legible instead of turning white-on-white. */
+  --sl-color-white: var(--palette-white);
+  --sl-color-gray-1: #e8e8e8;
+  --sl-color-gray-2: var(--palette-paper);
+  --sl-color-gray-3: var(--palette-gray);
+  --sl-color-gray-4: #6a6a6a;
+  --sl-color-gray-5: #3a3a3a;
+  --sl-color-gray-6: var(--palette-raised);
+  --sl-color-gray-7: #262626;
+  --sl-color-black: var(--palette-black);
+
+  --sl-color-accent: var(--palette-indigo);
+  --sl-color-accent-low: #2a2360;
+  --sl-color-accent-high: var(--palette-indigo-light);
+
+  --sl-color-text: var(--palette-paper);
+  --sl-color-text-accent: var(--palette-yellow);
+  --sl-color-bg: var(--palette-black);
+  --sl-color-bg-nav: var(--palette-black);
+  --sl-color-bg-sidebar: var(--palette-black);
+  --sl-color-bg-inline-code: var(--palette-raised);
+  --sl-color-hairline: var(--palette-rule);
+  --sl-color-hairline-light: var(--palette-rule);
+  --sl-color-hairline-shade: var(--palette-rule);
+
+  --sl-font: 'Barlow', system-ui, sans-serif;
+  --sl-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  color-scheme: dark;
+}
+
+/* Prose in docs reads like the build log: the serif for body, Barlow Black for
+   headings, mono for anything that names a pin, register or file. */
+.sl-markdown-content p,
+.sl-markdown-content li {
+  font-family: var(--font-read, 'Source Serif 4 Variable', Georgia, serif);
+  font-size: 17px;
+  line-height: 1.65;
+}
+
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.sl-markdown-content h4,
+.content-panel h1 {
+  font-family: 'Barlow', system-ui, sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.018em;
+  color: var(--palette-white);
+}
+
+.sl-markdown-content h2 {
+  text-transform: uppercase;
+}
+
+.sl-markdown-content code:not(pre code) {
+  color: var(--palette-cyan);
+  border: 1px solid var(--palette-rule);
+}
+
+.sl-markdown-content a {
+  color: var(--palette-yellow);
+}
+
+/* The site header: match the main nav's weight so moving between /log/ and
+   /sdk/ does not feel like two different sites. */
+.site-title {
+  font-family: 'Barlow', system-ui, sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+header.header {
+  border-bottom: 1px solid var(--palette-rule);
+}
+
+/* Starlight's sidebar nav is sentence case by default; the rest of the site
+   sets navigation in lowercase mono. */
+.sidebar-content a {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 13.5px;
+}

@@ -1,0 +1,28 @@
+---
+title: Versioning
+description: How rodeo-sdk is tagged and versioned, and how an app can refuse to build against an SDK that is too old.
+---
+
+Tags are **component first** — `rodeo-sdk/vX.Y.Z`, matching `rodeo-002/vX.Y.Z` — so a
+tag listing groups by component rather than interleaving unrelated numbers.
+
+The current release is **`rodeo-sdk/v0.1.0`**.
+
+`common/version.h` carries the number and the real changelog.
+
+## Requiring a minimum
+
+An app can refuse to build against an SDK that is too old, which is better than
+failing at a missing symbol or, worse, silently compiling against changed behaviour:
+
+```cpp
+#include "version.h"
+
+static_assert(RODEO_SDK_AT_LEAST(0, 1, 0), "this app needs a newer SDK");
+```
+
+## Why 0.x
+
+Deliberately. Two instruments in, the shape of the SDK is clear but the seams are not
+all settled — `version.h` names what is still unresolved and what stands between this
+and a 1.0. Until then, treat minor versions as able to move things.

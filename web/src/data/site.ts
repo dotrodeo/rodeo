@@ -24,7 +24,7 @@ export const site: {
   nav: [
     { href: '/', label: 'home' },
     { href: '/ecosystem/', label: 'boards' },
-    { href: '/sdk/', label: 'rodeo-sdk', pending: true },
+    { href: '/sdk/', label: 'rodeo-sdk' },
     { href: '/log/', label: 'build log' },
     { href: '/docs/', label: 'docs', pending: true },
   ],

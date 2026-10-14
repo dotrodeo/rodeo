@@ -2,6 +2,8 @@
 // collections need an explicit loader. Both are easy to get wrong from older docs.
 import { defineCollection, z } from 'astro:content';
 import { glob } from 'astro/loaders';
+import { docsLoader } from '@astrojs/starlight/loaders';
+import { docsSchema } from '@astrojs/starlight/schema';
 
 /**
  * Closed tag list. The highest-leverage line in this file: tag routes can be
@@ -47,4 +49,8 @@ const log = defineCollection({
       }),
 });
 
-export const collections = { log };
+// Starlight owns /sdk/ and brings its own collection. It sits alongside the
+// log collection rather than replacing the site's own routing.
+const docs = defineCollection({ loader: docsLoader(), schema: docsSchema() });
+
+export const collections = { log, docs };

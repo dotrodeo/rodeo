@@ -3,7 +3,7 @@ title: "Rodeo Web — Technical Architecture"
 tags: [rodeo, web, astro, cloudflare, decision-record]
 status: active
 created: 2026-09-17
-updated: 2026-09-17
+updated: 2026-10-14
 ---
 
 # Rodeo Web — Technical Architecture
@@ -79,6 +79,37 @@ web/
 with `build.format: 'directory'` (so canonical URLs, internal links, RSS and Pages'
 redirect behaviour all agree — a mismatch here produces duplicate-URL SEO noise),
 integrations `[mdx(), sitemap()]`, `vite: { plugins: [tailwindcss()] }`.
+
+## The SDK docs: Starlight at /sdk/
+
+`rodeo-sdk` documentation runs on **Starlight**, Astro's own docs framework, rather
+than being hand-built. It brings the sidebar, the table of contents, prev/next,
+code highlighting and Pagefind search for free, and because it is an Astro
+integration it lives in this project and ships in the same build and deploy.
+
+Three things had to be worked out, and are worth not rediscovering:
+
+- **Version pinning.** Current Starlight (0.42) peer-depends on Astro ^7; this site is
+  on Astro 5. **0.36.3** is the newest line on Astro ^5, paired with
+  `@astrojs/starlight-tailwind@4.0.1` (Tailwind ^4). Do not bump Starlight without
+  bumping Astro.
+- **No `routeBasePath` in 0.36.** The usual way to mount docs at a subpath does not
+  exist in this version. Routes come from the directory layout instead, so the pages
+  live under `src/content/docs/sdk/` and land on `/sdk/...`. `disable404Route: true`
+  stops Starlight claiming the site's own 404.
+- **Theming, not overriding.** Starlight is driven by CSS custom properties, so
+  `src/styles/starlight.css` remaps its variables onto the tokens rather than
+  fighting its CSS. Light and dark are mapped to the same values so a stray
+  `data-theme` cannot produce white-on-white, and `ThemeSelect` is overridden with an
+  empty component.
+
+`SiteTitle` is also overridden. Starlight's header otherwise links only to `/sdk/`,
+which leaves a visitor who lands on a docs page with no route back into the site.
+
+**One accepted build warning.** Pagefind spawns a child process and Node emits
+`DEP0190` about it. It comes from inside Starlight, not from this code, and cannot be
+fixed here — so the build is no longer strictly warning-free, and that one warning is
+the only permitted exception.
 
 ## Content model
 
