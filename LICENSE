@@ -1,0 +1,36 @@
+Rodeo is open source. Different parts of this repository use different licences,
+chosen so that the platform can be built into other products, open or closed, while
+the Rodeo designs themselves stay open.
+
+Copyright (c) 2026 Derek Wheelden
+
+HARDWARE: CERN-OHL-W-2.0
+  All hardware design files: KiCad schematics and PCBs, Gerbers, BOMs, placement
+  files, and mechanical/panel files (rodeo-motherboard/, rev-b/, rodeo-*/ board
+  folders, rodeo-panels/).
+  Full text: LICENSES/CERN-OHL-W-2.0.txt
+  Source location: https://github.com/derekdotrodeo/rodeo
+
+  In plain terms: anyone may build, modify and sell Rodeo hardware. If you modify
+  a Rodeo design and distribute it, your modified design files must be published
+  under the same licence. Products that use Rodeo boards, or connect to them
+  through their published interfaces, do not have to be open.
+
+SOFTWARE: MIT
+  Firmware and the Rodeo SDK: rodeo-sdk/ (excluding its third-party submodules),
+  rodeo-001/firmware/, rodeo-002/firmware/, rodeo-encoder-hub/firmware/, tools/.
+  Full text: LICENSES/MIT.txt
+
+DOCUMENTATION: CC-BY-SA-4.0
+  Documentation and written material: *.md files and docs/ folders.
+  Full text: LICENSES/CC-BY-SA-4.0.txt
+
+THIRD-PARTY COMPONENTS keep their own licences:
+  rodeo-sdk/libDaisy  (MIT, Electrosmith)
+  rodeo-sdk/DaisySP   (MIT, Electrosmith); its DaisySP-LGPL module is LGPL-2.1.
+  Builds that enable DaisySP-LGPL (e.g. rodeo-002's ReverbSc) include LGPL code.
+  Because the firmware source is published, those builds can be rebuilt and relinked
+  as the LGPL requires; keep DaisySP-LGPL's licence notice with any binary you ship.
+
+The name "Rodeo" and its logo are not covered by these licences. They may not be
+used to brand a derivative product.
