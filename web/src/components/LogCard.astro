@@ -1,0 +1,29 @@
+---
+import { formatDate, isoDate, urlOf, seqOf, type Post } from '../lib/posts';
+
+interface Props {
+  post: Post;
+}
+
+const { post } = Astro.props;
+const { title, date, summary, tags, draft } = post.data;
+---
+
+<article class="border-t border-rule py-7">
+  <a href={urlOf(post)} class="group flex flex-col gap-3 text-legend no-underline">
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-[12.5px] text-hardware">
+      <span class="text-indigo-text">{String(seqOf(post.id)).padStart(2, '0')}</span>
+      <time datetime={isoDate(date)}>{formatDate(date)}</time>
+      {
+        tags.map((t) => (
+          <span class="border border-rule px-2 py-0.5 text-[11.5px]">{t}</span>
+        ))
+      }
+      {draft && <span class="bg-yellow px-2 py-0.5 text-[11.5px] text-field">draft</span>}
+    </div>
+    <h2 class="display m-0 max-w-[760px] text-[clamp(24px,3.4vw,32px)] group-hover:text-yellow">
+      {title}
+    </h2>
+    <p class="copy-read m-0 max-w-[680px] text-[16.5px]">{summary}</p>
+  </a>
+</article>

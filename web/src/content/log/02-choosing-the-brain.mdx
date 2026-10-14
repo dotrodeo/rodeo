@@ -1,0 +1,106 @@
+---
+title: "Choosing the brain"
+date: 2026-10-04
+summary: "Why every Rodeo instrument runs on a Daisy Seed, why the first motherboard was built around the Seed2 DFM, and why I moved it back to the classic footprint partway through."
+tags: [pcb, process]
+draft: false
+---
+
+Every Rodeo instrument has the same heart: an **Electrosmith Daisy Seed** on the
+Rodeo motherboard. This log covers why I picked it, the version I started with, why I
+switched, and what the board around it ended up looking like.
+
+## Why the Daisy
+
+This one was easy. I'd been using the Daisy for a while, and the honest answer to
+"why the Daisy?" is "everything about it":
+
+- **The audio.** The codec is great, so the first thing you hear is clean.
+- **The software.** libDaisy and DaisySP are easy to use. DaisySP gives you
+  oscillators, filters, envelopes and effects out of the box, so you're making sound
+  on day one instead of writing DSP from scratch.
+- **The community.** Plenty of people have built on it already, so when something
+  breaks, someone has usually hit it before.
+- **I already knew it.** When the goal is an instrument, you don't want to also be
+  learning a new microcontroller.
+
+I'll probably do a Teensy version of the motherboard eventually. But the Daisy was the
+obvious place to start.
+
+## Starting on the DFM, and switching back
+
+The first version of the motherboard was designed around the **Daisy Seed2 DFM**, the
+production-friendly version of the module. It was the newer part, and it seemed like
+the right choice.
+
+It didn't stay that way. The DFM has some awkward requirements for a board like
+this one:
+
+- It wants **at least 6.1 V on VIN**. I wanted to power the whole board from USB-C,
+  which gives you 5 V. That's a real problem when your main power source is below
+  the minimum.
+- Its pins are split into **five 2×5 banks** instead of one familiar strip, and the
+  audio pins come out in a way that needed untangling on the carrier.
+
+Meanwhile I had a regular Seed sitting on my desk. The classic Seed footprint, a
+single 40-pin strip, is happy with 5 V on VIN and has simple single-ended audio. The
+newer Seed3 is pin-compatible with that footprint too. For this project the DFM just
+wasn't adding much value, so I moved the design back to the classic footprint.
+
+{/* IMAGE: Seed2 DFM vs classic Seed footprint, or the two KiCad versions side by side */}
+
+## Straight into KiCad
+
+There was no breadboard phase and no paper sketches. I started drawing directly in
+KiCad, and the first usable prototype was the **Rev A** board itself.
+
+It's a **4-layer board**. I'd made a few 4-layer boards before, and for something
+like this it's just the right way to do it. Routing is far easier with internal
+planes, and a board full of ADC traces benefits from solid ground underneath them.
+
+## What's on the motherboard
+
+Here's what Rev A ended up with:
+
+- **USB-C power.** 5 V from VBUS feeds the Daisy, and an on-board LDO makes a
+  separate, clean 3.3 V rail for everything else.
+- **24 analog inputs** from two external ADS114S08 ADC chips over SPI. Each input is
+  a 3-pin JST connector carrying 3.3 V, signal and ground, so a pot board just plugs
+  in. The pots and the ADC reference run from the *same* 3.3 V rail, so the readings
+  are ratiometric: if the rail drifts, the knobs don't.
+- **12 digital I/O** on 2-pin JSTs, for buttons and the like. Six of them can also
+  read analog, so they double as spare analog inputs.
+- **I²C, SPI and UART expansion headers.** The I²C bus is where the encoder hub and
+  the OLED connect.
+- **MIDI in and out** on 3.5 mm TRS (Type A), with an optocoupler on the input as the
+  MIDI spec calls for.
+- **Stereo line in and line out** on 3.5 mm jacks.
+- **A status LED**, because every bring-up starts with "is it alive?"
+
+{/* IMAGE: Rev A render or photo, with the connector groups labelled */}
+
+## Why JST cables, everywhere
+
+The whole point of Rodeo is that you don't have to wire controls by hand, so the
+cable choice mattered. I went with plain JST cables between the motherboard and
+every control board, not ribbon cables or board-to-board headers.
+
+The reason is that I want Rodeo to be **completely interface-agnostic.** The
+motherboard doesn't know or care where the controls are. Put them right next to it
+and you've got a tiny portable synth. Spread them across a huge panel and you've got
+a giant one. The only thing that changes is how long the cables are.
+
+That choice is something I'm open to rethinking for Rev B. But it's the reason Rodeo
+looks the way it does.
+
+## If I could tell day-one me one thing
+
+**Pay very close attention to JST orientation.** It's genuinely confusing: which end
+is pin 1, whether a cable is straight or reversed, and what the vendor's label
+actually means. It caught me later on. One harness got built the wrong way round,
+and that's a story for a future log.
+
+---
+
+**Next:** twenty-four knobs on one microcontroller. A closer look at the analog
+surface.

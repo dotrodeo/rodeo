@@ -1,0 +1,98 @@
+---
+title: "I set out to build a synth. I ended up building a platform."
+date: 2026-10-04
+summary: "Rodeo began in April 2026 with one question: could I build a real synth? Halfway through designing the carrier board I realised I was building something any instrument could sit on."
+tags: [process]
+draft: false
+---
+
+Rodeo started around April 2026 with a simple, slightly selfish question: *could I
+build a real synth?*
+
+Not a toy, not a mini synth that fits in a pocket. A full-size desktop instrument with
+proper knobs spaced far enough apart that you can actually play it.
+
+## Where I was coming from
+
+This wasn't my first time with electronics. Last year I built a small five-module
+Eurorack system: VCO, VCA, filter, envelope and sequencer. I'd also designed a few
+boards of my own, including a Pomodoro timer, and I'd been deep in another project,
+Buddy System, which had just reached a working prototype.
+{/* TODO(Derek): one line on what Buddy System is, or a link */}
+
+Rodeo began as a break from Buddy System. I wanted to work on something different
+and finally build an instrument. It didn't stay a side project for long. It became
+the main thing.
+
+I never seriously considered buying a synth instead. Buying one was never the point.
+This was a DIY project, and I was doing it because building things is fun.
+
+## The problem with "full-size"
+
+As soon as you say "full-size desktop synth", you run into a cost problem. A board
+big enough to hold every knob and jack of a real instrument is an expensive board.
+Most of that area is just there to keep the controls apart, and you pay for every
+square centimetre of it.
+
+The usual answer is panel-mounted controls: a small main board, with pots, encoders
+and buttons mounted to the enclosure and wired back to it. That works, but it means
+a *lot* of soldering and point-to-point wiring, and honestly I don't enjoy that part.
+Hand-wiring twenty-odd pots is tedious, and every joint is another place for a fault
+to hide.
+
+So the first version of the idea was small. Instead of wiring every control by hand,
+each control would sit on its own little **satellite board**, and every satellite
+would plug into a **central hub** with a standard JST cable. No soldering at the
+panel. Just plug them in.
+
+## The moment it turned into something else
+
+I knew from the start that the Daisy Seed (more on that in the next log) couldn't read
+as many knobs as I wanted on its own. So I started designing a carrier board around
+it with two extra ADC chips. Then, because they were basically free to add, I broke
+out a bank of digital signals too. Then expansion headers.
+
+About halfway through that design I realised what I actually had. It wasn't a board
+for *my* synth. It was a board for *any* synth, or a pedal, or anything else that
+takes audio in, turns some knobs and sends audio out. The hub didn't care what was
+plugged into it. The satellites didn't care which instrument they ended up in.
+
+That's when "one synth" became **a motherboard, a family of plug-in control boards,
+and instruments built by combining them.** The synth I set out to build became the
+first *instance*, called rodeo-001, rather than the whole project.
+
+{/* IMAGE: early KiCad screenshot of the motherboard, mid-design */}
+
+## What Rodeo is
+
+The one-sentence pitch hasn't changed since then:
+
+> **Rodeo is a flexible, plug-and-play modular platform for building digital audio devices.**
+
+It's for the synth DIY community, for pedal builders, and for anyone who wants to
+experiment with digital audio. I especially want it to work for people who *aren't*
+comfortable with a soldering iron yet, or who are new to electronics. If you can plug
+in a cable, you should be able to build an instrument.
+
+## The rules I set myself
+
+I set myself one main rule early on, and everything else follows from it: **the user
+experience matters.** Rodeo should be:
+
+- **Intuitive.** You shouldn't need the manual to get a sound out of it.
+- **Predictable.** The same control does the same thing, every time.
+- **Well-documented.** If something isn't obvious, it's written down.
+
+Each instrument also gets its own design rules on top of that. rodeo-001's rule, for
+example, was *no hidden controls*: every parameter has its own knob. But those three
+are the platform's rules.
+
+## Oh, and the name
+
+I was building a portfolio site and needed a cheap domain. `derek.rodeo` was the
+cheapest one I could find. I've been calling things Rodeo ever since.
+
+---
+
+**Next:** choosing the brain. Why the Daisy Seed, and why I started on one version
+of it and switched to another partway through.

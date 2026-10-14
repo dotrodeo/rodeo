@@ -1,0 +1,57 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Eyebrow from '../../components/Eyebrow.astro';
+import LogCard from '../../components/LogCard.astro';
+import CtaBand from '../../components/CtaBand.astro';
+import { getPosts, getTags } from '../../lib/posts';
+
+const posts = await getPosts();
+const tags = await getTags();
+---
+
+<BaseLayout
+  title="Build log"
+  description="Designing an open-source synthesizer platform in the open — including the parts that went wrong."
+>
+  <section class="wrap flex flex-col gap-4 py-14">
+    <Eyebrow>Build log</Eyebrow>
+    <h1 class="display m-0 max-w-[760px] text-[clamp(42px,7vw,64px)]">
+      Building it in the open
+    </h1>
+    <p class="copy-read m-0 max-w-[620px]">
+      Notes from designing an open-source synthesizer platform — the decisions, the boards, and
+      the parts that went wrong. Every entry goes out as one email.
+    </p>
+    <div class="mt-2 flex flex-wrap items-center gap-3">
+      <a
+        href="/rss.xml"
+        class="border border-rule px-3 py-1.5 font-mono text-[12.5px] text-legend no-underline hover:border-yellow hover:text-yellow"
+        >RSS</a
+      >
+      {
+        tags.map((t) => (
+          <a
+            href={`/log/tags/${t.tag}/`}
+            class="border border-rule px-3 py-1.5 font-mono text-[12.5px] text-hardware no-underline hover:border-yellow hover:text-yellow"
+          >
+            {t.tag} <span class="text-[11px]">{t.count}</span>
+          </a>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="wrap pb-16">
+    {posts.map((post) => <LogCard post={post} />)}
+    {
+      posts.length === 0 && (
+        <p class="copy-tech m-0 border-t border-rule py-8 text-[15px]">No entries yet.</p>
+      )
+    }
+  </section>
+
+  <CtaBand
+    heading="Follow along?"
+    body="Every build-log entry goes out as one email, roughly monthly, and you will hear about the Kickstarter here first."
+  />
+</BaseLayout>

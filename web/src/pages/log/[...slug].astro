@@ -1,0 +1,175 @@
+---
+import { render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Eyebrow from '../../components/Eyebrow.astro';
+import CtaBand from '../../components/CtaBand.astro';
+import { getPosts, slugOf, urlOf, seqOf, formatDate, isoDate, type Post } from '../../lib/posts';
+
+export async function getStaticPaths() {
+  const posts = await getPosts();
+  // Ordered newest-first, so "next" is the later post and "previous" the earlier.
+  return posts.map((post, i) => ({
+    params: { slug: slugOf(post.id) },
+    props: { post, newer: posts[i - 1] ?? null, older: posts[i + 1] ?? null },
+  }));
+}
+
+interface Props {
+  post: Post;
+  newer: Post | null;
+  older: Post | null;
+}
+
+const { post, newer, older } = Astro.props;
+const { Content } = await render(post);
+const { title, date, updated, summary, tags, draft } = post.data;
+---
+
+<BaseLayout title={title} description={summary}>
+  <div class="wrap">
+    <p class="pt-6 font-mono text-[13px] text-hardware">
+      <a href="/log/" class="text-hardware no-underline hover:text-yellow">build log</a>
+      <span class="px-1">/</span>{slugOf(post.id)}
+    </p>
+
+    <article class="flex flex-col gap-8 pt-8">
+      <header class="flex flex-col gap-4">
+        <Eyebrow>Entry {String(seqOf(post.id)).padStart(2, '0')}</Eyebrow>
+        <h1 class="display m-0 max-w-[840px] text-[clamp(34px,5.6vw,56px)]">{title}</h1>
+        <div
+          class="flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-[12.5px] text-hardware"
+        >
+          <time datetime={isoDate(date)}>{formatDate(date)}</time>
+          {updated && <span>updated {formatDate(updated)}</span>}
+          {
+            tags.map((t) => (
+              <a
+                href={`/log/tags/${t}/`}
+                class="border border-rule px-2 py-0.5 text-[11.5px] text-hardware no-underline hover:border-yellow hover:text-yellow"
+              >
+                {t}
+              </a>
+            ))
+          }
+          {draft && <span class="bg-yellow px-2 py-0.5 text-[11.5px] text-field">draft</span>}
+        </div>
+      </header>
+
+      <div class="post max-w-[680px]">
+        <Content />
+      </div>
+    </article>
+
+    <nav class="flex flex-col gap-4 border-t border-rule py-10 sm:flex-row sm:justify-between">
+      {
+        older ? (
+          <a href={urlOf(older)} class="max-w-[320px] text-legend no-underline hover:text-yellow">
+            <span class="block font-mono text-[12px] text-hardware">← Earlier</span>
+            <span class="display text-[16px]">{older.data.title}</span>
+          </a>
+        ) : (
+          <span />
+        )
+      }
+      {
+        newer && (
+          <a
+            href={urlOf(newer)}
+            class="max-w-[320px] text-legend no-underline hover:text-yellow sm:text-right"
+          >
+            <span class="block font-mono text-[12px] text-hardware">Later →</span>
+            <span class="display text-[16px]">{newer.data.title}</span>
+          </a>
+        )
+      }
+    </nav>
+  </div>
+
+  <CtaBand
+    heading="Follow along?"
+    body="Every build-log entry goes out as one email, roughly monthly, and you will hear about the Kickstarter here first."
+  />
+</BaseLayout>
+
+<style>
+  /* Long-form reading. Scoped here rather than global so the reading measure
+     and rhythm only apply to post bodies. */
+  .post :global(p) {
+    font-family: var(--font-read);
+    color: var(--color-legend-prose);
+    font-size: 18px;
+    line-height: 1.65;
+    margin: 0 0 1.35em;
+  }
+  .post :global(h2) {
+    font-family: var(--font-display);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.018em;
+    line-height: 1.05;
+    font-size: 28px;
+    color: var(--color-legend);
+    margin: 2.2em 0 0.7em;
+  }
+  .post :global(h3) {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 19px;
+    color: var(--color-legend);
+    margin: 1.8em 0 0.5em;
+  }
+  .post :global(ul),
+  .post :global(ol) {
+    font-family: var(--font-read);
+    color: var(--color-legend-prose);
+    font-size: 18px;
+    line-height: 1.6;
+    margin: 0 0 1.35em;
+    padding-left: 1.3em;
+  }
+  .post :global(li) {
+    margin-bottom: 0.5em;
+  }
+  .post :global(strong) {
+    color: var(--color-legend);
+    font-weight: 600;
+  }
+  .post :global(a) {
+    color: var(--color-yellow);
+  }
+  .post :global(blockquote) {
+    border-left: 2px solid var(--color-yellow);
+    background: var(--color-field-raised);
+    margin: 1.8em 0;
+    padding: 1em 1.4em;
+  }
+  .post :global(blockquote p:last-child) {
+    margin-bottom: 0;
+  }
+  .post :global(code) {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    color: var(--color-cyan);
+  }
+  .post :global(pre) {
+    background: var(--color-field-raised);
+    border: 1px solid var(--color-rule);
+    padding: 1.1em 1.3em;
+    overflow-x: auto;
+    margin: 0 0 1.5em;
+  }
+  .post :global(pre code) {
+    color: var(--color-legend-prose);
+  }
+  .post :global(hr) {
+    border: 0;
+    border-top: 1px solid var(--color-rule);
+    margin: 2.5em 0;
+  }
+  .post :global(img) {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 0 0 1.5em;
+  }
+</style>

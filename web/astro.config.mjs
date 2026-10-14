@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
+import mdx from '@astrojs/mdx';
 import tailwindcssPlugin from '@tailwindcss/vite';
 
 // Astro and @tailwindcss/vite currently resolve different copies of Vite's
@@ -17,6 +18,6 @@ export default defineConfig({
   output: 'static',
   trailingSlash: 'always',
   build: { format: 'directory' },
-  integrations: [sitemap()],
+  integrations: [mdx(), sitemap()],
   vite: { plugins: vitePlugins },
 });
