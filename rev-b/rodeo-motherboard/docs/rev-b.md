@@ -701,11 +701,13 @@ so they come first.
   amp, and whether volume is an analog pot after the amp (0 pins) or software.
   Optionally 1 pin for mute (pop suppression) and 1 for headphone detect, which
   would come out of the generic I/O connectors. Its supply is `+5V_A`.
-* **1/4" vs 1/8" jacks on the jack board.** The jacks moved to a passive board
-  on a ribbon with interleaved grounds (see
-  [Audio interface](#audio-interface-and-jack-board)); its layout and jack size
-  are still open. All eight audio signals are single-ended, so a 1/4" TRS jack
-  would not be balanced on its own.
+* **1/4" vs 1/8" jacks on the jack board.** Decided 2026-10-14: two variants
+  of one circuit, four stereo TRS jacks each (Seed out, codec out, Seed in,
+  codec in), with ESD diodes on every contact and series R plus clamp on every
+  input. The 3.5 mm board is designed in
+  [`rodeo-audio-3.5mm`](../../rodeo-audio-3.5mm/README.md); the 1/4" board
+  follows with hand-soldered jacks, since JLC stocks no right-angle 1/4" PCB
+  jacks. All eight signals are single-ended, so a 1/4" TRS jack is not balanced.
 * **Seed input impedance** is not measured yet. It decides how much the 100 Ω
   series resistors and any jack-board protection load the Seed's inputs.
 
