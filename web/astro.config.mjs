@@ -51,7 +51,8 @@ export default defineConfig({
       // Dark only; the toggle is overridden with an empty component.
       components: {
         ThemeSelect: './src/components/starlight/ThemeSelect.astro',
-        SiteTitle: './src/components/starlight/SiteTitle.astro',
+        Header: './src/components/starlight/Header.astro',
+        MobileMenuFooter: './src/components/starlight/MobileMenuFooter.astro',
       },
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/derekdotrodeo/rodeo' },

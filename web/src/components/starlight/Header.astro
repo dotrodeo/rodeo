@@ -1,0 +1,127 @@
+---
+// Starlight's header replaced with the site's own, so /sdk/ does not look like
+// a different product. Mirrors src/components/Nav.astro: wordmark left,
+// lowercase mono nav right, yellow for the current section.
+//
+// Safe to replace wholesale because the mobile sidebar toggle is rendered by
+// PageFrame, not by Header — docs navigation on a phone is unaffected. Site
+// links are added to the mobile menu separately (MobileMenuFooter).
+//
+// Styling is plain CSS against the --palette-* tokens rather than Tailwind
+// utilities: Starlight pages do not load the site's global.css, so the
+// semantic @theme colours are not available here.
+import Search from 'virtual:starlight/components/Search';
+import SocialIcons from 'virtual:starlight/components/SocialIcons';
+import { site } from '../../data/site';
+
+const path = Astro.url.pathname;
+const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
+---
+
+<div class="rodeo-header">
+  <a href="/" class="wordmark">Rodeo</a>
+
+  <div class="search"><Search /></div>
+
+  <nav class="links" aria-label="Site">
+    {
+      site.nav.map((item) =>
+        isActive(item.href) ? (
+          <span class="link current" aria-current="page">
+            {item.label}
+          </span>
+        ) : item.pending ? (
+          <span class="link pending" title="Coming soon">
+            {item.label}
+          </span>
+        ) : (
+          <a class="link" href={item.href}>
+            {item.label}
+          </a>
+        )
+      )
+    }
+  </nav>
+
+  <div class="social"><SocialIcons /></div>
+</div>
+
+<style>
+  .rodeo-header {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    height: 100%;
+    max-width: 1240px;
+    margin-inline: auto;
+    width: 100%;
+  }
+
+  .wordmark {
+    font-family: 'Barlow', system-ui, sans-serif;
+    font-weight: 900;
+    font-size: 1.625rem;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    color: var(--palette-white);
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+  .wordmark:hover {
+    color: var(--palette-yellow);
+  }
+
+  .links {
+    display: none;
+    align-items: center;
+    gap: 1.5rem;
+  }
+  .link {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 0.875rem;
+    text-decoration: none;
+    color: var(--palette-white);
+    white-space: nowrap;
+  }
+  a.link:hover {
+    color: var(--palette-yellow);
+  }
+  .link.current {
+    color: var(--palette-yellow);
+  }
+  .link.pending {
+    color: var(--palette-gray);
+  }
+
+  /* The spacer: search takes the slack so the nav is pushed hard right, where
+     it sits on every other page. On mobile the nav is hidden and search simply
+     fills the bar. */
+  .search {
+    flex-grow: 1;
+    display: flex;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+
+  /* Rendered here because the config declares `social`; without it the GitHub
+     link would silently vanish along with Starlight's own header. */
+  .social {
+    display: none;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  @media (min-width: 50rem) {
+    .social {
+      display: flex;
+    }
+    .links {
+      display: flex;
+    }
+    .search {
+      justify-content: flex-start;
+      max-width: 22rem;
+    }
+  }
+</style>

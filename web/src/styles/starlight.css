@@ -88,15 +88,6 @@
   color: var(--palette-yellow);
 }
 
-/* The site header: match the main nav's weight so moving between /log/ and
-   /sdk/ does not feel like two different sites. */
-.site-title {
-  font-family: 'Barlow', system-ui, sans-serif;
-  font-weight: 900;
-  letter-spacing: -0.01em;
-  text-transform: uppercase;
-}
-
 header.header {
   border-bottom: 1px solid var(--palette-rule);
 }

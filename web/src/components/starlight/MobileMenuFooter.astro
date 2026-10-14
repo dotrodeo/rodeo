@@ -1,0 +1,55 @@
+---
+// Below 50rem the site links are hidden from the header, so they live at the
+// foot of Starlight's own mobile menu instead of being unreachable.
+import { site } from '../../data/site';
+
+const path = Astro.url.pathname;
+const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
+---
+
+<div class="rodeo-mobile-links">
+  <p class="label">Rodeo</p>
+  {
+    site.nav.map((item) =>
+      item.pending ? (
+        <span class="row pending">{item.label}</span>
+      ) : (
+        <a class={`row${isActive(item.href) ? ' current' : ''}`} href={item.href}>
+          {item.label}
+        </a>
+      )
+    )
+  }
+</div>
+
+<style>
+  .rodeo-mobile-links {
+    border-top: 1px solid var(--palette-rule);
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+  }
+  .label {
+    font-family: 'Barlow', system-ui, sans-serif;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.75rem;
+    color: var(--palette-indigo-light);
+    margin: 0 0 0.5rem;
+  }
+  .row {
+    display: block;
+    padding: 0.6rem 0;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 0.875rem;
+    color: var(--palette-white);
+    text-decoration: none;
+    border-top: 1px solid var(--palette-rule);
+  }
+  .row.current {
+    color: var(--palette-yellow);
+  }
+  .row.pending {
+    color: var(--palette-gray);
+  }
+</style>
