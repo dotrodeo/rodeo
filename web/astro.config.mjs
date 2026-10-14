@@ -28,6 +28,24 @@ export default defineConfig({
       description:
         'Driver libraries and bring-up examples for the Rodeo motherboard — the ADC surface, the encoder hubs, and the pure-logic headers.',
       customCss: ['./src/styles/starlight.css'],
+      expressiveCode: {
+        // Starlight's default syntax theme is a Material-ish purple/orange set
+        // that has nothing to do with this palette, and its code surface sits
+        // 1.11:1 from the page so blocks never detach. Everything below is
+        // legibility and separation, not decoration.
+        themes: ['github-dark-default'],
+        styleOverrides: {
+          borderRadius: '0',
+          borderColor: '#3a3a3a',
+          codeBackground: '#191919',
+          frames: {
+            editorActiveTabBackground: '#191919',
+            editorTabBarBackground: '#141414',
+            terminalBackground: '#191919',
+            terminalTitlebarBackground: '#141414',
+          },
+        },
+      },
       // The site has its own 404; Starlight must not claim that route.
       disable404Route: true,
       // Dark only; the toggle is overridden with an empty component.

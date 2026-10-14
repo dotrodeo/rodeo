@@ -42,9 +42,12 @@
   --sl-color-bg-nav: var(--palette-black);
   --sl-color-bg-sidebar: var(--palette-black);
   --sl-color-bg-inline-code: var(--palette-raised);
-  --sl-color-hairline: var(--palette-rule);
-  --sl-color-hairline-light: var(--palette-rule);
-  --sl-color-hairline-shade: var(--palette-rule);
+  /* The site's #2E2E2E rule is ~1.5:1 on the page — fine for a card edge in a
+     laid-out page, too faint for the many separators a docs layout leans on
+     (sidebar, table rules, header). Lifted here only. */
+  --sl-color-hairline: #3a3a3a;
+  --sl-color-hairline-light: #3a3a3a;
+  --sl-color-hairline-shade: #2e2e2e;
 
   --sl-font: 'Barlow', system-ui, sans-serif;
   --sl-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
@@ -103,4 +106,44 @@ header.header {
 .sidebar-content a {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 13.5px;
+}
+
+/* Surfaces need to read as surfaces. Code blocks, asides and tables all sat
+   within ~1.1:1 of the page, which reads as flat rather than as low contrast —
+   the text in them already passed. Borders do the separating. */
+.sl-markdown-content .expressive-code pre {
+  border: 1px solid #3a3a3a;
+}
+
+.sl-markdown-content .starlight-aside {
+  border-left-width: 3px;
+  background: var(--palette-raised);
+  border-top: 1px solid var(--palette-rule);
+  border-right: 1px solid var(--palette-rule);
+  border-bottom: 1px solid var(--palette-rule);
+}
+.sl-markdown-content .starlight-aside--note {
+  border-left-color: var(--palette-indigo-light);
+}
+.sl-markdown-content .starlight-aside--tip {
+  border-left-color: var(--palette-cyan);
+}
+.sl-markdown-content .starlight-aside--caution {
+  border-left-color: var(--palette-yellow);
+}
+.sl-markdown-content .starlight-aside__title {
+  color: var(--palette-white);
+}
+
+.sl-markdown-content table {
+  border: 1px solid var(--palette-rule);
+}
+.sl-markdown-content th {
+  background: var(--palette-raised);
+  color: var(--palette-white);
+  font-family: 'Barlow', system-ui, sans-serif;
+  font-weight: 600;
+}
+.sl-markdown-content :is(th, td) {
+  border-color: var(--palette-rule);
 }
