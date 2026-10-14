@@ -17,7 +17,8 @@ Where EasyEDA and KiCad disagree on origin or orientation (JST connectors, IDC
 headers, SOIC/TSSOP/SOT-23, ...), KiCad's raw position export puts parts in the
 wrong place. This script downloads each part's EasyEDA footprint (kept in
 easyeda-footprints/), finds the 90-degree rotation and offset that puts JLC's pads on
-ours with matching pin numbers, and writes that. Pin numbers carry polarity, so
+ours with matching pin numbers (PAD_ALIASES maps KiCad pad names such as a jack's
+T/R/S to JLC's numbers), and writes that. Pin numbers carry polarity, so
 diodes and electrolytics come out right too. Parts whose best fit is worse than
 --tolerance mm are listed: check those by eye in placement-check.png.
 
@@ -41,6 +42,12 @@ from kicadlib import HERE, Netlist, pcb_footprints, pcb_outline, rotate, run
 # JLC's footprints, one JSON per LCSC number. Tracked in git: the EasyEDA API
 # rate-limits, and the files are small.
 EASYEDA_CACHE = os.path.join(HERE, 'easyeda-footprints')
+
+# KiCad footprints that name their pads where JLC's number them: KiCad name ->
+# EasyEDA pad number, per LCSC part, worked out from the two footprints' geometry.
+PAD_ALIASES = {
+    'C431535': {'S': '1', 'R2': '2', 'R1': '3', 'T': '4'},   # PJ-320D, Jack_3.5mm_PJ320D_Horizontal
+}
 
 
 
@@ -230,7 +237,8 @@ def main():
                 sys.exit(f'{r} is in the schematic but not on the board: update the PCB first')
             if fps[r]['layer'] != 'F.Cu':
                 sys.exit(f'{r} is on the bottom side; bottom-side placement is not supported yet')
-            s = solve(fps[r]['pads'], ee)
+            alias = PAD_ALIASES.get(code, {})
+            s = solve([dict(p, num=alias.get(p['num'], p['num'])) for p in fps[r]['pads']], ee)
             if s is None:
                 sys.exit(f'{r} ({code}, {ee["name"]}): no pad numbers in common with the KiCad footprint')
             placed[r], eefp[r] = s, ee
