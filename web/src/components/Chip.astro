@@ -1,0 +1,31 @@
+---
+// The knockout label chip — the board's own device. On the silkscreen it reads
+// ANALOG BANK 1, I2C, UART. Here it is the section header, the nav active
+// state, and (filled gold / outlined) the claim-status badge.
+import type { Status } from '../data/site';
+
+interface Props {
+  /** 'solid' = white fill, the default label. 'status' colours by claim status. */
+  variant?: 'solid' | 'status';
+  status?: Status;
+  class?: string;
+}
+
+const { variant = 'solid', status, class: klass = '' } = Astro.props;
+
+const base =
+  'inline-block font-display font-black uppercase tracking-[0.1em] text-[12px] leading-none px-[9px] py-[5px] whitespace-nowrap';
+
+const styles: Record<string, string> = {
+  solid: 'bg-legend text-field',
+  shipped: 'bg-yellow text-field',
+  'in-progress': 'border border-legend text-legend',
+  planned: 'border border-hardware text-hardware',
+  'not-planned': 'border border-hardware text-hardware',
+  retired: 'border border-hardware text-hardware line-through',
+};
+
+const key = variant === 'status' && status ? status : 'solid';
+---
+
+<span class={`${base} ${styles[key]} ${klass}`}><slot /></span>

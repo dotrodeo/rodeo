@@ -1,0 +1,38 @@
+---
+// The indigo waitlist band. Every page ends on it, so the one conversion that
+// matters before launch is never more than a scroll away.
+//
+// `id="waitlist"` is the target of the hero's CTA, so exactly one band per page.
+interface Props {
+  heading?: string;
+  body?: string;
+}
+
+const {
+  heading = 'Want in?',
+  body = 'Rodeo will be launching on Kickstarter in January 2027. Join the waitlist now to be the first to know, get special deals, and follow the journey.',
+} = Astro.props;
+---
+
+<section id="waitlist" class="bg-indigo py-20">
+  <div class="wrap flex flex-col gap-7">
+    <h2 class="display m-0 text-[clamp(44px,7vw,68px)] text-yellow">{heading}</h2>
+    <p class="copy-tech m-0 max-w-[560px] text-[17px] text-legend">{body}</p>
+    <form class="flex max-w-[560px] flex-col gap-3 sm:flex-row" method="post" action="/subscribe">
+      <label for="email" class="sr-only">Email address</label>
+      <input
+        id="email"
+        name="email"
+        type="email"
+        required
+        placeholder="you@example.com"
+        class="min-w-0 grow border-[1.5px] border-legend bg-field px-4 py-3.5 font-mono text-[15px] text-legend placeholder:text-hardware"
+      />
+      <button
+        type="submit"
+        class="shrink-0 cursor-pointer border-none bg-yellow px-7 py-4 font-display text-[16px] font-black uppercase tracking-[0.04em] text-field hover:bg-legend"
+        >Join the waitlist</button
+      >
+    </form>
+  </div>
+</section>

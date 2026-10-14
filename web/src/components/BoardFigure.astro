@@ -1,0 +1,54 @@
+---
+// Every board image carries its revision. This is enforced here rather than
+// left to an author remembering, because a rule that depends on discipline
+// gets broken once and a rule that lives in the component cannot be.
+// See web/docs/WEB_CLAIMS_AUDIT.md, "Imagery rule".
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+import type { Rev } from '../data/site';
+
+interface Props {
+  src: ImageMetadata;
+  alt: string;
+  rev: Rev;
+  /**
+   * Whether this is a photograph of real hardware or a CAD render. Stated in
+   * the caption: a render shown as if it were a photo is the same class of
+   * dishonesty as an unlabelled revision.
+   */
+  media: 'photo' | 'render';
+  /** Extra context, shown after the revision. */
+  caption?: string;
+  widths?: number[];
+  sizes?: string;
+  loading?: 'eager' | 'lazy';
+  class?: string;
+}
+
+const { src, alt, rev, media, caption, widths = [480, 800, 1200], sizes = '(max-width: 768px) 100vw, 50vw', loading = 'lazy', class: klass = '' } = Astro.props;
+
+if (!alt?.trim()) throw new Error('BoardFigure: `alt` is required.');
+if (!rev) throw new Error('BoardFigure: `rev` is required — every board image states its revision.');
+if (media !== 'photo' && media !== 'render') {
+  throw new Error("BoardFigure: `media` must be 'photo' or 'render'.");
+}
+
+const medium = media === 'photo' ? 'photo' : 'CAD render';
+---
+
+<figure class={`m-0 ${klass}`}>
+  <Image
+    src={src}
+    alt={alt}
+    widths={widths}
+    sizes={sizes}
+    loading={loading}
+    fetchpriority={loading === 'eager' ? 'high' : undefined}
+    class="block w-full h-auto"
+  />
+  <figcaption
+    class="mt-3 inline-flex items-center gap-3 border-l-2 border-yellow bg-field-raised py-1.5 pl-3 pr-4 font-mono text-[12px] leading-relaxed text-hardware"
+  >
+    <span class="text-legend">Rev-{rev}</span>{caption ? `— ${caption}` : ''} · {medium}
+  </figcaption>
+</figure>

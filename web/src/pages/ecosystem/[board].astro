@@ -1,0 +1,145 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Chip from '../../components/Chip.astro';
+import Eyebrow from '../../components/Eyebrow.astro';
+import BoardFigure from '../../components/BoardFigure.astro';
+import SpecTable from '../../components/SpecTable.astro';
+import CtaBand from '../../components/CtaBand.astro';
+import { boards } from '../../data/boards';
+import { statusLabel } from '../../data/site';
+import type { Board } from '../../data/boards';
+
+export function getStaticPaths() {
+  return boards.map((board) => ({ params: { board: board.slug }, props: { board } }));
+}
+
+interface Props {
+  board: Board;
+}
+
+const { board } = Astro.props;
+
+const files = [
+  { ext: '.kicad_pro', name: 'KiCad project', note: 'Schematic, layout, footprints.' },
+  { ext: '.zip', name: 'Gerbers', note: 'Fab-ready, plus drill maps.' },
+  { ext: '.csv', name: 'BOM + CPL', note: 'Parts and placements.' },
+  { ext: 'src', name: 'Firmware', note: 'Where the board has its own.' },
+];
+
+const others = boards.filter((b) => b.slug !== board.slug);
+---
+
+<BaseLayout title={board.name} description={board.summary}>
+  <div class="wrap">
+    <p class="pt-6 font-mono text-[13px] text-hardware">
+      <a href="/ecosystem/" class="text-hardware no-underline hover:text-yellow">boards</a>
+      <span class="px-1">/</span>{board.name}
+    </p>
+
+    <section class="flex flex-col gap-10 pt-8 lg:flex-row lg:gap-14">
+      <div class="lg:w-[44%] lg:shrink-0">
+        <BoardFigure
+          src={board.shot!.src}
+          alt={board.shot!.alt}
+          media={board.shot!.media}
+          rev={board.rev}
+          caption={board.shot!.caption}
+          loading="eager"
+          widths={[480, 800, 1200]}
+          sizes="(max-width: 1024px) 100vw, 500px"
+        />
+      </div>
+
+      <div class="flex min-w-0 grow flex-col gap-6">
+        <div>
+          <Eyebrow class="mb-3">{board.kind === 'host' ? 'Host board' : 'Satellite'}</Eyebrow>
+          <div class="flex flex-wrap items-center gap-3.5">
+            <h1 class="display m-0 text-[clamp(30px,4.6vw,44px)] normal-case">{board.name}</h1>
+            <Chip variant="status" status={board.status}>{statusLabel[board.status]}</Chip>
+          </div>
+        </div>
+        <p class="copy-read m-0 max-w-[620px]">{board.body}</p>
+        <SpecTable specs={board.specs} />
+        {
+          board.caveats?.map((c) => (
+            <div class="flex items-start gap-3 border-l-2 border-rule bg-field-raised p-4">
+              <Chip variant="status" status={c.status} class="shrink-0">
+                {statusLabel[c.status]}
+              </Chip>
+              <p class="copy-tech m-0 text-[14px] text-legend-prose">{c.text}</p>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+
+    {
+      board.gallery?.length ? (
+        <section class="pt-16">
+          <Eyebrow class="mb-4">More views</Eyebrow>
+          <h2 class="display m-0 mb-8 text-[clamp(26px,3.6vw,34px)]">The board as it arrived</h2>
+          <ul
+            class={`m-0 grid list-none gap-7 p-0 ${board.gallery.length > 1 ? 'sm:grid-cols-2 lg:grid-cols-3' : 'max-w-[560px]'}`}
+          >
+            {board.gallery.map((shot) => (
+              <li>
+                <BoardFigure
+                  src={shot.src}
+                  alt={shot.alt}
+                  media={shot.media}
+                  rev={board.rev}
+                  caption={shot.caption}
+                  widths={[400, 700, 1000]}
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null
+    }
+
+    <section class="pt-16">
+      <Eyebrow class="mb-4">Files</Eyebrow>
+      <h2 class="display m-0 mb-2 text-[clamp(26px,3.6vw,34px)]">Published with the board</h2>
+      <p class="copy-tech m-0 mb-8 max-w-[560px] text-[14.5px]">
+        Nothing here sits behind a sign-up. Fork a satellite, respin it, and the host still
+        reads it.
+      </p>
+      <ul class="m-0 grid list-none gap-5 p-0 sm:grid-cols-2 lg:grid-cols-4">
+        {
+          files.map((f) => (
+            <li class="flex flex-col gap-1.5 border border-rule bg-field-raised p-5">
+              <span class="font-mono text-[12px] text-cyan">{f.ext}</span>
+              <span class="display text-[17px] normal-case">{f.name}</span>
+              <span class="copy-tech text-[13.5px]">{f.note}</span>
+              <span class="mt-2 font-mono text-[11.5px] text-hardware">
+                link pending the public repo
+              </span>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="pb-20 pt-16">
+      <Eyebrow class="mb-5">The rest of the family</Eyebrow>
+      <ul class="m-0 flex list-none flex-wrap gap-3 p-0">
+        {
+          others.map((b) => (
+            <li>
+              <a
+                href={`/ecosystem/${b.slug}/`}
+                class="inline-block border border-rule px-4 py-2.5 font-mono text-[13.5px] text-legend no-underline hover:border-yellow hover:text-yellow"
+              >
+                {b.name}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+  </div>
+
+  <CtaBand />
+</BaseLayout>

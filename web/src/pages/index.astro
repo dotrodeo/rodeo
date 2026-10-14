@@ -1,0 +1,109 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import BoardFigure from '../components/BoardFigure.astro';
+import CtaBand from '../components/CtaBand.astro';
+import Eyebrow from '../components/Eyebrow.astro';
+import { host, satellites } from '../data/boards';
+import { site } from '../data/site';
+
+// Numbered in the data so they cannot run 01, 02, 01 again.
+const steps = [
+  {
+    title: 'Pick your controls',
+    body: 'Pots, encoders, buttons — a satellite for every function, on a uniform 25 mm grid. I²C and SPI breakouts for displays, sensors and anything else on a bus.',
+  },
+  {
+    title: 'Connect the cables',
+    body: 'Satellites join the motherboard with standard JST-SH cables. No solder, no custom looms. Every link’s pinout is published, including which runs take a reversed cable.',
+  },
+  {
+    title: 'Give it a voice',
+    body: 'A Daisy Seed does the DSP with libDaisy and DaisySP. Driver libraries for the additional ADC, the encoder hub and the rest come with rodeo-sdk.',
+  },
+];
+
+const gallery = [host.shot!, satellites[0].shot!, satellites[0].gallery![0]];
+---
+
+<BaseLayout title={site.name} description={site.description}>
+  <section class="wrap flex flex-col gap-12 pb-4 pt-14 lg:flex-row lg:gap-16">
+    <h1 class="display m-0 max-w-[560px] text-[clamp(48px,7.5vw,78px)] lg:shrink-0">
+      Maybe it is your first rodeo
+    </h1>
+    <div class="flex min-w-0 flex-col gap-7 lg:pt-2">
+      <p class="copy-tech m-0 max-w-[560px] text-[17px]">
+        <span class="font-display font-black text-legend">RODEO</span> is a plug-and-play audio
+        platform designed to help you build your dream synthesizer. Breakouts for the best parts
+        of Daisy, 24 additional 16-bit analog inputs, a family of control satellites, and an SDK
+        to help you write the code.
+      </p>
+      <div class="flex flex-wrap items-stretch gap-4">
+        <a
+          href="#waitlist"
+          class="bg-yellow px-7 py-4 font-display text-[16px] font-black uppercase tracking-[0.04em] text-field no-underline hover:bg-legend"
+          >Join the waitlist</a
+        >
+        <a
+          href="/ecosystem/"
+          class="border-[1.5px] border-legend px-7 py-[14.5px] font-display text-[16px] font-black uppercase tracking-[0.04em] text-legend no-underline hover:border-yellow hover:text-yellow"
+          >See the boards</a
+        >
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap pb-16 pt-10">
+    <BoardFigure
+      src={host.shot!.src}
+      alt={host.shot!.alt}
+      media={host.shot!.media}
+      rev={host.rev}
+      caption="rodeo motherboard, assembled"
+      loading="eager"
+      widths={[700, 1100, 1600]}
+      sizes="(max-width: 1240px) 100vw, 1176px"
+    />
+  </section>
+
+  <section class="bg-yellow py-10">
+    <ul class="wrap m-0 grid list-none grid-cols-1 gap-7 sm:grid-cols-3">
+      {
+        gallery.map((shot) => (
+          <li>
+            <img
+              src={shot.src.src}
+              width={shot.src.width}
+              height={shot.src.height}
+              alt={shot.alt}
+              loading="lazy"
+              decoding="async"
+              class="block aspect-square w-full rounded-[10px] object-cover"
+            />
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <section class="wrap py-20">
+    <Eyebrow>How does it work?</Eyebrow>
+    <h2 class="display mb-10 mt-4 max-w-[760px] text-[clamp(34px,5.5vw,54px)]">
+      A motherboard and her satellites
+    </h2>
+    <ul class="m-0 grid list-none gap-6 p-0 md:grid-cols-3">
+      {
+        steps.map((s, i) => (
+          <li class="flex flex-col gap-3 border border-rule bg-field-raised p-6">
+            <span class="font-mono text-[13px] text-indigo-text">
+              {String(i + 1).padStart(2, '0')}
+            </span>
+            <h3 class="display m-0 text-[20px]">{s.title}</h3>
+            <p class="copy-tech m-0 text-[14.5px]">{s.body}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <CtaBand />
+</BaseLayout>

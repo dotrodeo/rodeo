@@ -1,0 +1,27 @@
+/* Rodeo design tokens — layer 1, the raw palette.
+ *
+ * These were originally sampled from a kicad-cli render of the motherboard.
+ * As of 2026-10-05 that is no longer the rule: Derek chose round, legible hex
+ * values over measured ones. The board is still where the *identity* comes
+ * from — black mask, white legend, plated yellow — but the exact numbers are
+ * now chosen for the screen. See web/docs/WEB_BRAND.md.
+ *
+ * Layer 2 is the semantic set in @theme (global.css). Components reference
+ * ONLY layer 2.
+ */
+
+:root {
+  /* Surfaces and ink */
+  --palette-black: #111111; /* the field */
+  --palette-raised: #1c1c1c; /* cards, wells */
+  --palette-rule: #2e2e2e; /* hairlines */
+  --palette-white: #ffffff; /* headings, labels */
+  --palette-paper: #e0e0e0; /* long-form prose — softened, see below */
+  --palette-gray: #b0b0b0; /* secondary text, captions */
+
+  /* Accents. Three, deliberately — see WEB_BRAND.md "Why three accents". */
+  --palette-yellow: #ffcc00; /* primary: CTAs, status, plated-hole reference */
+  --palette-indigo: #6655ff; /* SURFACES ONLY — 3.9:1 on black, fails as text */
+  --palette-indigo-light: #8888ff; /* the text-safe indigo — 6.3:1 on black */
+  --palette-cyan: #00ccff; /* code, SDK, inline technical reference — 10:1 */
+}

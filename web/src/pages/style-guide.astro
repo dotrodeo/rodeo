@@ -1,0 +1,161 @@
+---
+// Internal. Renders the token set and the open type decision so the design can
+// be checked and chosen by looking, rather than from a description.
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Chip from '../components/Chip.astro';
+import OutlineGroup from '../components/OutlineGroup.astro';
+import SpecTable from '../components/SpecTable.astro';
+
+const palette = [
+  { hex: '#111111', role: 'field', note: 'the page', contrast: '—' },
+  { hex: '#1C1C1C', role: 'field-raised', note: 'cards, wells', contrast: '—' },
+  { hex: '#2E2E2E', role: 'rule', note: 'hairlines', contrast: '—' },
+  { hex: '#FFFFFF', role: 'legend', note: 'headings, labels', contrast: '18.9:1' },
+  { hex: '#E0E0E0', role: 'legend-prose', note: 'long-form body', contrast: '14.3:1' },
+  { hex: '#B0B0B0', role: 'hardware', note: 'captions, secondary', contrast: '8.7:1' },
+  { hex: '#FFCC00', role: 'yellow', note: 'primary action, shipped', contrast: '12.5:1' },
+  { hex: '#6655FF', role: 'indigo', note: 'section bands — surface only', contrast: '3.9:1' },
+  { hex: '#8888FF', role: 'indigo-text', note: 'eyebrows, labels on dark', contrast: '6.3:1' },
+  { hex: '#00CCFF', role: 'cyan', note: 'code, SDK, technical', contrast: '10:1' },
+];
+
+// A real paragraph, not lorem — the fonts have to survive actual content.
+const specimen =
+  'The hub was corrupting its own register file, but only when the host read twice in a row. Single reads were perfect. Two back-to-back and slot 1 would occasionally report movement that never happened — sometimes a clean detent, sometimes a value that looked like a neighbouring slot’s. Firmware inspection got me nowhere, because the logic was correct. What was wrong was when it ran.';
+
+const faces = [
+  { id: 'A', name: 'Source Serif 4', css: 'var(--font-read-a)', note: 'Built for screen reading. Sturdiest of the three on a dark ground — the stems hold up where lighter serifs go thin.' },
+  { id: 'B', name: 'Newsreader', css: 'var(--font-read-b)', note: 'Warmer and more editorial. Most personality, slightly more delicate in reverse.' },
+  { id: 'C', name: 'Literata', css: 'var(--font-read-c)', note: 'Google’s reading face. Wide and even, a touch quirky; very legible at small sizes.' },
+];
+
+const demoSpecs = [
+  { label: 'analog in', value: '24 × 16-bit', evidence: 'demo' },
+  { label: 'address', value: '0x30–0x33', evidence: 'demo' },
+  { label: 'slot link', value: 'JST-SH 4-pin', evidence: 'demo' },
+  { label: 'poll rate', value: '~1 kHz', evidence: 'demo' },
+];
+---
+
+<BaseLayout title="Style guide" description="Internal token and component reference.">
+  <div class="wrap">
+  <section class="flex flex-col gap-3 py-12">
+    <Chip class="self-start">Style guide</Chip>
+    <h1 class="display m-0 text-[48px]">Foundations</h1>
+    <p class="m-0 max-w-[720px] text-[16px] text-hardware">
+      Internal page, not linked from navigation. The palette is settled; the long-form
+      reading face is the open decision below.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-4 pb-16">
+    <div class="flex items-baseline gap-4">
+      <Chip>Palette</Chip>
+      <p class="m-0 text-[14px] text-hardware">Contrast is against the field, #111111.</p>
+    </div>
+    <ul class="m-0 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-5">
+      {
+        palette.map((p) => (
+          <li class="flex flex-col gap-2">
+            <div class="h-[80px] border border-rule" style={`background: ${p.hex}`} aria-hidden="true" />
+            <code class="font-mono text-[13.5px] text-legend">{p.hex}</code>
+            <span class="font-mono text-[12.5px] text-cyan">{p.role}</span>
+            <span class="text-[13px] leading-snug text-hardware">{p.note}</span>
+            <span class="font-mono text-[11.5px] text-hardware">{p.contrast}</span>
+          </li>
+        ))
+      }
+    </ul>
+    <div class="mt-2 flex flex-col gap-3 bg-field-raised p-5">
+      <p class="m-0 text-[14.5px] leading-relaxed text-legend-prose">
+        <strong class="text-legend">Why indigo is two tokens.</strong> At #6655FF it is 3.9:1 on
+        the field — fine behind white text, but it fails as text itself, which is what the
+        eyebrow label in the mockup was doing. #8888FF carries the same hue at 6.3:1.
+      </p>
+      <div class="flex flex-wrap items-center gap-6">
+        <div class="bg-indigo px-5 py-3">
+          <span class="font-display text-[13px] font-black uppercase tracking-[0.1em] text-legend"
+            >White on indigo — 5.5:1, fine</span
+          >
+        </div>
+        <span class="font-display text-[13px] font-black uppercase tracking-[0.1em] text-indigo-text"
+          >Indigo-text on field — 6.3:1</span
+        >
+        <span class="font-display text-[13px] font-black uppercase tracking-[0.1em] text-indigo"
+          >Indigo on field — 3.9:1, do not use</span
+        >
+      </div>
+    </div>
+  </section>
+
+  <section class="flex flex-col gap-5 pb-16">
+    <div class="flex items-baseline gap-4">
+      <Chip>Type — settled</Chip>
+    </div>
+    <div class="flex flex-col gap-2 border-b border-rule pb-5">
+      <span class="font-mono text-[12px] text-cyan">Barlow Black — display</span>
+      <p class="display m-0 text-[52px]">Maybe it is your first rodeo</p>
+    </div>
+    <div class="flex flex-col gap-2">
+      <span class="font-mono text-[12px] text-cyan">IBM Plex Mono — technical, and short copy up to ~3 lines</span>
+      <p class="copy-tech m-0 max-w-[620px] text-[15px]">
+        24 additional 16-bit analog inputs, a family of control satellites, and an SDK to help
+        you write the code.
+      </p>
+      <p class="m-0 font-mono text-[15px] leading-loose text-legend">
+        J42 I2C1 SDA/SCL 0x30–0x33<br />U3 ADS114S08 AIN0–AIN11 16-bit
+      </p>
+    </div>
+  </section>
+
+  <section class="flex flex-col gap-5 pb-16">
+    <div class="flex flex-wrap items-baseline gap-4">
+      <Chip>Type — pick one</Chip>
+      <p class="m-0 text-[14px] text-hardware">
+        Long-form reading, for build-log posts. Same paragraph, same size, same colour.
+      </p>
+    </div>
+    <div class="flex flex-col gap-10">
+      {
+        faces.map((f) => (
+          <div class="flex flex-col gap-3 border-l-2 border-indigo-text pl-6">
+            <div class="flex flex-wrap items-baseline gap-3">
+              <span class="font-display text-[20px] font-black text-legend">{f.id}</span>
+              <span class="font-mono text-[13px] text-cyan">{f.name}</span>
+              <span class="text-[13.5px] text-hardware">{f.note}</span>
+            </div>
+            <p
+              class="m-0 max-w-[660px] text-legend-prose"
+              style={`font-family: ${f.css}; font-size: 18px; line-height: 1.65;`}
+            >
+              {specimen}
+            </p>
+            <p
+              class="m-0 max-w-[660px] text-hardware"
+              style={`font-family: ${f.css}; font-size: 15px; line-height: 1.6;`}
+            >
+              Smaller, for captions and asides: the STM32 I²C peripheral fetches the next byte
+              before the host has acknowledged wanting it.
+            </p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="flex flex-col gap-5 pb-20">
+    <Chip class="self-start">Devices</Chip>
+    <div class="flex flex-wrap items-center gap-2.5">
+      <Chip>I2C</Chip>
+      <Chip>SPI</Chip>
+      <Chip variant="status" status="shipped">Verified</Chip>
+      <Chip variant="status" status="in-progress">In bring-up</Chip>
+      <Chip variant="status" status="planned">Planned</Chip>
+      <Chip variant="status" status="retired">Retired</Chip>
+    </div>
+    <OutlineGroup label="Outline group">
+      <SpecTable specs={demoSpecs} />
+    </OutlineGroup>
+  </section>
+</div>
+</BaseLayout>

@@ -1,0 +1,16 @@
+---
+// The small indigo section label from the mockup ("HOW DOES IT WORK?").
+// Uses --color-indigo-text, never --color-indigo: the band colour is 3.9:1 on
+// the field and fails as text at this size. See WEB_BRAND.md.
+interface Props {
+  class?: string;
+}
+
+const { class: klass = '' } = Astro.props;
+---
+
+<p
+  class={`m-0 font-display text-[15px] font-black uppercase tracking-[0.08em] text-indigo-text ${klass}`}
+>
+  <slot />
+</p>

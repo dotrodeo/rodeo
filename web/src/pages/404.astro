@@ -1,0 +1,21 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Chip from '../components/Chip.astro';
+---
+
+<BaseLayout title="Not found" description="That page does not exist.">
+  <div class="wrap">
+  <section class="flex flex-col gap-5 py-24">
+    <Chip class="self-start">404</Chip>
+    <h1 class="display m-0 text-[clamp(40px,7vw,64px)]">No continuity</h1>
+    <p class="prose-body m-0 max-w-[520px] text-[17px]">
+      That page is not connected to anything. Check the cable, or start from the boards.
+    </p>
+    <a
+      href="/ecosystem/"
+      class="self-start bg-yellow px-5 py-3 font-display text-[15px] font-black uppercase tracking-[0.06em] text-field no-underline hover:bg-legend"
+      >See the boards</a
+    >
+  </section>
+</div>
+</BaseLayout>

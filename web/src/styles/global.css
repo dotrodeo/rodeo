@@ -1,0 +1,131 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+/* Display + UI */
+@import '@fontsource/barlow/400.css';
+@import '@fontsource/barlow/500.css';
+@import '@fontsource/barlow/600.css';
+@import '@fontsource/barlow/900.css';
+
+/* Technical: designators, specs, short copy */
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+/* Long-form reading — chosen 2026-10-05 (candidate A). */
+@import '@fontsource-variable/source-serif-4';
+
+/* Layer 2 — semantic tokens. Components use these names, never the palette. */
+@theme {
+  --color-field: var(--palette-black);
+  --color-field-raised: var(--palette-raised);
+  --color-rule: var(--palette-rule);
+  --color-legend: var(--palette-white);
+  --color-legend-prose: var(--palette-paper);
+  --color-hardware: var(--palette-gray);
+
+  /* Accents, each with a job. */
+  --color-yellow: var(--palette-yellow); /* primary action, shipped status */
+  --color-indigo: var(--palette-indigo); /* section bands — background only */
+  --color-indigo-text: var(--palette-indigo-light); /* eyebrows, labels on dark */
+  --color-cyan: var(--palette-cyan); /* code, SDK, technical reference */
+
+  /* Claim status — see WEB_CLAIMS_AUDIT.md */
+  --color-status-shipped: var(--palette-yellow);
+  --color-status-progress: var(--palette-white);
+  --color-status-planned: var(--palette-gray);
+
+  --font-display: 'Barlow', system-ui, sans-serif;
+  --font-sans: 'Barlow', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* Long-form reading: build-log posts and anything over ~3 lines. */
+  --font-read: 'Source Serif 4 Variable', Georgia, serif;
+}
+
+/* Element defaults MUST live in @layer base. Unlayered rules beat every
+ * Tailwind utility, which silently turned `text-legend` into gold everywhere
+ * a link was involved. */
+@layer base {
+  html {
+    color-scheme: dark; /* dark only — see WEB_BRAND.md */
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-field);
+    color: var(--color-legend);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a {
+    color: var(--color-yellow);
+  }
+  a:hover {
+    color: var(--color-legend);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-yellow);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+}
+
+/* Named devices from the board. In @layer components so utilities still win —
+ * `normal-case` has to be able to override `.display` on a board name. */
+@layer components {
+  /* Page gutter. NOT named `.container` — Tailwind v4 ships its own
+   * `.container` utility that caps width at the current breakpoint, and
+   * utilities beat @layer components, so that name silently wins.
+   *
+   * `main` is unconstrained so sections can run full-bleed (the gold and
+   * indigo bands) without 100vw tricks, which overflow by the scrollbar
+   * width. Each section brings its own gutter. */
+  .wrap {
+    margin-inline: auto;
+    max-width: 1240px;
+    padding-inline: 1rem;
+  }
+  @media (min-width: 640px) {
+    .wrap {
+      padding-inline: 2rem;
+    }
+  }
+
+  /* The board sets display type in caps, tight. */
+  .display {
+    font-weight: 900;
+    letter-spacing: -0.022em;
+    line-height: 0.94;
+    text-transform: uppercase;
+  }
+
+  /* Short copy: hero paragraph, cards, captions. Mono up to ~3 lines. */
+  .copy-tech {
+    font-family: var(--font-mono);
+    color: var(--color-legend-prose);
+    line-height: 1.6;
+  }
+
+  /* Long-form: build-log posts and anything over ~3 lines. Mono is measurably
+   * slower to read at length and eats the measure on a phone. */
+  .copy-read {
+    font-family: var(--font-read);
+    color: var(--color-legend-prose);
+    line-height: 1.65;
+    font-size: 1.125rem;
+  }
+
+  /* Legacy alias — still used by the current pages. */
+  .prose-body {
+    color: var(--color-legend-prose);
+    line-height: 1.65;
+  }
+}
