@@ -53,6 +53,11 @@
   --sl-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
   color-scheme: dark;
+
+  /* The bar's own inline padding is removed so .rodeo-header can carry exactly
+     the site gutter (.wrap: 1rem, 2rem at >=640px). Without this the docs
+     header is inset 24px against the site's 32px and the two never line up. */
+  --sl-nav-pad-x: 0rem;
 }
 
 /* Prose in docs reads like the build log: the serif for body, Barlow Black for
@@ -137,4 +142,15 @@ header.header {
 }
 .sl-markdown-content :is(th, td) {
   border-color: var(--palette-rule);
+}
+
+/* Header geometry, shared with the site's .wrap so both bars are the same
+   width and centred on the same axis. */
+.rodeo-header {
+  padding-inline: 1rem;
+}
+@media (min-width: 640px) {
+  .rodeo-header {
+    padding-inline: 2rem;
+  }
 }

@@ -118,6 +118,11 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
     }
     .links {
       display: flex;
+      /* Search is capped at 22rem, so once it stops growing the slack would
+         otherwise pool after the social icons and leave the nav short of the
+         right edge. This pushes nav + social hard right, where the site nav
+         sits. */
+      margin-inline-start: auto;
     }
     .search {
       justify-content: flex-start;
