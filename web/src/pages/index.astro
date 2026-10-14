@@ -1,6 +1,8 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import BoardFigure from '../components/BoardFigure.astro';
+import CtaBand from '../components/CtaBand.astro';
+import Eyebrow from '../components/Eyebrow.astro';
 import { host, satellites } from '../data/boards';
 import { site } from '../data/site';
 
@@ -84,9 +86,7 @@ const gallery = [host.shot!, satellites[0].shot!, satellites[0].gallery![0]];
   </section>
 
   <section class="wrap py-20">
-    <p class="m-0 font-display text-[15px] font-black uppercase tracking-[0.08em] text-indigo-text">
-      How does it work?
-    </p>
+    <Eyebrow>How does it work?</Eyebrow>
     <h2 class="display mb-10 mt-4 max-w-[760px] text-[clamp(34px,5.5vw,54px)]">
       A motherboard and her satellites
     </h2>
@@ -105,29 +105,5 @@ const gallery = [host.shot!, satellites[0].shot!, satellites[0].gallery![0]];
     </ul>
   </section>
 
-  <section id="waitlist" class="bg-indigo py-20">
-    <div class="wrap flex flex-col gap-7">
-      <h2 class="display m-0 text-[clamp(44px,7vw,68px)] text-yellow">Want in?</h2>
-      <p class="copy-tech m-0 max-w-[560px] text-[17px] text-legend">
-        Rodeo will be launching on Kickstarter in January 2027. Join the waitlist now to be the
-        first to know, get special deals, and follow the journey.
-      </p>
-      <form class="flex max-w-[560px] flex-col gap-3 sm:flex-row" method="post" action="/subscribe">
-        <label for="email" class="sr-only">Email address</label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          required
-          placeholder="you@example.com"
-          class="min-w-0 grow border-[1.5px] border-legend bg-field px-4 py-3.5 font-mono text-[15px] text-legend placeholder:text-hardware"
-        />
-        <button
-          type="submit"
-          class="shrink-0 cursor-pointer border-none bg-yellow px-7 py-4 font-display text-[16px] font-black uppercase tracking-[0.04em] text-field hover:bg-legend"
-          >Join the waitlist</button
-        >
-      </form>
-    </div>
-  </section>
+  <CtaBand />
 </BaseLayout>
