@@ -108,10 +108,16 @@ either source back-feeding the other.
 **LEDs:** as on the USB-C board (D1 green `~PGOOD`, D2 red `~CHG`), but R3/R4
 go to `VIN`, so they light from either source.
 
-**Mounting:** M3 holes (`MountingHole:MountingHole_3.2mm_M3`) on rail row 2,
-35 mm from the I/O edge, behind the barrel jack (about 14 mm deep). Spacing
-along the edge a multiple of 10 mm; no copper within 3.5 mm of a hole. Check
-with `tools/kicad/grid_check.py rodeo-power-barrel.kicad_pcb --rear top`.
+**Mounting:** the board is 60 × 40 mm, with M3 holes
+(`MountingHole:MountingHole_3.2mm_M3`) at (5, 15) and (55, 15) mm from the I/O
+edge's left end: rail row 1, 50 mm apart. The barrel jack sits between them, so
+row 1 works despite its 14 mm depth. J1 overhangs the I/O edge by 0.35 mm, J3 by
+0.50 mm. Check with
+`tools/kicad/grid_check.py rodeo-power-barrel.kicad_pcb --rear top`.
+
+**3D models for J3 and J4:** KiCad ships no model for the PJ-102AH or the
+B2P-VH, so `lib/rodeo_power.pretty` holds copies of KiCad's footprints with
+LCSC's models (C3096093, C160315) attached and aligned to the pins.
 
 ## Parts (in addition to the USB-C board's, with J2's pins 1/6 moved to VIN)
 

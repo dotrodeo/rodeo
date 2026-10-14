@@ -46,8 +46,8 @@ The console says how many segments the length needs; export each with `segment`.
    can sit just behind it and shine through a hole.
 2. **M3 holes (`MountingHole_3.2mm_M3`) at 15 mm or 35 mm from the I/O edge**,
    spaced along the edge in multiples of 10 mm. At least two. Small boards use
-   row 1; boards with deep connectors (barrel jack, 1/4" jacks) use row 2 or
-   both. A board deeper than the rail just overhangs it.
+   row 1; a deep connector (barrel jack, 1/4" jack) either sits between the
+   row 1 holes or pushes them to row 2. A board deeper than the rail just overhangs it.
 3. **No copper within 3.5 mm of a hole centre** on either side (screw head,
    standoff hex).
 4. The outline is otherwise free.
@@ -96,4 +96,4 @@ above the PCB**: one rule for every board, so panel cut-outs line up.
 |---|---|---|
 | `rodeo-motherboard` | `--frame` | **Passes** as drawn (holes 82 × 104 mm, keep-outs clear). |
 | `rodeo-power-usbc` | `--rear top` | **Passes:** 40 × 20 mm, holes at (5, 15) and (35, 15), J1 overhang +0.35 mm. |
-| `rodeo-power-barrel` | `--rear top` | Not drawn yet: holes on row 2 (35 mm), behind the barrel jack. |
+| `rodeo-power-barrel` | `--rear top` | **Passes:** 60 × 40 mm, holes at (5, 15) and (55, 15) either side of the barrel jack; J1 +0.35 mm, J3 +0.50 mm. |

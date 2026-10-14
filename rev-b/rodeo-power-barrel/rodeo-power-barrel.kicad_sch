@@ -8346,7 +8346,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "Connector_JST:JST_VH_B2P-VH_1x02_P3.96mm_Vertical"
+		(property "Footprint" "rodeo_power:JST_VH_B2P-VH_1x02_P3.96mm_Vertical"
 			(at 247.65 119.38 0)
 			(hide yes)
 			(show_name no)
@@ -13120,7 +13120,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_BarrelJack:BarrelJack_CUI_PJ-102AH_Horizontal"
+		(property "Footprint" "rodeo_power:BarrelJack_CUI_PJ-102AH_Horizontal"
 			(at 66.04 128.016 0)
 			(hide yes)
 			(show_name no)
