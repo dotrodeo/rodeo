@@ -17,7 +17,7 @@ are load-bearing: a discovery doc that miscites its evidence is worse than no do
 ## The rule
 
 **No page states a product spec in prose.** Every spec statement renders from
-`web/src/data/specs.ts` through a component that displays its status. If a claim is not in
+`web/src/data/boards.ts` through a component that displays its status. If a claim is not in
 that file, it does not appear on the site.
 
 Statuses:
@@ -54,50 +54,69 @@ second scheme on the website would fork the vocabulary against a dozen existing 
 | **`rev-a`** | True of the board that exists and was photographed | Safe to state flatly, and provable — the files are published |
 | **`rev-b-intent`** | Intended for the board a backer would receive | Must be visibly marked as intent, never as fact |
 
-Conflating these is the classic hardware-campaign failure. Every spec claim in `specs.ts`
+Conflating these is the classic hardware-campaign failure. Every spec claim in `boards.ts`
 carries `rev: 'A' | 'B' | 'A+B'`, and a `rev-b-intent` claim renders with different chrome
 from a `rev-a` one.
 
-### The documented Rev-B change list
+### Rev-B: what the campaign actually sells
 
-**Rewritten 2026-10-15.** This table previously said Rev-B takes analog channels
-24 → 36. That stopped being true on 2026-10-04 and the audit did not notice for
-eleven days — a reminder that a claims file is only as good as its last re-read
-against the hardware docs.
+**Rewritten twice on 2026-10-15, and the second time is the one to trust.** The
+first rewrite was done against the stale `rev-b.md` that used to sit in
+`rodeo-motherboard/docs/`, which described a USART2 chain and two on-board ADCs.
+(Named without a full path on purpose: the file is deleted, and a resolvable
+citation to it would now fail the very check below.) The
+real document is `rev-b/rodeo-motherboard/docs/rev-b.md`, 767 lines, which came
+onto `main` with the Rev-B merge. The stale copy is deleted. **If you are reading
+a Rev-B fact that is not cited to a `rev-b/` path, distrust it.**
 
-**Precedence.** [`rodeo-motherboard/docs/rev-b.md`](rodeo-motherboard/docs/rev-b.md) is now the newest and most
-authoritative source for anything Rev-B, and says so itself: the older Rev-B
-notes scattered through `RODEO_CONTROL_MAP.md`, `RODEO_ENCLOSURE_SPEC.md` and
-`RODEO_ADC_LIB_DESIGN.md` are history. Where any of them disagree with
-`rev-b.md`, **`rev-b.md` wins**. (For Rev-A, the earlier rule still holds: where
-`hardware-map.md` and the control map disagree, the control map wins.)
+**Status: schematic in progress** (`rev-b/rodeo-motherboard/docs/rev-b.md:3`) — power, Daisy,
+codec, audio-interface, SD and MIDI sheets drawn and reviewed, every placed part
+carrying an LCSC number audited against JLC. Several daughterboards are further
+along than that: drawn, routed, with fab outputs generated. No Rev-B board has
+been fabricated or bench-tested, so **every Rev-B capability is `planned`.**
 
-**Rev-B is paper.** `rodeo-motherboard/docs/rev-b.md:3` — *"Status: planning. Nothing
-here is laid out yet."* No schematic, no layout, no fabricated board, no chosen
-satellite MCU, no ring-protocol contract, no satellite firmware. Every row below
-is therefore `planned`, and **no Rev-B number may be published as a measured
-fact.**
+Rev-B is not a revision of the Rev-A motherboard. It is a different division of
+labour, and almost every number on the site changes:
 
-| Rev-B change | Effect on site copy | Evidence |
+| | Rev-A, which the site describes today | **Rev-B, which the campaign sells** | Evidence |
+|---|---|---|---|
+| Analog inputs | 24 × 16-bit, two on-board ADS114S08 | **The ADCs are gone.** Analog is the Seed's own ADC across 8 of the 10 general-purpose I/O connectors | `rev-b/rodeo-motherboard/docs/rev-b.md:588-592`, `rev-b/rodeo-motherboard/docs/rev-b.md:67` |
+| Where the ADCs went | on the motherboard | an **optional SPI expander board** — and ~$19 of parts per board left with them | `rev-b/rodeo-motherboard/docs/rev-b.md:204` |
+| What the freed pins do | — | a **second codec on SAI2: 4 in / 4 out audio** | `rev-b/rodeo-motherboard/docs/rev-b.md:314` |
+| General-purpose I/O | 12 digital | **10**, each digital or analog; two of them are the DACs | `rev-b/rodeo-motherboard/docs/rev-b.md:67` |
+| Growing past that | respin the motherboard | **satellites on a USART3 chain** — position is the address, 1 Mbaud, JST SH 5-pin, self-closing ring via a `PRESENT` pin | `rev-b/rodeo-motherboard/docs/rev-b.md:117`, `rev-b/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md:32-33`, `rev-b/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md:55` |
+| Satellite brain | — | **CH32V003F4P6** chosen 2026-10-14 | `rev-b/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md:89` |
+| Panel USB-C | power only; no USB-MIDI, no USB audio | **data, through the power board** — USB-MIDI, USB audio and DFU flashing | `rev-b/rodeo-motherboard/docs/rev-b.md:290` |
+| MIDI | on the motherboard | **a daughterboard** | `rev-b/rodeo-motherboard/docs/rev-b.md:416` |
+| I²C | no on-board pull-ups; the hub is the bus anchor | pull-ups on the motherboard, **4 taps** | `rev-b/rodeo-motherboard/docs/rev-b.md:228` |
+| Storage | none | **internal SD**, 1-bit SDMMC, loaded over USB | `rev-b/rodeo-motherboard/docs/rev-b.md:246` |
+
+**The boards that now exist as designs**, none yet fabricated:
+
+| Board | What it is | Evidence |
 |---|---|---|
-| **Satellite chain on USART2** — smart daisy-chained satellites, position is the address | **The headline change.** Controls stop being bounded by motherboard channels: growth means adding satellites, not respinning the board. Replaces the channel count as the thing worth leading with. | `rodeo-motherboard/docs/rev-b.md:81` |
-| ~~3rd ADS114S08, 24 → 36 channels~~ — **rejected** | **No change. Rev-B keeps 24 analog channels**, same as Rev-A. The hero number stops being rev-scoped, which removes the reason the hero could not state it plainly. | `rodeo-motherboard/docs/rev-b.md:235` |
-| Panel USB-C carries data | The prominent "no USB-MIDI / no USB audio" claim **inverts for Rev-B** — and brings DFU flashing over the panel port. Must ship as `planned`, never as a capability. | `rodeo-motherboard/docs/rev-b.md:165` |
-| Digital GPIO **12 → 9** | A number that goes *down*. Buttons are expected to move onto the satellite chain. Do not quietly keep saying 12. | `rodeo-motherboard/docs/rev-b.md:44` |
-| SD card slot, native 4-bit SDMMC | New: samples and wavetables | `rodeo-motherboard/docs/rev-b.md:149` |
-| CV header on the two DACs | New: a CV daughterboard becomes possible | `rodeo-motherboard/docs/rev-b.md:181` |
-| I²C pull-ups move to the motherboard | Removes the "no hub = no I²C" caveat. **Hub and motherboard revisions must match.** | `rodeo-motherboard/docs/rev-b.md:136` |
+| `rodeo-pot-bank-4` | Four 9 mm pots on 25 mm centres, one CH32V003, four chain slots | `rev-b/rodeo-pot-bank-4/README.md` |
+| `rodeo-encoder-bank-4` | Four 12 mm encoders with push switches, same geometry | `rev-b/rodeo-encoder-bank-4/README.md` |
+| `rodeo-audio-3.5mm` | Four stereo 3.5 mm jacks for the eight audio signals | `rev-b/rodeo-audio-3.5mm/README.md` |
+| `rodeo-power-usbc` | Default power input, and the USB data path | `rev-b/rodeo-power-usbc/README.md` |
+| `rodeo-power-barrel` | The same plus a 9–12 V barrel jack | `rev-b/rodeo-power-barrel/README.md` |
+| mounting system | Rear rail and motherboard frame, both printed | `rev-b/mounting/README.md` |
 
 **Consequence to act on.** The campaign sells Rev-B (settled 2026-10-15), so the
-site is *about* a board that does not physically exist. Two rules follow, and
-they are the whole difficulty of this phase:
+site is about hardware that has not been built. Three rules follow, and they are
+the whole difficulty of this phase:
 
-1. **Every photograph is Rev-A** and must stay captioned as such. `BoardFigure`
-   enforces this already; do not add an override.
-2. **A Rev-B capability is `planned` until a Rev-B board is on a bench.** The
-   temptation on a crowdfunding page is to write the finished spec. That is the
-   exact failure this audit exists to prevent, and it is more dangerous now than
-   at any earlier point, because the reader is being asked for money.
+1. **Every photograph is Rev-A** and stays captioned as such. `BoardFigure`
+   enforces this; do not add an override. A Rev-A photo beside a Rev-B spec is
+   honest only while the caption says so.
+2. **No Rev-B capability is published as a capability.** 4-in/4-out audio,
+   USB-MIDI, the SD card and the satellite chain are all `planned`. The
+   temptation on a crowdfunding page is to write the finished spec sheet; that
+   is the exact failure this audit exists to prevent, and it matters more here
+   than anywhere earlier, because the reader is being asked for money.
+3. **The old numbers must go, not soften.** "24 × 16-bit analog in" is not a
+   smaller truth about Rev-B, it is a fact about a board that is not for sale.
+   Leaving it on the site would be the single most misleading thing here.
 
 ### Imagery rule
 
@@ -121,7 +140,7 @@ above.
 | Claim | Evidence |
 |---|---|
 | 24 analog input channels, 16-bit | 2× TI ADS114S08 on SPI1; `rodeo-motherboard/docs/hardware-map.md:76` |
-| ADC conversion path proven on real silicon | SPI orientation and conversion bench-confirmed 2026-08-14 via `04_adc_1ch` / `05_adc_scan`; `rodeo-motherboard/firmware/README.md:90-92` |
+| ADC conversion path proven on real silicon | SPI orientation and conversion bench-confirmed 2026-08-14 via `04_adc_1ch` / `05_adc_scan`; `rodeo-sdk/README.md:125-127` |
 | 12 digital inputs | Raw Daisy Seed GPIO, no expanders; `rodeo-motherboard/docs/hardware-map.md:114` |
 | I²C control bus | `rodeo-motherboard/docs/hardware-map.md:173` |
 | MIDI **in and out**, TRS | J2 in via 6N138 opto; J3 out. `rodeo-motherboard/docs/hardware-map.md:165-166` |
@@ -129,7 +148,7 @@ above.
 | Encoder hub: 9 encoders, one I²C target | `rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md:39` |
 | Hub addresses 0x30–0x33 (4 hubs per bus) | Two cuttable jumpers; `RODEO_HUB_I2C_CONTRACT.md:35` |
 | Hub firmware **running on hardware** | First bring-up on a fabbed board 2026-09-12; enumerates, serves telemetry, counts correctly alongside the OLED. `rodeo-encoder-hub/firmware/README.md:177-191` |
-| I²C register contract silicon-verified | `rodeo-motherboard/firmware/README.md:94-96` (locked, silicon-verified 2026-08-20); map at `RODEO_HUB_I2C_CONTRACT.md:80-99` |
+| I²C register contract silicon-verified | `rodeo-sdk/README.md:129-130` (locked, silicon-verified 2026-08-20); map at `RODEO_HUB_I2C_CONTRACT.md:80-99` |
 | `rodeo-potentiometer` finalized | `rodeo-001/docs/RODEO_CONTROL_MAP.md:33-36` |
 | `rodeo-encoder`, `rodeo-encoder-hub` interface-verified | `rodeo-001/docs/RODEO_CONTROL_MAP.md:37-39` |
 | Satellite dimensions: pot 25×30 mm, encoder 25×25 mm, button 25×25 mm | Board outlines; uniform ~25 mm panel grid |
@@ -145,7 +164,7 @@ damaging thing the site could do.
 | Claim | Status | Evidence |
 |---|---|---|
 | **Panel USB-C is power only** — no USB-MIDI, no USB audio, no DFU over the panel connector. The Seed's USB D+/D− dead-end at pins 37/36. Flash via the Seed's own port or SWD. | `not-planned` | `rodeo-motherboard/docs/hardware-map.md:213-221` |
-| MIDI DIN and the J44 UART header **share USART1** — mutually exclusive | `not-planned` (by design) | `rodeo-motherboard/docs/hardware-map.md:182` |
+| MIDI DIN and the J44 UART header **share USART1** — mutually exclusive | `not-planned` (by design) | `rodeo-motherboard/docs/hardware-map.md:216` |
 | CV I/O | `not-planned` for Rev-A; ch0/ch3 (J6/J9) are spare ADC headers reserved for it | `rodeo-001/docs/RODEO_CONTROL_MAP.md:304,307` |
 | `rodeo-rotary-switch` | `retired` 2026-08-20/21 | `rodeo-001/docs/RODEO_CONTROL_MAP.md:461` |
 | `rodeo-switch` (SPDT), `rodeo-pixel`, `rodeo-encoder-bank` | `retired` | `rodeo-001/docs/RODEO_CONTROL_MAP.md:40,462-463` |
@@ -154,7 +173,7 @@ damaging thing the site could do.
 
 | Claim | Note | Evidence |
 |---|---|---|
-| ADS114S08 **absolute-voltage accuracy** | Conversion path is proven; absolute accuracy is still unverified pending a jumper/pot test | `rodeo-motherboard/firmware/README.md:92-93` |
+| ADS114S08 **absolute-voltage accuracy** | Conversion path is proven; absolute accuracy is still unverified pending a jumper/pot test | `rodeo-sdk/README.md:126-127` |
 | Hub I²C at 400 kHz | Boots at 100 kHz and works; the 400 kHz `TIMINGR` value has never been generated, and SDA/SCL setup-hold has never been looked at on a logic analyser | `rodeo-encoder-hub/firmware/README.md:179-183`; `RODEO_HUB_I2C_CONTRACT.md:36` |
 | Motherboard board outline | Edge.Cuts not finalized — the mounting rectangle is verified, the overall outline is provisional | `rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb` |
 | `rodeo-button` | Interface verified, but the switch footprint is not yet assigned | `rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md` open items |
@@ -181,7 +200,7 @@ Rodeo is a platform and not one synth. Say exactly that.
 
 Consequently **`preset` and `effects` come off the banned-phrase list** for rodeo-002 copy —
 but they stay banned for platform and `rodeo-001` copy, which is why the banned list needs to
-become per-scope rather than global when `specs.ts` is built.
+become per-scope rather than global, now that `boards.ts` is the one source.
 
 Not yet re-audited, and required before any rodeo-002 page ships: the voice count (the cost
 model caps it, and the bench logs sweep to 12 under the bootloader rather than 16), the engine
@@ -220,13 +239,13 @@ the only 12-voice code is the scaffold. Don't conflate them.
 | Phrase | Why |
 |---|---|
 | **`MiniFreak`** | A competitor's product name, used throughout the internal docs as voice shorthand. It must never reach public copy. |
-| Any **price**, including "TBA" | `specs.ts` has no price field at all. An early wrong number anchors the campaign badly, and platform pricing depends on kit composition, which is undecided. |
+| Any **price**, including "TBA" | `boards.ts` has no price field at all. An early wrong number anchors the campaign badly, and platform pricing depends on kit composition, which is undecided. |
 | `pre-order` | Not a thing that exists |
 | `open source` **before the LICENSE files land** | Openness is decided; the files are not written. Gate the words on the files existing. |
 | **Bumble, Honey, Fizz** | Agent personas in the engineering docs, not team credits |
 | `USB MIDI`, `USB audio` | Panel USB-C is power only |
 | `unison`, `mono mode`, `hard sync` | Planned on `rodeo-001`, not built |
-| `preset`, `effects` | **Scope-dependent.** Banned for platform and `rodeo-001` copy; permitted for `rodeo-002`, where both now exist — see "Reference builds — there are now two". The banned list must become per-scope when `specs.ts` is built. |
+| `preset`, `effects` | **Scope-dependent.** Banned for platform and `rodeo-001` copy; permitted for `rodeo-002`, where both now exist — see "Reference builds — there are now two". The banned list must become per-scope. |
 
 ## Sourcing caveat — two docs disagree
 
@@ -271,7 +290,7 @@ Specified here; implemented in a later phase. Five checks in `web/scripts/check-
 3. **Evidence drift.** A committed `scripts/claims.lock.json` stores a hash of each evidence
    line's text. If the source line changes, the check fails with *"evidence for `osc-fm`
    changed — re-verify and re-run `npm run claims:accept`."* This forces a human re-read
-   whenever firmware moves under a claim. **Do not cut this check** — without it `specs.ts`
+   whenever firmware moves under a claim. **Do not cut this check** — without it `boards.ts`
    becomes a third stale doc within a month and the guardrail becomes theatre that licenses
    bad copy.
 4. **Banned phrases in built HTML.** Grep `dist/**/*.html` for the table above, with
