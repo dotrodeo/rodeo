@@ -1,0 +1,4 @@
+(fp_lib_table
+	(version 7)
+	(lib (name "rodeo_midi")(type "KiCad")(uri "${KIPRJMOD}/lib/rodeo_midi.pretty")(options "")(descr "Rodeo MIDI board parts with 3D models not in the KiCad library"))
+)

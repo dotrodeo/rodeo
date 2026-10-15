@@ -1,0 +1,4 @@
+Comment,Designator,Footprint,LCSC,Quantity
+D_TVS,"D1,D2",D_SOD-323,C7472904,2
+Conn_01x05,J1,JST_SH_BM05B-SRSS-TB_1x05-1MP_P1.00mm_Vertical,C160391,1
+AudioJack4,"J2,J3",Jack_3.5mm_PJ320D_Horizontal,C431535,2
