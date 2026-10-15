@@ -86,9 +86,12 @@ The contract doesn't fix the MCU. Any part that meets these can be a satellite:
 | Runs from 2.7 V to 3.6 V | §1.4 |
 | Programmable through pads | §8 |
 
-Front-runner: **CH32V003** (USART1 has four pin mappings; 10-bit ADC). Alternative:
-**PY32F002A** (12-bit ADC). Confirm the TX remap pins against the chosen part's datasheet
-before the first satellite layout.
+**Chosen for the first satellite (2026-10-14): CH32V003F4P6** (TSSOP-20, 10-bit ADC).
+USART1 has four pin mappings, and TX and RX always move together: 0 = TX PD5/RX PD6,
+1 = PD0/PD1, 2 = PD6/PD5, 3 = PC0/PC1. A satellite uses mapping 0 normally (TX PD5 to
+OUT `DATA_FWD`, RX PD6 from IN) and mapping 3 when it is last (TX PC0 on the `DATA_RET`
+tap), with IN `DATA_FWD` wired to both PD6 and PC1 so RX follows. Mapping 1 is avoided
+because PD1 is SWIO. Alternative MCU: **PY32F002A** (12-bit ADC).
 
 ### 1.6 Board-kind ID resistor
 
@@ -121,7 +124,9 @@ number, against a ±0.5 decision band.
 | 2 | button | 1 | `BUTTON` | `LED` |
 | 3 | encoder with push switch | 1 | `ENCODER` | `LED` |
 | 4 | rotary switch | 1 | `SWITCH` | `LED` |
-| 5–14 | unassigned | | | |
+| 5 | pot bank ×4 (`rodeo-pot-bank-4`) | 4 | `POT` ×4, pots 1–4 in order | slot 1 `LED`, slots 2–4 `NONE` |
+| 6 | encoder bank ×4 (`rodeo-encoder-bank-4`) | 4 | `ENCODER` ×4, encoders 1–4 in order | slot 1 `LED`, slots 2–4 `NONE` |
+| 7–14 | unassigned | | | |
 | 15 | **no ID resistor fitted:** sends `EMPTY` | 1 | `EMPTY` | ignored |
 
 A new board type needs a new resistor value and a firmware update, not a separate
@@ -345,11 +350,11 @@ produce one.
 
 ## 9. Open items
 
-* **Satellite MCU choice** and its exact TX remap pins (§1.5).
 * **Measure on the first build:** the real link resistance and the voltage at the end of
   a long chain; the `DATA_RET` waveform at 1 Mbaud through 30 pass-throughs, and whether
   the idle line, held only by the 10 kΩ pull-up between frames, picks up noise.
-* **Multi-slot satellites** (`s` > 1, e.g. a dual pot board): the format supports up to
-  4 slots per satellite. No v1 kind uses more than 1.
+* **Multi-slot satellites** (`s` > 1): the format supports up to 4 slots per satellite.
+  Kind 5, the pot bank, is the first to use 4; its discovery reply and slot ordering
+  are the first real test of §2 and §4 with `s` > 1.
 * **RGB LEDs** need more than one output slot's 2 data bytes; reserve a kind when one
   exists.
