@@ -20,7 +20,7 @@ recorded alongside decisions, because several of these look arbitrary without th
 | Content | Astro content collections (`glob()` loader), **MDX** for log posts |
 | Hosting | **Cloudflare Workers** with static assets (`web/wrangler.jsonc`) |
 | Deploy | **GitHub Actions** → `wrangler deploy` |
-| Dynamic | None yet — `/subscribe` becomes the Worker script when it lands |
+| Dynamic | One route: `POST /api/subscribe` in `web/worker/index.ts` |
 | Email | **Buttondown**, with RSS-to-email |
 | Node | 22 (pinned in `web/.nvmrc`) |
 
@@ -44,11 +44,12 @@ web/
 ├── package.json
 ├── tsconfig.json                # extends astro/tsconfigs/strict
 ├── lighthouse-budget.json
-├── functions/
-│   └── subscribe.ts             # the one Pages Function
+├── wrangler.jsonc
+├── worker/
+│   ├── index.ts                 # the waitlist handler; everything else -> ASSETS
+│   └── tsconfig.json            # Workers globals, kept out of the Astro graph
 ├── public/
-│   ├── _headers                 # CSP, cache-control
-│   ├── _routes.json             # restrict the Function to /subscribe
+│   ├── _headers                 # security headers, cache-control
 │   ├── robots.txt
 │   ├── favicon.svg
 │   ├── fonts/
@@ -199,8 +200,10 @@ What that changes in practice:
   which uploads a version and gives it a URL without promoting it.
 - `_headers` and `_redirects` still work — supported natively on Workers — so
   `web/public/_headers` carries over unchanged.
-- The Worker is **assets-only**: no `main`, no ASSETS binding. Both get added
-  when the `/subscribe` handler lands and there is real server code.
+- The Worker has `main` and an `ASSETS` binding. Routing stays **asset-first**:
+  a request matching a built file is served by the asset layer and the script
+  never runs, so `_headers` still applies to every page. Only unmatched paths
+  reach the script.
 - `not_found_handling: "404-page"` serves Astro's 404 rather than Cloudflare's.
 
 Still deploying from Actions rather than Workers Builds, for the original
@@ -223,7 +226,10 @@ don't mark these required, or add an always-passing gate job.
 
 ## Email capture
 
-**Buttondown + a Pages Function proxy.** Alternatives considered: Mailchimp (heaviest embed,
+**Built 2026-10-14.** The plan below described a Pages Function; it is a Worker
+route now, and two details changed in the building. The rest held.
+
+**Buttondown + a Worker route.** Alternatives considered: Mailchimp (heaviest embed,
 aggressive branding), Kit/ConvertKit (good, but RSS-driven broadcasts are manual or
 higher-tier), Cloudflare D1 (rejected — you would own sending, unsubscribes, suppression,
 DKIM and deliverability), and a raw provider embed (works with no code but puts a
@@ -235,31 +241,73 @@ Buttondown wins on one decisive feature: **RSS-to-email**. Point it at
 *is* sending the newsletter, which collapses the two things this site exists for into one
 action. Free under 100 subscribers, $9/mo after, clean REST API, built-in double opt-in.
 
-Wiring:
+Wiring, as built:
 
-1. `SubscribeForm.astro` — a plain `<form method="POST" action="/subscribe">`. An `email`
-   field, an off-screen `b_name` honeypot, a Turnstile widget, a hidden `source`
-   (`home` / `footer` / `subscribe-page` / `post:<slug>`), and un-ticked explicit consent
-   copy. No pre-checked boxes.
-2. `functions/subscribe.ts`:
-   - reject non-POST;
-   - honeypot non-empty → 303 to `/subscribe/thanks/` and silently drop (don't tell the bot);
-   - verify the Turnstile token against `challenges.cloudflare.com/turnstile/v0/siteverify`;
-   - if `env.DRY_RUN === '1'`, skip the provider and redirect as success — **this is how
-     preview deploys stop polluting the real list**;
-   - `POST https://api.buttondown.com/v1/subscribers` with `type: "unactivated"`, which
-     triggers the confirmation email. **The double opt-in and the legal record of consent
-     live at the provider, not in our code** — that is the point of the design;
-   - treat 400 "already subscribed" as success (don't leak list membership);
-   - 303 to `/subscribe/thanks/`.
-3. `public/_routes.json` = `{"version":1,"include":["/subscribe"],"exclude":["/*"]}`. Without
-   it the Function is consulted on **every** request, which hurts the cache story and the
-   invocation count.
-4. Env vars set **separately for Production and Preview**: `BUTTONDOWN_API_KEY`,
-   `TURNSTILE_SECRET`, and `DRY_RUN=1` on Preview only. `PUBLIC_TURNSTILE_SITE_KEY` at build
-   time.
-5. The form works with JS disabled (real POST + 303). Turnstile is the only third-party
-   script on the site.
+1. **`src/components/SubscribeForm.astro`** — `<form method="post"
+   action="/api/subscribe">`. The path is under `/api/` because that prefix is
+   routed Worker-first — see below. An `email` field, an off-screen `b_name`
+   honeypot, a hidden `source` (`home` / `ecosystem` / `log-post` / …), the
+   Turnstile widget, and a consent line. One component, used by `CtaBand` and
+   by `/subscribe/`, so the markup the Worker checks cannot drift between them.
+2. **`worker/index.ts`**, in order: reject non-POST with 405; honeypot
+   non-empty → 303 to `/subscribe/thanks/` and silently drop; validate the
+   address; verify Turnstile; if `DRY_RUN === '1'` stop and redirect as
+   success; otherwise `POST https://api.buttondown.com/v1/subscribers` with
+   `type: "unactivated"`, which is what triggers the confirmation email.
+   **The double opt-in and the dated record of consent live at the provider**
+   — that is the design, not an omission. Then 303 to `/subscribe/thanks/`.
+3. **Errors** 303 back to `/subscribe/?error=<code>`, and an inline script on
+   that page turns the code into a sentence. The address is never put in the
+   query string: it would land in a URL, a referer header and every
+   intermediate log for no gain, and the subscriber can retype it. Without JS
+   the form simply reappears without the message.
+4. **Env**, set three different ways on purpose:
+   - `BUTTONDOWN_API_KEY`, `TURNSTILE_SECRET` — Worker **secrets**
+     (`wrangler secret put`). `wrangler deploy` never deletes secrets, so this
+     is one-time setup and they never touch CI.
+   - `DRY_RUN` — passed as `--var DRY_RUN:1` on `versions upload` only, so it
+     exists on previews and nowhere else. It is deliberately *not* in
+     `wrangler.jsonc`: `wrangler deploy` clears vars absent from the config,
+     which is what guarantees production has none.
+   - `PUBLIC_TURNSTILE_SITE_KEY` — a build-time GitHub **variable**, not a
+     secret; Turnstile reads it off the page.
+5. The form works with JS disabled (real POST, real 303). Turnstile is the only
+   third-party script on the site, and only once the key is set.
+
+### Routing: the part that cost the most, and nearly shipped broken
+
+**Asset-first routing will intercept a form POST.** The asset layer checks
+`Sec-Fetch-Mode: navigate` — which every browser form submission sends and
+`curl` does not — and for a navigation to a path it has no asset for it tries
+to serve `not_found_handling`'s 404 page. A POST cannot be answered with an
+asset, so it returns **405 and the Worker is never invoked**.
+
+This is a nasty failure mode because it is invisible from a terminal. The
+endpoint returned a correct 303 to every `curl` thrown at it and 405 to the
+first real browser submission. It was caught by driving the actual form, not
+by testing the endpoint.
+
+The fix is `"run_worker_first": ["/api/*"]` in the `assets` block, which takes
+the asset layer out of the decision for that prefix. Scoped to `/api/*` rather
+than `true` on purpose: Worker-generated responses do not get `_headers` rules
+applied, so every page that is a real page stays asset-first and keeps its
+security headers. Verified after the change that `/` still carries
+`X-Frame-Options` and that `/nope/` still renders Astro's own 404.
+
+**`_routes.json` is gone.** That was the Pages mechanism for keeping a Function
+off every request. On Workers it does not exist, and asset-first routing plus a
+scoped `run_worker_first` does the same job.
+
+### Degraded modes, both deliberate
+
+- **No Turnstile keys** → no widget is rendered and the Worker logs
+  `TURNSTILE_SECRET unset — captcha not verified` on every signup, leaving the
+  honeypot and Buttondown's own IP check. Acceptable for a pre-launch waitlist,
+  and it is why the key is worth adding before the campaign.
+- **Buttondown 400** is treated as success. It is the collision and suppression
+  family, the address was already validated, and the one thing worse than a
+  confusing error is confirming to a stranger that an address is on the list.
+  401/403/429/5xx are surfaced as `error=server`. Nothing logs the address.
 
 ### Compliance
 
@@ -271,6 +319,10 @@ Wiring:
 - **CAN-SPAM:** a working unsubscribe (Buttondown handles it) **and a valid physical postal
   address** in every email. See the risk note in [WEB_DISCOVERY.md](./WEB_DISCOVERY.md).
 - Buttondown's sending domain needs SPF/DKIM records on `rodeooh.rodeo`.
+- **The handler sends the subscriber's IP to Buttondown** as `ip_address`, which is their
+  documented spam check and matters more while Turnstile is unconfigured. An IP is personal
+  data, so `/privacy/` has to say so — it is the one disclosure the signup path adds beyond
+  the address itself. Nothing else leaves the account: `source` is logged, never sent.
 
 ## Design tokens
 
@@ -306,8 +358,11 @@ is kept anyway: it costs nothing and makes that reversible in one file.
 
 ## Verification
 
-- `npm run dev` for the walkthrough; `wrangler pages dev` with `DRY_RUN=1` to exercise the
-  Function against real routing locally.
+- `npm run dev` for the walkthrough; `npm run worker` (`astro build && wrangler dev`) with
+  `DRY_RUN=1` in `.dev.vars` to exercise the handler against the real asset routing locally.
+  Turnstile's published test secrets drive the pass and fail branches:
+  `1x0000000000000000000000000000000AA` always passes,
+  `2x0000000000000000000000000000000AA` always fails.
 - `npm run check` = `astro check` (TS + collection schemas) + `check-claims.mjs` +
   `check-assets.mjs`.
 - `npm run build && npm run preview` — the build must be **warning-clean**, not just exit 0.
@@ -323,7 +378,7 @@ is kept anyway: it costs nothing and makes that reversible in one file.
   build time: the workflow passes `SITE_ENV`, and `BaseHead.astro` emits
   `<meta name="robots" content="noindex,nofollow">` unless it is `production`. Preview
   deployments indexed under the real brand would be genuinely damaging.
-- **Turnstile on previews:** add `*.pages.dev` to the widget's allowed hostnames, or the
+- **Turnstile on previews:** add `*.workers.dev` to the widget's allowed hostnames, or the
   captcha silently fails on every preview and looks like a broken form.
 - **One manual test that cannot be automated:** on production, subscribe with a real address,
   confirm the double opt-in email arrives, click through, verify the subscriber shows as

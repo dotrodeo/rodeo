@@ -83,6 +83,12 @@ jobs:
           # ships noindex, so preview deployments cannot be indexed under the
           # real brand.
           SITE_ENV: ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }}
+          # Public by design — it is read off the page by Turnstile's script,
+          # so it is a variable, not a secret. Unset until the widget exists,
+          # and unset means no widget is rendered and the Worker logs that it
+          # is not verifying. Its partner TURNSTILE_SECRET is a Worker secret
+          # and never passes through this workflow.
+          PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.PUBLIC_TURNSTILE_SITE_KEY }}
         run: npm run build
 
       # main -> production. The Worker is created on first deploy; there is
@@ -110,6 +116,12 @@ jobs:
 
       # PRs -> a preview version with its own URL, never promoted to
       # production. `preview_urls: true` in wrangler.jsonc enables these.
+      #
+      # DRY_RUN=1 is set on the version, not in wrangler.jsonc, so it applies
+      # to previews and to nothing else. The subscribe handler then runs every
+      # check and stops before Buttondown — a preview cannot write to the real
+      # list. Production has no DRY_RUN because `wrangler deploy` clears vars
+      # absent from the config.
       - name: Upload preview version
         id: preview
         if: github.event_name == 'pull_request'
@@ -118,7 +130,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: web
-          command: versions upload
+          command: versions upload --var DRY_RUN:1
 
       - name: Comment the preview URL
         if: github.event_name == 'pull_request'

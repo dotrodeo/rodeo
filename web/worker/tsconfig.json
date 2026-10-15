@@ -1,0 +1,22 @@
+{
+  // Standalone on purpose. Workers' globals (Request, Response, fetch) differ
+  // from the DOM's, so pulling @cloudflare/workers-types into the Astro
+  // tsconfig would corrupt typing in every .astro file. The root tsconfig
+  // excludes this directory; `npm run check` runs tsc against this one.
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["es2022"],
+    "module": "es2022",
+    "moduleResolution": "bundler",
+    "types": ["@cloudflare/workers-types"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true
+  },
+  "include": ["**/*.ts"]
+}

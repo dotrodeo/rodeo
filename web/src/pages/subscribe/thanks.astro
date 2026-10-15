@@ -1,0 +1,37 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Eyebrow from '../../components/Eyebrow.astro';
+
+// noindex: a confirmation page carries no information for a search engine and
+// ranking it would put people on it without ever passing through the form.
+---
+
+<BaseLayout
+  title="Check your email"
+  description="One more click confirms your place on the Rodeo waitlist."
+  noindex
+>
+  <div class="wrap">
+    <section class="flex flex-col gap-6 py-24">
+      <Eyebrow>Almost</Eyebrow>
+      <h1 class="display m-0 max-w-[16ch] text-[clamp(40px,7vw,64px)]">Check your email</h1>
+      <p class="prose-body m-0 max-w-[58ch] text-[17px]">
+        There is a confirmation link waiting in your inbox. Click it and you are
+        on the list — until you do, nothing is sent. If it has not arrived in a
+        few minutes, look in spam.
+      </p>
+      <div class="flex flex-wrap gap-3">
+        <a
+          href="/log/"
+          class="bg-yellow px-5 py-3 font-display text-[15px] font-black uppercase tracking-[0.06em] text-field no-underline hover:bg-legend"
+          >Read the build log</a
+        >
+        <a
+          href="/ecosystem/"
+          class="border-[1.5px] border-legend px-5 py-3 font-display text-[15px] font-black uppercase tracking-[0.06em] text-legend no-underline hover:border-yellow hover:text-yellow"
+          >See the boards</a
+        >
+      </div>
+    </section>
+  </div>
+</BaseLayout>

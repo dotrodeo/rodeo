@@ -1,0 +1,13 @@
+# Copy to .dev.vars (gitignored) for `npm run worker`.
+#
+# DRY_RUN=1 validates the whole subscribe path — honeypot, email, Turnstile —
+# and stops before Buttondown, so local testing never writes to the real list.
+# Leave it set unless you are deliberately exercising the provider.
+DRY_RUN=1
+
+# Only needed to test against Buttondown for real. Never commit it.
+# BUTTONDOWN_API_KEY=
+
+# Only needed to test the captcha. Without it the Worker logs a warning and
+# skips verification.
+# TURNSTILE_SECRET=

@@ -6,7 +6,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "check": "astro check && node scripts/check-claims.mjs && node scripts/check-assets.mjs",
+    "worker": "astro build && wrangler dev",
+    "check": "astro check && tsc -p worker/tsconfig.json && node scripts/check-claims.mjs && node scripts/check-assets.mjs",
     "assets": "node scripts/check-assets.mjs",
     "claims": "node scripts/check-claims.mjs",
     "renders": "node scripts/shrink-renders.mjs",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.4",
+    "@cloudflare/workers-types": "^5.20261015.1",
     "typescript": "^5.6.0",
     "wrangler": "^4.151.0"
   }

@@ -6,16 +6,32 @@
   // docs and the dashboard labels it the "legacy Pages workflow", so a site
   // started in late 2026 belongs on Workers.
   //
-  // Assets-only: there is no `main` and no `binding`, because nothing here
-  // runs server-side yet. When the /subscribe handler lands it becomes a real
-  // Worker script, and `main` plus an ASSETS binding get added then.
+  // Routing is asset-first everywhere except /api/*: a request matching a built
+  // file is served straight from the asset layer and `worker/index.ts` never
+  // runs, which is what keeps `_headers` applying to every page.
   "name": "rodeo-web",
   "compatibility_date": "2026-10-14",
+  "main": "./worker/index.ts",
 
   "assets": {
     "directory": "./dist",
+    // Named so the Worker can fall through to the asset layer for everything
+    // it does not handle itself.
+    "binding": "ASSETS",
     // Astro emits a real 404 page; serve it rather than Cloudflare's.
-    "not_found_handling": "404-page"
+    "not_found_handling": "404-page",
+
+    // Load-bearing, and not obvious. The asset layer inspects
+    // `Sec-Fetch-Mode: navigate` — which every browser form submission sends —
+    // and tries to serve `not_found_handling`'s 404 page for a path it has no
+    // asset for. A POST cannot be answered with an asset, so it returns 405
+    // and the Worker is never reached. curl does not send that header, so the
+    // endpoint tests clean from a terminal and fails in a browser.
+    //
+    // Routing /api/* Worker-first removes the asset layer from the decision.
+    // It is scoped to /api/* rather than true so every real page keeps its
+    // `_headers` rules, which are not applied to Worker-generated responses.
+    "run_worker_first": ["/api/*"]
   },
 
   // Per-PR preview URLs, produced by `wrangler versions upload`.

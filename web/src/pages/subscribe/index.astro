@@ -1,0 +1,56 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Eyebrow from '../../components/Eyebrow.astro';
+import SubscribeForm from '../../components/SubscribeForm.astro';
+
+// No CtaBand here: a second form on the page would mean two `id="waitlist"`
+// anchors and two Turnstile widgets.
+---
+
+<BaseLayout
+  title="Join the waitlist"
+  description="Hear first when Rodeo launches on Kickstarter, and follow the boards as they are finished."
+>
+  <div class="wrap">
+    <section id="waitlist" class="flex flex-col gap-6 py-20">
+      <Eyebrow>Waitlist</Eyebrow>
+      <h1 class="display m-0 max-w-[14ch] text-[clamp(40px,7vw,64px)]">Hear it first</h1>
+      <p class="prose-body m-0 max-w-[58ch] text-[17px]">
+        Rodeo launches on Kickstarter in January 2027. The list gets the build
+        log as it is written, the boards as they come back from fab, and the
+        campaign before anyone else.
+      </p>
+
+      {/* Populated from ?error= by the script below. Present but empty in the
+          markup so the layout does not jump when it fills. */}
+      <p
+        id="subscribe-error"
+        role="alert"
+        class="m-0 hidden max-w-[58ch] border-l-2 border-yellow bg-field-raised py-2 pl-3 pr-4 font-mono text-[13px] text-legend"
+      >
+      </p>
+
+      <SubscribeForm source="subscribe-page" variant="page" />
+    </section>
+  </div>
+</BaseLayout>
+
+{/* The Worker cannot render this page, so it redirects back with a code and
+    the code is turned into a sentence here. Without JS the form simply
+    reappears, which is unhelpful but not broken. */}
+<script is:inline>
+  (function () {
+    var messages = {
+      email: 'That does not look like an email address. Check it and try again.',
+      captcha: 'The verification check did not pass. Reload the page and try once more.',
+      server: 'Something went wrong on our end, not yours. Try again in a minute.',
+    };
+    var code = new URLSearchParams(window.location.search).get('error');
+    var text = code && Object.prototype.hasOwnProperty.call(messages, code) ? messages[code] : null;
+    if (!text) return;
+    var el = document.getElementById('subscribe-error');
+    if (!el) return;
+    el.textContent = text;
+    el.classList.remove('hidden');
+  })();
+</script>

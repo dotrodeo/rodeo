@@ -84,7 +84,9 @@ export default defineConfig({
       ],
     }),
     mdx(),
-    sitemap(),
+    // The signup confirmation is noindex; listing it in the sitemap would ask
+    // search engines to crawl exactly the page the meta tag tells them to drop.
+    sitemap({ filter: (page) => !page.endsWith('/subscribe/thanks/') }),
   ],
   vite: { plugins: vitePlugins },
 });
