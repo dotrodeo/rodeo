@@ -42,7 +42,8 @@ import SubscribeForm from '../../components/SubscribeForm.astro';
   (function () {
     var messages = {
       email: 'That does not look like an email address. Check it and try again.',
-      captcha: 'The verification check did not pass. Reload the page and try once more.',
+      captcha:
+        'The human check did not pass. Tick the verification box below and submit again — or reload the page if it was already ticked.',
       server: 'Something went wrong on our end, not yours. Try again in a minute.',
     };
     var code = new URLSearchParams(window.location.search).get('error');
