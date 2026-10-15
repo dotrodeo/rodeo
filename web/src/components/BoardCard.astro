@@ -1,0 +1,45 @@
+---
+// A catalogue card without a photograph.
+//
+// Every Rev-B board is unfabricated, so there is nothing to photograph and the
+// renders are held back until the soldermask stackups agree. Rather than leave
+// a grey box where an image would go, the card leads with the two specs that
+// actually distinguish the board — which is what a builder is scanning for.
+import Chip from './Chip.astro';
+import type { Board } from '../data/boards';
+import { statusLabel } from '../data/site';
+
+interface Props {
+  board: Board;
+}
+
+const { board } = Astro.props;
+const lead = board.specs.slice(0, 2);
+---
+
+<li class="h-full">
+  <a
+    href={`/ecosystem/${board.slug}/`}
+    class="group flex h-full flex-col gap-4 border border-rule bg-field-raised p-5 text-legend no-underline hover:border-yellow"
+  >
+    <div class="flex flex-wrap items-center gap-2">
+      <h3 class="display m-0 text-[17px] normal-case group-hover:text-yellow">{board.name}</h3>
+      <Chip variant="status" status={board.status}>{statusLabel[board.status]}</Chip>
+    </div>
+
+    <p class="copy-tech m-0 text-[14px]">{board.summary}</p>
+
+    <dl class="m-0 flex flex-col gap-1.5 border-t border-rule pt-3 font-mono text-[12.5px]">
+      {
+        lead.map((s) => (
+          <div class="flex gap-3">
+            <dt class="m-0 w-[9rem] shrink-0 text-hardware">{s.label}</dt>
+            <dd class="m-0 min-w-0 text-legend">{s.value}</dd>
+          </div>
+        ))
+      }
+    </dl>
+
+    <span class="mt-auto pt-1 font-mono text-[12px] text-hardware">Rev-{board.rev}</span>
+  </a>
+</li>

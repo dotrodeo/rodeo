@@ -2,16 +2,21 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Chip from '../../components/Chip.astro';
 import Eyebrow from '../../components/Eyebrow.astro';
-import BoardFigure from '../../components/BoardFigure.astro';
 import SpecTable from '../../components/SpecTable.astro';
+import BoardCard from '../../components/BoardCard.astro';
 import CtaBand from '../../components/CtaBand.astro';
-import { host, satellites, retired } from '../../data/boards';
+import { host, satellites, daughterboards, retired } from '../../data/boards';
 import { statusLabel } from '../../data/site';
 
+// No board images on this page any more, and that is deliberate: the only
+// photographs in the repo are of Rev-A hardware, and Rev-B is a different
+// board. Renders of the Rev-B boards land once their soldermask stackups
+// agree — see WEB_ROADMAP.md, decision 8.
 const legend = [
   { status: 'shipped' as const, label: 'Verified', note: 'proven on real hardware' },
-  { status: 'in-progress' as const, label: 'In bring-up', note: 'fabbed, still being tested' },
-  { status: 'planned' as const, label: 'Open item', note: 'a known gap, named on the board’s page' },
+  { status: 'in-progress' as const, label: 'In progress', note: 'being drawn right now' },
+  { status: 'designed' as const, label: 'Designed', note: 'drawn and routed, never fabricated' },
+  { status: 'planned' as const, label: 'Planned', note: 'specified, not yet drawn' },
 ];
 ---
 
@@ -26,8 +31,10 @@ const legend = [
         One host board and the satellites that plug into it
       </h1>
       <p class="copy-tech m-0 max-w-[620px] text-[16px]">
-        Every entry links to its schematic, KiCad project, gerbers, BOM and pinout. Status is
-        what has been proven on hardware — not what has been designed.
+        Every entry links to its schematic, KiCad project, gerbers, BOM and pinout. These are
+        the Rev-B boards, the ones the campaign ships. <strong class="text-legend">None of
+        them has been fabricated yet</strong> — the status on each says exactly how far it has
+        got, and nothing here claims to have been measured on hardware that does not exist.
       </p>
     </div>
     <ul class="m-0 flex list-none flex-col gap-2.5 p-0">
@@ -45,18 +52,7 @@ const legend = [
   </section>
 
   <section class="wrap pb-6">
-    <div class="flex flex-col gap-10 border border-rule bg-field-raised p-6 lg:flex-row sm:p-8">
-      <div class="lg:w-[46%] lg:shrink-0">
-        <BoardFigure
-          src={host.shot!.src}
-          alt={host.shot!.alt}
-          media={host.shot!.media}
-          rev={host.rev}
-          caption={host.shot!.caption}
-          widths={[500, 800, 1200]}
-          sizes="(max-width: 1024px) 100vw, 520px"
-        />
-      </div>
+    <div class="flex flex-col gap-10 border border-rule bg-field-raised p-6 sm:p-8">
       <div class="flex min-w-0 grow flex-col gap-5">
         <div class="flex flex-wrap items-center gap-3">
           <h2 class="display m-0 text-[clamp(26px,3.4vw,34px)] normal-case">{host.name}</h2>
@@ -87,42 +83,31 @@ const legend = [
 
   <section class="wrap py-16">
     <Eyebrow class="mb-4">The satellites</Eyebrow>
-    <h2 class="display m-0 mb-10 max-w-[680px] text-[clamp(30px,4.6vw,44px)]">
-      A board per control, on a 25 mm grid
+    <h2 class="display m-0 mb-4 max-w-[680px] text-[clamp(30px,4.6vw,44px)]">
+      Four controls at a time, on a 25 mm grid
     </h2>
-    <ul class="m-0 grid list-none gap-6 p-0 sm:grid-cols-2 lg:grid-cols-4">
-      {
-        satellites.map((b) => (
-          <li class="h-full">
-            <a
-              href={`/ecosystem/${b.slug}/`}
-              class="group flex h-full flex-col gap-4 border border-rule bg-field-raised p-5 text-legend no-underline hover:border-yellow"
-            >
-              <img
-                src={b.shot!.src.src}
-                width={b.shot!.src.width}
-                height={b.shot!.src.height}
-                alt={b.shot!.alt}
-                loading="lazy"
-                decoding="async"
-                class="block aspect-square w-full rounded-[8px] object-cover"
-              />
-              <div class="flex flex-wrap items-center gap-2">
-                <h3 class="display m-0 text-[17px] normal-case group-hover:text-yellow">
-                  {b.name}
-                </h3>
-                <Chip variant="status" status={b.status}>
-                  {statusLabel[b.status]}
-                </Chip>
-              </div>
-              <p class="copy-tech m-0 text-[14px]">{b.summary}</p>
-              <span class="mt-auto font-mono text-[12px] text-hardware">
-                Rev-{b.rev} · {b.shot!.media === 'photo' ? 'photo' : 'CAD render'}
-              </span>
-            </a>
-          </li>
-        ))
-      }
+    <p class="copy-tech m-0 mb-10 max-w-[620px] text-[15px]">
+      Each satellite reads its own controls and passes them along a chain. The last one closes
+      the ring by itself, and a satellite’s position in the chain is its address — so growing a
+      panel means plugging in another board, never respinning the motherboard.
+    </p>
+    <ul class="m-0 grid list-none gap-6 p-0 sm:grid-cols-2 lg:grid-cols-3">
+      {satellites.map((b) => <BoardCard board={b} />)}
+    </ul>
+  </section>
+
+  <section class="wrap pb-16">
+    <Eyebrow class="mb-4">The daughterboards</Eyebrow>
+    <h2 class="display m-0 mb-4 max-w-[680px] text-[clamp(30px,4.6vw,44px)]">
+      Everything that reaches the outside world
+    </h2>
+    <p class="copy-tech m-0 mb-10 max-w-[620px] text-[15px]">
+      Jacks, power and MIDI leave the motherboard in Rev-B and bolt to the rear rail. It keeps
+      the host board smaller, and it means the connectors a build does not need are connectors
+      it does not pay for.
+    </p>
+    <ul class="m-0 grid list-none gap-6 p-0 sm:grid-cols-2 lg:grid-cols-3">
+      {daughterboards.map((b) => <BoardCard board={b} />)}
     </ul>
   </section>
 

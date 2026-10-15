@@ -3,26 +3,29 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import BoardFigure from '../components/BoardFigure.astro';
 import CtaBand from '../components/CtaBand.astro';
 import Eyebrow from '../components/Eyebrow.astro';
-import { host, satellites } from '../data/boards';
+import { prototype } from '../data/boards';
 import { site } from '../data/site';
 
 // Numbered in the data so they cannot run 01, 02, 01 again.
 const steps = [
   {
     title: 'Pick your controls',
-    body: 'Pots, encoders, buttons — a satellite for every function, on a uniform 25 mm grid. I²C and SPI breakouts for displays, sensors and anything else on a bus.',
+    body: 'Satellites carry four pots or four encoders on a 25 mm grid. Each one reads its own controls and passes them along, so another four is another satellite — not another motherboard.',
   },
   {
-    title: 'Connect the cables',
-    body: 'Satellites join the motherboard with standard JST-SH cables. No solder, no custom looms. Every link’s pinout is published, including which runs take a reversed cable.',
+    title: 'Chain them up',
+    body: 'One cable from satellite to satellite, and the last one closes the ring by itself. Position in the chain is the address, so there is nothing to configure and no jumpers to set.',
   },
   {
     title: 'Give it a voice',
-    body: 'A Daisy Seed does the DSP with libDaisy and DaisySP. Driver libraries for the additional ADC, the encoder hub and the rest come with rodeo-sdk.',
+    body: 'A Daisy Seed does the DSP with libDaisy and DaisySP, now with four ins and four outs. Drivers for the chain, the codecs and the rest come with rodeo-sdk.',
   },
 ];
 
-const gallery = [host.shot!, satellites[0].shot!, satellites[0].gallery![0]];
+// Rev-A photographs, captioned as such by BoardFigure. They are the only real
+// hardware that exists, and the home page says plainly which board they show.
+const gallery = prototype.shots.slice(0, 3);
+const lead = prototype.shots[0]!;
 ---
 
 <BaseLayout title={site.name} description={site.description}>
@@ -34,8 +37,8 @@ const gallery = [host.shot!, satellites[0].shot!, satellites[0].gallery![0]];
       <p class="copy-tech m-0 max-w-[560px] text-[17px]">
         <span class="font-display font-black text-legend">RODEO</span> is a plug-and-play audio
         platform designed to help you build your dream synthesizer. Breakouts for the best parts
-        of Daisy, 24 additional 16-bit analog inputs, a family of control satellites, and an SDK
-        to help you write the code.
+        of Daisy, four ins and four outs, a chain of control satellites that grows as far as the
+        panel does, and an SDK to help you write the code.
       </p>
       <div class="flex flex-wrap items-stretch gap-4">
         <a
@@ -52,13 +55,19 @@ const gallery = [host.shot!, satellites[0].shot!, satellites[0].gallery![0]];
     </div>
   </section>
 
-  <section class="wrap pb-16 pt-10">
+  <section class="wrap flex flex-col gap-4 pb-16 pt-10">
+    <p class="copy-tech m-0 max-w-[640px] text-[14px] text-hardware">
+      The board below is the Rev-A prototype, the one that proved the platform.
+      It is not what the campaign ships — Rev-B drops the on-board converters
+      for a second codec and moves controls onto the chain.
+      <a href="/ecosystem/" class="text-yellow">See what Rev-B is.</a>
+    </p>
     <BoardFigure
-      src={host.shot!.src}
-      alt={host.shot!.alt}
-      media={host.shot!.media}
-      rev={host.rev}
-      caption="rodeo motherboard, assembled"
+      src={lead.src}
+      alt={lead.alt}
+      media={lead.media}
+      rev={lead.rev}
+      caption={lead.caption}
       loading="eager"
       widths={[700, 1100, 1600]}
       sizes="(max-width: 1240px) 100vw, 1176px"
