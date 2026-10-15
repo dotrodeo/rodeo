@@ -60,21 +60,44 @@ from a `rev-a` one.
 
 ### The documented Rev-B change list
 
-These are already written down in the repo, and **two of them change the site's most
-prominent numbers**:
+**Rewritten 2026-10-15.** This table previously said Rev-B takes analog channels
+24 → 36. That stopped being true on 2026-10-04 and the audit did not notice for
+eleven days — a reminder that a claims file is only as good as its last re-read
+against the hardware docs.
+
+**Precedence.** [`rodeo-motherboard/docs/rev-b.md`](rodeo-motherboard/docs/rev-b.md) is now the newest and most
+authoritative source for anything Rev-B, and says so itself: the older Rev-B
+notes scattered through `RODEO_CONTROL_MAP.md`, `RODEO_ENCLOSURE_SPEC.md` and
+`RODEO_ADC_LIB_DESIGN.md` are history. Where any of them disagree with
+`rev-b.md`, **`rev-b.md` wins**. (For Rev-A, the earlier rule still holds: where
+`hardware-map.md` and the control map disagree, the control map wins.)
+
+**Rev-B is paper.** `rodeo-motherboard/docs/rev-b.md:3` — *"Status: planning. Nothing
+here is laid out yet."* No schematic, no layout, no fabricated board, no chosen
+satellite MCU, no ring-protocol contract, no satellite firmware. Every row below
+is therefore `planned`, and **no Rev-B number may be published as a measured
+fact.**
 
 | Rev-B change | Effect on site copy | Evidence |
 |---|---|---|
-| **3rd ADS114S08 (U5) + J50–J61 — "Path A"** | **Analog channels 24 → 36.** The hero number is rev-scoped. Forces a motherboard respin. | `RODEO_CONTROL_MAP.md:218,372,391`; `RODEO_ENCLOSURE_SPEC.md:260,317` |
-| **Panel USB-C data — open decision** | If J1 D+/D− are wired to Daisy 37/36, the prominent "no USB-MIDI / no USB audio" claim **inverts**. Currently framed as "worth a decision". | `rodeo-motherboard/docs/hardware-map.md:218-222` |
-| I²C pull-ups move from the hub to the motherboard | Removes the "no hub = no I²C" caveat | `RODEO_HUB_I2C_CONTRACT.md:37` |
-| 10 kΩ pull-ups on both ADC CS nets | Hardening; no copy change | `RODEO_CONTROL_MAP.md:523-534` |
-| Dedicated 2nd SPI header / SPI OLED option | Frees the OLED off I²C | `RODEO_ADC_LIB_DESIGN.md:83-94` |
+| **Satellite chain on USART2** — smart daisy-chained satellites, position is the address | **The headline change.** Controls stop being bounded by motherboard channels: growth means adding satellites, not respinning the board. Replaces the channel count as the thing worth leading with. | `rodeo-motherboard/docs/rev-b.md:81` |
+| ~~3rd ADS114S08, 24 → 36 channels~~ — **rejected** | **No change. Rev-B keeps 24 analog channels**, same as Rev-A. The hero number stops being rev-scoped, which removes the reason the hero could not state it plainly. | `rodeo-motherboard/docs/rev-b.md:235` |
+| Panel USB-C carries data | The prominent "no USB-MIDI / no USB audio" claim **inverts for Rev-B** — and brings DFU flashing over the panel port. Must ship as `planned`, never as a capability. | `rodeo-motherboard/docs/rev-b.md:165` |
+| Digital GPIO **12 → 9** | A number that goes *down*. Buttons are expected to move onto the satellite chain. Do not quietly keep saying 12. | `rodeo-motherboard/docs/rev-b.md:44` |
+| SD card slot, native 4-bit SDMMC | New: samples and wavetables | `rodeo-motherboard/docs/rev-b.md:149` |
+| CV header on the two DACs | New: a CV daughterboard becomes possible | `rodeo-motherboard/docs/rev-b.md:181` |
+| I²C pull-ups move to the motherboard | Removes the "no hub = no I²C" caveat. **Hub and motherboard revisions must match.** | `rodeo-motherboard/docs/rev-b.md:136` |
 
-**Consequence to act on:** do not put a bare "24" in the hero until it is decided whether the
-campaign sells Rev-A or Rev-B. That is open decision 4 in
-[WEB_ROADMAP.md](./WEB_ROADMAP.md). Until it is settled, the honest framing is the channel
-count *of the board shown*, captioned as Rev-A.
+**Consequence to act on.** The campaign sells Rev-B (settled 2026-10-15), so the
+site is *about* a board that does not physically exist. Two rules follow, and
+they are the whole difficulty of this phase:
+
+1. **Every photograph is Rev-A** and must stay captioned as such. `BoardFigure`
+   enforces this already; do not add an override.
+2. **A Rev-B capability is `planned` until a Rev-B board is on a bench.** The
+   temptation on a crowdfunding page is to write the finished spec. That is the
+   exact failure this audit exists to prevent, and it is more dangerous now than
+   at any earlier point, because the reader is being asked for money.
 
 ### Imagery rule
 
