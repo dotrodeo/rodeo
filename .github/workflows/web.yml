@@ -47,18 +47,30 @@ jobs:
           submodules: false
           fetch-depth: 1
           # The claim guardrail reads evidence out of the hardware tree, so
-          # those paths have to be present. Everything listed is a few MB; the
-          # submodules, gerbers and renders are not pulled.
+          # those paths have to be present. The submodules, gerbers, 3D models
+          # and renders are not pulled.
+          #
+          # Non-cone mode, because cone mode can only include whole
+          # directories. The Rev B board folders are 2-10 MB each of gerbers
+          # and fab outputs wrapped around one README the audit cites; the
+          # `*.md` pattern takes the eight markdown files and leaves 23 MB of
+          # manufacturing data behind. Verified against a scratch clone: the
+          # eight land, zero gerbers do, and check-claims.mjs resolves all 97
+          # citations.
+          sparse-checkout-cone-mode: false
           sparse-checkout: |
-            web
-            rodeo-sdk
-            rodeo-motherboard/docs
-            rodeo-motherboard/kicad
-            rodeo-001/docs
-            rodeo-encoder-hub/firmware
-            rodeo-potentiometer
-            rodeo-encoder
-            rodeo-button
+            /web/
+            /rodeo-sdk/
+            /rodeo-motherboard/docs/
+            /rodeo-motherboard/kicad/
+            /rodeo-001/docs/
+            /rodeo-001/firmware/src/
+            /rodeo-002/firmware/common/
+            /rodeo-encoder-hub/firmware/
+            /rodeo-potentiometer/
+            /rodeo-encoder/
+            /rodeo-button/
+            /rev-b/**/*.md
 
       - uses: actions/setup-node@v4
         with:
