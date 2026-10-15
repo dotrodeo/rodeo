@@ -1,0 +1,6 @@
+Designator,Val,Package,Mid X,Mid Y,Rotation,Layer
+D1,D_TVS,D_SOD-323,187.7500,-90.2500,90.0,top
+D2,D_TVS,D_SOD-323,187.7500,-86.2500,90.0,top
+J1,Conn_01x05,JST_SH_BM05B-SRSS-TB_1x05-1MP_P1.00mm_Vertical,174.3500,-103.4374,0.0,top
+J2,AudioJack4,Jack_3.5mm_PJ320D_Horizontal,167.2250,-88.4250,270.0,top
+J3,AudioJack4,Jack_3.5mm_PJ320D_Horizontal,181.2250,-88.4250,270.0,top

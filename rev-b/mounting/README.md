@@ -79,6 +79,7 @@ above the enclosure floor** (board top at 15.6 mm: boss 6 + standoff 8 + PCB 1.6
 | | J3 barrel jack | 42 | ≈22.1 | Ø11 through (5.5 × 2.1 plug bodies are ≈9–10 mm) |
 | | D1, D2 LEDs | 30.14, 34.64 | ≈16.1 | Ø2.5 through |
 | `rodeo-audio-3.5mm` | J2–J5 jacks | 46.55, 35.5, 24.45, 13.4 | ≈18.2 | Ø5.0 for the jack's collar, counterbored Ø9 × 1 mm deep from the outside |
+| `rodeo-midi` | J2 IN, J3 OUT | 13, 27 | ≈18.2 | As the audio jacks |
 
 * **3.5 mm jacks:** the PJ-320D's body is flush with the I/O edge and its 2 mm
   collar runs into the panel. The Ø9 counterbore brings the outside surface
@@ -133,4 +134,5 @@ above the PCB**: one rule for every board, so panel cut-outs line up.
 | `rodeo-motherboard` | `--frame` | **Passes** as drawn (holes 82 × 104 mm, keep-outs clear). |
 | `rodeo-power-usbc` | `--rear top` | **Passes:** 40 × 20 mm, holes at (5, 15) and (35, 15), J1 overhang +0.35 mm. |
 | `rodeo-audio-3.5mm` | `--rear top` | **Passes:** 60 × 30 mm, holes at (5, 15) and (55, 15); jack bodies flush with the I/O edge, collars 2 mm into the panel. |
+| `rodeo-midi` | `--rear top` | **Passes:** 40 × 25 mm, holes at (5, 15) and (35, 15); jack bodies flush, collars +1.85 mm. |
 | `rodeo-power-barrel` | `--rear top` | **Passes:** 60 × 40 mm, holes at (5, 15) and (55, 15) either side of the barrel jack; J1 +0.35 mm, J3 +0.50 mm. |
