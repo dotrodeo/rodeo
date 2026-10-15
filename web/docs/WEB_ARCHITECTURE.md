@@ -271,8 +271,29 @@ Wiring, as built:
      which is what guarantees production has none.
    - `PUBLIC_TURNSTILE_SITE_KEY` — a build-time GitHub **variable**, not a
      secret; Turnstile reads it off the page.
-5. The form works with JS disabled (real POST, real 303). Turnstile is the only
-   third-party script on the site, and only once the key is set.
+5. **The form needs JavaScript, and that is new.** The POST and the 303 are
+   real, so the mechanics are unchanged — but Turnstile cannot produce a token
+   without JS, so a JS-less submission is rejected with `error=captcha`. This
+   is inherent to any captcha, not a flaw in the wiring; the choice was
+   Turnstile or an open form, and Turnstile won. Before the keys existed the
+   no-JS path did work, so the earlier claim here was true when written and
+   stopped being true on 2026-10-15. Turnstile is the only third-party script
+   on the site.
+6. **Submission is held until the token exists.** A fast click would otherwise
+   post before Turnstile finishes and bounce the subscriber to an error page
+   for doing nothing wrong. The inline script in `SubscribeForm.astro` catches
+   `submit`, waits up to 8s polling the hidden field, and re-submits by itself
+   the moment the token lands — so the usual case costs one line of status
+   text and no lost typing. After 8s it says the check has not finished and
+   points at the widget, which is the right advice for both an untouched
+   interactive challenge and a blocked Turnstile.
+
+   **Where that script lives matters.** It is at the top level of the
+   component, *not* inside a `{siteKey && …}` expression. Astro parses an
+   element's children inside an expression as JSX, so a template literal there
+   is emitted as literal `` {`…`} `` text: the whole function ships as an
+   inert string, greps clean, and never runs. It happened once. The script
+   guards itself instead — no widget on the form, nothing happens.
 
 ### Routing: the part that cost the most, and nearly shipped broken
 
