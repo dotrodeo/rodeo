@@ -6,7 +6,7 @@ one CH32V003 on the satellite chain. The second Rev B satellite, built like the
 with their knobs at the same height. Wire contract:
 [`RODEO_SATELLITE_CHAIN_CONTRACT.md`](../rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md).
 
-Specified 2026-10-14; not drawn yet.
+Specified 2026-10-14; schematic drawn 2026-10-14.
 
 ## Board
 
@@ -17,9 +17,10 @@ Same construction as the pot bank:
 * **Bottom side: everything else**, all SMD: the MCU, IN and OUT connectors
   (vertical JST SH, cables leave from the back), the reverse-mount status LED and
   the passives. One SMD side; the encoders are through-hole on top.
-* **Outline 20 × 100 mm**, matching the pot bank. Put the shafts at 9, 34, 59 and
-  84 mm along the board, as on the pot bank, so the two boards' knobs line up when
-  they sit next to each other.
+* **Outline 20 × 100 mm**, matching the pot bank. Shafts at x = 9.9 mm and
+  9.7, 34.7, 59.7 and 84.7 mm along the board (A–B pin rows at 17.2, 42.2, 67.2,
+  92.2): 1.53 mm further along than the pot bank's shafts, which is fine for
+  boards that sit apart on the panel.
 
 ## Encoders ENC1–ENC4: Bourns PEC11R-4215F-S0024 (C143790)
 
@@ -71,15 +72,15 @@ both PD6 and PC1).
 
 | Pin | Name | Connection |
 |---|---|---|
-| 9 | VDD | `+3V3`; C1 100 nF and C2 1 µF to `GND` at the pin |
+| 9 | VDD | `+3V3`; C4 100 nF and C3 1 µF to `GND` at the pin |
 | 7 | VSS | `GND` |
 | 3 | PD6 | `SAT_RX`: J1 IN pin 3 |
 | 11 | PC1 | `SAT_RX` (same net) |
-| 2 | PD5 | R1 33 Ω → J2 OUT pin 3 |
+| 2 | PD5 | R4 33 Ω → J2 OUT pin 3 |
 | 10 | PC0 | R2 33 Ω → `DATA_RET` |
 | 19 | PD2 | `PRESENT`: J2 OUT pin 5 (internal pull-up) |
-| 20 | PD3 (A4) | `ID`: R3 10 kΩ from `+3V3`, R4 6.65 kΩ (R_ID, kind 6) to `GND` |
-| 1 | PD4 (A7) | `SW_SENSE`: R5 10 kΩ from `+3V3`, C3 10 nF to `GND`, the switch ladder |
+| 20 | PD3 (A4) | `ID`: R3 10 kΩ from `+3V3`, R5 6.65 kΩ (R_ID, kind 6) to `GND` |
+| 1 | PD4 (A7) | `SW_SENSE`: R6 10 kΩ from `+3V3`, C5 10 nF to `GND`, the switch ladder |
 | 5 | PA1 | `ENC1_A` |
 | 6 | PA2 | `ENC1_B` |
 | 12 | PC2 | `ENC2_A` |
@@ -88,7 +89,7 @@ both PD6 and PC1).
 | 15 | PC5 | `ENC3_B` |
 | 16 | PC6 | `ENC4_A` |
 | 17 | PC7 | `ENC4_B` |
-| 8 | PD0 | R6 1.5 kΩ → D1 status LED anode; cathode to `GND` |
+| 8 | PD0 | R1 1.5 kΩ → D1 status LED anode; cathode to `GND` |
 | 18 | PD1 | `SWIO`: programming pad |
 | 4 | PD7 | `NRST`: programming pad |
 
@@ -103,8 +104,11 @@ For each encoder n (1–4):
 | C (common) | `GND` |
 | A | `ENCn_A`: 22 kΩ to `+3V3`, 4.7 nF to `GND` at the MCU pin |
 | B | `ENCn_B`: 22 kΩ to `+3V3`, 4.7 nF to `GND` at the MCU pin |
+
+(Schematic: encoders SW1–SW4; pull-ups R8/R9, R10/R12, R13/R15, R16/R18 and caps
+C6/C7, C8/C9, C10/C11, C12/C13 for encoders 1–4, A then B.)
 | S1 | `GND` |
-| S2 | ladder resistor to `SW_SENSE`: ENC1 10.0 kΩ, ENC2 20.0 kΩ, ENC3 40.2 kΩ, ENC4 80.6 kΩ (1 %) |
+| S2 | ladder resistor to `SW_SENSE`: SW1 R7 10.0 kΩ, SW2 R11 20.0 kΩ, SW3 R14 40.2 kΩ, SW4 R17 80.6 kΩ (1 %) |
 | MP (lugs) | `GND`: the bushings touch the panel, so ESD from a knob goes straight to ground |
 
 * **22 kΩ pull-ups** draw 0.15 mA per closed contact, so even with all eight
@@ -137,21 +141,21 @@ MCU ≈2–3 mA, LED 0.8 mA, ID divider 0.2 mA, encoder pull-ups 0–1.2 mA, lad
 
 | Part | Refs | Qty | LCSC |
 |---|---|---|---|
-| PEC11R-4215F-S0024 | ENC1–ENC4 | 4 | C143790 |
+| PEC11R-4215F-S0024 | SW1–SW4 | 4 | C143790 |
 | CH32V003F4P6 | U1 | 1 | C5187096 |
 | BM05B-SRSS-TB | J1, J2 | 2 | C160391 |
 | LTST-C230KRKT | D1 | 1 | C125107 |
-| 100 nF 0402 | C1 | 1 | C1525 |
-| 1 µF 0402 | C2 | 1 | C52923 |
-| 10 nF 0402 | C3 | 1 | C15195 |
-| 4.7 nF 0402 | A/B filter caps | 8 | C1538 |
-| 33 Ω 0603 | R1, R2 | 2 | C23140 |
-| 10 kΩ 0603 | R3, R5, ENC1 ladder | 3 | C25804 |
-| 6.65 kΩ 0603 1 % | R4 | 1 | C60344 |
-| 1.5 kΩ 0603 | R6 | 1 | C22843 |
-| 22 kΩ 0603 | A/B pull-ups | 8 | C31850 |
-| 20.0 kΩ 0603 1 % | ENC2 ladder | 1 | C4184 |
-| 40.2 kΩ 0603 1 % | ENC3 ladder | 1 | C12447 |
-| 80.6 kΩ 0603 1 % | ENC4 ladder | 1 | C23249 |
+| 100 nF 0402 | C4 | 1 | C1525 |
+| 1 µF 0402 | C3 | 1 | C52923 |
+| 10 nF 0402 | C5 | 1 | C15195 |
+| 4.7 nF 0402 | C6–C13 | 8 | C1538 |
+| 33 Ω 0603 | R2, R4 | 2 | C23140 |
+| 10 kΩ 0603 | R3, R6, R7 | 3 | C25804 |
+| 6.65 kΩ 0603 1 % | R5 | 1 | C60344 |
+| 1.5 kΩ 0603 | R1 | 1 | C22843 |
+| 22 kΩ 0603 | R8–R10, R12, R13, R15, R16, R18 | 8 | C31850 |
+| 20.0 kΩ 0603 1 % | R11 | 1 | C4184 |
+| 40.2 kΩ 0603 1 % | R14 | 1 | C12447 |
+| 80.6 kΩ 0603 1 % | R17 | 1 | C23249 |
 
 All in stock at JLC on 2026-10-14.

@@ -16,8 +16,8 @@ Designed 2026-10-14.
   IN and OUT connectors (vertical, so the chain cables leave from the back), the
   status LED and the passives. One SMD side keeps JLC assembly single-sided; the
   four pots are through-hole on top.
-* **Outline 20 × 100 mm**, shafts at 9, 34, 59 and 84 mm along the board, on its
-  centre line. Panel holes Ø9.5 mm (M9 bushings) on the same centres; the Rev A
+* **Outline 20 × 100 mm**, shafts at 8.17, 33.17, 58.17 and 83.17 mm along the board
+  (pin rows at 15.67, 40.67, 65.67, 90.67), x = 9.9 mm. Panel holes Ø9.5 mm (M9 bushings) on the same centres; the Rev A
   panel's Ø7.4 holes were for M7 pots and are too small.
 * **Status LED** is a reverse-mount part on the bottom, shining up through a
   Ø2 mm hole in the board, so it's visible through a small panel hole (or a light
