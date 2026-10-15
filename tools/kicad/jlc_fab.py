@@ -50,6 +50,7 @@ EASYEDA_CACHE = os.path.join(HERE, 'easyeda-footprints')
 # EasyEDA pad number, per LCSC part, worked out from the two footprints' geometry.
 PAD_ALIASES = {
     'C431535': {'S': '1', 'R2': '2', 'R1': '3', 'T': '4'},   # PJ-320D, Jack_3.5mm_PJ320D_Horizontal
+    'C143790': {'A': '1', 'C': '2', 'B': '3', 'S2': '4', 'S1': '5', 'MP': '7'},  # PEC11R-S on the EC11E-Switch footprint
 }
 
 
