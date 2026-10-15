@@ -1,0 +1,161 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import BoardFigure from '../components/BoardFigure.astro';
+import Chip from '../components/Chip.astro';
+import Eyebrow from '../components/Eyebrow.astro';
+import SpecTable from '../components/SpecTable.astro';
+import CtaBand from '../components/CtaBand.astro';
+import { prototype } from '../data/boards';
+import { statusLabel } from '../data/site';
+
+// The Rev-A page. Every photograph on this site is of these boards, and this
+// is where they belong: beside the specs they actually match, in the past
+// tense, under a heading that says what they are.
+//
+// It exists because the alternative is worse. A campaign that shows only
+// renders has nothing to point at; a campaign that shows photographs of a
+// board it is not selling is the grievance that fills a comment section.
+const [lead, ...rest] = prototype.shots;
+---
+
+<BaseLayout
+  title="The prototype"
+  description="Rev-A: the boards that proved the Rodeo platform, what they demonstrated on the bench, and what changed for the version that ships."
+>
+  <div class="wrap">
+    <section class="flex flex-col gap-6 py-14">
+      <div class="flex flex-wrap items-center gap-3">
+        <Eyebrow>The prototype</Eyebrow>
+        <Chip variant="status" status="shipped">Rev-A</Chip>
+      </div>
+      <h1 class="display m-0 max-w-[15ch] text-[clamp(40px,7vw,66px)]">The board that proved it</h1>
+      <p class="prose-body m-0 max-w-[62ch] text-[17px]">
+        Rev-A exists. It was fabricated, assembled and run, and everything on
+        this page was measured on it rather than designed into a schematic.
+        It is also not what the campaign ships — the boards in these
+        photographs taught us enough to change the architecture, and
+        <a href="/ecosystem/" class="text-yellow">Rev-B</a> is the result.
+      </p>
+    </section>
+
+    <section class="pb-14">
+      <BoardFigure
+        src={lead!.src}
+        alt={lead!.alt}
+        media={lead!.media}
+        rev={lead!.rev}
+        caption={lead!.caption}
+        loading="eager"
+        widths={[700, 1100, 1600]}
+        sizes="(max-width: 1240px) 100vw, 1176px"
+      />
+    </section>
+
+    <section class="flex flex-col gap-6 border-t border-rule py-14">
+      <Eyebrow>Measured, not designed</Eyebrow>
+      <h2 class="display m-0 max-w-[20ch] text-[clamp(28px,4.4vw,42px)]">What it proved</h2>
+      <p class="copy-tech m-0 max-w-[62ch] text-[15px]">
+        The reason to trust a platform that has not shipped yet is what its
+        prototype did on a bench. Every line below happened on the hardware in
+        these photographs.
+      </p>
+      <div class="max-w-[840px] pt-2">
+        <SpecTable specs={prototype.proven} />
+      </div>
+
+      <div class="flex max-w-[840px] flex-col gap-3 pt-4">
+        {
+          prototype.limits.map((l) => (
+            <div class="flex items-start gap-3 border-l-2 border-rule bg-field-raised p-4">
+              <Chip variant="status" status={l.status} class="shrink-0">
+                {statusLabel[l.status]}
+              </Chip>
+              <p class="copy-tech m-0 text-[14px]">{l.text}</p>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="flex flex-col gap-7 border-t border-rule py-14">
+      <Eyebrow>The hardware</Eyebrow>
+      <h2 class="display m-0 max-w-[20ch] text-[clamp(28px,4.4vw,42px)]">Rev-A in the flesh</h2>
+      <ul class="m-0 grid list-none gap-7 p-0 sm:grid-cols-2 lg:grid-cols-3">
+        {
+          rest.map((shot) => (
+            <li>
+              <BoardFigure
+                src={shot.src}
+                alt={shot.alt}
+                media={shot.media}
+                rev={shot.rev}
+                caption={shot.caption}
+                widths={[380, 640, 900]}
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px"
+              />
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="flex flex-col gap-7 border-t border-rule py-14">
+      <Eyebrow>What changed</Eyebrow>
+      <h2 class="display m-0 max-w-[24ch] text-[clamp(28px,4.4vw,42px)]">
+        And why Rev-B is a different board
+      </h2>
+      <p class="copy-tech m-0 max-w-[62ch] text-[15px]">
+        Not a tidy-up. Building Rev-A and living with it changed what the
+        platform should be, and the changes below are the ones that cost
+        something — pins, parts, or a connector that no longer fits.
+      </p>
+      <ul class="m-0 flex list-none flex-col gap-5 p-0 pt-2">
+        {
+          prototype.changes.map((c) => (
+            <li class="border border-rule bg-field-raised p-5 sm:p-6">
+              <h3 class="display m-0 mb-4 text-[19px]">{c.area}</h3>
+              <div class="grid gap-4 sm:grid-cols-2">
+                <div class="flex flex-col gap-1.5">
+                  <span class="font-mono text-[11.5px] uppercase tracking-[0.1em] text-hardware">
+                    Rev-A
+                  </span>
+                  <p class="copy-tech m-0 text-[14px] text-hardware">{c.revA}</p>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                  <span class="font-mono text-[11.5px] uppercase tracking-[0.1em] text-indigo-text">
+                    Rev-B
+                  </span>
+                  <p class="copy-tech m-0 text-[14px]">{c.revB}</p>
+                </div>
+              </div>
+              <p
+                class="prose-body m-0 mt-4 border-t border-rule pt-4 text-[14.5px]"
+                title={`evidence: ${c.evidence}`}
+              >
+                {c.why}
+              </p>
+            </li>
+          ))
+        }
+      </ul>
+      <div class="flex flex-wrap gap-3 pt-2">
+        <a
+          href="/ecosystem/"
+          class="bg-yellow px-5 py-3 font-display text-[15px] font-black uppercase tracking-[0.06em] text-field no-underline hover:bg-legend"
+          >See the Rev-B boards</a
+        >
+        <a
+          href="/log/"
+          class="border-[1.5px] border-legend px-5 py-3 font-display text-[15px] font-black uppercase tracking-[0.06em] text-legend no-underline hover:border-yellow hover:text-yellow"
+          >Read the build log</a
+        >
+      </div>
+    </section>
+  </div>
+
+  <CtaBand
+    source="prototype"
+    heading="Want the real one?"
+    body="Rev-B goes to Kickstarter in January 2027. Join the waitlist to hear first, and to watch these boards come back from fab."
+  />
+</BaseLayout>

@@ -79,6 +79,10 @@ export interface Board {
 // Rev-B sources. rev-b.md is authoritative for anything Rev-B and says so
 // itself; the older notes scattered through the Rev-A docs are history.
 const R = 'rev-b/rodeo-motherboard/docs/rev-b.md';
+// Rev-A sources, for the prototype page only.
+const MAP = 'rodeo-motherboard/docs/hardware-map.md';
+const HUB = 'rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md';
+const HUBFW = 'rodeo-encoder-hub/firmware/README.md';
 const CHAIN = 'rev-b/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md';
 const SDK = 'rodeo-sdk/README.md';
 
@@ -336,8 +340,96 @@ export const retired: Pick<Board, 'slug' | 'name' | 'retiredReason'>[] = [
  * board with two converters on it while the text describes one without. They
  * belong to the prototype story.
  */
+export interface Change {
+  area: string;
+  revA: string;
+  revB: string;
+  why: string;
+  evidence: string;
+}
+
 export const prototype = {
   rev: 'A' as Rev,
+
+  /** Proven on the fabricated Rev-A boards. Past tense on purpose. */
+  proven: [
+    { label: 'analog in', value: '24 channels, 16-bit', evidence: `${MAP}:76` },
+    {
+      label: 'conversion path',
+      value: 'bench-confirmed on silicon, 2026-08-14',
+      evidence: `${SDK}:125-127`,
+    },
+    { label: 'digital in', value: '12 raw Daisy GPIO', evidence: `${MAP}:114` },
+    { label: 'audio', value: 'line in and out, 3.5 mm', evidence: `${MAP}:143` },
+    { label: 'MIDI', value: 'in and out, TRS', evidence: `${MAP}:165-166` },
+    { label: 'control bus', value: 'I²C', evidence: `${MAP}:173` },
+    { label: 'encoder hub', value: '9 encoders on one I²C target', evidence: `${HUB}:39` },
+    {
+      label: 'hub firmware',
+      value: 'running on a fabbed board, 2026-09-12',
+      evidence: `${HUBFW}:177-191`,
+    },
+    {
+      label: 'register contract',
+      value: 'silicon-verified, 2026-08-20',
+      evidence: `${SDK}:129-130`,
+    },
+    { label: 'host', value: 'Daisy Seed3, 40-pin footprint', evidence: `${MAP}:15` },
+  ] satisfies Spec[],
+
+  /** The limits Rev-A shipped with. Named, not buried. */
+  limits: [
+    {
+      status: 'not-planned' as const,
+      text: 'The panel USB-C is power only. The Seed’s USB data lines dead-end at pins 37/36, so there is no USB-MIDI, no USB audio and no flashing over the panel connector.',
+      evidence: `${MAP}:213-221`,
+    },
+    {
+      status: 'not-planned' as const,
+      text: 'The encoder hub carries the only I²C pull-ups on the bus, so the host needs a hub present for I²C to work at all. A blank display with no hub attached is a missing-pull-up symptom, not firmware.',
+      evidence: `${HUB}:37`,
+    },
+  ] satisfies Caveat[],
+
+  /** What Rev-B does differently, and why it is different. */
+  changes: [
+    {
+      area: 'Analog inputs',
+      revA: '24 channels at 16 bits, from two converters soldered to every board',
+      revB: 'the Seed’s own converter across eight I/O connectors; the 16-bit bank becomes an optional board',
+      why: 'Every build paid about nineteen dollars for converters whether it needed them or not. Satellites cover ordinary knobs, so the precision bank became opt-in.',
+      evidence: `${R}:204`,
+    },
+    {
+      area: 'Audio',
+      revA: 'one codec, in and out',
+      revB: 'a second codec on the pins the converters vacated — four in, four out',
+      why: 'The freed pins were worth more as audio than as analog inputs that satellites could supply instead.',
+      evidence: `${R}:314`,
+    },
+    {
+      area: 'Growing a panel',
+      revA: 'one cable per control, back to a motherboard channel or an I²C hub',
+      revB: 'satellites chained together, each reading its own controls',
+      why: 'Controls stopped being bounded by the motherboard. Position in the chain is the address, so there is nothing to configure and no respin when a panel grows.',
+      evidence: `${R}:117`,
+    },
+    {
+      area: 'USB',
+      revA: 'power only — the data lines went nowhere',
+      revB: 'data through the power board: USB-MIDI, USB audio and firmware flashing',
+      why: 'The most-checked spec on the Rev-A board, and the one most worth fixing.',
+      evidence: `${R}:290`,
+    },
+    {
+      area: 'Jacks and MIDI',
+      revA: 'on the motherboard',
+      revB: 'daughterboards on a rear rail',
+      why: 'A smaller host board, and connectors a build does not need are connectors it does not pay for.',
+      evidence: `${R}:416`,
+    },
+  ] satisfies Change[],
+
   shots: [
     {
       src: motherboardImg,
@@ -357,7 +449,7 @@ export const prototype = {
       src: motherboardIoImg,
       alt: 'Close-up photograph of the Rev-A motherboard’s panel I/O: the MIDI DIN connector, the 3.5 mm audio jacks and the USB-C connector along the board edge.',
       media: 'photo' as const,
-      caption: 'panel I/O on Rev-A — the USB-C here is power only',
+      caption: 'panel I/O — the USB-C here is power only',
       rev: 'A' as Rev,
     },
     {

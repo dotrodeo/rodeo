@@ -26,6 +26,7 @@ export const site: {
     { href: '/ecosystem/', label: 'boards' },
     { href: '/sdk/', label: 'rodeo-sdk' },
     { href: '/log/', label: 'build log' },
+    { href: '/prototype/', label: 'prototype' },
     { href: '/docs/', label: 'docs', pending: true },
   ],
 };
