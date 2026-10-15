@@ -128,4 +128,86 @@
     color: var(--color-legend-prose);
     line-height: 1.65;
   }
+
+  /* Long-form reading: build-log posts and /privacy/. Lives here rather than
+   * scoped to one page because it has two consumers now, and a second copy
+   * would drift. Still opt-in — only elements inside .post are touched. */
+  .post p {
+    font-family: var(--font-read);
+    color: var(--color-legend-prose);
+    font-size: 18px;
+    line-height: 1.65;
+    margin: 0 0 1.35em;
+  }
+  .post h2 {
+    font-family: var(--font-display);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.018em;
+    line-height: 1.05;
+    font-size: 28px;
+    color: var(--color-legend);
+    margin: 2.2em 0 0.7em;
+  }
+  .post h3 {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 19px;
+    color: var(--color-legend);
+    margin: 1.8em 0 0.5em;
+  }
+  .post ul,
+  .post ol {
+    font-family: var(--font-read);
+    color: var(--color-legend-prose);
+    font-size: 18px;
+    line-height: 1.6;
+    margin: 0 0 1.35em;
+    padding-left: 1.3em;
+  }
+  .post li {
+    margin-bottom: 0.5em;
+  }
+  .post strong {
+    color: var(--color-legend);
+    font-weight: 600;
+  }
+  .post a {
+    color: var(--color-yellow);
+  }
+  .post blockquote {
+    border-left: 2px solid var(--color-yellow);
+    background: var(--color-field-raised);
+    margin: 1.8em 0;
+    padding: 1em 1.4em;
+  }
+  .post blockquote p:last-child {
+    margin-bottom: 0;
+  }
+  .post code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    color: var(--color-cyan);
+  }
+  .post pre {
+    background: var(--color-field-raised);
+    border: 1px solid var(--color-rule);
+    padding: 1.1em 1.3em;
+    overflow-x: auto;
+    margin: 0 0 1.5em;
+  }
+  .post pre code {
+    color: var(--color-legend-prose);
+  }
+  .post hr {
+    border: 0;
+    border-top: 1px solid var(--color-rule);
+    margin: 2.5em 0;
+  }
+  .post img {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 0 0 1.5em;
+  }
 }

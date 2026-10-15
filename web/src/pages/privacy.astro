@@ -1,0 +1,157 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Eyebrow from '../components/Eyebrow.astro';
+
+// Written against what the code actually does, not from a template. Every
+// claim below was checked: the third-party origins in the built output, the
+// absence of any analytics, the self-hosted fonts, the one localStorage key,
+// and what worker/index.ts sends to Buttondown and logs locally.
+//
+// If the signup path changes, this page changes with it.
+const updated = '15 October 2026';
+const contact = 'privacy@rodeooh.rodeo';
+---
+
+<BaseLayout
+  title="Privacy"
+  description="What the Rodeo waitlist collects, who processes it, and how to get it deleted."
+>
+  <div class="wrap">
+    <section class="flex flex-col gap-6 py-16">
+      <Eyebrow>Privacy</Eyebrow>
+      <h1 class="display m-0 max-w-[16ch] text-[clamp(38px,6.5vw,60px)]">What we keep</h1>
+
+      <div
+        class="max-w-[680px] border-l-2 border-yellow bg-field-raised py-4 pl-4 pr-5 font-mono text-[13.5px] leading-relaxed text-legend"
+      >
+        The short version: the waitlist stores your email address at Buttondown
+        so we can email you about Rodeo. There is no analytics, no advertising,
+        no tracking, and nothing is sold or shared. Unsubscribe from any email,
+        or write to {contact} and it is deleted.
+      </div>
+
+      <div class="post max-w-[680px] pt-2">
+        <h2>What the waitlist collects</h2>
+        <p>
+          Three things, when you submit the form and only then:
+        </p>
+        <ul>
+          <li>
+            <strong>Your email address.</strong> Stored at Buttondown. It is
+            the whole point of the form.
+          </li>
+          <li>
+            <strong>Your IP address</strong>, passed to Buttondown with the
+            signup as a spam signal. It is not stored by us.
+          </li>
+          <li>
+            <strong>Which page you signed up from</strong> — a short label like
+            <code>home</code> or <code>log-post</code>. This is written to our
+            own server log and sent nowhere. Your address is never written to
+            that log.
+          </li>
+        </ul>
+        <p>
+          The legal basis is your consent. Nothing is sent until you click the
+          link in the confirmation email, and Buttondown records the date and
+          time you did, which is what makes the consent demonstrable.
+        </p>
+
+        <h2>Who else handles it</h2>
+        <h3>Buttondown — United States</h3>
+        <p>
+          The email list itself. Buttondown holds your address and the record
+          of your consent, sends the confirmation email and the newsletter, and
+          handles unsubscribes. They act as a processor on our instructions,
+          under a data processing agreement that uses Standard Contractual
+          Clauses for transfers out of the UK and EU. Their policy:
+          <a href="https://buttondown.com/legal/privacy">buttondown.com/legal/privacy</a>.
+        </p>
+        <h3>Cloudflare — United States</h3>
+        <p>
+          Hosts this site and runs the small piece of code that handles the
+          signup. Cloudflare sees what any web host sees — your IP address,
+          your browser's user agent, and which page you asked for — and retains
+          it briefly as operational logs. Cloudflare also provides Turnstile,
+          the "verify you are human" check on the signup form, which exists to
+          stop bots filling the list. Their policy:
+          <a href="https://www.cloudflare.com/privacypolicy/">cloudflare.com/privacypolicy</a>,
+          and the processing terms:
+          <a href="https://www.cloudflare.com/cloudflare-customer-dpa/">their customer DPA</a>.
+        </p>
+        <p>
+          That is the complete list. No one else receives anything.
+        </p>
+
+        <h2>What this site does not do</h2>
+        <ul>
+          <li>
+            <strong>No analytics.</strong> No page-view counter, no heatmaps,
+            no session recording, no advertising or conversion pixels of any
+            kind.
+          </li>
+          <li>
+            <strong>No cookies of our own.</strong> We set none. Cloudflare may
+            set one as part of the Turnstile check on the signup form.
+          </li>
+          <li>
+            <strong>No fonts loaded from anyone else.</strong> All 28 font
+            files are served from this domain. Loading Google Fonts from
+            Google's own servers has been found to breach the GDPR in German
+            case law, and avoiding it costs nothing.
+          </li>
+          <li>
+            <strong>One third-party script, on one form.</strong> Turnstile, on
+            the signup form only. Nothing else on the site loads code from
+            another origin.
+          </li>
+        </ul>
+
+        <h2>Stored in your browser</h2>
+        <p>
+          The <a href="/sdk/">rodeo-sdk documentation</a> saves a display
+          preference under the key <code>starlight-theme</code>. It stays on
+          your device, is never transmitted, and clearing your browser data
+          removes it. Nothing else on the site stores anything locally.
+        </p>
+
+        <h2>How long it is kept</h2>
+        <ul>
+          <li>
+            <strong>Your email address:</strong> until you unsubscribe or ask
+            for it to be deleted. There is no other expiry — if the Kickstarter
+            is years away, the list waits.
+          </li>
+          <li>
+            <strong>An address that never confirms:</strong> stays unactivated
+            and is never emailed again.
+          </li>
+          <li>
+            <strong>Server logs:</strong> held by Cloudflare for a short
+            operational window and not copied anywhere else.
+          </li>
+        </ul>
+
+        <h2>Your rights</h2>
+        <p>
+          You can ask for a copy of what is held about you, have it corrected,
+          have it deleted, have it sent to you in a portable form, or withdraw
+          your consent — and withdrawing it is as easy as giving it.
+        </p>
+        <p>
+          The <strong>unsubscribe link in every email</strong> is the fastest
+          route and needs no reply from anyone. For anything else, write to
+          <a href={`mailto:${contact}`}>{contact}</a>. Deletion is permanent and
+          we do not keep a suppression copy unless you ask us to.
+        </p>
+
+        <h2>Changes</h2>
+        <p>
+          If this page changes in a way that affects what is collected or who
+          sees it, the change is announced in the build log rather than quietly
+          slipped in. Last updated {updated}.
+        </p>
+      </div>
+    </section>
+  </div>
+</BaseLayout>

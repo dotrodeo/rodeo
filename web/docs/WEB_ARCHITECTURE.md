@@ -341,8 +341,15 @@ variable and deploy first, then the secret.
 ### Compliance
 
 - **GDPR:** double opt-in gives demonstrable consent with a timestamp stored at Buttondown.
-  `/privacy/` must name Buttondown (processor, US — their DPA and SCCs) and Cloudflare
-  (hosting + Web Analytics), and state purpose, retention and the right to erasure.
+  **`/privacy/` exists as of 2026-10-15** and names Buttondown (processor, US — DPA and
+  SCCs) and Cloudflare (hosting, operational logs, Turnstile), with purpose, retention and
+  the right to erasure. It was written against the code rather than from a template: the
+  third-party origins in the built output, the absence of analytics, the 28 self-hosted
+  font files, the single `starlight-theme` localStorage key, and exactly what
+  `worker/index.ts` sends to Buttondown versus logs locally. **If the signup path changes,
+  that page changes with it** — it is the one page where going stale is a legal problem
+  rather than an embarrassment. Note Web Analytics is *not* deployed, so the page says so;
+  adding it later means editing `/privacy/` in the same commit.
 - **Self-host fonts.** Serving Google Fonts from Google's CDN has been found to violate GDPR
   in German case law, and it is trivially avoidable.
 - **CAN-SPAM:** a working unsubscribe (Buttondown handles it) **and a valid physical postal
