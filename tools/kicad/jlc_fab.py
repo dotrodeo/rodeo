@@ -18,7 +18,10 @@ headers, SOIC/TSSOP/SOT-23, ...), KiCad's raw position export puts parts in the
 wrong place. This script downloads each part's EasyEDA footprint (kept in
 easyeda-footprints/), finds the 90-degree rotation and offset that puts JLC's pads on
 ours with matching pin numbers (PAD_ALIASES maps KiCad pad names such as a jack's
-T/R/S to JLC's numbers), and writes that. Pin numbers carry polarity, so
+T/R/S to JLC's numbers), and writes that. Bottom-side parts are solved against JLC's
+footprint flipped left-right, with the rotation counter-clockwise as seen from the
+top; JLC doesn't document this and has changed it before, so check polarised bottom
+parts in their order preview. Pin numbers carry polarity, so
 diodes and electrolytics come out right too. Parts whose best fit is worse than
 --tolerance mm are listed: check those by eye in placement-check.png.
 
@@ -103,15 +106,24 @@ def easyeda_footprint(code):
     return out
 
 
-def ee_local(ee):
-    """EasyEDA pads relative to the footprint origin, cartesian, in mm."""
+def ee_local(ee, mirror=False):
+    """EasyEDA pads relative to the footprint origin, cartesian, in mm.
+
+    mirror: the footprint as seen from the top when it is placed on the bottom side,
+    flipped left-right (x -> -x) like KiCad and EasyEDA flip a footprint.
+    """
     bx, by = ee['bbox']
-    return [dict(q, x=q['x'] - bx, y=-(q['y'] - by)) for q in ee['pads']]
+    s = -1 if mirror else 1
+    return [dict(q, x=s * (q['x'] - bx), y=-(q['y'] - by)) for q in ee['pads']]
 
 
-def solve(kpads, ee):
-    """Best (R, X, Y, err) placing EasyEDA footprint `ee` on KiCad pads `kpads`."""
-    local = ee_local(ee)
+def solve(kpads, ee, mirror=False):
+    """Best (R, X, Y, err) placing EasyEDA footprint `ee` on KiCad pads `kpads`.
+
+    For a bottom-side part (mirror=True) JLC's footprint is flipped, then rotated by
+    R counter-clockwise as seen from the top, the same sense as on the top side.
+    """
+    local = ee_local(ee, mirror)
     byn = {}
     for p in kpads:
         byn.setdefault(p['num'], []).append((p['X'], p['Y']))
@@ -131,7 +143,7 @@ def solve(kpads, ee):
             best = cand
     if best is None:
         return None
-    return dict(R=best[2], X=best[3], Y=best[4], err=max(best[0], best[1]))
+    return dict(R=best[2], X=best[3], Y=best[4], err=max(best[0], best[1]), mirror=mirror)
 
 
 def check_image(path, fps, placed, eefp, outline):
@@ -160,18 +172,20 @@ def check_image(path, fps, placed, eefp, outline):
             if p['num'] == '1':
                 ax.plot(p['X'], p['Y'], 'o', color='black', ms=2.2)
         ee = eefp[ref]
-        for q in ee_local(ee):
+        for q in ee_local(ee, s.get('mirror', False)):
             x, y = rotate(q['x'], q['y'], s['R'])
-            pad(ax, x + s['X'], y + s['Y'], q['w'], q['h'], s['R'] - q['rot'], q['shape'],
+            qrot = -q['rot'] if s.get('mirror') else q['rot']
+            pad(ax, x + s['X'], y + s['Y'], q['w'], q['h'], s['R'] - qrot, q['shape'],
                 facecolor='none', edgecolor='red', lw=0.6)
             if q['num'] == '1':
                 ax.plot(x + s['X'], y + s['Y'], 'x', color='red', ms=4, mew=1)
         bx, by = ee['bbox']
+        sx = -1 if s.get('mirror') else 1
         for line in ee['silk']:
             v = [float(z) for z in str(line).split()]
-            pts = [rotate(v[i] * 0.254 - bx, -(v[i + 1] * 0.254 - by), s['R']) for i in range(0, len(v) - 1, 2)]
+            pts = [rotate(sx * (v[i] * 0.254 - bx), -(v[i + 1] * 0.254 - by), s['R']) for i in range(0, len(v) - 1, 2)]
             ax.plot([p[0] + s['X'] for p in pts], [p[1] + s['Y'] for p in pts], color='#1f6fd1', lw=0.5)
-        ax.text(s['X'], s['Y'] + 0.3, ref, fontsize=5, ha='center')
+        ax.text(s['X'], s['Y'] + 0.3, ref + (' (bottom)' if s.get('mirror') else ''), fontsize=5, ha='center')
     ax.set_aspect('equal')
     ax.autoscale()
     ax.set_title('JLC footprints (red pads, blue silk) placed by the CPL over KiCad pads (gold). '
@@ -235,10 +249,9 @@ def main():
         for r in rs:
             if r not in fps:
                 sys.exit(f'{r} is in the schematic but not on the board: update the PCB first')
-            if fps[r]['layer'] != 'F.Cu':
-                sys.exit(f'{r} is on the bottom side; bottom-side placement is not supported yet')
             alias = PAD_ALIASES.get(code, {})
-            s = solve([dict(p, num=alias.get(p['num'], p['num'])) for p in fps[r]['pads']], ee)
+            s = solve([dict(p, num=alias.get(p['num'], p['num'])) for p in fps[r]['pads']], ee,
+                      mirror=fps[r]['layer'] == 'B.Cu')
             if s is None:
                 sys.exit(f'{r} ({code}, {ee["name"]}): no pad numbers in common with the KiCad footprint')
             placed[r], eefp[r] = s, ee
@@ -250,7 +263,8 @@ def main():
         for r in sorted(placed, key=refkey):
             s = placed[r]
             w.writerow([r, nl.parts[r]['value'], fps[r]['lib'].split(':')[-1],
-                        f"{s['X']:.4f}", f"{s['Y']:.4f}", f"{s['R'] % 360:.1f}", 'top'])
+                        f"{s['X']:.4f}", f"{s['Y']:.4f}", f"{s['R'] % 360:.1f}",
+                        'bottom' if s['mirror'] else 'top'])
     if not a.no_check_image:
         check_image(os.path.join(out, 'placement-check.png'), fps, placed, eefp, pcb_outline(pcb))
 
@@ -261,6 +275,10 @@ def main():
     print(f'  BOM: {len(groups)} lines, {sum(len(v) for v in groups.values())} parts'
           + (f'; no LCSC number (left out): {" ".join(nolcsc)}' if nolcsc else ''))
     print(f'  CPL: {len(placed)} parts, {corrected} corrected for JLC footprints')
+    bottom = sorted((r for r, s in placed.items() if s['mirror']), key=refkey)
+    if bottom:
+        print(f'  bottom side: {" ".join(bottom)}. JLC\'s bottom-side rotation convention has changed '
+              'over time: check every polarised bottom part in their order preview.')
     for r, n, e in poor:
         print(f'  CHECK {r} ({n}): best fit {e:.2f} mm')
 
