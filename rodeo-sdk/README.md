@@ -40,6 +40,7 @@ firmware/
                        #   (also proves the hub's I2C pass-through + bus pull-ups)
     08_oled_i2c/       # SSD1309 128x64 feedback display smoke test (I2C @ 0x3C)
     09_poly_synth_oled/ # 06 + the OLED: knob-value popups and a live output scope
+    10_audio_levels/   # bench tool: stepped 1 kHz sine out, input peaks over USB serial
   tools/
     screens/           # render an instrument's real OLED screens on your laptop
   docs/

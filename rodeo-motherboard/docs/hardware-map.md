@@ -197,7 +197,7 @@ libDaisy's default `MidiUartTransport` config, no pin overrides needed.
 | Jack | Function | Wiring |
 |---|---|---|
 | J2 | MIDI IN  | Tip/Ring → 6N138 (U1) opto via R1 220 Ω, D2 1N4148 clamp; opto out (pin6) → `UART_RX`, pulled to +3V3 by R11 470 Ω |
-| J3 | MIDI OUT | Tip → R3 220 Ω → `UART_TX`; Ring → R2 220 Ω → +3V3; Sleeve GND |
+| J3 | MIDI OUT | Tip → R3 100 Ω → `UART_TX`; Ring → R2 100 Ω → +3V3; Sleeve GND |
 
 U1 VCC is on VIN (5 V); its open-collector output is pulled to +3V3, so the
 Daisy sees 3.3 V logic. Fine.
@@ -220,7 +220,7 @@ header is the same USART1 as MIDI — only one of the two can be used at a time.
 ## Issues found
 
 > Everything planned for the next board, including the items below that it
-> resolves, is collected in [`rev-b.md`](rev-b.md).
+> resolves, is collected in [`rev-b.md`](../../rev-b/rodeo-motherboard/docs/rev-b.md).
 
 ### 1. RESOLVED AS BUILT — SPI MOSI/MISO were swapped in the layout
 

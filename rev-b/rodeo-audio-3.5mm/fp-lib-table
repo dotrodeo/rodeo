@@ -1,0 +1,4 @@
+(fp_lib_table
+	(version 7)
+	(lib (name "rodeo_audio")(type "KiCad")(uri "${KIPRJMOD}/lib/rodeo_audio.pretty")(options "")(descr "Rodeo audio board parts with 3D models not in the KiCad library"))
+)

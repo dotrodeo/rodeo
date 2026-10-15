@@ -34,3 +34,7 @@ config.mk
 
 # --- Non-public files ---
 kickstarter/
+
+# --- Rodeo KiCad tools: local Python environment ---
+tools/kicad/.venv/
+__pycache__/
