@@ -66,23 +66,28 @@ const gallery = [host.shot!, satellites[0].shot!, satellites[0].gallery![0]];
   </section>
 
   <section class="bg-yellow py-10">
-    <ul class="wrap m-0 grid list-none grid-cols-1 gap-7 sm:grid-cols-3">
-      {
-        gallery.map((shot) => (
-          <li>
-            <img
-              src={shot.src.src}
-              width={shot.src.width}
-              height={shot.src.height}
-              alt={shot.alt}
-              loading="lazy"
-              decoding="async"
-              class="block aspect-square w-full rounded-[10px] object-cover"
-            />
-          </li>
-        ))
-      }
-    </ul>
+    {/* .wrap goes on a plain div, not on the <ul>. Its `margin-inline: auto`
+        lives in @layer components, so a `m-0` utility on the same element
+        wins and the whole strip silently left-aligns. */}
+    <div class="wrap">
+      <ul class="m-0 grid list-none grid-cols-1 gap-7 p-0 sm:grid-cols-3">
+        {
+          gallery.map((shot) => (
+            <li>
+              <img
+                src={shot.src.src}
+                width={shot.src.width}
+                height={shot.src.height}
+                alt={shot.alt}
+                loading="lazy"
+                decoding="async"
+                class="block aspect-square w-full rounded-[10px] object-cover"
+              />
+            </li>
+          ))
+        }
+      </ul>
+    </div>
   </section>
 
   <section class="wrap py-20">

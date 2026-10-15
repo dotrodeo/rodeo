@@ -3,7 +3,7 @@ title: "Rodeo Web — Technical Architecture"
 tags: [rodeo, web, astro, cloudflare, decision-record]
 status: active
 created: 2026-09-17
-updated: 2026-10-14
+updated: 2026-10-15
 ---
 
 # Rodeo Web — Technical Architecture
@@ -298,6 +298,14 @@ security headers. Verified after the change that `/` still carries
 off every request. On Workers it does not exist, and asset-first routing plus a
 scoped `run_worker_first` does the same job.
 
+### The key-ordering trap
+
+`TURNSTILE_SECRET` applies to the running Worker the moment it is set.
+`PUBLIC_TURNSTILE_SITE_KEY` is compiled into the HTML and needs a deploy. Set
+the secret first and the live form goes down: the Worker demands a token the
+deployed page cannot produce, and every signup fails `error=captcha`. Set the
+variable and deploy first, then the secret.
+
 ### Degraded modes, both deliberate
 
 - **No Turnstile keys** → no widget is rendered and the Worker logs
@@ -380,6 +388,7 @@ is kept anyway: it costs nothing and makes that reversible in one file.
   deployments indexed under the real brand would be genuinely damaging.
 - **Turnstile on previews:** add `*.workers.dev` to the widget's allowed hostnames, or the
   captcha silently fails on every preview and looks like a broken form.
-- **One manual test that cannot be automated:** on production, subscribe with a real address,
-  confirm the double opt-in email arrives, click through, verify the subscriber shows as
-  activated.
+- **One manual test that cannot be automated — run and passed 2026-10-15.** A real address
+  subscribed through the live form, the double opt-in mail arrived, the link was clicked, and
+  the subscriber showed as activated. Re-run it after any change to the handler or the keys;
+  nothing local exercises the provider leg.
