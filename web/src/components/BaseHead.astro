@@ -4,9 +4,11 @@ import { site } from '../data/site';
 interface Props {
   title: string;
   description?: string;
+  /** Pages with nothing to rank, like the signup confirmation. */
+  noindex?: boolean;
 }
 
-const { title, description = site.description } = Astro.props;
+const { title, description = site.description, noindex = false } = Astro.props;
 
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
 const fullTitle = title === site.name ? title : `${title} — ${site.name}`;
@@ -14,6 +16,7 @@ const fullTitle = title === site.name ? title : `${title} — ${site.name}`;
 // Preview deploys must never be indexed under the real brand. `_headers`
 // cannot condition on hostname, so this is gated at build time instead.
 const isProduction = import.meta.env.SITE_ENV === 'production';
+const robots = !isProduction || noindex;
 ---
 
 <meta charset="utf-8" />
@@ -22,7 +25,7 @@ const isProduction = import.meta.env.SITE_ENV === 'production';
 <title>{fullTitle}</title>
 <meta name="description" content={description} />
 <link rel="canonical" href={canonical} />
-{!isProduction && <meta name="robots" content="noindex,nofollow" />}
+{robots && <meta name="robots" content="noindex,nofollow" />}
 <meta property="og:type" content="website" />
 <meta property="og:title" content={fullTitle} />
 <meta property="og:description" content={description} />

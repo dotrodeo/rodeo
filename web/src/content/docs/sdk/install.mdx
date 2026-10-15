@@ -1,0 +1,64 @@
+---
+title: Install and build
+description: Toolchain, submodules and the first build of the Rodeo SDK, including the macOS newlib trap that stops arm-none-eabi-gcc from compiling at all.
+---
+
+## What you need
+
+- **ARM GNU Toolchain** (`arm-none-eabi-gcc`) **with newlib**
+- **`dfu-util`** for flashing
+- The repository, with submodules
+
+:::caution[The macOS trap]
+Homebrew's `arm-none-eabi-gcc` ships **without newlib**, and the build fails with:
+
+```
+stdint.h: No such file or directory
+```
+
+Install the official
+[Arm GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads)
+instead, then point the build at it.
+:::
+
+## Point the build at your toolchain
+
+`config.mk` sits next to the SDK, is gitignored because it is machine-specific, and is
+included automatically by every build:
+
+```make title="rodeo-sdk/config.mk"
+GCC_PATH := /Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin
+```
+
+## First build
+
+libDaisy and DaisySP are vendored as submodules and need building once:
+
+```sh
+git submodule update --init --recursive
+
+cd rodeo-sdk
+make deps          # builds the libDaisy + DaisySP static libs
+```
+
+Then build any example:
+
+```sh
+cd examples/01_blink
+make               # -> build/blink.{elf,bin,hex}
+```
+
+`make all` from `rodeo-sdk/` builds every example.
+
+## Flashing
+
+Put the Daisy in DFU mode — **hold BOOT, tap RESET** — then:
+
+```sh
+make program-dfu
+```
+
+:::note[Flash over the Daisy's own port]
+The motherboard's panel USB-C is **power only**: the Seed's USB data pins are not
+routed to it. Flash over the Daisy's own USB connector, or over SWD.
+:::

@@ -1,0 +1,56 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Eyebrow from '../../../components/Eyebrow.astro';
+import LogCard from '../../../components/LogCard.astro';
+import CtaBand from '../../../components/CtaBand.astro';
+import { getPosts, type Post } from '../../../lib/posts';
+
+// Generated from the posts that exist, not from the full enum — an unused tag
+// should not produce an empty page.
+export async function getStaticPaths() {
+  const posts = await getPosts();
+  const tags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
+  return tags.map((tag) => ({
+    params: { tag },
+    props: { tag, posts: posts.filter((p) => p.data.tags.includes(tag)) },
+  }));
+}
+
+interface Props {
+  tag: string;
+  posts: Post[];
+}
+
+const { tag, posts } = Astro.props;
+---
+
+<BaseLayout
+  title={`Build log: ${tag}`}
+  description={`Build-log entries tagged ${tag} — notes from designing an open-source synthesizer platform.`}
+>
+  <div class="wrap">
+    <p class="pt-6 font-mono text-[13px] text-hardware">
+      <a href="/log/" class="text-hardware no-underline hover:text-yellow">build log</a>
+      <span class="px-1">/</span>tagged {tag}
+    </p>
+
+    <section class="flex flex-col gap-4 pt-8 pb-6">
+      <Eyebrow>Tagged</Eyebrow>
+      <h1 class="display m-0 text-[clamp(38px,6vw,56px)]">{tag}</h1>
+      <p class="copy-tech m-0 text-[15px]">
+        {posts.length}{' '}
+        {posts.length === 1 ? 'entry' : 'entries'}. <a href="/log/" class="text-yellow">All entries →</a>
+      </p>
+    </section>
+
+    <section class="pb-16">
+      {posts.map((post) => <LogCard post={post} />)}
+    </section>
+  </div>
+
+  <CtaBand
+    source="log-tag"
+    heading="Follow along?"
+    body="Every build-log entry goes out as one email, roughly monthly, and you will hear about the Kickstarter here first."
+  />
+</BaseLayout>

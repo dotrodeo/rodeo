@@ -1,0 +1,156 @@
+/* Rodeo theming for Starlight.
+ *
+ * Starlight has its own design system driven by CSS custom properties, so the
+ * site's look is applied by remapping those rather than fighting its CSS with
+ * overrides. Values come from src/styles/tokens.css — this file must not
+ * invent colours. See web/docs/WEB_BRAND.md.
+ */
+
+@import './tokens.css';
+
+@import '@fontsource/barlow/400.css';
+@import '@fontsource/barlow/500.css';
+@import '@fontsource/barlow/600.css';
+@import '@fontsource/barlow/900.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource-variable/source-serif-4';
+
+:root,
+:root[data-theme='dark'],
+:root[data-theme='light'] {
+  /* Dark only: the light scale is mapped to the same values so that if the
+     theme ever flips — a stray data-theme, a cached preference — the page
+     stays legible instead of turning white-on-white. */
+  --sl-color-white: var(--palette-white);
+  --sl-color-gray-1: #e8e8e8;
+  --sl-color-gray-2: var(--palette-paper);
+  --sl-color-gray-3: var(--palette-gray);
+  --sl-color-gray-4: #6a6a6a;
+  --sl-color-gray-5: #3a3a3a;
+  --sl-color-gray-6: var(--palette-raised);
+  --sl-color-gray-7: #262626;
+  --sl-color-black: var(--palette-black);
+
+  --sl-color-accent: var(--palette-indigo);
+  --sl-color-accent-low: #2a2360;
+  --sl-color-accent-high: var(--palette-indigo-light);
+
+  --sl-color-text: var(--palette-paper);
+  --sl-color-text-accent: var(--palette-yellow);
+  --sl-color-bg: var(--palette-black);
+  --sl-color-bg-nav: var(--palette-black);
+  --sl-color-bg-sidebar: var(--palette-black);
+  --sl-color-bg-inline-code: var(--palette-raised);
+  /* The site's #2E2E2E rule is ~1.5:1 on the page — fine for a card edge in a
+     laid-out page, too faint for the many separators a docs layout leans on
+     (sidebar, table rules, header). Lifted here only. */
+  --sl-color-hairline: #3a3a3a;
+  --sl-color-hairline-light: #3a3a3a;
+  --sl-color-hairline-shade: #2e2e2e;
+
+  --sl-font: 'Barlow', system-ui, sans-serif;
+  --sl-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  color-scheme: dark;
+
+  /* The bar's own inline padding is removed so .rodeo-header can carry exactly
+     the site gutter (.wrap: 1rem, 2rem at >=640px). Without this the docs
+     header is inset 24px against the site's 32px and the two never line up. */
+  --sl-nav-pad-x: 0rem;
+}
+
+/* Prose in docs reads like the build log: the serif for body, Barlow Black for
+   headings, mono for anything that names a pin, register or file. */
+.sl-markdown-content p,
+.sl-markdown-content li {
+  font-family: var(--font-read, 'Source Serif 4 Variable', Georgia, serif);
+  font-size: 17px;
+  line-height: 1.65;
+}
+
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.sl-markdown-content h4,
+.content-panel h1 {
+  font-family: 'Barlow', system-ui, sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.018em;
+  color: var(--palette-white);
+}
+
+.sl-markdown-content h2 {
+  text-transform: uppercase;
+}
+
+.sl-markdown-content code:not(pre code) {
+  color: var(--palette-cyan);
+  border: 1px solid var(--palette-rule);
+}
+
+.sl-markdown-content a {
+  color: var(--palette-yellow);
+}
+
+header.header {
+  border-bottom: 1px solid var(--palette-rule);
+}
+
+/* Starlight's sidebar nav is sentence case by default; the rest of the site
+   sets navigation in lowercase mono. */
+.sidebar-content a {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 13.5px;
+}
+
+/* Surfaces need to read as surfaces. Code blocks, asides and tables all sat
+   within ~1.1:1 of the page, which reads as flat rather than as low contrast —
+   the text in them already passed. Borders do the separating. */
+.sl-markdown-content .expressive-code pre {
+  border: 1px solid #3a3a3a;
+}
+
+.sl-markdown-content .starlight-aside {
+  border-left-width: 3px;
+  background: var(--palette-raised);
+  border-top: 1px solid var(--palette-rule);
+  border-right: 1px solid var(--palette-rule);
+  border-bottom: 1px solid var(--palette-rule);
+}
+.sl-markdown-content .starlight-aside--note {
+  border-left-color: var(--palette-indigo-light);
+}
+.sl-markdown-content .starlight-aside--tip {
+  border-left-color: var(--palette-cyan);
+}
+.sl-markdown-content .starlight-aside--caution {
+  border-left-color: var(--palette-yellow);
+}
+.sl-markdown-content .starlight-aside__title {
+  color: var(--palette-white);
+}
+
+.sl-markdown-content table {
+  border: 1px solid var(--palette-rule);
+}
+.sl-markdown-content th {
+  background: var(--palette-raised);
+  color: var(--palette-white);
+  font-family: 'Barlow', system-ui, sans-serif;
+  font-weight: 600;
+}
+.sl-markdown-content :is(th, td) {
+  border-color: var(--palette-rule);
+}
+
+/* Header geometry, shared with the site's .wrap so both bars are the same
+   width and centred on the same axis. */
+.rodeo-header {
+  padding-inline: 1rem;
+}
+@media (min-width: 640px) {
+  .rodeo-header {
+    padding-inline: 2rem;
+  }
+}

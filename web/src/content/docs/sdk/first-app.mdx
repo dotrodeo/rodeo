@@ -1,0 +1,67 @@
+---
+title: Your first app
+description: Copy the template, set a target, include the pin map and build. How a Rodeo app is laid out and why RODEO_ROOT matters.
+---
+
+Every app and example is a self-contained folder: its own `src/main.cpp` and a small
+`Makefile` that sets two variables and includes the shared rules.
+
+## Copy the template
+
+```sh
+cp -r rodeo-sdk/template rodeo-sdk/examples/10_my_app
+```
+
+:::caution[Delete the template's `RODEO_ROOT` line]
+`rodeo.mk` defaults to `RODEO_ROOT = ../..`, which resolves correctly **two levels
+below** `rodeo-sdk/`. The template carries an explicit `RODEO_ROOT` for its own
+shallower location — delete that line once the copy is in `examples/`, or the build
+looks for the SDK in the wrong place.
+:::
+
+## The Makefile
+
+```make title="examples/10_my_app/Makefile"
+TARGET = my_app
+CPP_SOURCES = src/main.cpp
+
+include ../../common/rodeo.mk
+```
+
+## The pin map
+
+`board.h` is the single source of truth for the Rodeo pin and channel map, and it is
+host-safe — it has no libDaisy in it, so host tests can include it too.
+
+```cpp title="src/main.cpp"
+#include "daisy_seed.h"
+#include "board.h"
+
+using namespace daisy;
+
+DaisySeed hw;
+
+int main(void) {
+    hw.Init();
+    while (1) {
+        hw.SetLed(true);
+        System::Delay(250);
+        hw.SetLed(false);
+        System::Delay(250);
+    }
+}
+```
+
+```sh
+make && make program-dfu
+```
+
+If the onboard LED blinks, the toolchain, the board and the flash path all work —
+which is exactly what `01_blink` is for.
+
+## Where instrument code goes
+
+An instrument lives outside the SDK, in its own component directory, and *consumes*
+the SDK rather than forking it. `rodeo-002/firmware/` is the worked example: it links
+the vendored libDaisy and DaisySP and the shared drivers, and keeps only its own voice
+and panel code.

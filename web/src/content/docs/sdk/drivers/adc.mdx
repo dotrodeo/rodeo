@@ -1,0 +1,67 @@
+---
+title: Analog inputs
+description: Reading the motherboard's twenty-four 16-bit analog channels with rodeo::RodeoAdc — codes, volts, normalised values and knob-travel calibration.
+---
+
+The motherboard carries **two TI ADS114S08** 12-channel 16-bit delta-sigma converters
+on SPI1, giving twenty-four analog inputs. `rodeo::RodeoAdc` presents both chips as a
+single pipelined scanner, so instrument code never addresses a chip.
+
+## Reading knobs
+
+```cpp
+#include "rodeo_adc.h"
+
+rodeo::RodeoAdc adc;
+
+adc.Init();                       // all 24 channels, 1000 SPS
+
+while (1) {
+    adc.Update();                 // advance the scan
+    float cutoff = adc.GetNorm(12);   // 0..1
+}
+```
+
+| Call | Returns |
+|---|---|
+| `GetCode(ch)` | raw 16-bit converter code |
+| `GetVolts(ch)` | 0–3.3 V |
+| `GetNorm(ch)` | 0–1, the one instrument code usually wants |
+
+:::tip[Readings are ratiometric]
+The pots and the converter reference run from the **same** 3.3 V rail, so if the rail
+drifts the knobs do not. That is why `GetNorm()` is trustworthy and why you rarely
+need `GetVolts()`.
+:::
+
+## Knob travel: `PotSpan`
+
+A real potentiometer does not reach 0 or 1 at its stops. `PotSpan` calibrates the
+usable travel per channel so a knob turned fully down reads exactly zero:
+
+```cpp
+const rodeo::PotSpan &span = adc.GetSpan(ch);
+adc.SetSpan(ch, my_span);
+```
+
+The conversion itself lives in `adc_convert.h`, which has no hardware in it and is
+covered by host tests — see [pure-logic headers](/sdk/reference/pure-logic/).
+
+## Sparse boards
+
+Not every channel is populated on every instrument. The scanner skips unpopulated
+channels rather than paying for them:
+
+```cpp
+if (adc.ChannelPopulated(ch)) { /* ... */ }
+adc.ChipPresent(chip);
+```
+
+:::note[Verified, with one gap]
+The SPI orientation and conversion path are bench-confirmed on real hardware.
+**Absolute-voltage accuracy is still unverified**, pending a jumper and pot test —
+so trust the normalised value, and treat `GetVolts()` as indicative.
+:::
+
+The driver stack's design, including scan timing, is written up in
+`rodeo-sdk/docs/RODEO_ADC_LIB_DESIGN.md`.

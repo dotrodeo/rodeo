@@ -1,0 +1,166 @@
+---
+// The waitlist form. One component so the band and the /subscribe/ page cannot
+// drift apart — the honeypot, the consent line and the Turnstile widget have to
+// be identical everywhere or the Worker's checks stop matching the markup.
+//
+// It posts to /api/subscribe, not /subscribe/, because a static page exists at
+// the latter. See worker/index.ts.
+interface Props {
+  /** Recorded in the Worker's logs: home, subscribe-page, post:<slug>, … */
+  source: string;
+  /** `band` sits on indigo; `page` sits on the page background. */
+  variant?: 'band' | 'page';
+}
+
+const { source, variant = 'band' } = Astro.props;
+
+// Two forms on one page would collide on these.
+const uid = source.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+
+// Unset until the Turnstile keys exist. The widget then appears and the Worker
+// starts enforcing it; neither half needs a code change.
+const siteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY;
+
+const note = variant === 'band' ? 'text-legend' : 'text-hardware';
+---
+
+<form
+  method="post"
+  action="/api/subscribe"
+  data-subscribe
+  class="flex max-w-[560px] flex-col gap-3"
+>
+  <input type="hidden" name="source" value={source} />
+
+  {/* Off-screen rather than display:none — a bot that renders CSS skips the
+      latter. aria-hidden and tabindex keep it away from everyone else. */}
+  <div class="absolute -left-[9999px] h-0 w-0 overflow-hidden" aria-hidden="true">
+    <label for={`b_name-${uid}`}>Leave this field empty</label>
+    <input id={`b_name-${uid}`} name="b_name" type="text" tabindex="-1" autocomplete="off" />
+  </div>
+
+  <div class="flex flex-col gap-3 sm:flex-row">
+    <label for={`email-${uid}`} class="sr-only">Email address</label>
+    <input
+      id={`email-${uid}`}
+      name="email"
+      type="email"
+      required
+      autocomplete="email"
+      placeholder="you@example.com"
+      class="min-w-0 grow border-[1.5px] border-legend bg-field px-4 py-3.5 font-mono text-[15px] text-legend placeholder:text-hardware"
+    />
+    <button
+      type="submit"
+      class="shrink-0 cursor-pointer border-none bg-yellow px-7 py-4 font-display text-[16px] font-black uppercase tracking-[0.04em] text-field hover:bg-legend"
+      >Join the waitlist</button
+    >
+  </div>
+
+  {siteKey && <div class="cf-turnstile" data-sitekey={siteKey} data-theme="dark" />}
+
+  {
+    siteKey && (
+      <p
+        data-subscribe-status
+        role="status"
+        aria-live="polite"
+        class={`copy-tech m-0 hidden text-[13px] ${note}`}
+      />
+    )
+  }
+
+  <p class={`copy-tech m-0 text-[13px] ${note}`}>
+    You will get one email asking you to confirm. Nothing else until there is
+    something to say, and unsubscribe from any of it.
+  </p>
+</form>
+
+{
+  siteKey && (
+    <script is:inline async defer src="https://challenges.cloudflare.com/turnstile/v0/api.js" />
+  )
+}
+
+{/* Not wrapped in a `{siteKey && ...}` expression, and that is deliberate.
+    Astro parses an element's children inside an expression as JSX, so a
+    template literal there is emitted as literal `{\`...\`}` text and the
+    whole function becomes an inert string — it ships, greps clean, and never
+    runs. At the top level the script body is raw text. It guards itself
+    instead: no widget on the form, nothing happens.
+
+    What it does: without it, a fast click submits before Turnstile has
+    produced its token and the Worker bounces the subscriber to an error page
+    for doing nothing wrong. Instead the submit is held, the token is waited
+    for, and the form is sent on by itself — so the common case, Managed mode
+    resolving silently, costs the subscriber one brief line of status text.
+
+    Polling the hidden field rather than using Turnstile's data-callback keeps
+    this independent of how many widgets are on the page and needs no global
+    callback name.
+
+    This is an enhancement over the server check, never a replacement:
+    worker/index.ts verifies the token regardless of what happens here. */}
+<script is:inline>
+  (function () {
+    if (window.__rodeoSubscribeHold) return;
+    window.__rodeoSubscribeHold = true;
+
+    var CHECKING = 'Finishing the human check\u2026';
+    var STALLED = 'The human check has not finished. Complete the box below, then submit again.';
+    var TICK = 200;
+    var LIMIT = 40; // 8 seconds
+
+    var forms = document.querySelectorAll('form[data-subscribe]');
+    Array.prototype.forEach.call(forms, function (form) {
+      if (!form.querySelector('.cf-turnstile')) return;
+      var status = form.querySelector('[data-subscribe-status]');
+      var waiting = false;
+
+      function say(text) {
+        if (!status) return;
+        status.textContent = text;
+        status.classList.toggle('hidden', !text);
+      }
+
+      function token() {
+        // Re-queried every time: Turnstile replaces this input on refresh,
+        // so a held reference goes stale and reads empty forever.
+        var field = form.querySelector('[name="cf-turnstile-response"]');
+        return field && field.value ? field.value : '';
+      }
+
+      form.addEventListener('submit', function (event) {
+        if (token()) {
+          say('');
+          return;
+        }
+        event.preventDefault();
+        if (waiting) return;
+        waiting = true;
+        say(CHECKING);
+
+        var tries = 0;
+        var timer = setInterval(function () {
+          tries++;
+          if (token()) {
+            clearInterval(timer);
+            waiting = false;
+            say('');
+            // requestSubmit re-runs validation and this handler, which then
+            // sees the token and lets it through. submit() does neither and
+            // is only here for browsers without requestSubmit.
+            if (form.requestSubmit) form.requestSubmit();
+            else form.submit();
+          } else if (tries >= LIMIT) {
+            // Either the challenge is interactive and untouched, or Turnstile
+            // is blocked. Both need the subscriber to do something.
+            clearInterval(timer);
+            waiting = false;
+            say(STALLED);
+          }
+        }, TICK);
+      });
+    });
+  })();
+</script>

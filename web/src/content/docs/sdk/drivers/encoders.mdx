@@ -1,0 +1,70 @@
+---
+title: Encoders
+description: Reading rodeo-encoder-hub boards with rodeo::RodeoEncoders — deltas, positions, press latches, and the flat index that spans up to four hubs.
+---
+
+Encoders are expensive in pins and cheap in bandwidth, so they do not go to the host
+directly. Each **rodeo-encoder-hub** reads nine encoders, does the quadrature and the
+debouncing, and answers over I²C as a single target. Two cuttable jumpers set the
+address, so four hubs — thirty-six encoders — share two wires.
+
+`rodeo::RodeoEncoders` presents all of them as one list.
+
+```cpp
+#include "rodeo_encoders.h"
+
+rodeo::RodeoEncoders encoders;
+
+encoders.Init();                  // all four addresses, 100 kHz, 1 kHz per hub
+
+while (1) {
+    encoders.Update();
+
+    int16_t turn = encoders.GetDelta(3);   // detents since the last read
+    if (encoders.PopPress(3)) { /* tapped */ }
+}
+```
+
+## Flat index or hub and slot
+
+Both addressing styles exist. The flat index is what instrument code normally wants;
+the explicit form is there when you care which board a control is on.
+
+| Flat | Explicit |
+|---|---|
+| `GetDelta(idx)` | `GetDelta(hub, slot)` |
+| `GetPosition(idx)` | `GetPosition(hub, slot)` |
+| `IsPressed(idx)` | `IsPressed(hub, slot)` |
+| `PopPress(idx)` | `PopPress(hub, slot)` |
+
+## Deltas, positions and presses
+
+- **`GetDelta`** is detents since the last read, and **clears on read**. This is the
+  one to use for a parameter the user is turning.
+- **`GetPosition`** is a running total and does not clear.
+- **`IsPressed`** is the live debounced level.
+- **`PopPress`** consumes a *latched* press edge, so a tap that begins and ends
+  between two polls is never dropped.
+
+## Which hubs are actually there
+
+```cpp
+encoders.NumHubsPresent();
+encoders.HubPresent(0);
+encoders.HubAddress(0);        // 0x30 + hub
+```
+
+:::caution[On Rev-A the hub anchors the bus]
+The Rev-A motherboard has no I²C pull-ups — the hub carries them. The bus therefore
+needs **at least one hub present**, and an unpowered hub takes the bus down with it,
+including the OLED. Rev-B moves the pull-ups to the motherboard.
+:::
+
+:::note[100 kHz today]
+The bus boots at 100 kHz and is proven there on hardware. The 400 kHz promotion in
+the register contract is not done: the timing value has not been generated and
+setup-hold has never been checked on a logic analyser.
+:::
+
+The full register map — `WHO_AM_I`, the telemetry block, the switch latches — is in
+`rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md`.
