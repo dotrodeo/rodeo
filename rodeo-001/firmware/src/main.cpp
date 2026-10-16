@@ -4,14 +4,14 @@
 // (consume-not-copy: this app links the vendored libDaisy/DaisySP and the shared
 // common/ drivers via ../../rodeo-sdk; it does not fork them).
 //
-// Voice v2 target = "less-complicated MiniFreak":
+// Voice v2 target = "a less-complicated multi-engine poly":
 //   - 12-voice polyphony
 //   - per osc: ONE flat model list (Option A, Derek 2026-08-23) that the
 //     Wave-encoder steps through — Saw / Pulse / Triangle / Sine / FM / Formant.
 //     The single Timbre pot morphs whatever the active model's main parameter is
 //     (PW on Pulse, FM-index on FM, formant-pos on Formant; subtle/no-op on the
 //     pure waveforms). Classic subtractive waveforms and the FM/formant engines
-//     share one uniform list, MiniFreak-style.
+//     share one uniform list.
 //   - polyphonic SVF (per voice), selectable LP/BP/HP/notch
 //   - Filter ADSR + Amp ADSR (independent) + 1 LFO, single selectable destination
 //
@@ -50,7 +50,7 @@ static constexpr int kMaxVoices = 12;
 
 // Oscillator model select (Option A locked by Derek 2026-08-23): the Wave-encoder
 // (hub slots 7/8) steps through ONE flat list of models — classic subtractive
-// waveforms live right alongside the FM/formant engines, MiniFreak-style. The
+// waveforms live right alongside the FM/formant engines. The
 // single Timbre pot morphs whatever the active model's main parameter is.
 // Live now: the four subtractive waveforms (Timbre = PW on Pulse; a gentle
 // symmetry/shape morph on Saw/Tri; no-op on Sine). kFm/kFormant are placeholders

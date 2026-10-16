@@ -195,7 +195,7 @@ those pins as GPIO, or the corresponding channels silently disappear.
 > power cycles**, value shown on the OLED; wave-encoder steps ±1 through the 4 waveforms
 > (wrap), direction per `CONFIG.ENC_DIR_INVERT`.
 
-> **🎛️ VOICE UPDATE (Derek, 2026-08-22): voice = "less-complicated MiniFreak"** — 12-voice
+> **🎛️ VOICE UPDATE (Derek, 2026-08-22): voice = "a less-complicated multi-engine poly"** — 12-voice
 > poly, oscillators **subtractive + FM + formant**, **polyphonic SVF** filter, Filter ADSR +
 > Amp ADSR + **1 LFO single destination, no mod matrix**. Impact on this contract:
 > - **Filter / mod / mix / global / voice controls: UNCHANGED and frozen** — they map 1:1 onto
@@ -582,7 +582,7 @@ firmware can't. Not a fab blocker for the current board; fold into the next spin
   Keytrack, LFO Shape, LFO Dest, Voice Mode). J36–J41 (DIG_7–12, ADC-capable pins 22–27) kept
   SPARE on purpose. Clears Fizz's cycle-button GPIO stub — control map now frozen on all three
   control classes (analog / digital / encoder). Retired the stale SPDT-toggle + pixel-on-DIG_11 notes.
-- 2026-08-22 — **Voice v2 = "less-complicated MiniFreak"** (Derek): 12-voice poly, osc
+- 2026-08-22 — **Voice v2 = "a less-complicated multi-engine poly"** (Derek): 12-voice poly, osc
   subtractive+FM+formant, polyphonic SVF, Filter+Amp ADSR + 1 LFO single-dest (no matrix).
   **OSC fork resolved — Option A:** per-osc **Shape → model-dependent Timbre** (PW/FM-index/
   formant-pos by engine), Wave encoders → **engine select**, Vowel pot unchanged. **Semantics

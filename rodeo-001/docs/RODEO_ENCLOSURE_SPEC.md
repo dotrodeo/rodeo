@@ -136,15 +136,15 @@ recesses. This is why the "bushing/actuator height" column matters per-row.
 
 ## Voice architecture & control inventory v0.1 (Derek, 2026-08-15)
 
-Derek's brief: **"between a Prophet-5 and an Arturia MiniFreak"** — the clarity of a
+Derek's brief: **"between a Prophet-5 and a modern multi-engine poly"** — the clarity of a
 straightforward subtractive synth, with a few modern tricks (formants, supersaws, unison),
-but *two notches less fiddly* than the MiniFreak. Locked answers:
+but *two notches less fiddly* than the modern multi-engine synths. Locked answers:
 
 - **Voice count:** 12-voice polyphony (minimum acceptable 8). Supports **poly + mono** modes.
 - **Oscillators:** **two full oscillators** (not osc + sub).
-- **No sequencer, no arpeggiator.** (Biggest single simplification vs. MiniFreak.)
+- **No sequencer, no arpeggiator.** (Biggest single simplification vs. a modern multi-engine synth.)
 
-**Design translation (the anti-MiniFreak stance):** the MiniFreak's complexity is not its
+**Design translation (the anti-complexity stance):** a modern multi-engine synth's complexity is not its
 features, it's (1) *mode-multiplexed knobs* (macros re-mean per osc type) and (2) a mod
 matrix + sequencer + cycling envelopes. "No hidden controls" already forbids #1; dropping
 seq/arp removes most of #2. So Rodeo = one flexible voice, **one knob per function**, laid
@@ -156,7 +156,7 @@ out by signal flow. The three modern features are **always-on dial-in controls, 
 - **Formant → a filter "Vowel" morph** (A-E-I-O-U), not a formant *oscillator*. A filter
   character you dial, always available regardless of oscillator settings. Prophet-like.
 
-### Voice v1 UPDATE — locked by Derek 2026-08-23 ("less-complicated MiniFreak")
+### Voice v1 UPDATE — locked by Derek 2026-08-23 ("a less-complicated multi-engine poly")
 
 Firmware gate cleared; Fizz is standing up `rodeo-001/firmware`. Locked voice:
 - **12-voice polyphony** (unchanged).
@@ -242,7 +242,7 @@ need **~37 → we are ~13 over.** Three ways to close the gap:
   *free* of the 24/12 budget. Put the ~10 discrete selects + set-and-forget trims (octaves,
   waves, modes, detune, glide, tune) on 2–3 encoder-banks; keep the 24 ADC channels for the
   live-sweep pots. "No hidden controls" is preserved via the encoder RGB rings + OLED — but
-  it leans a notch *toward* the MiniFreak look (encoders-with-display) Derek is moving away from.
+  it leans a notch *toward* the encoders-with-display look Derek is moving away from.
 - **C — Cut ~13 controls.** Real feature reduction (drop filter Type, drop per-osc Spread to
   one global, fixed keytrack, share one ADSR, etc.). Cheapest, least capable.
 
@@ -643,7 +643,7 @@ count is a joint Bumble/Honey decision, not just an electrical one.
   2 wheels; enum selectors → digital cycle-buttons w/ OLED; fine trims + octaves → 1–2 I2C
   encoder-banks. Path A (3rd ADS114S08 / U5 on PG10) reframed as documented Rev-B upgrade path.
 - 2026-08-15 — Added **Voice architecture & control inventory v0.1** from Derek's brief
-  (Prophet-5 × MiniFreak, 12-voice poly + mono, 2 full osc, no seq/arp). Full 37-analog
+  (Prophet-5 × modern multi-engine poly, 12-voice poly + mono, 2 full osc, no seq/arp). Full 37-analog
   control list; surfaced the finding that an all-visible 2-osc surface exceeds the 24-channel
   ADC budget by ~13, with three resolutions (A: 3rd ADS114S08 — recommended; B: encoder-bank
   offload; C: feature cut). Fixed stale control-map cross-ref path (now `./RODEO_CONTROL_MAP.md`).

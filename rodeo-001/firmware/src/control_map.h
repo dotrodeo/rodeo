@@ -7,7 +7,7 @@
 // pin-map/topology only); a specific instrument owns its own control semantics.
 // Human source of truth: rodeo-001/docs/RODEO_CONTROL_MAP.md (frozen 2026-08-23).
 //
-// Voice v2 = "less-complicated MiniFreak": 12-voice, subtractive + FM + formant
+// Voice v2 = "a less-complicated multi-engine poly": 12-voice, subtractive + FM + formant
 // oscillator engines, poly SVF, Filter ADSR + Amp ADSR + 1 LFO (single dest).
 //
 // Channel index convention (from board.h): ch = chip*12 + AINindex.
