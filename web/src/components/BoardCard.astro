@@ -6,6 +6,7 @@
 // a grey box where an image would go, the card leads with the two specs that
 // actually distinguish the board — which is what a builder is scanning for.
 import Chip from './Chip.astro';
+import BoardPlaceholder from './BoardPlaceholder.astro';
 import type { Board } from '../data/boards';
 import { statusLabel } from '../data/site';
 
@@ -22,6 +23,22 @@ const lead = board.specs.slice(0, 2);
     href={`/ecosystem/${board.slug}/`}
     class="group flex h-full flex-col gap-4 border border-rule bg-field-raised p-5 text-legend no-underline hover:border-yellow"
   >
+    {
+      board.shot ? (
+        <img
+          src={board.shot.src.src}
+          width={board.shot.src.width}
+          height={board.shot.src.height}
+          alt={board.shot.alt}
+          loading="lazy"
+          decoding="async"
+          class="block aspect-square w-full rounded-[8px] object-cover"
+        />
+      ) : board.outline ? (
+        <BoardPlaceholder outline={board.outline} rev={board.rev} class="w-full" />
+      ) : null
+    }
+
     <div class="flex flex-wrap items-center gap-2">
       <h3 class="display m-0 text-[17px] normal-case group-hover:text-yellow">{board.name}</h3>
       <Chip variant="status" status={board.status}>{statusLabel[board.status]}</Chip>

@@ -3,6 +3,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import Chip from '../../components/Chip.astro';
 import Eyebrow from '../../components/Eyebrow.astro';
 import BoardFigure from '../../components/BoardFigure.astro';
+import BoardPlaceholder from '../../components/BoardPlaceholder.astro';
 import SpecTable from '../../components/SpecTable.astro';
 import CtaBand from '../../components/CtaBand.astro';
 import { boards } from '../../data/boards';
@@ -47,7 +48,7 @@ const others = boards.filter((b) => b.slug !== board.slug);
         /* Only rodeo-potentiometer carries an image: it is the one board that
            survives into Rev-B unchanged. The rest are unfabricated, and their
            renders wait on the stackup fix in WEB_ROADMAP.md decision 8. */
-        board.shot && (
+        board.shot ? (
           <div class="lg:w-[44%] lg:shrink-0">
             <BoardFigure
               src={board.shot.src}
@@ -60,7 +61,11 @@ const others = boards.filter((b) => b.slug !== board.slug);
               sizes="(max-width: 1024px) 100vw, 500px"
             />
           </div>
-        )
+        ) : board.outline ? (
+          <div class="lg:w-[44%] lg:shrink-0">
+            <BoardPlaceholder outline={board.outline} rev={board.rev} />
+          </div>
+        ) : null
       }
 
       <div class="flex min-w-0 grow flex-col gap-6">

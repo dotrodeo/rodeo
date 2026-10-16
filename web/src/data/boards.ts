@@ -66,6 +66,12 @@ export interface Board {
   summary: string;
   /** A paragraph for the board page. */
   body: string;
+  /**
+   * Board outline in millimetres, measured from the KiCad Edge.Cuts layer.
+   * Drives the placeholder that stands in until there are photographs, so
+   * the shape and scale on the page are the board's real ones.
+   */
+  outline?: { w: number; h: number };
   /** The lead image used on the card and at the top of the board page. */
   shot?: Shot;
   /** Further views, shown on the board page only. */
@@ -93,6 +99,7 @@ export const boards: Board[] = [
     kind: 'host',
     status: 'in-progress',
     rev: 'B',
+    outline: { w: 90, h: 112 },
     summary:
       'The host board. A Daisy Seed, two codecs, ten general-purpose I/O connectors and the satellite chain.',
     body: 'Rev B gives the motherboard one job: carry the Daisy, the audio, and the connectors everything else plugs into. The two on-board converters that defined Rev A are gone — their pins went to a second codec, and the analog bank they provided became an optional expander board. Controls no longer compete for motherboard channels, because the satellite chain grows by adding satellites.',
@@ -126,6 +133,7 @@ export const boards: Board[] = [
     kind: 'satellite',
     status: 'designed',
     rev: 'B',
+    outline: { w: 20, h: 100 },
     summary: 'Four 9 mm pots on 25 mm centres, read by one CH32V003 on the chain.',
     body: 'The first Rev B satellite. Four pots in a row, digitised on the board by a cent-scale microcontroller and passed along the chain as a frame — so the cost of another four controls is another satellite, not another motherboard. The pots mount through the panel and the board hangs off their bushings, with every other part surface-mounted on the underside so assembly stays single-sided.',
     specs: [
@@ -150,6 +158,7 @@ export const boards: Board[] = [
     kind: 'satellite',
     status: 'designed',
     rev: 'B',
+    outline: { w: 20, h: 100 },
     summary: 'Four 12 mm encoders with push switches, built to sit beside the pot bank.',
     body: 'The second satellite, deliberately the same shape as the first so the two line up on one panel with their knobs at the same height. The four push switches share a single analog pin through a resistor ladder, because the microcontroller runs out of pins before it runs out of capability — the kind of trade that keeps a satellite under the cost that makes the chain worth having.',
     specs: [
@@ -195,6 +204,7 @@ export const boards: Board[] = [
     kind: 'daughterboard',
     status: 'designed',
     rev: 'B',
+    outline: { w: 60, h: 30 },
     summary: 'Four stereo 3.5 mm jacks carrying the motherboard’s eight audio signals.',
     body: 'Rev B has twice the audio of Rev A, and the jacks move off the motherboard onto a board that bolts to the rear rail. It is passive apart from protection: a series resistor and a clamp on every input, an ESD diode on every jack contact. A quarter-inch variant will share the circuit with different jacks.',
     specs: [
@@ -217,6 +227,7 @@ export const boards: Board[] = [
     kind: 'daughterboard',
     status: 'designed',
     rev: 'B',
+    outline: { w: 40, h: 25 },
     summary: 'MIDI in and out on TRS Type A, on the back panel.',
     body: 'MIDI leaves the motherboard in Rev B and becomes two jacks on the rear rail. The active parts stay behind — the optocoupler, its resistor and diode, and the output resistors all remain on the motherboard — so this board carries the jacks, one connector and ESD protection on the output, and nothing else.',
     specs: [
@@ -239,6 +250,7 @@ export const boards: Board[] = [
     kind: 'daughterboard',
     status: 'designed',
     rev: 'B',
+    outline: { w: 40, h: 20 },
     summary: 'The default power input, and the board that carries USB data to the Seed.',
     body: 'A USB-C jack behind the panel, cabled to the motherboard. It is the reason Rev B has USB at all: the Seed’s data lines run through this board, which is what brings USB-MIDI, USB audio and firmware flashing to the panel port instead of dead-ending inside the case as they did on Rev A.',
     specs: [
@@ -261,6 +273,7 @@ export const boards: Board[] = [
     kind: 'daughterboard',
     status: 'designed',
     rev: 'B',
+    outline: { w: 60, h: 40 },
     summary: 'The USB-C board plus a barrel jack and a separate 5 V output for LED strips.',
     body: 'For builds that need more current than a USB port will give. The barrel jack takes a 9–12 V adapter and wins automatically when it is plugged in, while USB stays connected for data and takes over again if the adapter is pulled. A second regulator feeds an auxiliary 5 V output for LED strips, kept off the motherboard’s supply on purpose.',
     specs: [
