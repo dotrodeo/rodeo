@@ -1,0 +1,7 @@
+# Cloudflare static-assets redirects.
+#
+# /source is printed on the Rev B daughterboards as their CERN-OHL-W source
+# location, so it must keep working for as long as those boards exist. Point it
+# somewhere new if the repository ever moves; never remove it.
+/source   https://github.com/dotrodeo/rodeo  302
+/source/  https://github.com/dotrodeo/rodeo  302
