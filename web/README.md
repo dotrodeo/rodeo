@@ -5,13 +5,16 @@ output only. No `package.json`, no dependencies, no deploy.
 
 ## What's here
 
+The brief and the roadmap hold campaign planning, so they live in the private
+`dotrodeo/rodeo-internal` repository; links to them only work for the team.
+
 | Document | What it settles |
 |---|---|
-| [`docs/WEB_DISCOVERY.md`](docs/WEB_DISCOVERY.md) | What the site is for, who it talks to, the message, the information architecture, content inventory, risks |
+| [`WEB_DISCOVERY.md`](https://github.com/dotrodeo/rodeo-internal/blob/main/web/docs/WEB_DISCOVERY.md) (in `rodeo-internal`) | What the site is for, who it talks to, the message, the information architecture, content inventory, risks |
 | [`docs/WEB_BRAND.md`](docs/WEB_BRAND.md) | The visual language — palette, typefaces, graphic devices, wordmark. All derived from the motherboard PCB |
 | [`docs/WEB_ARCHITECTURE.md`](docs/WEB_ARCHITECTURE.md) | Stack, directory layout, content model, deploy pipeline, email capture, verification |
 | [`docs/WEB_CLAIMS_AUDIT.md`](docs/WEB_CLAIMS_AUDIT.md) | What we're allowed to claim today, with evidence; what must never appear; the accuracy guardrail to build |
-| [`docs/WEB_ROADMAP.md`](docs/WEB_ROADMAP.md) | Phases, estimates, and the open-decisions checklist |
+| [`WEB_ROADMAP.md`](https://github.com/dotrodeo/rodeo-internal/blob/main/web/docs/WEB_ROADMAP.md) (in `rodeo-internal`) | Phases, estimates, and the open-decisions checklist |
 
 **Design canvas** (artboards for the foundations, wordmark, home, boards, board detail and a
 log post): <https://claude.ai/artifact/Sc1twbmgcvB1wFd1vCeQis>
@@ -29,7 +32,7 @@ Dark mode only.
 
 ## Before writing any code
 
-1. Read [`docs/WEB_ROADMAP.md`](docs/WEB_ROADMAP.md) and clear phase 0.
+1. Read [`WEB_ROADMAP.md`](https://github.com/dotrodeo/rodeo-internal/blob/main/web/docs/WEB_ROADMAP.md) in `rodeo-internal` and clear phase 0.
 2. Read [`docs/WEB_CLAIMS_AUDIT.md`](docs/WEB_CLAIMS_AUDIT.md). Product copy is not
    freehand: every spec statement renders from `src/data/specs.ts` and carries a status.
 3. Transcribe [`docs/WEB_BRAND.md`](docs/WEB_BRAND.md) into the token layer rather than
@@ -85,7 +88,7 @@ npm run build
 Phase 1 and the board catalogue: design tokens, layout shell, `/`, `/ecosystem/`,
 a page per board, `/style-guide` and `/404`. Not yet built: the build log, `/docs/`,
 `/prototype/`, the subscribe function and the deploy workflow — see
-[docs/WEB_ROADMAP.md](docs/WEB_ROADMAP.md).
+[WEB_ROADMAP.md](https://github.com/dotrodeo/rodeo-internal/blob/main/web/docs/WEB_ROADMAP.md) in `rodeo-internal`.
 
 ### Imagery
 

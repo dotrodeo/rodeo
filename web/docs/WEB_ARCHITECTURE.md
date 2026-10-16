@@ -353,7 +353,7 @@ variable and deploy first, then the secret.
 - **Self-host fonts.** Serving Google Fonts from Google's CDN has been found to violate GDPR
   in German case law, and it is trivially avoidable.
 - **CAN-SPAM:** a working unsubscribe (Buttondown handles it) **and a valid physical postal
-  address** in every email. See the risk note in [WEB_DISCOVERY.md](./WEB_DISCOVERY.md).
+  address** in every email. See the risk note in [WEB_DISCOVERY.md](https://github.com/dotrodeo/rodeo-internal/blob/main/web/docs/WEB_DISCOVERY.md) (`rodeo-internal`).
 - Buttondown's sending domain needs SPF/DKIM records on `rodeooh.rodeo`.
 - **The handler sends the subscriber's IP to Buttondown** as `ip_address`, which is their
   documented spam check and matters more while Turnstile is unconfigured. An IP is personal

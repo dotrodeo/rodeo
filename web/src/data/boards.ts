@@ -23,7 +23,7 @@ import type { Rev, Status } from './site';
 // Photographs of Rev-A hardware. They belong to the prototype, not to the
 // product — see `prototype` at the bottom of this file. No Rev-B board has
 // been fabricated, and its renders are held back until the soldermask
-// stackups agree (WEB_ROADMAP.md, decision 8).
+// stackups agree (WEB_ROADMAP.md (rodeo-internal), decision 8).
 import motherboardImg from '../assets/hardware/rodeo-motherboard.webp';
 import motherboardBackImg from '../assets/hardware/rodeo-motherboard-back.webp';
 import motherboardDaisyImg from '../assets/hardware/rodeo-motherboard-daisy.webp';
