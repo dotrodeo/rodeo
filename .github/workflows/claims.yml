@@ -15,33 +15,33 @@ on:
   push:
     branches: [main]
     paths:
-      - 'rodeo-001/**'
-      - 'rodeo-002/**'
+      - 'instruments/rodeo-001/**'
+      - 'instruments/rodeo-002/**'
       - 'rodeo-sdk/**'
-      - 'rodeo-motherboard/**'
-      - 'rodeo-encoder-hub/**'
-      - 'rodeo-encoder/**'
-      - 'rodeo-potentiometer/**'
-      - 'rodeo-button/**'
+      - 'rev-a/rodeo-motherboard/**'
+      - 'rev-a/rodeo-encoder-hub/**'
+      - 'rev-a/rodeo-encoder/**'
+      - 'rev-a/rodeo-potentiometer/**'
+      - 'rev-a/rodeo-button/**'
       - 'web/src/data/**'
       - 'web/docs/**'
       - 'web/scripts/check-claims.mjs'
-      - 'rev-b/**'
+      - 'hardware/**'
       - '.github/workflows/claims.yml'
   pull_request:
     paths:
-      - 'rodeo-001/**'
-      - 'rodeo-002/**'
+      - 'instruments/rodeo-001/**'
+      - 'instruments/rodeo-002/**'
       - 'rodeo-sdk/**'
-      - 'rodeo-motherboard/**'
-      - 'rodeo-encoder-hub/**'
-      - 'rodeo-encoder/**'
-      - 'rodeo-potentiometer/**'
-      - 'rodeo-button/**'
+      - 'rev-a/rodeo-motherboard/**'
+      - 'rev-a/rodeo-encoder-hub/**'
+      - 'rev-a/rodeo-encoder/**'
+      - 'rev-a/rodeo-potentiometer/**'
+      - 'rev-a/rodeo-button/**'
       - 'web/src/data/**'
       - 'web/docs/**'
       - 'web/scripts/check-claims.mjs'
-      - 'rev-b/**'
+      - 'hardware/**'
       - '.github/workflows/claims.yml'
   workflow_dispatch:
 
@@ -65,16 +65,16 @@ jobs:
           sparse-checkout: |
             /web/
             /rodeo-sdk/
-            /rodeo-motherboard/docs/
-            /rodeo-motherboard/kicad/
-            /rodeo-001/docs/
-            /rodeo-001/firmware/src/
-            /rodeo-002/firmware/common/
-            /rodeo-encoder-hub/firmware/
-            /rodeo-potentiometer/
-            /rodeo-encoder/
-            /rodeo-button/
-            /rev-b/**/*.md
+            /rev-a/rodeo-motherboard/docs/
+            /rev-a/rodeo-motherboard/kicad/
+            /rev-a/rodeo-encoder-hub/firmware/
+            /rev-a/rodeo-potentiometer/
+            /rev-a/rodeo-encoder/
+            /rev-a/rodeo-button/
+            /instruments/rodeo-001/docs/
+            /instruments/rodeo-001/firmware/src/
+            /instruments/rodeo-002/firmware/common/
+            /hardware/**/*.md
       - uses: actions/setup-node@v4
         with:
           node-version-file: web/.nvmrc

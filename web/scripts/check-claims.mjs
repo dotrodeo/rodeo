@@ -106,7 +106,7 @@ const DOCS = resolve(HERE, '../docs');
 // Longest extension first: `ts` before `tsx` would clip main.cpp to main.c
 // and wrangler.jsonc to wrangler.json, inventing two files that do not exist.
 const CITE_IN_PROSE =
-  /(?:^|[\s(`[])((?:rev-b|rodeo-[a-z0-9-]+|tools|web)\/[A-Za-z0-9._/-]+\.(?:kicad_pcb|kicad_sch|jsonc|json|mjs|tsx|ts|hpp|cpp|md|py|h|c))(:\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*)?/g;
+  /(?:^|[\s(`[])((?:hardware|rev-a|instruments|rodeo-sdk|tools|web)\/[A-Za-z0-9._/-]+\.(?:kicad_pcb|kicad_sch|jsonc|json|mjs|tsx|ts|hpp|cpp|md|py|h|c))(:\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*)?/g;
 
 for (const name of (await readdir(DOCS)).filter((f) => f.endsWith('.md'))) {
   const text = await readFile(resolve(DOCS, name), 'utf8');

@@ -5,42 +5,45 @@ control-surface *daughterboards*, and *instrument instances* built by combining 
 This repository is the single home for all of it — board designs (KiCad), firmware,
 and the design docs that tie them together.
 
-## The pieces
+## Layout
+
+The current hardware is **Rev B**, in [`hardware/`](hardware/). Rev A, the prototype
+generation that rodeo-001 and rodeo-002 were built on, is kept whole in
+[`rev-a/`](rev-a/); the tree as it stood before this split is tagged `rev-a-final`.
 
 | Directory | What it is |
 |---|---|
-| [`rodeo-sdk/`](rodeo-sdk/) | **The code everything is built on** — driver libraries, the pure host-tested logic, bring-up examples, a copy-to-start template, host tools, and the vendored libDaisy/DaisySP. An instrument points `RODEO_ROOT` here and consumes it; it does not copy it. |
-| [`rodeo-motherboard/`](rodeo-motherboard/) | **The host board** — an Electrosmith Daisy Seed carrier. Audio I/O + MIDI, a 24-channel external ADC surface (2× ADS114S08 over SPI1), and the I²C control bus. The [`kicad/`](rodeo-motherboard/kicad/) board and hardware [`docs/`](rodeo-motherboard/docs/). |
-| [`rodeo-encoder-hub/`](rodeo-encoder-hub/) | **Encoder aggregator** — an STM32C031C6 that reads a bank of encoders and presents them to the motherboard as an I²C target. Has its own bare-metal `firmware/`. Wire contract: [`RODEO_HUB_I2C_CONTRACT.md`](rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md). |
-| [`rodeo-encoder/`](rodeo-encoder/) | Encoder daughterboard (rotary encoders + pushbutton) that feeds a hub. |
-| [`rodeo-button/`](rodeo-button/) | Momentary-button daughterboard. |
-| [`rodeo-potentiometer/`](rodeo-potentiometer/) | Potentiometer daughterboard — analog, into the motherboard's ADC channels. |
-| [`rodeo-rotary-switch/`](rodeo-rotary-switch/) | Rotary-switch daughterboard (resistor-ladder → ADC). |
-| [`rodeo-panels/`](rodeo-panels/) | KiCad **panel templates** for fabbing daughterboards in arrays — `Panel_2x8` is sixteen up. Templates only: no schematic of its own to build. |
-| [`rodeo-001/`](rodeo-001/) | **The first instrument instance** — the specific synth built from the boards above. Instance-only material: the [control map](rodeo-001/docs/RODEO_CONTROL_MAP.md), the [enclosure spec](rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md), and its instance KiCad. |
-| [`rodeo-002/`](rodeo-002/) | **The second instrument instance** — a multi-engine digital polysynth into a Chroma-Console-style texture chain ending in a granular delay. 16 pots, 6 encoders, OLED, no buttons. [Concept](rodeo-002/docs/RODEO_002_CONCEPT.md), [control map](rodeo-002/docs/RODEO_002_CONTROL_MAP.md), and [firmware](rodeo-002/firmware/) — playable, tagged `rodeo-002/v5.0.0`. |
-| [`web/`](web/) | **The website** — an Astro site and the build log, plus the docs that govern it: [brand](web/docs/WEB_BRAND.md), [architecture](web/docs/WEB_ARCHITECTURE.md), [claims audit](web/docs/WEB_CLAIMS_AUDIT.md). |
+| [`hardware/`](hardware/) | **Rev B, the boards in production.** One self-contained KiCad project per board, each with its README and JLC fab outputs. |
+| [`hardware/rodeo-motherboard/`](hardware/rodeo-motherboard/) | The host board, a Daisy Seed carrier: two codecs (8 audio channels), 10 general-purpose I/O, MIDI, I²C taps, internal SD, and the satellite chain on USART3. Every decision and its reasoning: [`docs/rev-b.md`](hardware/rodeo-motherboard/docs/rev-b.md). |
+| [`hardware/rodeo-pot-bank-4/`](hardware/rodeo-pot-bank-4/), [`hardware/rodeo-encoder-bank-4/`](hardware/rodeo-encoder-bank-4/) | Satellites: four pots or four encoders with switches, each read by a CH32V003 on the chain. |
+| [`hardware/rodeo-power-usbc/`](hardware/rodeo-power-usbc/), [`hardware/rodeo-power-barrel/`](hardware/rodeo-power-barrel/) | Power input boards: USB-C (power and USB data), or USB-C plus a barrel jack and an LED-strip rail. |
+| [`hardware/rodeo-audio-3.5mm/`](hardware/rodeo-audio-3.5mm/), [`hardware/rodeo-midi/`](hardware/rodeo-midi/) | Rear-panel jack boards: four stereo 3.5 mm audio jacks, and TRS MIDI in and out. |
+| [`hardware/mounting/`](hardware/mounting/) | The printed rear rail and motherboard frame, and the grid every board's holes sit on. |
+| [`hardware/docs/`](hardware/docs/) | Cross-board docs, such as the [silkscreen checklist](hardware/docs/silkscreen.md). |
+| [`rodeo-sdk/`](rodeo-sdk/) | **The code everything is built on**: driver libraries, the pure host-tested logic, bring-up examples, a copy-to-start template, host tools, and the vendored libDaisy/DaisySP. An instrument points `RODEO_ROOT` here and consumes it; it does not copy it. It still targets the Rev A motherboard. |
+| [`instruments/`](instruments/) | **Reference instruments** built from the boards. [`rodeo-001`](instruments/rodeo-001/) is the first ([control map](instruments/rodeo-001/docs/RODEO_CONTROL_MAP.md), [enclosure spec](instruments/rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md)); [`rodeo-002`](instruments/rodeo-002/) is a multi-engine digital polysynth into a texture chain ending in a granular delay ([concept](instruments/rodeo-002/docs/RODEO_002_CONCEPT.md), [firmware](instruments/rodeo-002/firmware/), tagged `rodeo-002/v5.0.0`). Both run on Rev A. |
+| [`rev-a/`](rev-a/) | **The Rev A prototypes**: the [motherboard](rev-a/rodeo-motherboard/) (2× ADS114S08, 24 analog channels), the [encoder hub](rev-a/rodeo-encoder-hub/) and its firmware, the encoder, button, potentiometer and rotary-switch daughterboards, and the panelisation templates. Superseded, but still what the two instruments run on. |
+| [`tools/`](tools/) | Host tools, including the KiCad review and JLC fab-output scripts in [`tools/kicad/`](tools/kicad/). |
+| [`web/`](web/) | **The website**: an Astro site and the build log, plus the docs that govern it: [brand](web/docs/WEB_BRAND.md), [architecture](web/docs/WEB_ARCHITECTURE.md), [claims audit](web/docs/WEB_CLAIMS_AUDIT.md). |
 
 > **Naming, so nobody trips on it again:** `rodeo-motherboard` is the *host board*;
 > `rodeo-001` is the *first instrument built from the ecosystem*. They are different
-> things. The motherboard's KiCad project is named `rodeo-motherboard.*` (an earlier
-> partial rename left it as `rodeo-001` — now corrected).
+> things.
 >
-> **The SDK is not the motherboard's firmware.** It lived at
-> `rodeo-motherboard/firmware/` until 2026-10-01, which read as if it belonged to one
-> board. It serves every instrument, so it is its own thing at the top level — and
-> anything in it that names a specific knob or a specific sound is in the wrong place.
-> (`rodeo-encoder-hub/firmware/` is different again: that really is one board's own
-> firmware, for the STM32C0 on the hub.)
+> **The SDK is not the motherboard's firmware.** It serves every instrument, so it is
+> its own thing at the top level, and anything in it that names a specific knob or a
+> specific sound is in the wrong place. (`rev-a/rodeo-encoder-hub/firmware/` is
+> different again: that really is one board's own firmware, for the STM32C0 on the hub.)
 
 ## Where the source-of-truth docs live
 
-- **Motherboard pin map / topology** → `rodeo-sdk/common/board.h` (generic board facts only) and [`rodeo-motherboard/docs/hardware-map.md`](rodeo-motherboard/docs/hardware-map.md) (verified against the PCB). The next revision's plan: [`rev-b/rodeo-motherboard/docs/rev-b.md`](rev-b/rodeo-motherboard/docs/rev-b.md).
-- **Encoder-hub ↔ motherboard I²C register contract** → [`rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md`](rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md).
+- **Rev B motherboard** → [`hardware/rodeo-motherboard/docs/rev-b.md`](hardware/rodeo-motherboard/docs/rev-b.md), and the satellite wire protocol in [`RODEO_SATELLITE_CHAIN_CONTRACT.md`](hardware/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md).
+- **Rev A motherboard pin map / topology** → `rodeo-sdk/common/board.h` (generic board facts only) and [`rev-a/rodeo-motherboard/docs/hardware-map.md`](rev-a/rodeo-motherboard/docs/hardware-map.md) (verified against the PCB).
+- **Encoder-hub ↔ motherboard I²C register contract** (Rev A) → [`rev-a/rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md`](rev-a/rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md).
 - **ADC driver-library design** → [`rodeo-sdk/docs/RODEO_ADC_LIB_DESIGN.md`](rodeo-sdk/docs/RODEO_ADC_LIB_DESIGN.md).
-- **rodeo-001 control map** (which physical control does what) → [`rodeo-001/docs/RODEO_CONTROL_MAP.md`](rodeo-001/docs/RODEO_CONTROL_MAP.md). This is the instance contract shared by firmware, hardware, and the panel layout.
-- **rodeo-001 enclosure / panel** → [`rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md`](rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md).
-- **rodeo-002 concept + control map** → [`rodeo-002/docs/`](rodeo-002/docs/): the voice and engine budget measured on hardware, and the locked panel/channel map.
+- **rodeo-001 control map** (which physical control does what) → [`instruments/rodeo-001/docs/RODEO_CONTROL_MAP.md`](instruments/rodeo-001/docs/RODEO_CONTROL_MAP.md). This is the instance contract shared by firmware, hardware, and the panel layout.
+- **rodeo-001 enclosure / panel** → [`instruments/rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md`](instruments/rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md).
+- **rodeo-002 concept + control map** → [`instruments/rodeo-002/docs/`](instruments/rodeo-002/docs/): the voice and engine budget measured on hardware, and the locked panel/channel map.
 
 ## Building the firmware
 
@@ -51,4 +54,4 @@ ADC → poly synth → encoder scan → OLED).
 ## Repo notes
 
 - One git repo; `libDaisy` and `DaisySP` are submodules (`git submodule update --init --recursive`).
-- KiCad daughterboards are drag-drop/Qwiic-style parts; each is a self-contained project.
+- Every board is a self-contained KiCad project. A Rev B board keeps its own symbols, footprints and 3D models in its `lib/`; everything else comes from KiCad's standard libraries. Nothing points outside the board's folder, so a folder can be moved or copied on its own.

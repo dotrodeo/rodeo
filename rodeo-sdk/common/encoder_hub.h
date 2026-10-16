@@ -13,7 +13,7 @@
 // The register map is the single shared header include/rodeo_hub_regs.h, so the
 // byte layout can never drift from the hub target firmware.
 //
-// See rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md for the full protocol.
+// See rev-a/rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md for the full protocol.
 //
 #include "daisy_seed.h"
 #include "rodeo_hub_regs.h"

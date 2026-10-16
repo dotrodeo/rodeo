@@ -47,7 +47,7 @@ regenerate them when a board changes instead of maintaining an image library:
 /Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli pcb render \
   -o mobo-top.png --width 2400 --height 1800 --side top \
   --quality high --background opaque \
-  ../rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb
+  ../rev-a/rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb
 ```
 
 Flat layer art for graphic use:
@@ -56,7 +56,7 @@ Flat layer art for graphic use:
 /Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli pcb export svg \
   -o mobo-silk.svg --layers 'F.Silkscreen,Edge.Cuts' \
   --page-size-mode 2 --exclude-drawing-sheet --black-and-white \
-  ../rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb
+  ../rev-a/rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb
 ```
 
 Commit only web-ready derivatives: ≤2500 px long edge, ≤500 KB, sRGB. Originals stay

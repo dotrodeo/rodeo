@@ -62,14 +62,14 @@ from a `rev-a` one.
 
 **Rewritten twice on 2026-10-15, and the second time is the one to trust.** The
 first rewrite was done against the stale `rev-b.md` that used to sit in
-`rodeo-motherboard/docs/`, which described a USART2 chain and two on-board ADCs.
+`rev-a/rodeo-motherboard/docs/`, which described a USART2 chain and two on-board ADCs.
 (Named without a full path on purpose: the file is deleted, and a resolvable
 citation to it would now fail the very check below.) The
-real document is `rev-b/rodeo-motherboard/docs/rev-b.md`, 767 lines, which came
+real document is `hardware/rodeo-motherboard/docs/rev-b.md`, 767 lines, which came
 onto `main` with the Rev-B merge. The stale copy is deleted. **If you are reading
-a Rev-B fact that is not cited to a `rev-b/` path, distrust it.**
+a Rev-B fact that is not cited to a `hardware/` path, distrust it.**
 
-**Status: schematic in progress** (`rev-b/rodeo-motherboard/docs/rev-b.md:3`) — power, Daisy,
+**Status: schematic in progress** (`hardware/rodeo-motherboard/docs/rev-b.md:3`) — power, Daisy,
 codec, audio-interface, SD and MIDI sheets drawn and reviewed, every placed part
 carrying an LCSC number audited against JLC. Several daughterboards are further
 along than that: drawn, routed, with fab outputs generated. No Rev-B board has
@@ -80,27 +80,27 @@ labour, and almost every number on the site changes:
 
 | | Rev-A, which the site describes today | **Rev-B, which the campaign sells** | Evidence |
 |---|---|---|---|
-| Analog inputs | 24 × 16-bit, two on-board ADS114S08 | **The ADCs are gone.** Analog is the Seed's own ADC across 8 of the 10 general-purpose I/O connectors | `rev-b/rodeo-motherboard/docs/rev-b.md:588-592`, `rev-b/rodeo-motherboard/docs/rev-b.md:67` |
-| Where the ADCs went | on the motherboard | an **optional SPI expander board** — and ~$19 of parts per board left with them | `rev-b/rodeo-motherboard/docs/rev-b.md:204` |
-| What the freed pins do | — | a **second codec on SAI2: 4 in / 4 out audio** | `rev-b/rodeo-motherboard/docs/rev-b.md:314` |
-| General-purpose I/O | 12 digital | **10**, each digital or analog; two of them are the DACs | `rev-b/rodeo-motherboard/docs/rev-b.md:67` |
-| Growing past that | respin the motherboard | **satellites on a USART3 chain** — position is the address, 1 Mbaud, JST SH 5-pin, self-closing ring via a `PRESENT` pin | `rev-b/rodeo-motherboard/docs/rev-b.md:117`, `rev-b/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md:32-33`, `rev-b/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md:55` |
-| Satellite brain | — | **CH32V003F4P6** chosen 2026-10-14 | `rev-b/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md:89` |
-| Panel USB-C | power only; no USB-MIDI, no USB audio | **data, through the power board** — USB-MIDI, USB audio and DFU flashing | `rev-b/rodeo-motherboard/docs/rev-b.md:290` |
-| MIDI | on the motherboard | **a daughterboard** | `rev-b/rodeo-motherboard/docs/rev-b.md:416` |
-| I²C | no on-board pull-ups; the hub is the bus anchor | pull-ups on the motherboard, **4 taps** | `rev-b/rodeo-motherboard/docs/rev-b.md:228` |
-| Storage | none | **internal SD**, 1-bit SDMMC, loaded over USB | `rev-b/rodeo-motherboard/docs/rev-b.md:246` |
+| Analog inputs | 24 × 16-bit, two on-board ADS114S08 | **The ADCs are gone.** Analog is the Seed's own ADC across 8 of the 10 general-purpose I/O connectors | `hardware/rodeo-motherboard/docs/rev-b.md:588-592`, `hardware/rodeo-motherboard/docs/rev-b.md:67` |
+| Where the ADCs went | on the motherboard | an **optional SPI expander board** — and ~$19 of parts per board left with them | `hardware/rodeo-motherboard/docs/rev-b.md:204` |
+| What the freed pins do | — | a **second codec on SAI2: 4 in / 4 out audio** | `hardware/rodeo-motherboard/docs/rev-b.md:314` |
+| General-purpose I/O | 12 digital | **10**, each digital or analog; two of them are the DACs | `hardware/rodeo-motherboard/docs/rev-b.md:67` |
+| Growing past that | respin the motherboard | **satellites on a USART3 chain** — position is the address, 1 Mbaud, JST SH 5-pin, self-closing ring via a `PRESENT` pin | `hardware/rodeo-motherboard/docs/rev-b.md:117`, `hardware/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md:32-33`, `hardware/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md:55` |
+| Satellite brain | — | **CH32V003F4P6** chosen 2026-10-14 | `hardware/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md:89` |
+| Panel USB-C | power only; no USB-MIDI, no USB audio | **data, through the power board** — USB-MIDI, USB audio and DFU flashing | `hardware/rodeo-motherboard/docs/rev-b.md:290` |
+| MIDI | on the motherboard | **a daughterboard** | `hardware/rodeo-motherboard/docs/rev-b.md:416` |
+| I²C | no on-board pull-ups; the hub is the bus anchor | pull-ups on the motherboard, **4 taps** | `hardware/rodeo-motherboard/docs/rev-b.md:228` |
+| Storage | none | **internal SD**, 1-bit SDMMC, loaded over USB | `hardware/rodeo-motherboard/docs/rev-b.md:246` |
 
 **The boards that now exist as designs**, none yet fabricated:
 
 | Board | What it is | Evidence |
 |---|---|---|
-| `rodeo-pot-bank-4` | Four 9 mm pots on 25 mm centres, one CH32V003, four chain slots | `rev-b/rodeo-pot-bank-4/README.md` |
-| `rodeo-encoder-bank-4` | Four 12 mm encoders with push switches, same geometry | `rev-b/rodeo-encoder-bank-4/README.md` |
-| `rodeo-audio-3.5mm` | Four stereo 3.5 mm jacks for the eight audio signals | `rev-b/rodeo-audio-3.5mm/README.md` |
-| `rodeo-power-usbc` | Default power input, and the USB data path | `rev-b/rodeo-power-usbc/README.md` |
-| `rodeo-power-barrel` | The same plus a 9–12 V barrel jack | `rev-b/rodeo-power-barrel/README.md` |
-| mounting system | Rear rail and motherboard frame, both printed | `rev-b/mounting/README.md` |
+| `rodeo-pot-bank-4` | Four 9 mm pots on 25 mm centres, one CH32V003, four chain slots | `hardware/rodeo-pot-bank-4/README.md` |
+| `rodeo-encoder-bank-4` | Four 12 mm encoders with push switches, same geometry | `hardware/rodeo-encoder-bank-4/README.md` |
+| `rodeo-audio-3.5mm` | Four stereo 3.5 mm jacks for the eight audio signals | `hardware/rodeo-audio-3.5mm/README.md` |
+| `rodeo-power-usbc` | Default power input, and the USB data path | `hardware/rodeo-power-usbc/README.md` |
+| `rodeo-power-barrel` | The same plus a 9–12 V barrel jack | `hardware/rodeo-power-barrel/README.md` |
+| mounting system | Rear rail and motherboard frame, both printed | `hardware/mounting/README.md` |
 
 **Consequence to act on.** The campaign sells Rev-B (settled 2026-10-15), so the
 site is about hardware that has not been built. Three rules follow, and they are
@@ -139,22 +139,22 @@ above.
 
 | Claim | Evidence |
 |---|---|
-| 24 analog input channels, 16-bit | 2× TI ADS114S08 on SPI1; `rodeo-motherboard/docs/hardware-map.md:76` |
+| 24 analog input channels, 16-bit | 2× TI ADS114S08 on SPI1; `rev-a/rodeo-motherboard/docs/hardware-map.md:76` |
 | ADC conversion path proven on real silicon | SPI orientation and conversion bench-confirmed 2026-08-14 via `04_adc_1ch` / `05_adc_scan`; `rodeo-sdk/README.md:125-127` |
-| 12 digital inputs | Raw Daisy Seed GPIO, no expanders; `rodeo-motherboard/docs/hardware-map.md:114` |
-| I²C control bus | `rodeo-motherboard/docs/hardware-map.md:173` |
-| MIDI **in and out**, TRS | J2 in via 6N138 opto; J3 out. `rodeo-motherboard/docs/hardware-map.md:165-166` |
-| Line in and line out, 3.5 mm | `rodeo-motherboard/docs/hardware-map.md:143` |
-| Encoder hub: 9 encoders, one I²C target | `rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md:39` |
+| 12 digital inputs | Raw Daisy Seed GPIO, no expanders; `rev-a/rodeo-motherboard/docs/hardware-map.md:114` |
+| I²C control bus | `rev-a/rodeo-motherboard/docs/hardware-map.md:173` |
+| MIDI **in and out**, TRS | J2 in via 6N138 opto; J3 out. `rev-a/rodeo-motherboard/docs/hardware-map.md:165-166` |
+| Line in and line out, 3.5 mm | `rev-a/rodeo-motherboard/docs/hardware-map.md:143` |
+| Encoder hub: 9 encoders, one I²C target | `rev-a/rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md:39` |
 | Hub addresses 0x30–0x33 (4 hubs per bus) | Two cuttable jumpers; `RODEO_HUB_I2C_CONTRACT.md:35` |
-| Hub firmware **running on hardware** | First bring-up on a fabbed board 2026-09-12; enumerates, serves telemetry, counts correctly alongside the OLED. `rodeo-encoder-hub/firmware/README.md:177-191` |
+| Hub firmware **running on hardware** | First bring-up on a fabbed board 2026-09-12; enumerates, serves telemetry, counts correctly alongside the OLED. `rev-a/rodeo-encoder-hub/firmware/README.md:177-191` |
 | I²C register contract silicon-verified | `rodeo-sdk/README.md:129-130` (locked, silicon-verified 2026-08-20); map at `RODEO_HUB_I2C_CONTRACT.md:80-99` |
-| `rodeo-potentiometer` finalized | `rodeo-001/docs/RODEO_CONTROL_MAP.md:33-36` |
-| `rodeo-encoder`, `rodeo-encoder-hub` interface-verified | `rodeo-001/docs/RODEO_CONTROL_MAP.md:37-39` |
+| `rodeo-potentiometer` finalized | `instruments/rodeo-001/docs/RODEO_CONTROL_MAP.md:33-36` |
+| `rodeo-encoder`, `rodeo-encoder-hub` interface-verified | `instruments/rodeo-001/docs/RODEO_CONTROL_MAP.md:37-39` |
 | Satellite dimensions: pot 25×30 mm, encoder 25×25 mm, button 25×25 mm | Board outlines; uniform ~25 mm panel grid |
-| Motherboard mounting 95.0 × 75.0 mm, 4× M2 | Verified from `rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb` |
+| Motherboard mounting 95.0 × 75.0 mm, 4× M2 | Verified from `rev-a/rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb` |
 | 4-layer stackup, black soldermask | Board stackup declaration |
-| Host is a Daisy Seed3 on the classic 40-pin footprint | `rodeo-motherboard/docs/hardware-map.md:15` |
+| Host is a Daisy Seed3 on the classic 40-pin footprint | `rev-a/rodeo-motherboard/docs/hardware-map.md:15` |
 
 ## Platform — `not-planned`, and stated plainly
 
@@ -163,20 +163,20 @@ damaging thing the site could do.
 
 | Claim | Status | Evidence |
 |---|---|---|
-| **Panel USB-C is power only** — no USB-MIDI, no USB audio, no DFU over the panel connector. The Seed's USB D+/D− dead-end at pins 37/36. Flash via the Seed's own port or SWD. | `not-planned` | `rodeo-motherboard/docs/hardware-map.md:213-221` |
-| MIDI DIN and the J44 UART header **share USART1** — mutually exclusive | `not-planned` (by design) | `rodeo-motherboard/docs/hardware-map.md:216` |
-| CV I/O | `not-planned` for Rev-A; ch0/ch3 (J6/J9) are spare ADC headers reserved for it | `rodeo-001/docs/RODEO_CONTROL_MAP.md:304,307` |
-| `rodeo-rotary-switch` | `retired` 2026-08-20/21 | `rodeo-001/docs/RODEO_CONTROL_MAP.md:461` |
-| `rodeo-switch` (SPDT), `rodeo-pixel`, `rodeo-encoder-bank` | `retired` | `rodeo-001/docs/RODEO_CONTROL_MAP.md:40,462-463` |
+| **Panel USB-C is power only** — no USB-MIDI, no USB audio, no DFU over the panel connector. The Seed's USB D+/D− dead-end at pins 37/36. Flash via the Seed's own port or SWD. | `not-planned` | `rev-a/rodeo-motherboard/docs/hardware-map.md:213-221` |
+| MIDI DIN and the J44 UART header **share USART1** — mutually exclusive | `not-planned` (by design) | `rev-a/rodeo-motherboard/docs/hardware-map.md:216` |
+| CV I/O | `not-planned` for Rev-A; ch0/ch3 (J6/J9) are spare ADC headers reserved for it | `instruments/rodeo-001/docs/RODEO_CONTROL_MAP.md:304,307` |
+| `rodeo-rotary-switch` | `retired` 2026-08-20/21 | `instruments/rodeo-001/docs/RODEO_CONTROL_MAP.md:461` |
+| `rodeo-switch` (SPDT), `rodeo-pixel`, `rodeo-encoder-bank` | `retired` | `instruments/rodeo-001/docs/RODEO_CONTROL_MAP.md:40,462-463` |
 
 ## Platform — `in-progress` / unverified
 
 | Claim | Note | Evidence |
 |---|---|---|
 | ADS114S08 **absolute-voltage accuracy** | Conversion path is proven; absolute accuracy is still unverified pending a jumper/pot test | `rodeo-sdk/README.md:126-127` |
-| Hub I²C at 400 kHz | Boots at 100 kHz and works; the 400 kHz `TIMINGR` value has never been generated, and SDA/SCL setup-hold has never been looked at on a logic analyser | `rodeo-encoder-hub/firmware/README.md:179-183`; `RODEO_HUB_I2C_CONTRACT.md:36` |
-| Motherboard board outline | Edge.Cuts not finalized — the mounting rectangle is verified, the overall outline is provisional | `rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb` |
-| `rodeo-button` | Interface verified, but the switch footprint is not yet assigned | `rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md` open items |
+| Hub I²C at 400 kHz | Boots at 100 kHz and works; the 400 kHz `TIMINGR` value has never been generated, and SDA/SCL setup-hold has never been looked at on a logic analyser | `rev-a/rodeo-encoder-hub/firmware/README.md:179-183`; `RODEO_HUB_I2C_CONTRACT.md:36` |
+| Motherboard board outline | Edge.Cuts not finalized — the mounting rectangle is verified, the overall outline is provisional | `rev-a/rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb` |
+| `rodeo-button` | Interface verified, but the switch footprint is not yet assigned | `instruments/rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md` open items |
 | Rev-A bus anchoring | The hub carries the **only** bus pull-ups, so the host's I²C bus needs a hub present. Rev-B moves them to the motherboard. Say this — a builder will hit it. | `RODEO_HUB_I2C_CONTRACT.md:37` |
 
 ## Reference builds — there are now two
@@ -195,8 +195,8 @@ Rodeo is a platform and not one synth. Say exactly that.
 
 | Claim | Was | Now | Evidence |
 |---|---|---|---|
-| **Effects** | `not-planned` — "none exist anywhere in the repo" | **`in-progress` on rodeo-002.** A four-slot texture chain: CHARACTER → MOVEMENT → TEXTURE → SPACE, ending in a granular delay with Echo / Cloud / Reverse / Wash / Reverb types. | `rodeo-002/firmware/common/fx_space.h:1-8`, `rodeo-002/firmware/common/texture_chain.h` |
-| **Presets** | `planned` | **`in-progress` on rodeo-002.** Patch storage, a factory bank, user slots, naming from the panel. MIDI channel and master volume are deliberately excluded from a patch. | `rodeo-002/firmware/common/preset.h:1-6`, `rodeo-002/firmware/common/factory_presets.h` |
+| **Effects** | `not-planned` — "none exist anywhere in the repo" | **`in-progress` on rodeo-002.** A four-slot texture chain: CHARACTER → MOVEMENT → TEXTURE → SPACE, ending in a granular delay with Echo / Cloud / Reverse / Wash / Reverb types. | `instruments/rodeo-002/firmware/common/fx_space.h:1-8`, `instruments/rodeo-002/firmware/common/texture_chain.h` |
+| **Presets** | `planned` | **`in-progress` on rodeo-002.** Patch storage, a factory bank, user slots, naming from the panel. MIDI channel and master volume are deliberately excluded from a patch. | `instruments/rodeo-002/firmware/common/preset.h:1-6`, `instruments/rodeo-002/firmware/common/factory_presets.h` |
 
 Consequently **`preset` and `effects` come off the banned-phrase list** for rodeo-002 copy —
 but they stay banned for platform and `rodeo-001` copy, which is why the banned list needs to
@@ -206,11 +206,11 @@ Not yet re-audited, and required before any rodeo-002 page ships: the voice coun
 model caps it, and the bench logs sweep to 12 under the bootloader rather than 16), the engine
 list, and the encoder count — the concept doc says five, a later commit adds a sixth, so the
 doc lags the firmware. Do not state any of these numbers until they are checked against
-`rodeo-002/docs/` and the bench logs.
+`instruments/rodeo-002/docs/` and the bench logs.
 
 ## Reference build (`rodeo-001`) — mostly `planned`
 
-`rodeo-001/firmware/src/main.cpp:1` describes itself as a **scaffold**, and its own status
+`instruments/rodeo-001/firmware/src/main.cpp:1` describes itself as a **scaffold**, and its own status
 block at `:18-27` lists what is wired vs stubbed.
 
 | Claim | Status | Evidence |
@@ -228,8 +228,8 @@ block at `:18-27` lists what is wired vs stubbed.
 | QSPI preset persistence | `planned` | `main.cpp:18-27` |
 | OLED feedback | `planned` | `main.cpp:521-524` |
 | **Effects of any kind** | `not-planned` | None exist anywhere in the repo |
-| Enclosure envelope ~380–420 × 190–220 mm | `planned`, render as **"(draft)"** | `rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md:4` (`status: draft`), `:439` |
-| Panel aesthetic (Cassette Futurism, two-layer acrylic) | `planned` — still "proposed, for Derek's nod", colour pairing open | `rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md:474-491` |
+| Enclosure envelope ~380–420 × 190–220 mm | `planned`, render as **"(draft)"** | `instruments/rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md:4` (`status: draft`), `:439` |
+| Panel aesthetic (Cassette Futurism, two-layer acrylic) | `planned` — still "proposed, for Derek's nod", colour pairing open | `instruments/rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md:474-491` |
 
 Note the demonstrated poly examples (`06_poly_synth`, `09_poly_synth_oled`) are **6-voice**;
 the only 12-voice code is the scaffold. Don't conflate them.
@@ -284,9 +284,9 @@ code change.
 
 ## Sourcing caveat — two docs disagree
 
-`rodeo-motherboard/docs/hardware-map.md:186-188` still carries
+`rev-a/rodeo-motherboard/docs/hardware-map.md:186-188` still carries
 **"### 1. CRITICAL — SPI MOSI/MISO are swapped; the MCU cannot talk to the ADCs"** with
-"Fix before fab". This is **stale**. `rodeo-001/docs/RODEO_CONTROL_MAP.md:21-29` records the
+"Fix before fab". This is **stale**. `instruments/rodeo-001/docs/RODEO_CONTROL_MAP.md:21-29` records the
 issue as resolved and bench-verified pin-by-pin, and it is proven in silicon because
 `04_adc_1ch` and `05_adc_scan` read live data on both converters.
 
@@ -300,7 +300,7 @@ Specified here; implemented in a later phase. Five checks in `web/scripts/check-
 
 1. **Evidence exists.** Every claim carries a non-empty `evidence` path; it resolves from the
    repo root; if `path:line`, that line exists. (This is why CI sparse-checkout includes
-   `rodeo-001/**` and `rodeo-motherboard/**` — see
+   `instruments/rodeo-001/**` and `rev-a/rodeo-motherboard/**` — see
    [WEB_ARCHITECTURE.md](./WEB_ARCHITECTURE.md).)
 2. **TODO proximity.** Any `shipped` claim whose evidence line — or a line within ±3 — contains
    `TODO`, `stub`, `DRAFT` or `not implemented` **fails the build**. This is the sharp end:

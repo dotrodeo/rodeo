@@ -18,7 +18,7 @@
 //   on hardware -- a learned minimum is only ever as good as the worst sample
 //   ever taken, and one bad reading sets the bottom of the range for good -- and
 //   conditions its pots itself with fixed per-wiring ranges inset by a dead
-//   zone (`rodeo-002/firmware/common/panel_pot.h`). It reads GetVolts() and
+//   zone (`instruments/rodeo-002/firmware/common/panel_pot.h`). It reads GetVolts() and
 //   does its own mapping. The examples still demonstrate GetNorm, so an
 //   instrument started from one of them inherits the approach that was tried
 //   and rejected. Reconciling the two is the main thing standing between this

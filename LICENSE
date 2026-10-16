@@ -6,8 +6,7 @@ Copyright (c) 2026 DOT RODEO LLC
 
 HARDWARE: CERN-OHL-W-2.0
   All hardware design files: KiCad schematics and PCBs, Gerbers, BOMs, placement
-  files, and mechanical/panel files (rodeo-motherboard/, rev-b/, rodeo-*/ board
-  folders, rodeo-panels/).
+  files, and mechanical/panel files (hardware/, rev-a/, and instruments/*/kicad/).
   Full text: LICENSES/CERN-OHL-W-2.0.txt
   Source location: https://github.com/dotrodeo/rodeo
                    (also https://rodeooh.rodeo/source, which redirects there)
@@ -19,7 +18,8 @@ HARDWARE: CERN-OHL-W-2.0
 
 SOFTWARE: MIT
   Firmware and the Rodeo SDK: rodeo-sdk/ (excluding its third-party submodules),
-  rodeo-001/firmware/, rodeo-002/firmware/, rodeo-encoder-hub/firmware/, tools/.
+  instruments/rodeo-001/firmware/, instruments/rodeo-002/firmware/,
+  rev-a/rodeo-encoder-hub/firmware/, tools/.
   Full text: LICENSES/MIT.txt
 
 DOCUMENTATION: CC-BY-SA-4.0

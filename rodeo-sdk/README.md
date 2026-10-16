@@ -118,8 +118,8 @@ between this and a 1.0.
   audio, LED, 24-channel ADC surface). Keep it in sync with the KiCad source.
   It holds only *generic* board facts — instance-specific control assignments
   (which pot is cutoff, which encoder slot is waveform) live in the instrument
-  build and in that instrument's own control map: `rodeo-001/docs/RODEO_CONTROL_MAP.md`,
-  `rodeo-002/docs/RODEO_002_CONTROL_MAP.md`. **This library serves every
+  build and in that instrument's own control map: `instruments/rodeo-001/docs/RODEO_CONTROL_MAP.md`,
+  `instruments/rodeo-002/docs/RODEO_002_CONTROL_MAP.md`. **This library serves every
   instrument, not the first one** — if something here names a specific knob or a
   specific sound, it is in the wrong place.
 - **External ADC (ADS114S08) status:** the SPI orientation and conversion path
@@ -127,7 +127,7 @@ between this and a 1.0.
   accuracy is still unverified pending a jumper/pot test (needs JST connectors).
   See `docs/RODEO_ADC_LIB_DESIGN.md` for the driver design and scan-timing facts.
 - **Encoder hub:** the master↔hub I²C wire contract is
-  `rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md` (locked, silicon-verified 2026-08-20).
+  `rev-a/rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md` (locked, silicon-verified 2026-08-20).
 - **I²C bus caveat:** the motherboard carries no on-board I²C pull-ups; the
   encoder hub is the Rev-A bus anchor. A blank OLED with no hub present is a
   missing-pull-up symptom, not firmware.

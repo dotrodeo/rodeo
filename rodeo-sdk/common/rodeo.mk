@@ -21,11 +21,11 @@ RODEO_ROOT ?= ../..
 C_INCLUDES += -I$(RODEO_ROOT)/common
 
 # Cross-board wire contract: the encoder-hub I2C register map (rodeo_hub_regs.h)
-# is authored ONCE in the sibling rodeo-encoder-hub repo and included verbatim by
+# is authored ONCE in rev-a/rodeo-encoder-hub and included verbatim by
 # BOTH firmwares, so the byte layout can never drift. Path is relative to the
-# ecosystem root (../../ from firmware/). Harmless if the sibling repo is absent
+# repo root (one up from rodeo-sdk/). Harmless if that folder is absent
 # (gcc just ignores a missing -I dir) — only the encoder master driver needs it.
-C_INCLUDES += -I$(RODEO_ROOT)/../rodeo-encoder-hub/firmware/include
+C_INCLUDES += -I$(RODEO_ROOT)/../rev-a/rodeo-encoder-hub/firmware/include
 
 LIBDAISY_DIR = $(RODEO_ROOT)/libDaisy
 DAISYSP_DIR  = $(RODEO_ROOT)/DaisySP

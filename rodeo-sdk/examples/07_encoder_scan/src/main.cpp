@@ -48,7 +48,7 @@
 //         prints "no hub" at boot and its rows never appear.
 //
 // Bench harness for the multi-hub enumerate + poll validation (needs a fabbed
-// hub on the Qwiic bus). See rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md.
+// hub on the Qwiic bus). See rev-a/rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md.
 
 #include "daisy_seed.h"
 #include "dev/oled_ssd130x.h" // OLED driver (not pulled in by daisy_seed.h)

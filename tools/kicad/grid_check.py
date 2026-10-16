@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check a board against the Rodeo mounting system (rev-b/mounting/README.md).
+"""Check a board against the Rodeo mounting system (hardware/mounting/README.md).
 
   grid_check.py board.kicad_pcb --rear top|bottom|left|right [--rows 15,35]
   grid_check.py board.kicad_pcb --frame [--span 80,100]

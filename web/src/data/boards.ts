@@ -84,12 +84,12 @@ export interface Board {
 
 // Rev-B sources. rev-b.md is authoritative for anything Rev-B and says so
 // itself; the older notes scattered through the Rev-A docs are history.
-const R = 'rev-b/rodeo-motherboard/docs/rev-b.md';
+const R = 'hardware/rodeo-motherboard/docs/rev-b.md';
 // Rev-A sources, for the prototype page only.
-const MAP = 'rodeo-motherboard/docs/hardware-map.md';
-const HUB = 'rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md';
-const HUBFW = 'rodeo-encoder-hub/firmware/README.md';
-const CHAIN = 'rev-b/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md';
+const MAP = 'rev-a/rodeo-motherboard/docs/hardware-map.md';
+const HUB = 'rev-a/rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md';
+const HUBFW = 'rev-a/rodeo-encoder-hub/firmware/README.md';
+const CHAIN = 'hardware/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md';
 const SDK = 'rodeo-sdk/README.md';
 
 export const boards: Board[] = [
@@ -137,8 +137,8 @@ export const boards: Board[] = [
     summary: 'Four 9 mm pots on 25 mm centres, read by one CH32V003 on the chain.',
     body: 'The first Rev B satellite. Four pots in a row, digitised on the board by a cent-scale microcontroller and passed along the chain as a frame — so the cost of another four controls is another satellite, not another motherboard. The pots mount through the panel and the board hangs off their bushings, with every other part surface-mounted on the underside so assembly stays single-sided.',
     specs: [
-      { label: 'controls', value: '4 × 9 mm pot, 25 mm centres', evidence: 'rev-b/rodeo-pot-bank-4/README.md:3' },
-      { label: 'outline', value: '20 × 100 mm', evidence: 'rev-b/rodeo-pot-bank-4/README.md:19' },
+      { label: 'controls', value: '4 × 9 mm pot, 25 mm centres', evidence: 'hardware/rodeo-pot-bank-4/README.md:3' },
+      { label: 'outline', value: '20 × 100 mm', evidence: 'hardware/rodeo-pot-bank-4/README.md:19' },
       { label: 'brain', value: 'CH32V003F4P6', evidence: `${CHAIN}:89` },
       { label: 'chain link', value: 'JST SH 5-pin, in and out', evidence: `${CHAIN}:32-33` },
       { label: 'chain rate', value: '1 Mbaud', evidence: `${CHAIN}:51` },
@@ -147,7 +147,7 @@ export const boards: Board[] = [
       {
         status: 'designed',
         text: 'Drawn, routed and fab outputs generated on 2026-10-14. Not yet fabricated, so nothing here has been measured on hardware.',
-        evidence: 'rev-b/rodeo-pot-bank-4/README.md:8',
+        evidence: 'hardware/rodeo-pot-bank-4/README.md:8',
       },
     ],
   },
@@ -162,8 +162,8 @@ export const boards: Board[] = [
     summary: 'Four 12 mm encoders with push switches, built to sit beside the pot bank.',
     body: 'The second satellite, deliberately the same shape as the first so the two line up on one panel with their knobs at the same height. The four push switches share a single analog pin through a resistor ladder, because the microcontroller runs out of pins before it runs out of capability — the kind of trade that keeps a satellite under the cost that makes the chain worth having.',
     specs: [
-      { label: 'controls', value: '4 × 12 mm encoder with switch', evidence: 'rev-b/rodeo-encoder-bank-4/README.md:3' },
-      { label: 'outline', value: '20 × 100 mm, matching the pot bank', evidence: 'rev-b/rodeo-encoder-bank-4/README.md:20' },
+      { label: 'controls', value: '4 × 12 mm encoder with switch', evidence: 'hardware/rodeo-encoder-bank-4/README.md:3' },
+      { label: 'outline', value: '20 × 100 mm, matching the pot bank', evidence: 'hardware/rodeo-encoder-bank-4/README.md:20' },
       { label: 'brain', value: 'CH32V003F4P6', evidence: `${CHAIN}:89` },
       { label: 'chain slots', value: 'board kind 6, four encoder slots', evidence: `${CHAIN}:128` },
     ],
@@ -171,7 +171,7 @@ export const boards: Board[] = [
       {
         status: 'designed',
         text: 'Specified and drawn on 2026-10-14, routed with fab outputs. Not yet fabricated.',
-        evidence: 'rev-b/rodeo-encoder-bank-4/README.md:9',
+        evidence: 'hardware/rodeo-encoder-bank-4/README.md:9',
       },
     ],
   },
@@ -208,15 +208,15 @@ export const boards: Board[] = [
     summary: 'Four stereo 3.5 mm jacks carrying the motherboard’s eight audio signals.',
     body: 'Rev B has twice the audio of Rev A, and the jacks move off the motherboard onto a board that bolts to the rear rail. It is passive apart from protection: a series resistor and a clamp on every input, an ESD diode on every jack contact. A quarter-inch variant will share the circuit with different jacks.',
     specs: [
-      { label: 'jacks', value: '4 × stereo 3.5 mm TRS', evidence: 'rev-b/rodeo-audio-3.5mm/README.md:3' },
-      { label: 'carries', value: 'the 8 audio signals on the 2×10 ribbon', evidence: 'rev-b/rodeo-audio-3.5mm/README.md:3-4' },
-      { label: 'protection', value: 'series R and clamp per input, ESD per contact', evidence: 'rev-b/rodeo-audio-3.5mm/README.md:4-5' },
+      { label: 'jacks', value: '4 × stereo 3.5 mm TRS', evidence: 'hardware/rodeo-audio-3.5mm/README.md:3' },
+      { label: 'carries', value: 'the 8 audio signals on the 2×10 ribbon', evidence: 'hardware/rodeo-audio-3.5mm/README.md:3-4' },
+      { label: 'protection', value: 'series R and clamp per input, ESD per contact', evidence: 'hardware/rodeo-audio-3.5mm/README.md:4-5' },
     ],
     caveats: [
       {
         status: 'designed',
         text: 'Drawn, laid out and fab outputs generated on 2026-10-14. Not yet fabricated.',
-        evidence: 'rev-b/rodeo-audio-3.5mm/README.md:8',
+        evidence: 'hardware/rodeo-audio-3.5mm/README.md:8',
       },
     ],
   },
@@ -231,15 +231,15 @@ export const boards: Board[] = [
     summary: 'MIDI in and out on TRS Type A, on the back panel.',
     body: 'MIDI leaves the motherboard in Rev B and becomes two jacks on the rear rail. The active parts stay behind — the optocoupler, its resistor and diode, and the output resistors all remain on the motherboard — so this board carries the jacks, one connector and ESD protection on the output, and nothing else.',
     specs: [
-      { label: 'jacks', value: '2 × 3.5 mm TRS Type A, in and out', evidence: 'rev-b/rodeo-midi/README.md:3' },
-      { label: 'to the motherboard', value: 'JST SH 5-pin, pin for pin with J6', evidence: 'rev-b/rodeo-midi/README.md:13-16' },
-      { label: 'active parts', value: 'none — optocoupler stays on the motherboard', evidence: 'rev-b/rodeo-midi/README.md:4-7' },
+      { label: 'jacks', value: '2 × 3.5 mm TRS Type A, in and out', evidence: 'hardware/rodeo-midi/README.md:3' },
+      { label: 'to the motherboard', value: 'JST SH 5-pin, pin for pin with J6', evidence: 'hardware/rodeo-midi/README.md:13-16' },
+      { label: 'active parts', value: 'none — optocoupler stays on the motherboard', evidence: 'hardware/rodeo-midi/README.md:4-7' },
     ],
     caveats: [
       {
         status: 'designed',
         text: 'Drawn, routed and fab outputs generated on 2026-10-15. Not yet fabricated.',
-        evidence: 'rev-b/rodeo-midi/README.md:9',
+        evidence: 'hardware/rodeo-midi/README.md:9',
       },
     ],
   },
@@ -254,15 +254,15 @@ export const boards: Board[] = [
     summary: 'The default power input, and the board that carries USB data to the Seed.',
     body: 'A USB-C jack behind the panel, cabled to the motherboard. It is the reason Rev B has USB at all: the Seed’s data lines run through this board, which is what brings USB-MIDI, USB audio and firmware flashing to the panel port instead of dead-ending inside the case as they did on Rev A.',
     specs: [
-      { label: 'input', value: 'USB-C, 5 V sink, no USB-PD', evidence: 'rev-b/rodeo-power-usbc/README.md:22' },
-      { label: 'also carries', value: 'USB data for the Seed, and status LEDs', evidence: 'rev-b/rodeo-power-usbc/README.md:4-5' },
-      { label: 'outline', value: '40 × 20 mm on the rear rail', evidence: 'rev-b/rodeo-power-usbc/README.md:8-10' },
+      { label: 'input', value: 'USB-C, 5 V sink, no USB-PD', evidence: 'hardware/rodeo-power-usbc/README.md:22' },
+      { label: 'also carries', value: 'USB data for the Seed, and status LEDs', evidence: 'hardware/rodeo-power-usbc/README.md:4-5' },
+      { label: 'outline', value: '40 × 20 mm on the rear rail', evidence: 'hardware/rodeo-power-usbc/README.md:8-10' },
     ],
     caveats: [
       {
         status: 'designed',
         text: 'Drawn and routed on 2026-10-12, with fab outputs. Not yet fabricated.',
-        evidence: 'rev-b/rodeo-power-usbc/README.md:8',
+        evidence: 'hardware/rodeo-power-usbc/README.md:8',
       },
     ],
   },
@@ -277,15 +277,15 @@ export const boards: Board[] = [
     summary: 'The USB-C board plus a barrel jack and a separate 5 V output for LED strips.',
     body: 'For builds that need more current than a USB port will give. The barrel jack takes a 9–12 V adapter and wins automatically when it is plugged in, while USB stays connected for data and takes over again if the adapter is pulled. A second regulator feeds an auxiliary 5 V output for LED strips, kept off the motherboard’s supply on purpose.',
     specs: [
-      { label: 'adapter', value: '5.5 × 2.1 mm, centre positive, 7–20 V', evidence: 'rev-b/rodeo-power-barrel/README.md:21' },
-      { label: 'switchover', value: 'barrel takes priority, USB is the fallback', evidence: 'rev-b/rodeo-power-barrel/README.md:4-6' },
-      { label: 'aux output', value: 'separate 5 V rail for LED strips', evidence: 'rev-b/rodeo-power-barrel/README.md:3-4' },
+      { label: 'adapter', value: '5.5 × 2.1 mm, centre positive, 7–20 V', evidence: 'hardware/rodeo-power-barrel/README.md:21' },
+      { label: 'switchover', value: 'barrel takes priority, USB is the fallback', evidence: 'hardware/rodeo-power-barrel/README.md:4-6' },
+      { label: 'aux output', value: 'separate 5 V rail for LED strips', evidence: 'hardware/rodeo-power-barrel/README.md:3-4' },
     ],
     caveats: [
       {
         status: 'designed',
         text: 'Drawn and routed on 2026-10-12, with fab outputs. Not yet fabricated.',
-        evidence: 'rev-b/rodeo-power-barrel/README.md:9',
+        evidence: 'hardware/rodeo-power-barrel/README.md:9',
       },
     ],
   },

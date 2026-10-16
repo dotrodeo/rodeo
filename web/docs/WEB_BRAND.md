@@ -36,14 +36,14 @@ the KiCad file and check.
 ### How the original palette was derived (historical)
 
 `kicad-cli pcb render --quality high` on
-`rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb`, then a pixel histogram over the
+`rev-a/rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb`, then a pixel histogram over the
 result. Reproduce with:
 
 ```
 /Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli pcb render \
   -o mobo-top.png --width 2400 --height 1800 --side top \
   --quality high --background opaque \
-  rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb
+  rev-a/rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb
 ```
 
 The board declares `(layer "F.Mask" (color "Black"))` in its stackup, four copper layers,
@@ -216,7 +216,7 @@ ever changes, and it costs nothing now.
    front.
 3. **No `rodeo-001` imagery exists.** The reference-build showcase page needs either a
    render of the instance KiCad or photographs of an assembled unit. Its Cassette Futurism
-   panel aesthetic (`rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md:474-491`) is **that
+   panel aesthetic (`instruments/rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md:474-491`) is **that
    instrument's** flavour, deliberately not the platform brand, and is still marked
    "proposed, for Derek's nod" with the colour pairing open at `:489`.
 4. **Trademark search on "Rodeo"** — still outstanding, still worth 20 minutes. An open

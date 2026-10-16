@@ -12,7 +12,7 @@ to you.**
 ## Using it
 
 An instrument writes its own `preview.cpp`: a rig that drives its UI, and a list
-of screens to capture. See `rodeo-002/firmware/tools/screens/preview.cpp` for a
+of screens to capture. See `instruments/rodeo-002/firmware/tools/screens/preview.cpp` for a
 worked example — it drives a real `Ui` with real encoder input, so the screens
 are whatever the instrument would actually show, *including anything the
 interaction gets wrong*. That is what makes it a review tool and not a mock-up.
