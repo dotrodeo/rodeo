@@ -1,0 +1,38 @@
+%TF.GenerationSoftware,KiCad,Pcbnew,10.0.3*%
+%TF.CreationDate,2026-10-16T18:50:21-04:00*%
+%TF.ProjectId,rodeo-power-switch,726f6465-6f2d-4706-9f77-65722d737769,rev?*%
+%TF.SameCoordinates,Original*%
+%TF.FileFunction,Copper,L2,Bot*%
+%TF.FilePolarity,Positive*%
+%FSLAX46Y46*%
+G04 Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)*
+G04 Created by KiCad (PCBNEW 10.0.3) date 2026-10-16 18:50:21*
+%MOMM*%
+%LPD*%
+G01*
+G04 APERTURE LIST*
+%TA.AperFunction,ComponentPad*%
+%ADD10C,1.524000*%
+%TD*%
+G04 APERTURE END LIST*
+D10*
+%TO.P,SW1,1,OFF_A_1*%
+%TO.N,unconnected-(SW1-OFF_A-Pad1)*%
+X153800000Y-78850000D03*
+%TO.P,SW1,2,ON_A_2*%
+%TO.N,SW_A*%
+X153800000Y-80850000D03*
+%TO.P,SW1,3,OFF_B_3*%
+%TO.N,unconnected-(SW1-OFF_B-Pad3)*%
+X160500000Y-78850000D03*
+%TO.P,SW1,4,ON_B_4*%
+%TO.N,SW_B*%
+X160500000Y-80850000D03*
+%TO.P,SW1,5,ON_A_5*%
+%TO.N,unconnected-(SW1-ON_A-Pad5)*%
+X156150000Y-82050000D03*
+%TO.P,SW1,6,ON_B_6*%
+%TO.N,unconnected-(SW1-ON_B-Pad6)*%
+X158150000Y-82050000D03*
+%TD*%
+M02*

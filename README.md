@@ -17,6 +17,7 @@ generation that rodeo-001 and rodeo-002 were built on, is kept whole in
 | [`hardware/rodeo-motherboard/`](hardware/rodeo-motherboard/) | The host board, a Daisy Seed carrier: two codecs (8 audio channels), 10 general-purpose I/O, MIDI, I²C taps, internal SD, and the satellite chain on USART3. Every decision and its reasoning: [`docs/rev-b.md`](hardware/rodeo-motherboard/docs/rev-b.md). |
 | [`hardware/rodeo-pot-bank-4/`](hardware/rodeo-pot-bank-4/), [`hardware/rodeo-encoder-bank-4/`](hardware/rodeo-encoder-bank-4/) | Satellites: four pots or four encoders with switches, each read by a CH32V003 on the chain. |
 | [`hardware/rodeo-power-usbc/`](hardware/rodeo-power-usbc/), [`hardware/rodeo-power-barrel/`](hardware/rodeo-power-barrel/) | Power input boards: USB-C (power and USB data), or USB-C plus a barrel jack and an LED-strip rail. |
+| [`hardware/rodeo-power-switch/`](hardware/rodeo-power-switch/) | The power switch: a latching push button on the back panel (with a printed cap), cabled to the motherboard's J3. |
 | [`hardware/rodeo-audio-3.5mm/`](hardware/rodeo-audio-3.5mm/), [`hardware/rodeo-midi/`](hardware/rodeo-midi/) | Rear-panel jack boards: four stereo 3.5 mm audio jacks, and TRS MIDI in and out. |
 | [`hardware/mounting/`](hardware/mounting/) | The printed rear rail and motherboard frame, and the grid every board's holes sit on. |
 | [`hardware/docs/`](hardware/docs/) | Cross-board docs, such as the [silkscreen checklist](hardware/docs/silkscreen.md). |

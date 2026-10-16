@@ -80,6 +80,7 @@ above the enclosure floor** (board top at 15.6 mm: boss 6 + standoff 8 + PCB 1.6
 | | D1, D2 LEDs | 30.14, 34.64 | ≈16.1 | Ø2.5 through |
 | `rodeo-audio-3.5mm` | J2–J5 jacks | 46.55, 35.5, 24.45, 13.4 | ≈18.2 | Ø5.0 for the jack's collar, counterbored Ø9 × 1 mm deep from the outside |
 | `rodeo-midi` | J2 IN, J3 OUT | 13, 27 | ≈18.2 | As the audio jacks |
+| `rodeo-power-switch` | SW1 push button | 15 | ≈18.5 | The printed cap's outline plus 0.3 mm a side (cap not drawn yet); the bare plunger is 3.4 × 2.9 mm |
 
 * **3.5 mm jacks:** the PJ-320D's body is flush with the I/O edge and its 2 mm
   collar runs into the panel. The Ø9 counterbore brings the outside surface
@@ -136,3 +137,4 @@ above the PCB**: one rule for every board, so panel cut-outs line up.
 | `rodeo-audio-3.5mm` | `--rear top` | **Passes:** 60 × 30 mm, holes at (5, 15) and (55, 15); jack bodies flush with the I/O edge, collars 2 mm into the panel. |
 | `rodeo-midi` | `--rear top` | **Passes:** 40 × 25 mm, holes at (5, 15) and (35, 15); jack bodies flush, collars +1.85 mm. |
 | `rodeo-power-barrel` | `--rear top` | **Passes:** 60 × 40 mm, holes at (5, 15) and (55, 15) either side of the barrel jack; J1 +0.35 mm, J3 +0.50 mm. |
+| `rodeo-power-switch` | `--rear top` | **Passes:** 30 × 20 mm, holes at (5, 15) and (25, 15); SW1's body flush with the I/O edge, plunger +4.93 mm (through the panel by design). |

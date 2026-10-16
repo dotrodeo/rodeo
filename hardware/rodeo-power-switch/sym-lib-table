@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "rodeo_power_switch")(type "KiCad")(uri "${KIPRJMOD}/lib/rodeo_power_switch.kicad_sym")(options "")(descr "Rodeo power switch board parts not in the KiCad library"))
+)
