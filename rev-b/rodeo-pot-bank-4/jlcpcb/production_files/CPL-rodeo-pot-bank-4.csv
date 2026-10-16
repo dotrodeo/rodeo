@@ -1,11 +1,11 @@
 Designator,Val,Package,Mid X,Mid Y,Rotation,Layer
 C1,100n,C_0402_1005Metric,186.4600,-86.7800,180.0,bottom
 C2,100n,C_0402_1005Metric,176.3000,-83.2000,0.0,bottom
-C3,1u,C_0402_1005Metric,185.9400,-88.2800,90.0,bottom
-C4,100n,C_0402_1005Metric,187.0400,-88.2800,90.0,bottom
+C3,1u,C_0402_1005Metric,185.9400,-88.2800,270.0,bottom
+C4,100n,C_0402_1005Metric,187.0400,-88.2800,270.0,bottom
 C5,100n,C_0402_1005Metric,176.4200,-86.4000,0.0,bottom
 C6,100n,C_0402_1005Metric,186.4400,-85.5800,180.0,bottom
-D1,LED,LED_1206_3216Metric_ReverseMount_Hole1.8x2.4mm,181.7000,-132.3000,180.0,bottom
+D1,LED,LED_1206_3216Metric_ReverseMount_Hole1.8x2.4mm,181.7000,-132.3000,0.0,bottom
 J1,Conn_01x05,JST_SH_BM05B-SRSS-TB_1x05-1MP_P1.00mm_Vertical,181.6000,-60.5126,180.0,bottom
 J2,Conn_01x05,JST_SH_BM05B-SRSS-TB_1x05-1MP_P1.00mm_Vertical,181.6000,-110.3874,0.0,bottom
 R1,1K5,R_0603_1608Metric,175.8250,-85.0000,0.0,bottom
@@ -17,4 +17,4 @@ RV1,R_Potentiometer_MountingPin,Potentiometer_Alps_RK09L_Single_Vertical,181.600
 RV2,R_Potentiometer_MountingPin,Potentiometer_Alps_RK09L_Single_Vertical,181.6001,-74.9249,0.0,top
 RV3,R_Potentiometer_MountingPin,Potentiometer_Alps_RK09L_Single_Vertical,181.6001,-99.9249,0.0,top
 RV4,R_Potentiometer_MountingPin,Potentiometer_Alps_RK09L_Single_Vertical,181.6001,-124.9249,0.0,top
-U1,CH32V003FxPx,TSSOP-20_4.4x6.5mm_P0.65mm,181.5000,-86.4000,90.0,bottom
+U1,CH32V003FxPx,TSSOP-20_4.4x6.5mm_P0.65mm,181.5000,-86.4000,270.0,bottom
