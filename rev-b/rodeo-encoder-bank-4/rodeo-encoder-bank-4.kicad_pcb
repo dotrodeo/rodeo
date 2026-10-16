@@ -9224,7 +9224,7 @@
 			)
 		)
 	)
-	(gr_text "RODEO ENCODER BANK ×4\nRev B1 · 2026-10"
+	(gr_text "RODEO ENCODER BANK ×4\nKind 6 · Rev B1 · 2026-10"
 		(at 140.820576 55.226761 0)
 		(layer "B.SilkS")
 		(uuid "00c87f21-1659-44c0-913a-95c94c9014a1")
@@ -9308,6 +9308,54 @@
 		(effects
 			(font
 				(size 1 1)
+			)
+			(justify mirror)
+		)
+	)
+	(gr_text "1"
+		(at 140.570576 51.426761 0)
+		(layer "B.SilkS" knockout)
+		(uuid "47fcd1ee-a455-4e46-8b82-ea3d6fb62efc")
+		(effects
+			(font
+				(size 2 2)
+				(bold yes)
+			)
+			(justify mirror)
+		)
+	)
+	(gr_text "2"
+		(at 140.620576 76.476761 0)
+		(layer "B.SilkS" knockout)
+		(uuid "5b165a84-e0db-450f-a612-c03d8965bda2")
+		(effects
+			(font
+				(size 2 2)
+				(bold yes)
+			)
+			(justify mirror)
+		)
+	)
+	(gr_text "3"
+		(at 140.670576 101.426761 0)
+		(layer "B.SilkS" knockout)
+		(uuid "1c32e244-ebf0-4f65-9520-4ae82497577b")
+		(effects
+			(font
+				(size 2 2)
+				(bold yes)
+			)
+			(justify mirror)
+		)
+	)
+	(gr_text "4"
+		(at 140.770576 126.426761 0)
+		(layer "B.SilkS" knockout)
+		(uuid "0aa2e91d-e3c5-47b7-92f5-0a30e083e2b9")
+		(effects
+			(font
+				(size 2 2)
+				(bold yes)
 			)
 			(justify mirror)
 		)

@@ -104,8 +104,8 @@ Connector function labels, pin-1 marks and the items below are in.
 | Barrel power | Back block with the board name; `DC IN 7-20 V 2.5 A MIN CENTER +`; `+ AUX 5V 3A MAX`; J2 pin letters | — |
 | 3.5 mm jacks | Jack functions beside each jack (front); back block; J1 `1` | — |
 | MIDI | `MIDI IN` / `MIDI OUT`; `TRS TYPE A`; `TO MOTHERBOARD MIDI`; J1 `1`; back block | — |
-| Pot bank ×4 | `CHAIN INPUT` / `CHAIN OUTPUT` (spelling fixed); name, revision, licence, source, copyright; knob numbers front and back; J3 letters `S V G N` and pin 1 | **`KIND 5`** |
-| Encoder bank ×4 | Same as the pot bank (knob numbers on the front only) | **`KIND 6`**; knob numbers on the back (optional) |
+| Pot bank ×4 | `CHAIN INPUT` / `CHAIN OUTPUT` (spelling fixed); name, revision, licence, source, copyright; knob numbers front and back; J3 letters `S V G N` and pin 1; `Kind 5` | — |
+| Encoder bank ×4 | Same as the pot bank, with `Kind 6` (knob numbers on the front only) | Knob numbers on the back (optional) |
 
 Decided and deferred:
 
