@@ -25,6 +25,22 @@ export default defineConfig({
     // site rather than a second site bolted on.
     starlight({
       title: 'Rodeo',
+      // Starlight builds its own <head>, so BaseHead's Open Graph tags never
+      // reach /docs/ or /sdk/. Without these the documentation shares as a
+      // blank large-image card. One card covers both sections.
+      head: [
+        {
+          tag: 'meta',
+          attrs: { property: 'og:image', content: 'https://rodeooh.rodeo/og/docs.png' },
+        },
+        { tag: 'meta', attrs: { property: 'og:image:width', content: '1200' } },
+        { tag: 'meta', attrs: { property: 'og:image:height', content: '630' } },
+        { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
+        {
+          tag: 'meta',
+          attrs: { name: 'twitter:image', content: 'https://rodeooh.rodeo/og/docs.png' },
+        },
+      ],
       description:
         'Driver libraries and bring-up examples for the Rodeo motherboard — the ADC surface, the encoder hubs, and the pure-logic headers.',
       customCss: ['./src/styles/starlight.css'],

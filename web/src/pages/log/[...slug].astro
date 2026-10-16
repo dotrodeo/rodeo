@@ -25,7 +25,8 @@ const { Content } = await render(post);
 const { title, date, updated, summary, tags, draft } = post.data;
 ---
 
-<BaseLayout title={title} description={summary}>
+<BaseLayout
+  image="/og/log.png" title={title} description={summary}>
   <div class="wrap">
     <p class="pt-6 font-mono text-[13px] text-hardware">
       <a href="/log/" class="text-hardware no-underline hover:text-yellow">build log</a>
