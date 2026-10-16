@@ -69,27 +69,26 @@ real document is `hardware/rodeo-motherboard/docs/rev-b.md`, 767 lines, which ca
 onto `main` with the Rev-B merge. The stale copy is deleted. **If you are reading
 a Rev-B fact that is not cited to a `hardware/` path, distrust it.**
 
-**Status: schematic in progress** (`hardware/rodeo-motherboard/docs/rev-b.md:3`) — power, Daisy,
-codec, audio-interface, SD and MIDI sheets drawn and reviewed, every placed part
-carrying an LCSC number audited against JLC. Several daughterboards are further
-along than that: drawn, routed, with fab outputs generated. No Rev-B board has
-been fabricated or bench-tested, so **every Rev-B capability is `planned`.**
+**Status: designed and sent to fab** (`hardware/rodeo-motherboard/docs/rev-b.md:3`) — the
+motherboard and the six Rev B daughterboards are drawn, routed, DRC-clean and went to
+JLC for a first run on 2026-10-16. None has been built or bench-tested yet, so **every
+Rev-B capability is `planned`.**
 
 Rev-B is not a revision of the Rev-A motherboard. It is a different division of
 labour, and almost every number on the site changes:
 
 | | Rev-A, which the site describes today | **Rev-B, which the campaign sells** | Evidence |
 |---|---|---|---|
-| Analog inputs | 24 × 16-bit, two on-board ADS114S08 | **The ADCs are gone.** Analog is the Seed's own ADC across 8 of the 10 general-purpose I/O connectors | `hardware/rodeo-motherboard/docs/rev-b.md:588-592`, `hardware/rodeo-motherboard/docs/rev-b.md:67` |
-| Where the ADCs went | on the motherboard | an **optional SPI expander board** — and ~$19 of parts per board left with them | `hardware/rodeo-motherboard/docs/rev-b.md:204` |
-| What the freed pins do | — | a **second codec on SAI2: 4 in / 4 out audio** | `hardware/rodeo-motherboard/docs/rev-b.md:314` |
-| General-purpose I/O | 12 digital | **10**, each digital or analog; two of them are the DACs | `hardware/rodeo-motherboard/docs/rev-b.md:67` |
-| Growing past that | respin the motherboard | **satellites on a USART3 chain** — position is the address, 1 Mbaud, JST SH 5-pin, self-closing ring via a `PRESENT` pin | `hardware/rodeo-motherboard/docs/rev-b.md:117`, `hardware/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md:32-33`, `hardware/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md:55` |
+| Analog inputs | 24 × 16-bit, two on-board ADS114S08 | **The ADCs are gone.** Analog is the Seed's own ADC across 8 of the 10 general-purpose I/O connectors | `hardware/rodeo-motherboard/docs/rev-b.md:602-606`, `hardware/rodeo-motherboard/docs/rev-b.md:81` |
+| Where the ADCs went | on the motherboard | an **optional SPI expander board** — and ~$19 of parts per board left with them | `hardware/rodeo-motherboard/docs/rev-b.md:218` |
+| What the freed pins do | — | a **second codec on SAI2: 4 in / 4 out audio** | `hardware/rodeo-motherboard/docs/rev-b.md:328` |
+| General-purpose I/O | 12 digital | **10**, each digital or analog; two of them are the DACs | `hardware/rodeo-motherboard/docs/rev-b.md:81` |
+| Growing past that | respin the motherboard | **satellites on a USART3 chain** — position is the address, 1 Mbaud, JST SH 5-pin, self-closing ring via a `PRESENT` pin | `hardware/rodeo-motherboard/docs/rev-b.md:131`, `hardware/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md:32-33`, `hardware/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md:55` |
 | Satellite brain | — | **CH32V003F4P6** chosen 2026-10-14 | `hardware/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md:89` |
-| Panel USB-C | power only; no USB-MIDI, no USB audio | **data, through the power board** — USB-MIDI, USB audio and DFU flashing | `hardware/rodeo-motherboard/docs/rev-b.md:290` |
-| MIDI | on the motherboard | **a daughterboard** | `hardware/rodeo-motherboard/docs/rev-b.md:416` |
-| I²C | no on-board pull-ups; the hub is the bus anchor | pull-ups on the motherboard, **4 taps** | `hardware/rodeo-motherboard/docs/rev-b.md:228` |
-| Storage | none | **internal SD**, 1-bit SDMMC, loaded over USB | `hardware/rodeo-motherboard/docs/rev-b.md:246` |
+| Panel USB-C | power only; no USB-MIDI, no USB audio | **data, through the power board** — USB-MIDI, USB audio and DFU flashing | `hardware/rodeo-motherboard/docs/rev-b.md:304` |
+| MIDI | on the motherboard | **a daughterboard** | `hardware/rodeo-motherboard/docs/rev-b.md:430` |
+| I²C | no on-board pull-ups; the hub is the bus anchor | pull-ups on the motherboard, **4 taps** | `hardware/rodeo-motherboard/docs/rev-b.md:242` |
+| Storage | none | **internal SD**, 1-bit SDMMC, loaded over USB | `hardware/rodeo-motherboard/docs/rev-b.md:260` |
 
 **The boards that now exist as designs**, none yet fabricated:
 

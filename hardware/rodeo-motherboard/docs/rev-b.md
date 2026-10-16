@@ -1,22 +1,36 @@
 # Rodeo Motherboard — Rev B
 
-**Status: schematic in progress.** Brainstormed with Derek on 2026-10-04. Later
-the same day, the hybrid satellite chain replaced the third ADC (see
-[Satellite chain](#satellite-chain-on-usart3-hybrid-analog)). The power sheet was
-drawn and reviewed on 2026-10-05/06 (see [Power](#power)). On 2026-10-06 the two
-on-board ADCs gave way to a second audio codec (see
-[Second codec](#second-codec-on-sai2-4-in--4-out)), which reshaped the pin map.
-The Daisy, Codec and Audio Interface sheets were drawn and reviewed on
-2026-10-06/07 (see [Audio interface](#audio-interface-and-jack-board)), then the
-[SD](#sd-card-slot-native-mode-1-bit) and [MIDI](#midi-moves-to-a-daughterboard)
-sheets on 2026-10-07. Every placed part has an LCSC number, audited against JLC.
-Everything else is still a plan. The board in hand is Rev A, described in
+**Status: designed and sent to fab, not yet built.** Schematic, layout and routing
+are done, the board is DRC-clean, and its fab outputs and silkscreen are final. On
+2026-10-16 it went to JLC with the six Rev B daughterboards for a first run of five
+of each. Nothing on Rev B has been on a bench yet, so every "decided" item below is
+a design decision, not a measured result; the bench work each one still needs is
+noted where it comes up. The board in hand is still Rev A, described in
 [`hardware-map.md`](../../../rev-a/rodeo-motherboard/docs/hardware-map.md).
 
-The Rev B KiCad project is `hardware/rodeo-motherboard/`
-on the `rev-b` branch. Parts KiCad doesn't ship are in its project library,
-`lib/rodeo_jlc.*` (symbols, footprints and STEP models imported from LCSC, each
-checked against its datasheet).
+How it got here:
+
+* **2026-10-04:** brainstormed with Derek. Later the same day the hybrid satellite
+  chain replaced the third ADC (see
+  [Satellite chain](#satellite-chain-on-usart3-hybrid-analog)).
+* **2026-10-05/06:** power sheet drawn and reviewed (see [Power](#power)).
+* **2026-10-06:** the two on-board ADCs gave way to a second audio codec (see
+  [Second codec](#second-codec-on-sai2-4-in--4-out)), which reshaped the pin map.
+* **2026-10-06/07:** Daisy, Codec and Audio Interface sheets (see
+  [Audio interface](#audio-interface-and-jack-board)), then the
+  [SD](#sd-card-slot-native-mode-1-bit) and [MIDI](#midi-moves-to-a-daughterboard)
+  sheets.
+* **2026-10-08:** connectors sheet; power input and switch moved to cabled
+  daughterboards; first-draft placement from the [Layout notes](#layout-notes).
+* **2026-10-12:** fully routed, DRC-clean, first fab outputs.
+* **2026-10-16:** Kickstarter silkscreen (see
+  [`silkscreen.md`](../../docs/silkscreen.md)), outputs regenerated and uploaded
+  to JLC.
+
+The KiCad project is this folder, `hardware/rodeo-motherboard/`. Parts KiCad doesn't
+ship are in its project library, `lib/rodeo_jlc.*` (symbols, footprints and STEP
+models imported from LCSC, each checked against its datasheet). Every placed part has
+an LCSC number, audited against JLC.
 
 **Rev B is a breaking change.** Harness, connector-numbering and `board.h`
 compatibility with Rev A are not constraints. rodeo-001 and rodeo-002 get
