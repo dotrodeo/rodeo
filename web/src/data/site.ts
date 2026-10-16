@@ -37,16 +37,22 @@ export type Rev = 'A' | 'B' | 'A+B';
 /**
  * Claim status — see web/docs/WEB_CLAIMS_AUDIT.md.
  *
- * `designed` was added for Rev-B, because the existing words could not say
- * where those boards actually are. `shipped` means proven on hardware and
- * would be a lie; `planned` means specified-not-drawn and badly undersells a
- * board that is routed with fab outputs waiting. The gap between "we have
- * drawn this" and "we have held this" is the single most important thing a
- * crowdfunding page has to get right, so it gets its own word.
+ * `designed` and `at-fab` exist because the original words could not say where
+ * the Rev-B boards actually are. `shipped` means proven on hardware and would
+ * be a lie; `planned` means specified-not-drawn and badly undersells a board
+ * whose Gerbers are with a manufacturer.
+ *
+ * `at-fab` is the stronger of the two and is earned when an order is placed,
+ * not when Gerbers are uploaded: on 2026-10-16 all seven Rev-B boards were
+ * uploaded to JLC but not yet ordered, so they are `designed`. It still is not
+ * `shipped`: the line between "we have had this made" and "we have held this
+ * and measured it" is the single most important thing a crowdfunding page has
+ * to get right.
  */
 export type Status =
   | 'shipped'
   | 'in-progress'
+  | 'at-fab'
   | 'designed'
   | 'planned'
   | 'not-planned'
@@ -55,6 +61,7 @@ export type Status =
 export const statusLabel: Record<Status, string> = {
   shipped: 'Verified',
   'in-progress': 'In progress',
+  'at-fab': 'At the fab',
   designed: 'Designed',
   planned: 'Planned',
   'not-planned': 'Not planned',

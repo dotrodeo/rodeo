@@ -20,7 +20,10 @@ const styles: Record<string, string> = {
   solid: 'bg-legend text-field',
   shipped: 'bg-yellow text-field',
   'in-progress': 'border border-legend text-legend',
-  // Drawn but never fabricated. Indigo, so it cannot be mistaken at a glance
+  // Ordered and being made. Filled indigo reads as further along than the
+  // outlined `designed`, and is still not the gold of something proven.
+  'at-fab': 'bg-indigo text-legend',
+  // Drawn but not sent anywhere. Indigo, so it cannot be mistaken at a glance
   // for the gold of something proven on a bench.
   designed: 'border border-indigo-text text-indigo-text',
   planned: 'border border-hardware text-hardware',

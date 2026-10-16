@@ -40,7 +40,7 @@ export interface Spec {
 
 export interface Caveat {
   /** Shown as the badge. 'not-planned' reads as a hard limit, not an omission. */
-  status: Extract<Status, 'not-planned' | 'in-progress' | 'designed' | 'planned'>;
+  status: Extract<Status, 'not-planned' | 'in-progress' | 'at-fab' | 'designed' | 'planned'>;
   text: string;
   evidence: string;
 }
@@ -91,13 +91,16 @@ const HUB = 'rev-a/rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md';
 const HUBFW = 'rev-a/rodeo-encoder-hub/firmware/README.md';
 const CHAIN = 'hardware/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md';
 const SDK = 'rodeo-sdk/README.md';
+// The first order: the motherboard and six daughterboards were uploaded to JLC
+// on 2026-10-16, five of each, and are not ordered yet. One record covers all seven.
+const FAB = 'hardware/rodeo-motherboard/docs/rev-b.md:3-6';
 
 export const boards: Board[] = [
   {
     slug: 'rodeo-motherboard',
     name: 'rodeo-motherboard',
     kind: 'host',
-    status: 'in-progress',
+    status: 'designed',
     rev: 'B',
     outline: { w: 90, h: 112 },
     summary:
@@ -115,9 +118,9 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'in-progress',
-        text: 'Designed and ready to order: the schematic, layout and routing are done and the board is DRC-clean. No Rev-B motherboard has been fabricated or bench-tested yet.',
-        evidence: `${R}:3`,
+        status: 'designed',
+        text: 'Designed and ready to order: the schematic, layout and routing are done and the board is DRC-clean. Uploaded to JLC on 2026-10-16, not yet ordered; no Rev-B motherboard has been built or bench-tested.',
+        evidence: FAB,
       },
       {
         status: 'not-planned',
@@ -146,8 +149,8 @@ export const boards: Board[] = [
     caveats: [
       {
         status: 'designed',
-        text: 'Drawn, routed and fab outputs generated on 2026-10-14. Not yet fabricated, so nothing here has been measured on hardware.',
-        evidence: 'hardware/rodeo-pot-bank-4/README.md:8',
+        text: 'Drawn and routed on 2026-10-14; uploaded to JLC on 2026-10-16, not yet ordered. Nothing here has been measured on hardware.',
+        evidence: FAB,
       },
     ],
   },
@@ -170,8 +173,8 @@ export const boards: Board[] = [
     caveats: [
       {
         status: 'designed',
-        text: 'Specified and drawn on 2026-10-14, routed with fab outputs. Not yet fabricated.',
-        evidence: 'hardware/rodeo-encoder-bank-4/README.md:9',
+        text: 'Specified and drawn on 2026-10-14; uploaded to JLC on 2026-10-16, not yet ordered. Not yet built or tested.',
+        evidence: FAB,
       },
     ],
   },
@@ -215,8 +218,8 @@ export const boards: Board[] = [
     caveats: [
       {
         status: 'designed',
-        text: 'Drawn, laid out and fab outputs generated on 2026-10-14. Not yet fabricated.',
-        evidence: 'hardware/rodeo-audio-3.5mm/README.md:8',
+        text: 'Drawn and laid out on 2026-10-14; uploaded to JLC on 2026-10-16, not yet ordered. Not yet built or tested.',
+        evidence: FAB,
       },
     ],
   },
@@ -238,8 +241,8 @@ export const boards: Board[] = [
     caveats: [
       {
         status: 'designed',
-        text: 'Drawn, routed and fab outputs generated on 2026-10-15. Not yet fabricated.',
-        evidence: 'hardware/rodeo-midi/README.md:9',
+        text: 'Drawn and routed on 2026-10-15; uploaded to JLC on 2026-10-16, not yet ordered. Not yet built or tested.',
+        evidence: FAB,
       },
     ],
   },
@@ -261,8 +264,8 @@ export const boards: Board[] = [
     caveats: [
       {
         status: 'designed',
-        text: 'Drawn and routed on 2026-10-12, with fab outputs. Not yet fabricated.',
-        evidence: 'hardware/rodeo-power-usbc/README.md:8',
+        text: 'Drawn and routed on 2026-10-12; uploaded to JLC on 2026-10-16, not yet ordered. Not yet built or tested.',
+        evidence: FAB,
       },
     ],
   },
@@ -284,8 +287,8 @@ export const boards: Board[] = [
     caveats: [
       {
         status: 'designed',
-        text: 'Drawn and routed on 2026-10-12, with fab outputs. Not yet fabricated.',
-        evidence: 'hardware/rodeo-power-barrel/README.md:9',
+        text: 'Drawn and routed on 2026-10-12; uploaded to JLC on 2026-10-16, not yet ordered. Not yet built or tested.',
+        evidence: FAB,
       },
     ],
   },
