@@ -15,7 +15,8 @@ import { statusLabel } from '../../data/site';
 const legend = [
   { status: 'shipped' as const, label: 'Verified', note: 'proven on real hardware' },
   { status: 'in-progress' as const, label: 'In progress', note: 'being drawn right now' },
-  { status: 'designed' as const, label: 'Designed', note: 'drawn and routed, never fabricated' },
+  { status: 'at-fab' as const, label: 'At the fab', note: 'ordered and being made' },
+  { status: 'designed' as const, label: 'Designed', note: 'drawn and routed, not sent' },
   { status: 'planned' as const, label: 'Planned', note: 'specified, not yet drawn' },
 ];
 ---
@@ -33,9 +34,10 @@ const legend = [
       </h1>
       <p class="copy-tech m-0 max-w-[620px] text-[16px]">
         Every entry links to its schematic, KiCad project, gerbers, BOM and pinout. These are
-        the Rev-B boards, the ones the campaign ships. <strong class="text-legend">None of
-        them has been fabricated yet</strong> — the status on each says exactly how far it has
-        got, and nothing here claims to have been measured on hardware that does not exist.
+        the Rev-B boards, the ones the campaign ships. <strong class="text-legend">All seven
+        went to the fab on 16 October 2026</strong>, five of each — and not one has been on a
+        bench yet. The status on each says exactly how far it has got, and nothing here claims
+        to have been measured on hardware nobody has held.
       </p>
     </div>
     <ul class="m-0 flex list-none flex-col gap-2.5 p-0">

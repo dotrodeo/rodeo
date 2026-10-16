@@ -40,7 +40,7 @@ export interface Spec {
 
 export interface Caveat {
   /** Shown as the badge. 'not-planned' reads as a hard limit, not an omission. */
-  status: Extract<Status, 'not-planned' | 'in-progress' | 'designed' | 'planned'>;
+  status: Extract<Status, 'not-planned' | 'in-progress' | 'at-fab' | 'designed' | 'planned'>;
   text: string;
   evidence: string;
 }
@@ -91,13 +91,16 @@ const HUB = 'rev-a/rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md';
 const HUBFW = 'rev-a/rodeo-encoder-hub/firmware/README.md';
 const CHAIN = 'hardware/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md';
 const SDK = 'rodeo-sdk/README.md';
+// The fab order: the motherboard and six daughterboards went to JLC on
+// 2026-10-16, five of each. One record covers all seven boards.
+const FAB = 'hardware/rodeo-motherboard/docs/rev-b.md:3-6';
 
 export const boards: Board[] = [
   {
     slug: 'rodeo-motherboard',
     name: 'rodeo-motherboard',
     kind: 'host',
-    status: 'in-progress',
+    status: 'at-fab',
     rev: 'B',
     outline: { w: 90, h: 112 },
     summary:
@@ -115,9 +118,9 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'in-progress',
+        status: 'at-fab',
         text: 'Designed and sent to fab: the schematic, layout and routing are done and the board is DRC-clean. The first run went to JLC on 2026-10-16; no Rev-B motherboard has been built or bench-tested yet.',
-        evidence: `${R}:3`,
+        evidence: FAB,
       },
       {
         status: 'not-planned',
@@ -131,7 +134,7 @@ export const boards: Board[] = [
     slug: 'rodeo-pot-bank-4',
     name: 'rodeo-pot-bank-4',
     kind: 'satellite',
-    status: 'designed',
+    status: 'at-fab',
     rev: 'B',
     outline: { w: 20, h: 100 },
     summary: 'Four 9 mm pots on 25 mm centres, read by one CH32V003 on the chain.',
@@ -145,9 +148,9 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'designed',
-        text: 'Drawn, routed and fab outputs generated on 2026-10-14. Not yet fabricated, so nothing here has been measured on hardware.',
-        evidence: 'hardware/rodeo-pot-bank-4/README.md:8',
+        status: 'at-fab',
+        text: 'Drawn and routed on 2026-10-14; at JLC since 2026-10-16 in a first run of five. Nothing here has been measured on hardware.',
+        evidence: FAB,
       },
     ],
   },
@@ -156,7 +159,7 @@ export const boards: Board[] = [
     slug: 'rodeo-encoder-bank-4',
     name: 'rodeo-encoder-bank-4',
     kind: 'satellite',
-    status: 'designed',
+    status: 'at-fab',
     rev: 'B',
     outline: { w: 20, h: 100 },
     summary: 'Four 12 mm encoders with push switches, built to sit beside the pot bank.',
@@ -169,9 +172,9 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'designed',
-        text: 'Specified and drawn on 2026-10-14, routed with fab outputs. Not yet fabricated.',
-        evidence: 'hardware/rodeo-encoder-bank-4/README.md:9',
+        status: 'at-fab',
+        text: 'Specified and drawn on 2026-10-14; at JLC since 2026-10-16 in a first run of five. Not yet built or tested.',
+        evidence: FAB,
       },
     ],
   },
@@ -202,7 +205,7 @@ export const boards: Board[] = [
     slug: 'rodeo-audio-3.5mm',
     name: 'rodeo-audio-3.5mm',
     kind: 'daughterboard',
-    status: 'designed',
+    status: 'at-fab',
     rev: 'B',
     outline: { w: 60, h: 30 },
     summary: 'Four stereo 3.5 mm jacks carrying the motherboard’s eight audio signals.',
@@ -214,9 +217,9 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'designed',
-        text: 'Drawn, laid out and fab outputs generated on 2026-10-14. Not yet fabricated.',
-        evidence: 'hardware/rodeo-audio-3.5mm/README.md:8',
+        status: 'at-fab',
+        text: 'Drawn and laid out on 2026-10-14; at JLC since 2026-10-16 in a first run of five. Not yet built or tested.',
+        evidence: FAB,
       },
     ],
   },
@@ -225,7 +228,7 @@ export const boards: Board[] = [
     slug: 'rodeo-midi',
     name: 'rodeo-midi',
     kind: 'daughterboard',
-    status: 'designed',
+    status: 'at-fab',
     rev: 'B',
     outline: { w: 40, h: 25 },
     summary: 'MIDI in and out on TRS Type A, on the back panel.',
@@ -237,9 +240,9 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'designed',
-        text: 'Drawn, routed and fab outputs generated on 2026-10-15. Not yet fabricated.',
-        evidence: 'hardware/rodeo-midi/README.md:9',
+        status: 'at-fab',
+        text: 'Drawn and routed on 2026-10-15; at JLC since 2026-10-16 in a first run of five. Not yet built or tested.',
+        evidence: FAB,
       },
     ],
   },
@@ -248,7 +251,7 @@ export const boards: Board[] = [
     slug: 'rodeo-power-usbc',
     name: 'rodeo-power-usbc',
     kind: 'daughterboard',
-    status: 'designed',
+    status: 'at-fab',
     rev: 'B',
     outline: { w: 40, h: 20 },
     summary: 'The default power input, and the board that carries USB data to the Seed.',
@@ -260,9 +263,9 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'designed',
-        text: 'Drawn and routed on 2026-10-12, with fab outputs. Not yet fabricated.',
-        evidence: 'hardware/rodeo-power-usbc/README.md:8',
+        status: 'at-fab',
+        text: 'Drawn and routed on 2026-10-12; at JLC since 2026-10-16 in a first run of five. Not yet built or tested.',
+        evidence: FAB,
       },
     ],
   },
@@ -271,7 +274,7 @@ export const boards: Board[] = [
     slug: 'rodeo-power-barrel',
     name: 'rodeo-power-barrel',
     kind: 'daughterboard',
-    status: 'designed',
+    status: 'at-fab',
     rev: 'B',
     outline: { w: 60, h: 40 },
     summary: 'The USB-C board plus a barrel jack and a separate 5 V output for LED strips.',
@@ -283,9 +286,9 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'designed',
-        text: 'Drawn and routed on 2026-10-12, with fab outputs. Not yet fabricated.',
-        evidence: 'hardware/rodeo-power-barrel/README.md:9',
+        status: 'at-fab',
+        text: 'Drawn and routed on 2026-10-12; at JLC since 2026-10-16 in a first run of five. Not yet built or tested.',
+        evidence: FAB,
       },
     ],
   },
