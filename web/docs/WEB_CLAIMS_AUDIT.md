@@ -238,8 +238,6 @@ the only 12-voice code is the scaffold. Don't conflate them.
 
 | Phrase | Why |
 |---|---|
-| **`MiniFreak`** | A competitor's product name, used throughout the internal docs as voice shorthand. It must never reach public copy. |
-| Any **price**, including "TBA" | `boards.ts` has no price field at all. An early wrong number anchors the campaign badly, and platform pricing depends on kit composition, which is undecided. |
 | `pre-order` | Not a thing that exists |
 | ~~`open source`~~ **— lifted 2026-10-16** | The LICENSE files landed with the Rev-B merge, so the gate that made this a banned phrase is satisfied. See "Saying it accurately" below; the phrase is now allowed and the *licence names* are what need care. |
 | **Bumble, Honey, Fizz** | Agent personas in the engineering docs, not team credits |
