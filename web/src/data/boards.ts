@@ -116,13 +116,13 @@ export const boards: Board[] = [
     caveats: [
       {
         status: 'in-progress',
-        text: 'Designed and sent to fab: the schematic, layout and routing are done and the board is DRC-clean. The first run went to JLC on 2026-10-16; no Rev-B motherboard has been built or bench-tested yet.',
+        text: 'Designed and ready to order: the schematic, layout and routing are done and the board is DRC-clean. No Rev-B motherboard has been fabricated or bench-tested yet.',
         evidence: `${R}:3`,
       },
       {
         status: 'not-planned',
         text: 'No on-board ADCs. The two ADS114S08s, their 24 pot connectors and the pull-downs are removed; that bank becomes an optional expander on the SPI header.',
-        evidence: `${R}:602-606`,
+        evidence: `${R}:606-610`,
       },
     ],
   },
@@ -192,8 +192,8 @@ export const boards: Board[] = [
       rev: 'A',
     },
     specs: [
-      { label: 'connector', value: '3-pin JST SH: GND, wiper, supply', evidence: `${R}:570-574` },
-      { label: 'Rev B fit', value: 'plugs into any analog-capable I/O connector', evidence: `${R}:570-574` },
+      { label: 'connector', value: '3-pin JST SH: GND, wiper, supply', evidence: `${R}:574-578` },
+      { label: 'Rev B fit', value: 'plugs into any analog-capable I/O connector', evidence: `${R}:574-578` },
       { label: 'electronics', value: 'passive — one RC filter', evidence: `${SDK}:125-127` },
     ],
   },

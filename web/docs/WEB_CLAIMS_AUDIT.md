@@ -69,9 +69,9 @@ real document is `hardware/rodeo-motherboard/docs/rev-b.md`, 767 lines, which ca
 onto `main` with the Rev-B merge. The stale copy is deleted. **If you are reading
 a Rev-B fact that is not cited to a `hardware/` path, distrust it.**
 
-**Status: designed and sent to fab** (`hardware/rodeo-motherboard/docs/rev-b.md:3`) — the
-motherboard and the six Rev B daughterboards are drawn, routed, DRC-clean and went to
-JLC for a first run on 2026-10-16. None has been built or bench-tested yet, so **every
+**Status: designed and ready to order** (`hardware/rodeo-motherboard/docs/rev-b.md:3`) — the
+motherboard and the six Rev B daughterboards are drawn, routed and DRC-clean, and were
+uploaded to JLC on 2026-10-16 but not yet ordered. None has been built or bench-tested yet, so **every
 Rev-B capability is `planned`.**
 
 Rev-B is not a revision of the Rev-A motherboard. It is a different division of
@@ -79,7 +79,7 @@ labour, and almost every number on the site changes:
 
 | | Rev-A, which the site describes today | **Rev-B, which the campaign sells** | Evidence |
 |---|---|---|---|
-| Analog inputs | 24 × 16-bit, two on-board ADS114S08 | **The ADCs are gone.** Analog is the Seed's own ADC across 8 of the 10 general-purpose I/O connectors | `hardware/rodeo-motherboard/docs/rev-b.md:602-606`, `hardware/rodeo-motherboard/docs/rev-b.md:81` |
+| Analog inputs | 24 × 16-bit, two on-board ADS114S08 | **The ADCs are gone.** Analog is the Seed's own ADC across 8 of the 10 general-purpose I/O connectors | `hardware/rodeo-motherboard/docs/rev-b.md:606-610`, `hardware/rodeo-motherboard/docs/rev-b.md:81` |
 | Where the ADCs went | on the motherboard | an **optional SPI expander board** — and ~$19 of parts per board left with them | `hardware/rodeo-motherboard/docs/rev-b.md:218` |
 | What the freed pins do | — | a **second codec on SAI2: 4 in / 4 out audio** | `hardware/rodeo-motherboard/docs/rev-b.md:328` |
 | General-purpose I/O | 12 digital | **10**, each digital or analog; two of them are the DACs | `hardware/rodeo-motherboard/docs/rev-b.md:81` |

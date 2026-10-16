@@ -1,9 +1,9 @@
 # Rodeo Motherboard — Rev B
 
-**Status: designed and sent to fab, not yet built.** Schematic, layout and routing
-are done, the board is DRC-clean, and its fab outputs and silkscreen are final. On
-2026-10-16 it went to JLC with the six Rev B daughterboards for a first run of five
-of each. Nothing on Rev B has been on a bench yet, so every "decided" item below is
+**Status: designed and ready to order, not yet built.** Schematic, layout and
+routing are done, the board is DRC-clean, and its fab outputs and silkscreen are
+final. It was uploaded to JLC on 2026-10-16 with the six Rev B daughterboards for a
+first run of five of each, and is not ordered yet. Nothing on Rev B has been on a bench yet, so every "decided" item below is
 a design decision, not a measured result; the bench work each one still needs is
 noted where it comes up. The board in hand is still Rev A, described in
 [`hardware-map.md`](../../../rev-a/rodeo-motherboard/docs/hardware-map.md).
@@ -515,7 +515,11 @@ Power board (J2) ─ VIN 5 V ─ U2 BQ24073 ─ BATT_VCC ─ U5 TPS63070 ─ +5V
 **Power switch (J3): JST SH 2-pin, BM02B-SRSS-TB (C160388).** Any latching panel
 switch on two wires: toggle, rocker or push button.
 * Pin 1: `BATT_VCC` through R12 (10 kΩ), so a pinched cable can't short the
-  battery rail. Pin 2: U5's EN, with R13 (1 MΩ) to GND and 10 nF to GND.
+  battery rail. Pin 2: U5's EN, with R13 (47 kΩ) to GND and 10 nF to GND.
+* R13 sets the current through the switch contacts when on: 50–75 µA over the
+  cell's range, with EN still at 2.5 V or more. It was 1 MΩ until 2026-10-16,
+  which left 3–4 µA, below what silver-contact switches are made to switch
+  reliably. The reference switch is a TK-6580A-1 (C528770), silver-plated.
 * Unplugged means off. The cell still charges with the switch off.
 
 **Charger and battery**

@@ -9769,7 +9769,7 @@
 				)
 			)
 		)
-		(property "Value" "1M"
+		(property "Value" "47K"
 			(at 245.11 44.45 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9812,7 +9812,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C26083"
+		(property "LCSC Part" "C25792"
 			(at 245.11 48.26 90)
 			(hide yes)
 			(show_name no)
