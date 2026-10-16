@@ -89,6 +89,7 @@ jobs:
         run: npm run check
 
       - name: Build
+        id: build
         working-directory: web
         env:
           # Gates the noindex tag in BaseHead. Anything other than 'production'
@@ -102,6 +103,16 @@ jobs:
           # and never passes through this workflow.
           PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.PUBLIC_TURNSTILE_SITE_KEY }}
         run: npm run build
+
+      # These need the built output, so they run after the build rather than
+      # inside `npm run check`. Both are offline and deterministic: no browser,
+      # no network, nothing to go flaky. A link check that makes HTTP requests
+      # is the job everyone learns to ignore.
+      - name: Check links and accessibility
+        working-directory: web
+        run: |
+          node scripts/check-links.mjs
+          node scripts/check-a11y.mjs
 
       # main -> production. The Worker is created on first deploy; there is
       # nothing to pre-create in the dashboard.
