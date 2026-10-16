@@ -90,3 +90,30 @@ Notes from the audit:
 * The two power boards' back text currently runs off the board edge and over pads
   (DRC flagged it as silkscreen warnings); if it gets reworked for the additions,
   keep it inside the outline so the fab doesn't clip it.
+
+## Status after the silkscreen pass (2026-10-16)
+
+All seven boards now carry their name, `Rev B1 · 2026-10`, `CERN-OHL-W-2.0`, a
+source link and `© DOT RODEO LLC` (the motherboard on the back, beside its QR code).
+Connector function labels, pin-1 marks and the items below are in.
+
+| Board | Added | Still open |
+|---|---|---|
+| Motherboard | Revision (front); licence, source, copyright (back); `CHAIN`; battery `−`/`+` and `1S Li-ion` | — |
+| USB-C power | Back block; J2 pin letters `C P V G + − G V` above the connector | — |
+| Barrel power | Back block with the board name; `DC IN 7-20 V 2.5 A MIN CENTER +`; `+ AUX 5V 3A MAX`; J2 pin letters | — |
+| 3.5 mm jacks | Jack functions beside each jack (front); back block; J1 `1` | — |
+| MIDI | `MIDI IN` / `MIDI OUT`; `TRS TYPE A`; `TO MOTHERBOARD MIDI`; J1 `1`; back block | — |
+| Pot bank ×4 | `CHAIN INPUT` / `CHAIN OUTPUT` (spelling fixed); name, revision, licence, source, copyright; knob numbers front and back; J3 letters `S V G N` and pin 1 | **`KIND 5`** |
+| Encoder bank ×4 | Same as the pot bank (knob numbers on the front only) | **`KIND 6`**; knob numbers on the back (optional) |
+
+Decided and deferred:
+
+* **No JLC order-number marker** for now (Derek, 2026-10-15): JLC places its order
+  number where it chooses.
+* **Source links** print the future GitHub organisation (`github.com/dotrodeo/rodeo`
+  on the motherboard) and `rodeooh.rodeo/source` on the daughterboards. Before the
+  first Rev B production order: rename the organisation, set up the
+  `rodeooh.rodeo/source` redirect, and update `LICENSE` / `LICENSES/MIT.txt` to
+  DOT RODEO LLC and the new source location once the LLC is formed.
+

@@ -1,12 +1,12 @@
 %TF.GenerationSoftware,KiCad,Pcbnew,10.0.3*%
-%TF.CreationDate,2026-10-12T23:13:38-04:00*%
+%TF.CreationDate,2026-10-15T21:44:30-04:00*%
 %TF.ProjectId,rodeo-motherboard,726f6465-6f2d-46d6-9f74-686572626f61,rev?*%
 %TF.SameCoordinates,Original*%
 %TF.FileFunction,Soldermask,Top*%
 %TF.FilePolarity,Negative*%
 %FSLAX46Y46*%
 G04 Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)*
-G04 Created by KiCad (PCBNEW 10.0.3) date 2026-10-12 23:13:38*
+G04 Created by KiCad (PCBNEW 10.0.3) date 2026-10-15 21:44:31*
 %MOMM*%
 %LPD*%
 G01*
@@ -1050,8 +1050,8 @@ X95820000Y-65975000D03*
 %TD*%
 D14*
 %TO.C,C74*%
-X128755000Y-53785000D03*
-X129715000Y-53785000D03*
+X128870000Y-53250000D03*
+X129830000Y-53250000D03*
 %TD*%
 D51*
 %TO.C,FB1*%
