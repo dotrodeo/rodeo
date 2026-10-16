@@ -16,12 +16,12 @@ on the panel.
 |---|---|---|---|
 | Board name | `RODEO <BOARD NAME>` | **Needed** | Builders sort ~23 boards per kit; support starts with "which board is this?" |
 | Revision and date | `Rev B1 · 2026-10` | **Needed** | Rev A and Rev B boards will coexist; firmware and docs are per revision |
-| Licence and source location | `CERN-OHL-W-2.0` and `github.com/derekdotrodeo/rodeo` (or a QR code to it) | **Needed** | The licence asks for a notice of the source location on distributed products; the silkscreen is the reliable place |
+| Licence and source location | `CERN-OHL-W-2.0` and `github.com/dotrodeo/rodeo` or `rodeooh.rodeo/source` (or a QR code to it) | **Needed** | The licence asks for a notice of the source location on distributed products; the silkscreen is the reliable place |
 | Pin 1 / key on every connector | footprint markers (check they survived) | **Needed** | Builders plug in every cable |
 | Connector function names | e.g. `CHAIN IN`, `TO MOTHERBOARD MIDI` | **Needed** | The reference designator (J2) means nothing to a builder |
 | Polarity marks | `+` on electrolytics and power connectors, diode/LED cathode bars | **Needed** | Usually from the footprint; check |
 | JLC order-number marker | `JLCJLCJLCJLC` on the back, in an out-of-the-way spot, with "specify a location" ticked when ordering | **Needed** | Otherwise JLC prints its order number where it likes, possibly on the visible face |
-| Copyright | `© 2026 Derek Wheelden` | After | The licence notice covers most of it; nice for provenance |
+| Copyright | `© 2026 DOT RODEO LLC` | After | The licence notice covers most of it; nice for provenance |
 | QR code to that board's docs page | | After | The motherboard already has one; one per board is a nicety |
 | Serial / QC box | a small empty rectangle to mark "tested" or a serial | After (but useful for the run) | ~1,150 boards to test for 50 kits; a tick box makes it obvious which are done |
 | OSHWA certification ID and logo | `US00xxxx` | After | Free, fits the licence and the platform pitch; needs the certification first |
@@ -86,7 +86,7 @@ Notes from the audit:
 
 * No board has a revision, a licence notice or a JLC marker yet.
 * Satellites are 20 mm wide: use 0.8–1 mm text on the back, and put the licence on
-  one line (`CERN-OHL-W-2.0 github.com/derekdotrodeo/rodeo`) or use a QR code.
+  one line (`CERN-OHL-W-2.0 rodeooh.rodeo/source`) or use a QR code.
 * The two power boards' back text currently runs off the board edge and over pads
   (DRC flagged it as silkscreen warnings); if it gets reworked for the additions,
   keep it inside the outline so the fab doesn't clip it.

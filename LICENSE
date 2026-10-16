@@ -2,14 +2,15 @@ Rodeo is open source. Different parts of this repository use different licences,
 chosen so that the platform can be built into other products, open or closed, while
 the Rodeo designs themselves stay open.
 
-Copyright (c) 2026 Derek Wheelden
+Copyright (c) 2026 DOT RODEO LLC
 
 HARDWARE: CERN-OHL-W-2.0
   All hardware design files: KiCad schematics and PCBs, Gerbers, BOMs, placement
   files, and mechanical/panel files (rodeo-motherboard/, rev-b/, rodeo-*/ board
   folders, rodeo-panels/).
   Full text: LICENSES/CERN-OHL-W-2.0.txt
-  Source location: https://github.com/derekdotrodeo/rodeo
+  Source location: https://github.com/dotrodeo/rodeo
+                   (also https://rodeooh.rodeo/source, which redirects there)
 
   In plain terms: anyone may build, modify and sell Rodeo hardware. If you modify
   a Rodeo design and distribute it, your modified design files must be published

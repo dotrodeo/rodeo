@@ -55,7 +55,7 @@ export default defineConfig({
         MobileMenuFooter: './src/components/starlight/MobileMenuFooter.astro',
       },
       social: [
-        { icon: 'github', label: 'GitHub', href: 'https://github.com/derekdotrodeo/rodeo' },
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/dotrodeo/rodeo' },
       ],
       sidebar: [
         {
