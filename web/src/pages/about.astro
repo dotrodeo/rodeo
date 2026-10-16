@@ -1,0 +1,131 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Eyebrow from '../components/Eyebrow.astro';
+import CtaBand from '../components/CtaBand.astro';
+
+// Short on purpose. An about page on a pre-campaign site has two jobs: say who
+// is accountable for the thing, and say exactly how it is licensed. Everything
+// else the visitor wanted is on /ecosystem/ or /log/.
+//
+// Licence wording here is load-bearing and must match LICENSE. See
+// WEB_CLAIMS_AUDIT.md, "Saying it accurately — the licences" — in particular
+// that CERN-OHL-W is *weakly* reciprocal.
+const licences = [
+  {
+    part: 'Hardware',
+    licence: 'CERN-OHL-W-2.0',
+    covers: 'KiCad projects, Gerbers, BOMs, placement files, panel and mechanical files',
+  },
+  {
+    part: 'Software',
+    licence: 'MIT',
+    covers: 'rodeo-sdk, the firmware trees and the KiCad tooling',
+  },
+  {
+    part: 'Documentation',
+    licence: 'CC-BY-SA-4.0',
+    covers: 'every Markdown file and docs folder in the repository',
+  },
+];
+---
+
+<BaseLayout
+  title="About"
+  description="Who builds Rodeo, why it exists, and exactly how the hardware, firmware and documentation are licensed."
+>
+  <div class="wrap">
+    <section class="flex flex-col gap-6 py-14">
+      <Eyebrow>About</Eyebrow>
+      <h1 class="display m-0 max-w-[18ch] text-[clamp(38px,6.5vw,62px)]">
+        Build the panel, skip the PCB
+      </h1>
+      <p class="prose-body m-0 max-w-[62ch] text-[17px]">
+        Rodeo is a host board and a family of control satellites for people who
+        can write DSP but do not want to design a control-surface PCB to hear it
+        through knobs. You pick the controls, chain them together, and write the
+        code. The circuit board problem is already solved.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-5 border-t border-rule py-14">
+      <Eyebrow>Who</Eyebrow>
+      <h2 class="display m-0 max-w-[22ch] text-[clamp(26px,4vw,38px)]">A one-person company</h2>
+      <p class="prose-body m-0 max-w-[62ch] text-[16.5px]">
+        Rodeo is built by <strong>DOT RODEO LLC</strong>, a one-person company in
+        Maine. Every board here was designed, routed and ordered by the same
+        person writing the build log — which is the reason that log exists, and
+        the reason this site is careful to say what has been measured on hardware
+        and what has only been drawn.
+      </p>
+      <p class="prose-body m-0 max-w-[62ch] text-[16.5px]">
+        It also sets expectations honestly. A one-person hardware project moves
+        at the pace of one person. The
+        <a href="/log/" class="text-yellow">build log</a> is where that pace is
+        visible, including the parts that went wrong.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-5 border-t border-rule py-14">
+      <Eyebrow>Licensing</Eyebrow>
+      <h2 class="display m-0 max-w-[22ch] text-[clamp(26px,4vw,38px)]">Open, in three parts</h2>
+      <p class="prose-body m-0 max-w-[62ch] text-[16.5px]">
+        All of Rodeo is open source, under three licences chosen so the platform
+        can be built into other products — open or closed — while the Rodeo
+        designs themselves stay open.
+      </p>
+
+      <dl class="m-0 max-w-[840px] pt-2">
+        {
+          licences.map((l) => (
+            <div class="grid gap-x-6 gap-y-1 border-b border-rule py-3.5 sm:grid-cols-[8rem_11rem_1fr]">
+              <dt class="m-0 font-mono text-[13.5px] text-hardware">{l.part}</dt>
+              <dd class="m-0 font-mono text-[13.5px] text-yellow">{l.licence}</dd>
+              <dd class="copy-tech m-0 text-[13.5px]">{l.covers}</dd>
+            </div>
+          ))
+        }
+      </dl>
+
+      <div class="mt-2 flex max-w-[62ch] flex-col gap-3 border-l-2 border-yellow bg-field-raised p-5">
+        <p class="prose-body m-0 text-[15.5px]">
+          <strong>What the hardware licence actually requires.</strong> Anyone may
+          build, modify and sell Rodeo hardware. If you modify a Rodeo design and
+          distribute it, your modified design files must be published under the
+          same licence.
+        </p>
+        <p class="prose-body m-0 text-[15.5px]">
+          Products that <em>use</em> Rodeo boards, or connect to them through
+          their published interfaces, <strong>do not have to be open</strong>.
+          That boundary is deliberate — CERN-OHL-W is weakly reciprocal precisely
+          so that building a closed product on top of Rodeo is allowed.
+        </p>
+      </div>
+
+      <p class="copy-tech m-0 max-w-[62ch] text-[14px] text-hardware">
+        Third-party components keep their own licences — libDaisy and DaisySP are
+        MIT from Electrosmith, and DaisySP's LGPL module is LGPL-2.1. The name
+        “Rodeo” and its logo are not covered by these licences and may not be used
+        to brand a derivative product.
+      </p>
+
+      <div class="flex flex-wrap gap-3 pt-2">
+        <a
+          href="https://github.com/dotrodeo/rodeo"
+          class="bg-yellow px-5 py-3 font-display text-[15px] font-black uppercase tracking-[0.06em] text-field no-underline hover:bg-legend"
+          >The source</a
+        >
+        <a
+          href="/docs/"
+          class="border-[1.5px] border-legend px-5 py-3 font-display text-[15px] font-black uppercase tracking-[0.06em] text-legend no-underline hover:border-yellow hover:text-yellow"
+          >Hardware documentation</a
+        >
+      </div>
+    </section>
+  </div>
+
+  <CtaBand
+    source="about"
+    heading="Follow it?"
+    body="Rodeo goes to Kickstarter in January 2027. The waitlist hears first, and the build log arrives as it is written."
+  />
+</BaseLayout>

@@ -33,7 +33,7 @@ Statuses:
 ## The split that matters
 
 The product is the **platform**; `rodeo-001` is a **reference build**
-([WEB_DISCOVERY.md](./WEB_DISCOVERY.md)). This is good news for accuracy, because the
+([WEB_DISCOVERY.md](https://github.com/dotrodeo/rodeo-internal/blob/main/web/docs/WEB_DISCOVERY.md)). This is good news for accuracy, because the
 platform is the mature half and almost every unfinished thing belongs to the demo.
 
 ## The second axis: board revision
@@ -125,7 +125,7 @@ images and the hero. A photograph of a Rev-A board presented as the product, whe
 with a different channel count and possibly a live USB port, is exactly the grievance that
 sinks a campaign's comment section.
 
-Showing the prototypes is right — see [WEB_DISCOVERY.md](./WEB_DISCOVERY.md), "Prototypes are
+Showing the prototypes is right — see [WEB_DISCOVERY.md](https://github.com/dotrodeo/rodeo-internal/blob/main/web/docs/WEB_DISCOVERY.md), "Prototypes are
 an asset". Showing them *unlabelled* is not.
 
 ---
@@ -241,11 +241,48 @@ the only 12-voice code is the scaffold. Don't conflate them.
 | **`MiniFreak`** | A competitor's product name, used throughout the internal docs as voice shorthand. It must never reach public copy. |
 | Any **price**, including "TBA" | `boards.ts` has no price field at all. An early wrong number anchors the campaign badly, and platform pricing depends on kit composition, which is undecided. |
 | `pre-order` | Not a thing that exists |
-| `open source` **before the LICENSE files land** | Openness is decided; the files are not written. Gate the words on the files existing. |
+| ~~`open source`~~ **— lifted 2026-10-16** | The LICENSE files landed with the Rev-B merge, so the gate that made this a banned phrase is satisfied. See "Saying it accurately" below; the phrase is now allowed and the *licence names* are what need care. |
 | **Bumble, Honey, Fizz** | Agent personas in the engineering docs, not team credits |
-| `USB MIDI`, `USB audio` | Panel USB-C is power only |
+| `USB MIDI`, `USB audio` | **Rev-scoped since 2026-10-15.** Banned for Rev-A, where the panel USB-C is power only. Permitted for Rev-B as `planned`, never as a capability, until a Rev-B board has done it on a bench. |
 | `unison`, `mono mode`, `hard sync` | Planned on `rodeo-001`, not built |
 | `preset`, `effects` | **Scope-dependent.** Banned for platform and `rodeo-001` copy; permitted for `rodeo-002`, where both now exist — see "Reference builds — there are now two". The banned list must become per-scope. |
+
+## Saying it accurately — the licences
+
+**Settled 2026-10-16.** `LICENSE` and `LICENSES/` are on `main`, so "open source" is
+true and may be said plainly. What replaces the old ban is a narrower rule: **the
+licence names and what they require are legal statements, and getting them wrong is
+worse than saying nothing.**
+
+| Part | Licence |
+|---|---|
+| Hardware — KiCad projects, Gerbers, BOMs, placement and panel files | **CERN-OHL-W-2.0** |
+| Software — `rodeo-sdk`, the firmware trees, `tools/` | **MIT** |
+| Documentation | **CC-BY-SA-4.0** |
+
+Copyright is **DOT RODEO LLC**, and the published source location is
+`https://github.com/dotrodeo/rodeo`.
+
+Three things the site must not get wrong:
+
+1. **CERN-OHL-W is *weakly* reciprocal, and the W matters.** Modify a Rodeo design and
+   distribute it and your modified design files must be published under the same
+   licence — but a product that merely *uses* Rodeo boards, or connects to them through
+   their published interfaces, does not have to be open. Do not describe this as
+   "strongly reciprocal", as CERN-OHL-S, or as "any product using Rodeo must be open".
+   That would deter exactly the commercial builders the permissive boundary was chosen
+   to attract.
+2. **It is three licences, not one.** "Rodeo is MIT" is wrong and so is "Rodeo is
+   CERN-OHL". Name the part if the licence is named at all.
+3. **`rodeooh.rodeo/source` is printed on the Rev-B boards** as their CERN-OHL-W source
+   location, so that redirect must keep working for as long as those boards exist. It
+   lives in `web/public/_redirects`. Point it somewhere new if the repository moves;
+   never remove it.
+
+**One thing still pending:** the repository is private until launch, so the GitHub links
+on the site — and the `/source` redirect the boards carry — resolve to a 404 for
+visitors in the meantime. That resolves itself when the repo goes public, and needs no
+code change.
 
 ## Sourcing caveat — two docs disagree
 
