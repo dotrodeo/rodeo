@@ -19,10 +19,10 @@ wrong place. This script downloads each part's EasyEDA footprint (kept in
 easyeda-footprints/), finds the 90-degree rotation and offset that puts JLC's pads on
 ours with matching pin numbers (PAD_ALIASES maps KiCad pad names such as a jack's
 T/R/S to JLC's numbers), and writes that. Bottom-side parts are solved against JLC's
-footprint flipped top-to-bottom, with the rotation counter-clockwise as seen from the
-top. JLC doesn't document this; it was confirmed against their order preview on
-2026-10-16 (a left-right flip put U1 and an LED 180 degrees out). Still check
-polarised bottom parts in the preview. Pin numbers carry polarity, so
+footprint flipped left-right, and their CPL rotation is written clockwise as seen
+from the top, which is how JLC reads it (worked out from their order preview on
+2026-10-16; see cpl_rotation). JLC doesn't document this, so still check polarised
+bottom parts in the preview. Pin numbers carry polarity, so
 diodes and electrolytics come out right too. Parts whose best fit is worse than
 --tolerance mm are listed: check those by eye in placement-check.png.
 
@@ -52,6 +52,9 @@ EASYEDA_CACHE = os.path.join(HERE, 'easyeda-footprints')
 PAD_ALIASES = {
     'C431535': {'S': '1', 'R2': '2', 'R1': '3', 'T': '4'},   # PJ-320D, Jack_3.5mm_PJ320D_Horizontal
     'C143790': {'A': '1', 'C': '2', 'B': '3', 'S2': '4', 'S1': '5', 'MP': '7'},  # PEC11R-S on the EC11E-Switch footprint
+    # LTST-C230 reverse-mount LED: JLC's pad 1 is the anode, KiCad's LED pad 1 is the
+    # cathode (JLC's preview showed its + on our cathode pad, 2026-10-16).
+    'C125107': {'1': '2', '2': '1'},
 }
 
 
@@ -111,22 +114,21 @@ def easyeda_footprint(code):
 def ee_local(ee, mirror=False):
     """EasyEDA pads relative to the footprint origin, cartesian, in mm.
 
-    mirror: the footprint as seen from the top when JLC places it on the bottom side,
-    flipped top-to-bottom (y -> -y). Confirmed on the first satellite order
-    (2026-10-16): with a left-right flip, U1 (TSSOP-20) and D1 (LED) came out 180
-    degrees wrong in JLC's preview.
+    mirror: the footprint as seen from the top when it sits on the bottom side,
+    flipped left-right (x -> -x).
     """
     bx, by = ee['bbox']
     s = -1 if mirror else 1
-    return [dict(q, x=q['x'] - bx, y=-s * (q['y'] - by)) for q in ee['pads']]
+    return [dict(q, x=s * (q['x'] - bx), y=-(q['y'] - by)) for q in ee['pads']]
 
 
 def solve(kpads, ee, mirror=False):
     """Best (R, X, Y, err) placing EasyEDA footprint `ee` on KiCad pads `kpads`.
 
-    For a bottom-side part (mirror=True) JLC's footprint is flipped top-to-bottom,
-    then rotated by R counter-clockwise as seen from the top, the same sense as on
-    the top side.
+    For a bottom-side part (mirror=True) the footprint is flipped left-right and R
+    is counter-clockwise as seen from the top, like every other R here. JLC reads a
+    bottom-side CPL rotation the other way (clockwise from the top), so the CPL
+    writes -R for those parts; see cpl_rotation().
     """
     local = ee_local(ee, mirror)
     byn = {}
@@ -149,6 +151,18 @@ def solve(kpads, ee, mirror=False):
     if best is None:
         return None
     return dict(R=best[2], X=best[3], Y=best[4], err=max(best[0], best[1]), mirror=mirror)
+
+
+def cpl_rotation(s):
+    """The CPL Rotation for a solved placement.
+
+    Bottom side: JLC flips the footprint left-right and turns it clockwise as seen
+    from the top. Established on the first satellite order (2026-10-16) from two
+    preview checks: R as written put U1 (TSSOP-20) 180 degrees out; flipping
+    top-to-bottom instead fixed U1 but put the JST SH connectors 180 degrees out.
+    Negating R satisfies both.
+    """
+    return (-s['R'] if s['mirror'] else s['R']) % 360
 
 
 def check_image(path, fps, placed, eefp, outline):
@@ -185,10 +199,10 @@ def check_image(path, fps, placed, eefp, outline):
             if q['num'] == '1':
                 ax.plot(x + s['X'], y + s['Y'], 'x', color='red', ms=4, mew=1)
         bx, by = ee['bbox']
-        sy = -1 if s.get('mirror') else 1
+        sx = -1 if s.get('mirror') else 1
         for line in ee['silk']:
             v = [float(z) for z in str(line).split()]
-            pts = [rotate(v[i] * 0.254 - bx, -sy * (v[i + 1] * 0.254 - by), s['R']) for i in range(0, len(v) - 1, 2)]
+            pts = [rotate(sx * (v[i] * 0.254 - bx), -(v[i + 1] * 0.254 - by), s['R']) for i in range(0, len(v) - 1, 2)]
             ax.plot([p[0] + s['X'] for p in pts], [p[1] + s['Y'] for p in pts], color='#1f6fd1', lw=0.5)
         ax.text(s['X'], s['Y'] + 0.3, ref + (' (bottom)' if s.get('mirror') else ''), fontsize=5, ha='center')
     ax.set_aspect('equal')
@@ -268,7 +282,7 @@ def main():
         for r in sorted(placed, key=refkey):
             s = placed[r]
             w.writerow([r, nl.parts[r]['value'], fps[r]['lib'].split(':')[-1],
-                        f"{s['X']:.4f}", f"{s['Y']:.4f}", f"{s['R'] % 360:.1f}",
+                        f"{s['X']:.4f}", f"{s['Y']:.4f}", f"{cpl_rotation(s):.1f}",
                         'bottom' if s['mirror'] else 'top'])
     if not a.no_check_image:
         check_image(os.path.join(out, 'placement-check.png'), fps, placed, eefp, pcb_outline(pcb))
