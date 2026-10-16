@@ -1,0 +1,104 @@
+---
+title: Satellite chain
+description: The wire contract for Rodeo's control satellites — connector, line rate, how the ring closes itself, frame layout and slot kinds.
+---
+
+The chain is the reason a Rodeo panel can grow without the motherboard changing.
+Each satellite carries a cent-scale microcontroller, reads its own controls, and
+passes frames along a ring. **A satellite's position in the chain is its
+address**, so there is nothing to configure and no jumpers to set.
+
+This page is the short version. The contract in full — discovery, commands,
+fault codes, programming — is
+`rev-b/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md`.
+
+## Connector
+
+Every satellite has an **IN** and an **OUT**, both **JST SH 5-pin**. The
+motherboard has one chain connector wired like a satellite's OUT.
+
+| Pin | Signal | On a satellite |
+|---|---|---|
+| 1 | GND | — |
+| 2 | 3V3 | Supply in, passed straight through to OUT |
+| 3 | `DATA_FWD` | MCU RX on IN, MCU TX on OUT |
+| 4 | `DATA_RET` | Straight through, with the MCU's return tap on it |
+| 5 | `PRESENT` | Tied to GND on IN; an input with a pull-up on OUT |
+
+`DATA_FWD` is point to point — one transmitter and one receiver per cable.
+`DATA_RET` is a single wire from the end of the chain back to the Seed, passing
+through every satellite.
+
+## Line
+
+| | |
+|---|---|
+| Format | UART, 8N1, LSB first, idle high |
+| Rate | **1 Mbaud** |
+| Levels | 3.3 V CMOS; satellites run directly from the chain supply |
+| Seed side | USART3 — TX on pin 3, RX on pin 2 |
+
+## The ring closes itself
+
+At boot and every millisecond after, each satellite reads the `PRESENT` pin on
+its OUT connector.
+
+- **Low** — something is plugged in downstream, so transmit on `DATA_FWD`.
+- **High** — this is the last satellite, so move the UART's transmit onto the
+  `DATA_RET` tap. Frames then travel back along the return wire to the Seed.
+
+No terminator plug, and nothing to configure when a panel grows. A satellite
+drives the return tap only while it is actually transmitting; the rest of the
+time the tap is high-impedance and the motherboard's pull-up holds the line
+idle, so two satellites can never fight over the return wire.
+
+## Frames
+
+A 4-byte header followed by N slots of 4 bytes, at most 260 bytes — 2.6 ms at
+1 Mbaud.
+
+**Header**
+
+| Byte | Field |
+|---|---|
+| 0 | `SOF`, `0xA5` for protocol v1 |
+| 1 | `TYPE` — `0x01` scan, `0x02` discover, `0x03` command |
+| 2 | `N`, slots that follow, 0–64 |
+| 3 | `HOP`, satellites passed through so far |
+
+**Slot** — `KIND`, `D0`, `D1`, then a CRC-8 over the first three bytes
+(polynomial `0x07`, init `0x00`, CRC-8/SMBUS).
+
+## Slot kinds
+
+Satellites **report state, not events**. If a frame is lost nothing is missed:
+counters wrap, and the Seed works out what changed from the difference with the
+last good value.
+
+| `KIND` | Name | Carries |
+|---|---|---|
+| `0x01` | `POT` | 16-bit position, scaled 0–65535 whatever the ADC's resolution |
+| `0x02` | `BUTTON` | Pressed-now bit, plus a press counter that wraps at 256 |
+| `0x03` | `ENCODER` | Detent counter wrapping at 256, plus switch state and its counter |
+| `0x04` | `SWITCH` | Position index |
+| `0x7F` | `FAULT` | Fault code and detail |
+| `0x10` | `LED` | Seed to satellite: brightness, and steady or blinking |
+
+## Timing
+
+One frame is in the ring at a time. The Seed sends the next after the previous
+returns, or after a timeout.
+
+- Ring time ≈ (4 + 4N) × 10 µs + 40 µs per satellite. For thirty one-slot
+  satellites that is about **2.5 ms**.
+- Default scan period **4 ms**, so 250 scans a second. A control change reaches
+  the Seed within roughly one period plus one ring time — about 6.5 ms worst
+  case across thirty satellites.
+- Scans are paced from a timer, never from the audio callback.
+
+## Power
+
+About **6 mA per satellite** including its indicator LED, budgeted for thirty on
+one feed through a 0.75 A resettable fuse. The last of thirty sits roughly 0.4 V
+below the motherboard, so satellites must work down to 2.7 V. Anything
+LED-heavy — RGB, meters — needs its own supply rather than the chain's.

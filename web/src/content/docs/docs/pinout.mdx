@@ -1,0 +1,81 @@
+---
+title: Pinout
+description: Every pin on the Daisy Seed's 40-pin header in Rev B, the general-purpose I/O connectors, and the SPI expansion header.
+---
+
+Rev B spends every pin on the Daisy's 40-pin header. Rev A left seven unconnected
+and dead-ended the USB data lines; none of that survives.
+
+## The 40-pin header
+
+| Seed pin | STM32 | Rev B use |
+|---|---|---|
+| 1 | PB12 | SPI expansion chip-select, 10 kΩ pull-up |
+| 2 | PC11 | Satellite chain **RX** (USART3) |
+| 3 | PC10 | Satellite chain **TX** (USART3) |
+| 4 | PC9 | Second codec reset |
+| 5–7 | PC8, PD2, PC12 | SD card, 1-bit SDMMC |
+| 8 | PG10 | I/O connector `D1` — digital only |
+| 9–11 | PG11, PB4, PB5 | SPI1 to the expansion header |
+| 12–13 | PB8, PB9 | I²C1, four taps, pull-ups on the motherboard |
+| 14–15 | PB6, PB7 | MIDI (USART1) |
+| 16–19 | — | Onboard codec in and out (SAI1) |
+| 22–28 | PC0, PA3, PB1, PA7, PA6, PC1, PC4 | I/O connectors `A1`–`A7` — digital or analog |
+| 29–30 | PA5, PA4 | I/O connectors `CV2`, `CV1` — DAC out or analog in |
+| 31–35 | PA1, PA0, PD11, PG9, PA2 | Second codec (SAI2): MCLK, data in, data out, LRCK, SCLK |
+| 36–37 | PB14, PB15 | USB data, out to the power board |
+| 39–40 | — | VIN, GND |
+
+Two notes worth having before you plan around it:
+
+- **PB1 (pin 24) and PC1 (pin 27) share external-interrupt line 1.** Do not plan
+  both as interrupt-driven clock or gate inputs.
+- **Pin 8 is the only I/O connector that cannot read analog.** The other seven,
+  plus the two DAC pins, reach the Seed's own converter.
+
+## General-purpose I/O connectors
+
+Ten connectors, all the same 3-pin JST SH, in the pinout `rodeo-potentiometer`
+already uses — so that board plugs straight into any analog-capable one.
+
+| Pin | Signal |
+|---|---|
+| 1 | GND |
+| 2 | Signal, through 1 kΩ at the connector |
+| 3 | `+3V3_A` |
+
+The 1 kΩ series resistor protects the pins — two of them are not 5 V tolerant —
+and does not affect internal pull-ups, pot readings, or a DAC driving an op-amp.
+
+:::caution[No 5 V on these connectors]
+A four-pin version would be the I²C taps' connector, and an encoder hub plugged
+into one of those by mistake would put `+5V_A` on its SCL line.
+:::
+
+The supply is `+3V3_A`, the quiet LDO rail. Ten 10 kΩ pots draw about 3 mA of its
+300 mA, and a shorted panel cable hits the LDO's current limit and takes down
+only these connectors.
+
+**CV outputs** reach 0–3.3 V, so useful CV ranges need an op-amp stage. That
+belongs on the jack board, powered from the audio ribbon.
+
+## SPI expansion header
+
+Seven pins, for the optional ADC expander or a display.
+
+| Pin | Signal |
+|---|---|
+| 1 | `+3V3_D` |
+| 2 | GND |
+| 3 | `SPI_MOSI`, 33 Ω at the Seed |
+| 4 | `SPI_MISO` |
+| 5 | `SPI_SCK`, 33 Ω at the Seed |
+| 6 | `SPI_EXT_CS`, 10 kΩ pull-up |
+| 7 | `+3V3_A`, for the expander's ratiometric pots |
+
+An SPI display works here too, but most need a data/command pin and often a
+reset pin beyond SPI — those come from the general-purpose I/O connectors. A
+second SPI device needs a second chip-select, which this header does not have.
+
+Full reasoning, including what still needs bench work:
+`rev-b/rodeo-motherboard/docs/rev-b.md`.

@@ -1,0 +1,54 @@
+---
+title: Hardware documentation
+description: Pinouts, connector contracts and mechanical dimensions for the Rodeo platform — the things worth reading before you design a panel around it.
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Everything here describes **Rev B**, the version the campaign ships. It is written
+for the person deciding whether to build on this platform, which means it leads
+with the connectors, the contracts and the dimensions rather than the pitch.
+
+:::caution[No Rev B board has been fabricated]
+The motherboard's schematic is in progress and the daughterboards are drawn and
+routed with fab outputs waiting. Nothing on these pages has been measured on a
+Rev B board, because none exists yet. Where a number was proven on the Rev A
+prototype it says so, and [the prototype page](/prototype/) covers what that
+hardware actually demonstrated.
+:::
+
+## Start here
+
+<CardGrid>
+  <LinkCard
+    title="Pinout"
+    href="/docs/pinout/"
+    description="Every pin on the Daisy's 40-pin header, the general-purpose I/O connectors, and the SPI expansion header."
+  />
+  <LinkCard
+    title="Satellite chain"
+    href="/docs/satellite-chain/"
+    description="The wire contract: connector, line rate, how the ring closes itself, frame layout and slot kinds."
+  />
+  <LinkCard
+    title="Mechanical"
+    href="/docs/mechanical/"
+    description="Board outlines, the 25 mm panel grid, and how boards mount inside an enclosure."
+  />
+</CardGrid>
+
+## What is not here yet
+
+The firmware side lives in [rodeo-sdk](/sdk/). Enclosure drawings, a panel
+template and the Rev B bring-up guide are still to be written — they wait on
+boards to bring up.
+
+## The sources
+
+These pages summarise documents in the repository, which stay authoritative:
+
+| Document | What it covers |
+|---|---|
+| `rev-b/rodeo-motherboard/docs/rev-b.md` | The motherboard: every decision, with the reasoning and what still needs bench work |
+| `rev-b/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md` | The satellite chain, in full: framing, discovery, commands, fault codes, timing |
+| `rodeo-motherboard/docs/hardware-map.md` | Rev A, for anyone working with a prototype board |

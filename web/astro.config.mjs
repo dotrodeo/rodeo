@@ -59,6 +59,15 @@ export default defineConfig({
       ],
       sidebar: [
         {
+          label: 'Hardware',
+          items: [
+            { label: 'Overview', slug: 'docs' },
+            { label: 'Pinout', slug: 'docs/pinout' },
+            { label: 'Satellite chain', slug: 'docs/satellite-chain' },
+            { label: 'Mechanical', slug: 'docs/mechanical' },
+          ],
+        },
+        {
           label: 'Start here',
           items: [
             { label: 'Overview', slug: 'sdk' },

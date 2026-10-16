@@ -1,0 +1,58 @@
+---
+title: Mechanical
+description: Board outlines, the 25 mm panel grid, and how Rodeo boards mount inside an enclosure.
+---
+
+## Board outlines
+
+Measured from each board's KiCad Edge.Cuts layer.
+
+| Board | Outline |
+|---|---|
+| `rodeo-motherboard` | 90 × 112 mm |
+| `rodeo-pot-bank-4` | 20 × 100 mm |
+| `rodeo-encoder-bank-4` | 20 × 100 mm |
+| `rodeo-audio-3.5mm` | 60 × 30 mm |
+| `rodeo-midi` | 40 × 25 mm |
+| `rodeo-power-usbc` | 40 × 20 mm |
+| `rodeo-power-barrel` | 60 × 40 mm |
+
+## The 25 mm grid
+
+Controls sit on **25 mm centres**, which is what lets a pot bank and an encoder
+bank stand side by side on one panel with their knobs in line. Both bank boards
+are the same 20 × 100 mm outline for the same reason.
+
+The two differ in one detail worth knowing before you drill: the pot bank's
+shafts sit 1.53 mm further along the board than the encoder bank's. Knob
+spacing is identical; the whole row is offset.
+
+:::caution[Panel holes changed from Rev A]
+The pot bank uses pots with **M9 bushings**, so panel holes are Ø9.5 mm. The Rev
+A panel's Ø7.4 mm holes were sized for M7 pots and are too small. Encoders still
+use M7.
+:::
+
+Pots and encoders both present 15 mm of shaft above their mounting face, so
+knobs sit at the same height across a mixed panel.
+
+## How boards mount
+
+**Satellites hang from the panel.** The pots or encoders are through-hole on the
+top side and the board hangs on their bushings and nuts — no standoffs, no
+brackets. Everything else on those boards is surface-mount on the underside,
+which also keeps assembly single-sided.
+
+**Everything else sits on printed parts** on the enclosure floor:
+
+- a **rear rail** carrying the back panel and every rear-I/O daughterboard —
+  power, audio jacks, MIDI;
+- a **motherboard frame**, which can go anywhere on the floor.
+
+Daughterboards mount on M3 × 8 mm standoffs. Details and the printable parts are
+in `rev-b/mounting/README.md`.
+
+:::note[Still a working draft]
+The mounting system was accepted as a draft and paused until every daughterboard
+is drawn. Treat the dimensions as settled and the arrangement as provisional.
+:::
