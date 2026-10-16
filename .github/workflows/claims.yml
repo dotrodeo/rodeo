@@ -24,6 +24,9 @@ on:
       - 'rodeo-potentiometer/**'
       - 'rodeo-button/**'
       - 'web/src/data/**'
+      - 'web/docs/**'
+      - 'web/scripts/check-claims.mjs'
+      - 'rev-b/**'
       - '.github/workflows/claims.yml'
   pull_request:
     paths:
@@ -36,6 +39,9 @@ on:
       - 'rodeo-potentiometer/**'
       - 'rodeo-button/**'
       - 'web/src/data/**'
+      - 'web/docs/**'
+      - 'web/scripts/check-claims.mjs'
+      - 'rev-b/**'
       - '.github/workflows/claims.yml'
   workflow_dispatch:
 
@@ -52,16 +58,23 @@ jobs:
         with:
           submodules: false
           fetch-depth: 1
+          # Same file list as web.yml, which explains it: non-cone mode so the Rev B
+          # board folders contribute their markdown and not their fab outputs. Keep
+          # the two lists identical; both run check-claims.mjs.
+          sparse-checkout-cone-mode: false
           sparse-checkout: |
-            web
-            rodeo-sdk
-            rodeo-motherboard/docs
-            rodeo-motherboard/kicad
-            rodeo-001/docs
-            rodeo-encoder-hub/firmware
-            rodeo-potentiometer
-            rodeo-encoder
-            rodeo-button
+            /web/
+            /rodeo-sdk/
+            /rodeo-motherboard/docs/
+            /rodeo-motherboard/kicad/
+            /rodeo-001/docs/
+            /rodeo-001/firmware/src/
+            /rodeo-002/firmware/common/
+            /rodeo-encoder-hub/firmware/
+            /rodeo-potentiometer/
+            /rodeo-encoder/
+            /rodeo-button/
+            /rev-b/**/*.md
       - uses: actions/setup-node@v4
         with:
           node-version-file: web/.nvmrc
