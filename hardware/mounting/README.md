@@ -128,7 +128,7 @@ above the PCB**: one rule for every board, so panel cut-outs line up.
 | M3 × 6 mm screws | board to standoff |
 | M3 countersunk screws | rail and frame to the floor, length to suit the floor |
 
-## Board status (2026-10-13)
+## Board status (2026-10-17)
 
 | Board | Check | Status |
 |---|---|---|
@@ -138,3 +138,24 @@ above the PCB**: one rule for every board, so panel cut-outs line up.
 | `rodeo-midi` | `--rear top` | **Passes:** 40 × 25 mm, holes at (5, 15) and (35, 15); jack bodies flush, collars +1.85 mm. |
 | `rodeo-power-barrel` | `--rear top` | **Passes:** 60 × 40 mm, holes at (5, 15) and (55, 15) either side of the barrel jack; J1 +0.35 mm, J3 +0.50 mm. |
 | `rodeo-power-switch` | `--rear top` | **Passes:** 30 × 20 mm, holes at (5, 15) and (25, 15); SW1's body flush with the I/O edge, plunger +4.93 mm (through the panel by design). |
+
+**Assembly check, 2026-10-17**, with every Rev B board drawn: barrel power,
+power switch, MIDI and 3.5 mm audio boards side by side on a 190 mm rail, the
+motherboard on its frame behind them with its ribbon edge toward the rail
+(rendered from each board's KiCad 3D export at z = 14). Nothing collides, and
+every connector meets the panel's inner face.
+
+* **Leave one empty 10 mm cell between neighbouring boards.** Every board is a
+  multiple of 10 mm wide with its holes 5 mm in from each end, so on adjacent
+  bosses two boards meet edge to edge with no gap. JLC's outline tolerance is
+  ±0.2 mm, so they can bind. A full rear set (one power board, the switch, MIDI,
+  audio) is 170–190 mm of boards, 200–220 mm of rail with the gaps.
+* **Tallest part on the rail:** the barrel jack, 26.6 mm above the floor; the
+  audio board's ribbon header reaches 24.7 mm. The back panel's openings run
+  from 16.1 to 27.6 mm; make it at least 35 mm tall.
+* **Rail to motherboard:** the deepest rear board (barrel, 40 mm) ends 40 mm
+  from the panel and the rail's back row of bosses is at 35 mm, so put the
+  motherboard's near edge at least 45 mm from the panel; 60 mm leaves room
+  for the 2×10 ribbon between the audio board and J4.
+* Unused bosses under a board are harmless: the lowest through-hole leads stop
+  about 12 mm above the floor, 6 mm clear of the boss tops.

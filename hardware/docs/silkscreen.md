@@ -20,7 +20,7 @@ on the panel.
 | Pin 1 / key on every connector | footprint markers (check they survived) | **Needed** | Builders plug in every cable |
 | Connector function names | e.g. `CHAIN IN`, `TO MOTHERBOARD MIDI` | **Needed** | The reference designator (J2) means nothing to a builder |
 | Polarity marks | `+` on electrolytics and power connectors, diode/LED cathode bars | **Needed** | Usually from the footprint; check |
-| JLC order-number marker | `JLCJLCJLCJLC` on the back, in an out-of-the-way spot, with "specify a location" ticked when ordering | **Needed** | Otherwise JLC prints its order number where it likes, possibly on the visible face |
+| JLC order-number marker | Not needed: JLC now omits its order number by default (2026-10-17) | — | Otherwise JLC prints its order number where it likes, possibly on the visible face |
 | Copyright | `© 2026 DOT RODEO LLC` | After | The licence notice covers most of it; nice for provenance |
 | QR code to that board's docs page | | After | The motherboard already has one; one per board is a nicety |
 | Serial / QC box | a small empty rectangle to mark "tested" or a serial | After (but useful for the run) | ~1,150 boards to test for 50 kits; a tick box makes it obvious which are done |
@@ -110,8 +110,9 @@ Connector function labels, pin-1 marks and the items below are in.
 
 Decided and deferred:
 
-* **No JLC order-number marker** for now (Derek, 2026-10-15): JLC places its order
-  number where it chooses.
+* **No JLC order-number marker** (Derek, 2026-10-17): JLC now leaves its order
+  number off by default, and it can be removed entirely when ordering, so no
+  board needs a `JLCJLCJLCJLC` placeholder.
 * **Source links** print the future GitHub organisation (`github.com/dotrodeo/rodeo`
   on the motherboard) and `rodeooh.rodeo/source` on the daughterboards. Before the
   first Rev B production order: rename the organisation, set up the
