@@ -8,6 +8,13 @@ rib_w = 2.4;         // open-frame ribs (3 perimeters of a 0.4 mm nozzle)
 rib_h = 4;
 floor_hole_d = 3.4;  // M3 screw to the floor, countersunk from the top
 csk_d = 6.4;
+
+// Back panels: one FR4 panel per rear board, screwed to the rails with four M3
+// screws, Eurorack-style. Panel bottom edge on the floor, inner face at y = 0.
+panel_t = 1.6;       // FR4 thickness; the panel sits at -panel_t < y < 0
+panel_h = 40;        // panel height
+panel_hole_inset = 5;  // screw holes this far from the top and bottom edges
+rail_wall_t = 7;     // depth (y) of the walls that take the panel screws' inserts
 $fn = 40;
 
 // boss with an insert hole from the top

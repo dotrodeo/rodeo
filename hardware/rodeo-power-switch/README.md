@@ -8,8 +8,9 @@ connector: R12 (10 kΩ, in series from the battery), R13 (47 kΩ to GND) and the
 [`rev-b.md`, "Power"](../rodeo-motherboard/docs/rev-b.md#power)).
 
 Designed 2026-10-16: drawn, laid out, routed and DRC-clean, fab outputs in
-`jlcpcb/`. The button gets a 3D-printed cap, because the plunger alone
-barely clears the 3 mm back panel (see [Cap](#cap)).
+`jlcpcb/`. The plunger goes through the 1.6 mm panel's 4.0 × 3.5 mm slot
+([`panels/rodeo-power-switch-panel`](../panels/rodeo-power-switch-panel/)) and is
+usable bare; a 3D-printed cap is optional (see [Cap](#cap)).
 
 ## Connections
 
@@ -56,8 +57,8 @@ The contacts are silver-plated and carry 50–75 µA when on; that's why R13 is
 * **Outline 30 × 20 mm**, I/O edge on top.
 * **SW1 at (15, 3.70), rotation 180°**: plunger pointing up, body front flush with
   the I/O edge (the footprint's body front is 3.70 mm from its origin). The plunger
-  then reaches 4.8 mm past the edge: 1.8 mm through the 3 mm panel when out,
-  about flush when latched (2 mm travel).
+  then reaches 4.8 mm past the edge: 3.3 mm proud of the 1.6 mm panel when
+  out, 1.3 mm when latched (2 mm travel).
 * **M3 holes at (5, 15) and (25, 15)**: rail row 1, 20 mm apart. Check with
   `tools/kicad/grid_check.py rodeo-power-switch.kicad_pcb --rear top`.
 * **J1** between the holes, behind the switch (around (15, 14)), cable leaving
@@ -65,13 +66,14 @@ The contacts are silver-plated and carry 50–75 µA when on; that's why R13 is
 * Two layers, two traces. No pour needed.
 
 **Panel opening:** centred on SW1, **18.5 mm above the floor** (board top 15.6 mm,
-plunger centre 2.90 mm above the board, measured from the 3D model). The size
-follows the cap: cap outline plus 0.3 mm a side.
+plunger centre 2.90 mm above the board, measured from the 3D model): a 4.0 ×
+3.5 mm slot, r 0.5, clearing the plunger's 3.4 × 2.9 mm shoulder where it passes
+the panel. A cap would need the slot widened to its outline plus 0.3 mm a side.
 
 ## Cap
 
-Printed, to be drawn in OpenSCAD alongside the mounting parts
-(`hardware/mounting/`). It presses onto the plunger, so it is made to the
+Optional since the panels went to 1.6 mm, and not drawn yet. If added: printed,
+in OpenSCAD alongside the mounting parts (`hardware/mounting/`). It presses onto the plunger, so it is made to the
 plunger's measured shape (datasheet and 3D model agree):
 
 * first 2 mm past the body front: 3.4 mm wide × 2.9 mm tall

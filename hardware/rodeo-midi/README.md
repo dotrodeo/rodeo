@@ -58,9 +58,9 @@ both.
 * **M3 holes at (5, 15) and (35, 15)**: rail row 1, 30 mm apart, clear of the
   jacks. Check with `tools/kicad/grid_check.py rodeo-midi.kicad_pcb --rear top`.
 * **J1** behind the jacks, near the back edge, cable leaving upward.
-* **Panel:** the audio board's jack cut-out, Ø5 mm with a Ø9 × 1 mm counterbore
-  from the outside, centre ≈18.2 mm above the floor (mounting README's cut-out
-  table).
+* **Panel:** [`panels/rodeo-midi-panel`](../panels/rodeo-midi-panel/), Ø6 mm
+  through for each jack's Ø5.5 collar, centre ≈18.2 mm above the floor (mounting
+  README's cut-out table).
 * Two layers, `GND` pour on the bottom around OUT and J1 only; keep it away from
   J2's pads and the IN traces.
 

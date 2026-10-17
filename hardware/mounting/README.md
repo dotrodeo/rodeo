@@ -1,11 +1,17 @@
 # Rodeo mounting system
 
-Defined 2026-10-13. Inside a Rodeo, two printed parts sit on the enclosure's
-solid floor and carry every board that isn't on the top panel:
+Defined 2026-10-13; back panels added 2026-10-17. Inside a Rodeo, printed parts
+sit on the enclosure's solid floor and carry every board that isn't on the top
+panel:
 
-* **The rear rail** holds the back panel and every rear-I/O daughterboard
-  (power, power switch, audio jack board, MIDI jacks).
+* **The rear rail** holds every rear-I/O daughterboard (power, power switch,
+  audio jack board, MIDI jacks) and the bottom edge of their back panels.
+* **The top rail** sits on the rear rail's end posts and holds the back panels'
+  top edge.
 * **The motherboard frame** holds the motherboard, anywhere on the floor.
+
+The back wall is a row of **FR4 panels, one per rear board**, screwed to the two
+rails Eurorack-style (see [Back panels](#back-panels)).
 
 Both are open rib frames (the floor underneath is solid), screwed to the floor
 through countersunk lugs. Boards mount on M3 heat-set inserts in the parts'
@@ -16,37 +22,49 @@ not part of this: they hang from the top panel on their own bushings (see
 ## The rear rail ([`rodeo_rear_rail.scad`](rodeo_rear_rail.scad))
 
 ```
-        back panel (in the groove)
-  ════════════════════════════════════════  ← panel inner face, y = 0
+        back panels, outside y = 0
+  ════════════════════════════════════════  ← panels' inner face, y = 0
+  █▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬█  ← panel wall, inserts every 10 mm; end posts
    ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢    ← row 1, y = 15 mm
    ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢    ← row 2, y = 35 mm
    bosses every 10 mm along the panel
 ```
 
-* A groove along the back takes the back panel's bottom edge. **The groove's
-  inner wall ends at the panel's inner face: y = 0**, the line everything is
-  measured from.
+* **The panels' inner face is y = 0**, the line everything is measured from. A
+  wall 9 mm tall and 7 mm deep runs along it, with horizontal M3 inserts at
+  x = 10, 20, 30, ... for the panels' bottom screws (z = 5).
+* **An end post at each end** (7 × 7 mm, 31 mm tall, behind the panel line)
+  carries the top rail, which screws down into an insert in each post's top.
 * **Two rows of insert bosses, at 15 mm and 35 mm from the panel**, one every
   10 mm along it (both settable).
+* **Board bosses are at x = 5, 15, 25, ...**; a board's left end goes on a 10 mm
+  mark, **at x = 10 or later and ending 10 mm short of the far end**, so its
+  panel (5 mm wider each side) stays clear of the posts. Leave one empty 10 mm
+  cell between boards.
 * Length in 10 mm steps. A rail longer than the print bed prints in segments;
-  each is screwed to the floor at both ends, and the panel in the groove keeps
-  them in line.
+  each is screwed to the floor at both ends. Set `joints` to choose where it
+  splits: **a joint must sit behind the middle of a panel**, because the insert
+  that would be on it is left out. Give the top rail the same `joints`.
 * Renders in about a minute per 150 mm segment in OpenSCAD 2021.01.
 
 ```
-openscad -D cells=30 -D segment=0 -o rail_0.stl hardware/mounting/rodeo_rear_rail.scad
+openscad -D cells=24 -D 'joints=[140]' -D segment=0 -o rail_0.stl hardware/mounting/rodeo_rear_rail.scad
+openscad -D cells=24 -D 'joints=[140]' -D segment=0 -o top_rail_0.stl hardware/mounting/rodeo_top_rail.scad
 ```
 
 The console says how many segments the length needs; export each with `segment`.
+The top rail ([`rodeo_top_rail.scad`](rodeo_top_rail.scad)) is a bar at z = 31–39
+with horizontal inserts at the same 10 mm marks (z = 35); it prints lying on its
+back.
 
 ### Rules for rear-I/O daughterboards
 
 1. The **I/O edge** is one board edge. It sits on the panel's inner face.
    Connectors sit with their front face (or, for jacks with a collar, their
    body) at the edge or up to 0.5 mm past it, and the **panel cut-out must let
-   the mating plug seat fully**: the panel is 3 mm thick, so either the opening
-   is big enough for the plug's moulding to reach the connector face, or the
-   panel is counterbored from the outside (see [Back panel cut-outs](#back-panel-cut-outs)).
+   the mating plug seat fully**: the panel is 1.6 mm thick, so the opening has to
+   be big enough for the plug's moulding to reach the connector face (see
+   [Back panel cut-outs](#back-panel-cut-outs)).
    LEDs can sit just behind the edge and shine through a hole.
 2. **M3 holes (`MountingHole_3.2mm_M3`) at 15 mm or 35 mm from the I/O edge**,
    spaced along the edge in multiples of 10 mm. At least two. Small boards use
@@ -60,13 +78,32 @@ The console says how many segments the length needs; export each with `segment`.
 tools/kicad/grid_check.py board.kicad_pcb --rear top      # top = the I/O edge
 ```
 
+## Back panels
+
+One panel per rear board, in [`hardware/panels/`](../panels/), each its own KiCad
+project generated by [`tools/kicad/rear_panels.py`](../../tools/kicad/rear_panels.py)
+from the cut-out table below (rerun it after changing an opening):
+
+* **FR4, 1.6 mm, 40 mm tall**, black soldermask, white silkscreen labels, no
+  copper. Ordered from JLC like the boards (Gerbers only, no assembly).
+* **As wide as its board plus 10 mm**, centred on it: 5 mm overhang each side.
+  With one empty cell between boards, the panels butt together edge to edge.
+* **Four M3 holes**, 5 mm in from each side and from the top and bottom edges:
+  the bottom pair into the rear rail's wall, the top pair into the top rail.
+* Bottom edge on the floor, inner face on y = 0. Drawn as seen from outside, so a
+  board's KiCad left end is on the panel's right.
+* 40 mm takes connectors up to 13 mm tall on the board (a body top at 28.6 mm
+  above the floor; the top rail starts at 31). The barrel jack is 11 mm; a 1/4"
+  jack board around 12 mm still fits. Taller parts need `panel_h` raised in
+  `rodeo_mount_common.scad` and in the generator.
+
 ### Back panel cut-outs
 
-The back panel is 3 mm thick and its inner face is the boards' I/O edge, so
-every connector face sits 2–3 mm inside the panel. A plug only goes in until its
-moulding meets the panel, so each opening has to let the moulding through, or
-be counterbored from the outside, or the plug stops short of full insertion
-(on a TRS jack that puts the tip on the ring contact). Openings per board, with
+The panel's inner face is the boards' I/O edge, so every connector face sits up
+to 1.6 mm inside the panel's outer face. A plug only goes in until its moulding
+meets the panel, so each opening has to let the moulding through or the plug
+stops short of full insertion (on a TRS jack that puts the tip on the ring
+contact). Openings per board, with
 **x measured along the I/O edge from the board's left end in KiCad's top view**
 (seen from behind the synth, the board's left end is on the right) and **heights
 above the enclosure floor** (board top at 15.6 mm: boss 6 + standoff 8 + PCB 1.6):
@@ -78,21 +115,23 @@ above the enclosure floor** (board top at 15.6 mm: boss 6 + standoff 8 + PCB 1.6
 | `rodeo-power-barrel` | J1 USB-C | 15 | ≈17.2 | As above |
 | | J3 barrel jack | 42 | ≈22.1 | Ø11 through (5.5 × 2.1 plug bodies are ≈9–10 mm) |
 | | D1, D2 LEDs | 30.14, 34.64 | ≈16.1 | Ø2.5 through |
-| `rodeo-audio-3.5mm` | J2–J5 jacks | 46.55, 35.5, 24.45, 13.4 | ≈18.2 | Ø5.0 for the jack's collar, counterbored Ø9 × 1 mm deep from the outside |
+| `rodeo-audio-3.5mm` | J2–J5 jacks | 46.55, 35.5, 24.45, 13.4 | ≈18.2 | Ø6.0 through, for the jack's Ø5.5 collar |
 | `rodeo-midi` | J2 IN, J3 OUT | 13, 27 | ≈18.2 | As the audio jacks |
-| `rodeo-power-switch` | SW1 push button | 15 | ≈18.5 | The printed cap's outline plus 0.3 mm a side (cap not drawn yet); the bare plunger is 3.4 × 2.9 mm |
+| `rodeo-power-switch` | SW1 push button | 15 | ≈18.5 | 4.0 × 3.5 mm, r 0.5, for the bare plunger (3.4 × 2.9 mm where it passes the panel); widen it to the cap's outline plus 0.3 mm a side if a cap is added |
 
 * **3.5 mm jacks:** the PJ-320D's body is flush with the I/O edge and its 2 mm
-  collar runs into the panel. The Ø9 counterbore brings the outside surface
-  level with the collar tip, so a plug's moulding seats against the collar.
-  Equivalently, make the panel 2 mm thick around the jacks.
-* **USB-C:** the receptacle face is ≈2.6 mm inside the panel. An opening only
-  the size of the receptacle (≈9.6 × 3.8) stops the overmould short and the plug
-  won't latch; open it to the overmould size through the full thickness.
-* **Barrel jack:** the jack face is ≈2.5 mm inside the panel; the Ø11 opening
-  lets the plug body reach it.
-* Check heights against the 3D assembly when the panel is drawn; the centre
-  heights above come from the parts' models.
+  collar (Ø5.5, measured from the 3D model) passes through the panel and stands
+  ≈0.25 mm proud, so a plug's moulding seats against the collar.
+* **USB-C:** the receptacle face is ≈1.25 mm inside the panel's outer face. An
+  opening only the size of the receptacle (≈9.6 × 3.8) stops the overmould short
+  and the plug won't latch; open it to the overmould size.
+* **Barrel jack:** the jack face is ≈1.1 mm inside the outer face; the Ø11
+  opening lets the plug body reach it.
+* **Power switch:** the plunger stands 3.3 mm proud when out and 1.3 mm when
+  latched; usable bare.
+* All of these were checked in the 3D assembly on 2026-10-17 (panels from the
+  generator over the boards' KiCad models); the centre heights come from the
+  parts' models.
 
 ## The motherboard frame ([`rodeo_motherboard_frame.scad`](rodeo_motherboard_frame.scad))
 
@@ -112,9 +151,12 @@ tools/kicad/grid_check.py hardware/rodeo-motherboard/rodeo-motherboard.kicad_pcb
 |---|---|
 | 0 | enclosure floor (the rail and frame sit on it) |
 | 4 | rib tops, floor-lug tops |
-| **6** | **boss tops: the datum.** The groove walls also stop here, clear of the row-1 standoffs. |
+| 5 | panels' bottom screws (into the rail's 9 mm panel wall) |
+| **6** | **boss tops: the datum.** |
 | 14 | board underside (M3 × 8 mm standoffs) |
 | 15.6 | board top (1.6 mm boards) |
+| 31–39 | top rail (on the end posts); panels' top screws at 35 |
+| 40 | panel top |
 
 A rear connector's centre height above the floor is **15.6 + its centre height
 above the PCB**: one rule for every board, so panel cut-outs line up.
@@ -127,6 +169,8 @@ above the PCB**: one rule for every board, so panel cut-outs line up.
 | M3 × 8 mm male-female hex standoffs | screw into the inserts |
 | M3 × 6 mm screws | board to standoff |
 | M3 countersunk screws | rail and frame to the floor, length to suit the floor |
+| M3 × 6 mm screws, 4 per panel | panel to the rails' inserts (the inserts in the rail wall and top rail are horizontal) |
+| M3 × 10 mm cap screws, 2 | top rail down into the end posts |
 
 ## Board status (2026-10-17)
 
@@ -149,10 +193,14 @@ every connector meets the panel's inner face.
   multiple of 10 mm wide with its holes 5 mm in from each end, so on adjacent
   bosses two boards meet edge to edge with no gap. JLC's outline tolerance is
   ±0.2 mm, so they can bind. A full rear set (one power board, the switch, MIDI,
-  audio) is 170–190 mm of boards, 200–220 mm of rail with the gaps.
+  audio) is 170–190 mm of boards, a 220–240 mm rail with the gaps and the 10 mm
+  at each end; the reference set below is 240 mm, split at 140.
 * **Tallest part on the rail:** the barrel jack, 26.6 mm above the floor; the
-  audio board's ribbon header reaches 24.7 mm. The back panel's openings run
-  from 16.1 to 27.6 mm; make it at least 35 mm tall.
+  audio board's ribbon header reaches 24.7 mm. The panels' openings run from
+  13.5 to 27.6 mm, inside the 40 mm panels.
+* **With panels (2026-10-17):** barrel 10–70, switch 80–110, MIDI 120–160, audio
+  170–230 on a 240 mm rail split at 140 (behind the MIDI panel's middle). Every
+  opening sits on its connector, every panel hole has an insert behind it.
 * **Rail to motherboard:** the deepest rear board (barrel, 40 mm) ends 40 mm
   from the panel and the rail's back row of bosses is at 35 mm, so put the
   motherboard's near edge at least 45 mm from the panel; 60 mm leaves room

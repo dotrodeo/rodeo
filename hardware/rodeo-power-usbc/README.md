@@ -56,8 +56,8 @@ that side at the board edge.
 
 | Part | Anode | Cathode |
 |---|---|---|
-| D2 green LTST-S220KGKT (C160469), power good | R3 1 kΩ to `VBUS` | `~PGOOD` (J2 pin 7) |
-| D3 red LTST-S220KRKT (C284935), charging | R4 1 kΩ to `VBUS` | `~CHG` (J2 pin 8) |
+| D1 green LTST-S220KGKT (C160469), power good | R3 1 kΩ to `VBUS` | `~PGOOD` (J2 pin 7) |
+| D2 red LTST-S220KRKT (C284935), charging | R4 1 kΩ to `VBUS` | `~CHG` (J2 pin 8) |
 
 ≈3 mA each. Both light only with USB plugged in: power good when the
 motherboard's charger accepts the input, red while the cell charges.

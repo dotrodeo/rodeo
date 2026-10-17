@@ -10,6 +10,7 @@ schematic closed in KiCad, or KiCad overwrites the change on its next save.
 | `lcsc_fill.py` | Set the `LCSC Part` field on symbols in a `.kicad_sch`: `lcsc_fill.py power.kicad_sch R12=C25744 J2=C157915`. |
 | `jlc_parts.py` | JLC stock and part search: `jlc_parts.py stock C25744`, `jlc_parts.py search "BM05B-SRSS-TB"`. JLC's stock, not LCSC's; they differ, and only JLC's counts for assembly. |
 | `grid_check.py` | Check a board against the mounting system (`hardware/mounting/README.md`): `--rear EDGE` for rear-I/O daughterboards (holes on the rail rows, 10 mm spacing, keep-outs, connector overhang), `--frame` for the motherboard's hole pattern. |
+| `rear_panels.py` | Generate the Rev B back panels (`hardware/panels/`), one KiCad project per rear board, from its table of openings: outline and openings on Edge.Cuts, four M3 holes, silkscreen labels. Run with KiCad's Python; rerun after changing an opening, then `jlc_fab.py` for Gerbers. |
 | `jlc_fab.py` | Everything JLCPCB needs, into `jlcpcb/` next to the project: Gerbers and drill (zipped), BOM, and a CPL **corrected to JLC's own footprints**, plus `placement-check.png` to confirm it by eye. |
 
 ## Setup

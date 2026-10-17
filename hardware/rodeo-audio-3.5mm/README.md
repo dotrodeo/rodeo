@@ -121,8 +121,9 @@ All in stock at JLC on 2026-10-14.
   `tools/kicad/grid_check.py rodeo-audio-3-5mm.kicad_pcb --rear top`.
 * **Jack depth:** each PJ-320D's body is flush with the I/O edge (footprint at
   y = 6.375) and its 2 mm collar runs into the panel. Grid check reports that
-  collar as ≈+1.85 mm of overhang, which is right for these jacks. The panel
-  needs a Ø9 × 1 mm counterbore at each jack so plugs seat fully; see the
+  collar as ≈+1.85 mm of overhang, which is right for these jacks. The collar is
+  Ø5.5 and goes through the 1.6 mm panel's Ø6 holes, so plugs seat on it; see
+  [`panels/rodeo-audio-3.5mm-panel`](../panels/rodeo-audio-3.5mm-panel/) and the
   mounting README's [Back panel cut-outs](../mounting/README.md#back-panel-cut-outs).
 * **3D model:** KiCad has none for the PJ-320D, so `lib/rodeo_audio.pretty`
   holds a copy of KiCad's footprint with LCSC's model (C431535) aligned to it.
