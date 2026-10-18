@@ -12,7 +12,8 @@ Writes, next to the project, the same layout as the Rodeo satellite boards:
   jlcpcb/placement-check.png          JLC's footprints, placed by the CPL, over our pads
   <name>.step                         3D model for renders (Fusion etc.): board, pads,
                                       silkscreen, soldermask and every part's model,
-                                      origin at the board's top-left corner
+                                      origin at the board's top-left corner; not tracked
+                                      in git (see .gitignore), regenerated with the rest
 
 A project without a schematic (the rear panels) gets Gerbers and the STEP only.
 

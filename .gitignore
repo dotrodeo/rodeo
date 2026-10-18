@@ -38,3 +38,8 @@ kickstarter/
 # --- Rodeo KiCad tools: local Python environment ---
 tools/kicad/.venv/
 __pycache__/
+
+# --- Board and panel STEP exports (jlc_fab.py writes them beside each .kicad_pcb, for
+# renders); part models in lib/*.3dshapes/ are tracked ---
+hardware/*/*.step
+hardware/panels/*/*.step
