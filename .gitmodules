@@ -10,3 +10,6 @@
 [submodule "rev-a/DaisySP"]
 	path = rev-a/rodeo-sdk/DaisySP
 	url = https://github.com/electro-smith/DaisySP
+[submodule "rodeo-sdk/tinyusb"]
+	path = rodeo-sdk/tinyusb
+	url = https://github.com/hathach/tinyusb

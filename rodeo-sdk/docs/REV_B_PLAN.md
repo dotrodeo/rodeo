@@ -182,6 +182,20 @@ as references (MIT) rather than as dependencies.
 4. **MSC disk mode**, first on a RAM disk, then on Rev B's SD card.
 5. **UAC2 4×4** on Rev B, both codecs.
 
+**Step 1, 2026-10-18: built, waiting for the bench.** TinyUSB 0.21.0 is a submodule
+at `rodeo-sdk/tinyusb`, and [`examples/usb_midi_cdc`](../examples/usb_midi_cdc/) is a
+composite MIDI + CDC device on the Seed's micro-USB (OTG_FS, TinyUSB port 0): 67 KB of
+flash, 13.6 KB of RAM, built with the SDK's usual rules. It uses libDaisy's `System`
+rather than `DaisySeed`, because `DaisySeed` owns a `UsbHandle` that links libDaisy's
+USB stack and its OTG_FS interrupt handler. Development VID/PID: pid.codes' test pair,
+`1209:0001`; a product needs its own.
+
+**Found for step 2:** libDaisy defines `OTG_HS_IRQHandler` (the external pins' core,
+TinyUSB port 1) in `src/sys/system.cpp`, which every app links, so TinyUSB can't simply
+define its own. Options: point the vector at TinyUSB at run time (copy the vector table
+to RAM and set `SCB->VTOR`), or carry a one-line patch to libDaisy making that handler
+weak. Decide when step 2 starts.
+
 Risks to watch: the feedback-format split (solved once, must stay solved across TinyUSB
 updates); USB interrupt load next to the satellite chain and audio; FIFO sizing on the
 DWC2 core for 588-byte isochronous packets each way; Linux, which nobody has tried yet.
