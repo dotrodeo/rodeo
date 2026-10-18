@@ -30,10 +30,18 @@ const { boards } = await import(pathToFileURL(resolve(HERE, '../src/data/boards.
     const consts = Object.fromEntries(
       [...src.matchAll(/^const (\w+) = '([^']+)';$/gm)].map((m) => [m[1], m[2]])
     );
-    const claims = [...src.matchAll(/evidence:\s*(?:`([^`]+)`|'([^']+)')/g)].map((m) => {
-      const raw = m[1] ?? m[2];
-      return raw.replace(/\$\{(\w+)\}/g, (_, k) => consts[k] ?? `\${${k}}`);
-    });
+    // Three shapes appear in boards.ts and all three must be caught:
+    //   evidence: `${R}:131`     template with a constant
+    //   evidence: 'path:1-2'     a literal
+    //   evidence: FAB            a bare constant — this one was missed for a
+    //                            day, hiding seven citations from every check.
+    const claims = [...src.matchAll(/evidence:\s*(?:`([^`]+)`|'([^']+)'|(\w+))/g)]
+      .map((m) => {
+        if (m[3] !== undefined) return consts[m[3]];
+        const raw = m[1] ?? m[2];
+        return raw.replace(/\$\{(\w+)\}/g, (_, k) => consts[k] ?? `\${${k}}`);
+      })
+      .filter(Boolean);
     return { boards: [{ slug: '(parsed)', specs: claims.map((evidence) => ({ evidence })) }] };
   }
 );
@@ -80,6 +88,10 @@ async function checkCite(who, cite, { proximity = true } = {}) {
   if (!range) return; // a bare path is allowed for whole-file evidence
 
   const lines = (await readFile(abs, 'utf8')).split('\n');
+  // Parts of this one citation (`:12,45-47`), collected locally. Accumulating
+  // straight into `quoted` appended a fresh copy every time another source
+  // cited the same range, which read as drift that was not there.
+  const parts = [];
   for (const part of range.split(',')) {
     const [a, b] = part.split('-').map(Number);
     const start = a;
@@ -98,11 +110,9 @@ async function checkCite(who, cite, { proximity = true } = {}) {
       problems.push(`${who}: ${path}:${part} is a table separator, not evidence`);
       continue;
     }
-    if (!proximity) continue;
+    parts.push(body);
 
-    // Record what this range says now, for the comparison below.
-    const prev = quoted.get(cite);
-    quoted.set(cite, normalise(prev ? prev + ' ' + body : body));
+    if (!proximity) continue;
 
     const near = lines.slice(Math.max(0, start - 1 - PROXIMITY), end + PROXIMITY).join('\n');
     const hit = near.match(TODO_MARKERS);
@@ -113,6 +123,9 @@ async function checkCite(who, cite, { proximity = true } = {}) {
       );
     }
   }
+
+  // What this citation says right now, for the lockfile comparison.
+  if (parts.length) quoted.set(cite, normalise(parts.join(' ')));
 }
 
 for (const board of boards) {

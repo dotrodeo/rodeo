@@ -277,6 +277,22 @@ line, inserting a line above a citation so the range slides, and adding a claim
 that is not in the lock. All three fail, with the previous and current text
 printed side by side.
 
+**It shipped with two holes, found the next day.** Worth recording, because
+both were the guardrail failing silently rather than loudly — the thing it
+exists to prevent:
+
+1. The recording sat *below* the proximity early-exit, so **no markdown
+   citation was ever locked** — only the ones from `boards.ts`.
+2. `boards.ts` gained `evidence: FAB`, a bare constant. The fallback parser
+   matched `` `${R}:131` `` and `'path:1-2'` but not a bare identifier, so
+   **seven citations were invisible to every check**, including the one
+   carrying the fab status.
+
+Together those hid 17 citations. Both are fixed and the lock went from 48
+entries to 64. A third bug, in the recording itself, appended a fresh copy of
+the text each time another source cited the same range, which read as drift
+that was not there.
+
 ## Saying it accurately — the licences
 
 **Settled 2026-10-16.** `LICENSE` and `LICENSES/` are on `main`, so "open source" is
