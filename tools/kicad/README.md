@@ -39,7 +39,8 @@ rotated copies place correctly.
 
 | Board | Panel | Size |
 |---|---|---|
-| power switch | 2 × 2, second row turned 180° | 76 × 42 mm |
+| motherboard | 2 × 2, second row turned 180° (SD slots face out) | 196 × 226 mm |
+| power switch | 2 × 2, second row turned | 76 × 42 mm |
 | MIDI | 2 × 2, second row turned | 96 × 52 mm |
 | USB-C power | 2 × 2, second row turned | 96 × 42 mm |
 | audio 3.5 mm | 2 × 2, second row turned | 136 × 62 mm |
@@ -47,7 +48,8 @@ rotated copies place correctly.
 | pot bank, encoder bank | 4 side by side | 100 × 100 mm |
 
 The rear boards' I/O edges (jacks and switches past the edge) face out of the
-panel with no rail there, and their cable-connector edges face each other.
+panel with no rail there, and their cable-connector edges face each other. JLC
+assembles panels up to 250 × 250 mm.
 
 House rules:
 
