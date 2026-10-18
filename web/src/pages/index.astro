@@ -18,7 +18,7 @@ const steps = [
   },
   {
     title: 'Give it a voice',
-    body: 'A Daisy Seed does the DSP with libDaisy and DaisySP, now with four ins and four outs. Drivers for the chain, the codecs and the rest come with rodeo-sdk.',
+    body: 'A Daisy Seed does the DSP with libDaisy and DaisySP. rodeo-sdk handles the hardware around it: the Rev-A drivers are proven on real boards and frozen at v0.2.0, and the Rev-B rewrite is scoped in the open but not written yet.',
   },
 ];
 
@@ -35,10 +35,16 @@ const lead = prototype.shots[0]!;
     </h1>
     <div class="flex min-w-0 flex-col gap-7 lg:pt-2">
       <p class="copy-tech m-0 max-w-[560px] text-[17px]">
-        <span class="font-display font-black text-legend">RODEO</span> is a plug-and-play audio
-        platform designed to help you build your dream synthesizer. Breakouts for the best parts
-        of Daisy, four ins and four outs, a chain of control satellites that grows as far as the
-        panel does, and an SDK to help you write the code.
+        <span class="font-display font-black text-legend">RODEO</span> is a carrier board for the
+        Electrosmith Daisy and a chain of control satellites. Four ins, four outs, ten I/O
+        connectors, and as many knobs as your panel has room for — without you drawing a single
+        PCB. Rev B runs on a battery and charges over USB-C, so what you build can leave the
+        desk.
+      </p>
+      <p class="copy-tech m-0 max-w-[560px] text-[14.5px] text-hardware">
+        The Rev-B boards are drawn, routed and uploaded to the fab — not ordered, not built,
+        not powered on. This site is careful about which is which — see
+        <a href="/ecosystem/" class="text-yellow">the boards</a>.
       </p>
       <div class="flex flex-wrap items-stretch gap-4">
         <a

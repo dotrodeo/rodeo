@@ -7,7 +7,7 @@
 //
 // Run from web/: node scripts/check-claims.mjs
 
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -37,6 +37,32 @@ const { boards } = await import(pathToFileURL(resolve(HERE, '../src/data/boards.
     return { boards: [{ slug: '(parsed)', specs: claims.map((evidence) => ({ evidence })) }] };
   }
 );
+
+// --- The lockfile -------------------------------------------------------
+//
+// Checks 1 and 2 prove a cited path exists and that its lines are not blank.
+// Neither proves the lines still *say* what the claim says. That gap has been
+// exploited twice: once when a document moved repositories, and once when
+// freezing the Rev A SDK shifted a README by four lines, so a claim of
+// "bench-confirmed on real hardware" came to point at a paragraph about
+// control maps. The check stayed green both times.
+//
+// So the exact text under every cited line range is recorded here and compared
+// on every run. The stored value is the text itself rather than a hash,
+// because then `git diff` on the lockfile shows a reviewer what changed.
+//
+//   npm run claims           check against the lock
+//   npm run claims:update    re-record, after re-reading what moved
+//
+// Updating is deliberate and the diff is meant to be read. That re-read is the
+// whole point; a lockfile refreshed without one is ceremony.
+const LOCK = resolve(HERE, 'claims.lock.json');
+const UPDATE = process.argv.includes('--update');
+/** cite -> the normalised text those lines currently hold. */
+const quoted = new Map();
+
+/** Collapse whitespace, so re-wrapping a paragraph is not a false alarm. */
+const normalise = (s) => s.replace(/\s+/g, ' ').trim();
 
 const problems = [];
 let checked = 0;
@@ -73,6 +99,10 @@ async function checkCite(who, cite, { proximity = true } = {}) {
       continue;
     }
     if (!proximity) continue;
+
+    // Record what this range says now, for the comparison below.
+    const prev = quoted.get(cite);
+    quoted.set(cite, normalise(prev ? prev + ' ' + body : body));
 
     const near = lines.slice(Math.max(0, start - 1 - PROXIMITY), end + PROXIMITY).join('\n');
     const hit = near.match(TODO_MARKERS);
@@ -119,10 +149,43 @@ for (const name of (await readdir(DOCS)).filter((f) => f.endsWith('.md'))) {
   }
 }
 
+// --- Compare against the lock -------------------------------------------
+const sorted = Object.fromEntries([...quoted.entries()].sort(([a], [b]) => a.localeCompare(b)));
+
+if (UPDATE) {
+  await writeFile(LOCK, JSON.stringify(sorted, null, 2) + '\n');
+  console.log(`claims: lockfile re-recorded — ${Object.keys(sorted).length} quoted citation(s)`);
+  console.log('Read the diff before committing it. That is what the file is for.');
+} else {
+  let lock = null;
+  try {
+    lock = JSON.parse(await readFile(LOCK, 'utf8'));
+  } catch {
+    problems.push('no claims.lock.json — run `npm run claims:update` once to record it');
+  }
+  if (lock) {
+    for (const [cite, text] of Object.entries(sorted)) {
+      if (!(cite in lock)) {
+        problems.push(`${cite} is not in the lockfile — run \`npm run claims:update\``);
+      } else if (lock[cite] !== text) {
+        problems.push(
+          `${cite} no longer says what it said.\n` +
+            `      was: ${lock[cite].slice(0, 110)}\n` +
+            `      now: ${text.slice(0, 110)}\n` +
+            '      Re-read it. If the claim still holds, `npm run claims:update`.'
+        );
+      }
+    }
+  }
+}
+
+
 if (problems.length) {
   console.error(`\nclaims: ${problems.length} problem(s) in ${checked} citation(s)\n`);
   for (const p of problems) console.error(`  ${p}`);
   console.error('');
   process.exit(1);
 }
-console.log(`claims ok — ${checked} citation(s) resolve, none beside unshipped work`);
+console.log(
+  `claims ok — ${checked} citation(s) resolve, ${Object.keys(sorted).length} quoted text(s) unchanged`
+);

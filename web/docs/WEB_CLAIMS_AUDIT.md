@@ -139,7 +139,7 @@ above.
 | Claim | Evidence |
 |---|---|
 | 24 analog input channels, 16-bit | 2× TI ADS114S08 on SPI1; `rev-a/rodeo-motherboard/docs/hardware-map.md:76` |
-| ADC conversion path proven on real silicon | SPI orientation and conversion bench-confirmed 2026-08-14 via `04_adc_1ch` / `05_adc_scan`; `rodeo-sdk/README.md:125-127` |
+| ADC conversion path proven on real silicon | SPI orientation and conversion bench-confirmed 2026-08-14 via `04_adc_1ch` / `05_adc_scan`; `rev-a/rodeo-sdk/README.md:133-134` |
 | 12 digital inputs | Raw Daisy Seed GPIO, no expanders; `rev-a/rodeo-motherboard/docs/hardware-map.md:114` |
 | I²C control bus | `rev-a/rodeo-motherboard/docs/hardware-map.md:173` |
 | MIDI **in and out**, TRS | J2 in via 6N138 opto; J3 out. `rev-a/rodeo-motherboard/docs/hardware-map.md:165-166` |
@@ -147,7 +147,7 @@ above.
 | Encoder hub: 9 encoders, one I²C target | `rev-a/rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md:39` |
 | Hub addresses 0x30–0x33 (4 hubs per bus) | Two cuttable jumpers; `RODEO_HUB_I2C_CONTRACT.md:35` |
 | Hub firmware **running on hardware** | First bring-up on a fabbed board 2026-09-12; enumerates, serves telemetry, counts correctly alongside the OLED. `rev-a/rodeo-encoder-hub/firmware/README.md:177-191` |
-| I²C register contract silicon-verified | `rodeo-sdk/README.md:129-130` (locked, silicon-verified 2026-08-20); map at `RODEO_HUB_I2C_CONTRACT.md:80-99` |
+| I²C register contract silicon-verified | `rev-a/rodeo-sdk/README.md:137-138` (locked, silicon-verified 2026-08-20); map at `RODEO_HUB_I2C_CONTRACT.md:80-99` |
 | `rodeo-potentiometer` finalized | `instruments/rodeo-001/docs/RODEO_CONTROL_MAP.md:33-36` |
 | `rodeo-encoder`, `rodeo-encoder-hub` interface-verified | `instruments/rodeo-001/docs/RODEO_CONTROL_MAP.md:37-39` |
 | Satellite dimensions: pot 25×30 mm, encoder 25×25 mm, button 25×25 mm | Board outlines; uniform ~25 mm panel grid |
@@ -172,7 +172,7 @@ damaging thing the site could do.
 
 | Claim | Note | Evidence |
 |---|---|---|
-| ADS114S08 **absolute-voltage accuracy** | Conversion path is proven; absolute accuracy is still unverified pending a jumper/pot test | `rodeo-sdk/README.md:126-127` |
+| ADS114S08 **absolute-voltage accuracy** | Conversion path is proven; absolute accuracy is still unverified pending a jumper/pot test | `rev-a/rodeo-sdk/README.md:133-134` |
 | Hub I²C at 400 kHz | Boots at 100 kHz and works; the 400 kHz `TIMINGR` value has never been generated, and SDA/SCL setup-hold has never been looked at on a logic analyser | `rev-a/rodeo-encoder-hub/firmware/README.md:179-183`; `RODEO_HUB_I2C_CONTRACT.md:36` |
 | Motherboard board outline | Edge.Cuts not finalized — the mounting rectangle is verified, the overall outline is provisional | `rev-a/rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb` |
 | `rodeo-button` | Interface verified, but the switch footprint is not yet assigned | `instruments/rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md` open items |
@@ -243,6 +243,39 @@ the only 12-voice code is the scaffold. Don't conflate them.
 | `USB MIDI`, `USB audio` | **Rev-scoped since 2026-10-15.** Banned for Rev-A, where the panel USB-C is power only. Permitted for Rev-B as `planned`, never as a capability, until a Rev-B board has done it on a bench. |
 | `unison`, `mono mode`, `hard sync` | Planned on `rodeo-001`, not built |
 | `preset`, `effects` | **Scope-dependent.** Banned for platform and `rodeo-001` copy; permitted for `rodeo-002`, where both now exist — see "Reference builds — there are now two". The banned list must become per-scope. |
+
+## The lockfile — check 3, finally built
+
+**Built 2026-10-18**, after the gap it closes was exploited twice.
+
+Checks 1 and 2 prove a cited path exists and that its lines are not blank.
+Neither proves the lines still **say** what the claim says. Both failures looked
+identical from CI — green:
+
+1. A document moved to another repository and the links to it kept pointing at
+   nothing.
+2. Freezing the Rev-A SDK shifted a README by four lines, so a claim of
+   "bench-confirmed on real hardware" came to sit against a paragraph about
+   control maps.
+
+`web/scripts/claims.lock.json` now records the exact text under every cited line
+range — 48 of them — and `check-claims.mjs` compares it on every run. The stored
+value is the **text itself, not a hash**, so `git diff` on the lockfile shows a
+reviewer precisely what moved.
+
+| Command | What it does |
+|---|---|
+| `npm run claims` | Checks against the lock. Drift fails the build. |
+| `npm run claims:update` | Re-records, after you have re-read what moved. |
+
+A new citation is a failure until it is recorded, which forces the lockfile to
+be committed with the claim it protects. Updating is deliberate and the diff is
+meant to be read — a lockfile refreshed without a re-read is ceremony.
+
+Proven against three planted defects before being trusted: rewording a cited
+line, inserting a line above a citation so the range slides, and adding a claim
+that is not in the lock. All three fail, with the previous and current text
+printed side by side.
 
 ## Saying it accurately — the licences
 

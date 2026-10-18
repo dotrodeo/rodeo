@@ -90,7 +90,10 @@ const MAP = 'rev-a/rodeo-motherboard/docs/hardware-map.md';
 const HUB = 'rev-a/rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md';
 const HUBFW = 'rev-a/rodeo-encoder-hub/firmware/README.md';
 const CHAIN = 'hardware/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md';
-const SDK = 'rodeo-sdk/README.md';
+// Rev-A facts cite the *frozen* Rev-A SDK. The live rodeo-sdk/ tree is being
+// rewritten for Rev B, so its line numbers move — citing it for Rev-A claims
+// drifted by four lines within a day of the freeze.
+const SDK = 'rev-a/rodeo-sdk/README.md';
 // The first order: the motherboard and six daughterboards were uploaded to JLC
 // on 2026-10-16, five of each, and are not ordered yet. One record covers all seven.
 const FAB = 'hardware/rodeo-motherboard/docs/rev-b.md:3-6';
@@ -105,7 +108,7 @@ export const boards: Board[] = [
     outline: { w: 90, h: 112 },
     summary:
       'The host board. A Daisy Seed, two codecs, ten general-purpose I/O connectors and the satellite chain.',
-    body: 'Rev B gives the motherboard one job: carry the Daisy, the audio, and the connectors everything else plugs into. The two on-board converters that defined Rev A are gone — their pins went to a second codec, and the analog bank they provided became an optional expander board. Controls no longer compete for motherboard channels, because the satellite chain grows by adding satellites.',
+    body: 'Rev B gives the motherboard one job: carry the Daisy, the audio, and the connectors everything else plugs into. The two on-board converters that defined Rev A are gone — their pins went to a second codec, and the analog bank they provided became an optional expander board. Controls no longer compete for motherboard channels, because the satellite chain grows by adding satellites. It also carries the battery, its charger and a fuel gauge, which Rev A had none of — the instrument charges over USB-C and runs off the desk.',
     specs: [
       { label: 'audio', value: '4 in / 4 out, two codecs', evidence: `${R}:328` },
       { label: 'general-purpose I/O', value: '10 connectors, 8 analog-capable', evidence: `${R}:81` },
@@ -114,6 +117,7 @@ export const boards: Board[] = [
       { label: 'storage', value: 'internal SD, 1-bit SDMMC', evidence: `${R}:260` },
       { label: 'USB', value: 'data via the power board', evidence: `${R}:304` },
       { label: 'MIDI', value: 'on a daughterboard', evidence: `${R}:430` },
+      { label: 'power', value: '1S Li-ion, charger and fuel gauge', evidence: `${R}:465-474` },
       { label: 'expansion', value: 'SPI header with chip-select', evidence: `${R}:100` },
     ],
     caveats: [
@@ -197,7 +201,7 @@ export const boards: Board[] = [
     specs: [
       { label: 'connector', value: '3-pin JST SH: GND, wiper, supply', evidence: `${R}:574-578` },
       { label: 'Rev B fit', value: 'plugs into any analog-capable I/O connector', evidence: `${R}:574-578` },
-      { label: 'electronics', value: 'passive — one RC filter', evidence: `${SDK}:125-127` },
+      { label: 'electronics', value: 'passive — one RC filter', evidence: `${SDK}:133-134` },
     ],
   },
 
@@ -255,7 +259,7 @@ export const boards: Board[] = [
     rev: 'B',
     outline: { w: 40, h: 20 },
     summary: 'The default power input, and the board that carries USB data to the Seed.',
-    body: 'A USB-C jack behind the panel, cabled to the motherboard. It is the reason Rev B has USB at all: the Seed’s data lines run through this board, which is what brings USB-MIDI, USB audio and firmware flashing to the panel port instead of dead-ending inside the case as they did on Rev A.',
+    body: 'A USB-C jack behind the panel, cabled to the motherboard. It is why Rev B has USB at all: the Seed’s data lines run through this board rather than dead-ending inside the case as they did on Rev A. That is what should bring USB-MIDI, USB audio and DFU flashing to the panel port — should, because no Rev B board has been powered on yet.',
     specs: [
       { label: 'input', value: 'USB-C, 5 V sink, no USB-PD', evidence: 'hardware/rodeo-power-usbc/README.md:22' },
       { label: 'also carries', value: 'USB data for the Seed, and status LEDs', evidence: 'hardware/rodeo-power-usbc/README.md:4-5' },
@@ -278,7 +282,7 @@ export const boards: Board[] = [
     rev: 'B',
     outline: { w: 60, h: 40 },
     summary: 'The USB-C board plus a barrel jack and a separate 5 V output for LED strips.',
-    body: 'For builds that need more current than a USB port will give. The barrel jack takes a 9–12 V adapter and wins automatically when it is plugged in, while USB stays connected for data and takes over again if the adapter is pulled. A second regulator feeds an auxiliary 5 V output for LED strips, kept off the motherboard’s supply on purpose.',
+    body: 'For builds that need more current than a USB port will give. The barrel jack takes 7–20 V — a 9 V or 12 V adapter in practice — and wins automatically when it is plugged in, while USB stays connected for data and takes over again if the adapter is pulled. A second regulator feeds an auxiliary 5 V output for LED strips, kept off the motherboard’s supply on purpose.',
     specs: [
       { label: 'adapter', value: '5.5 × 2.1 mm, centre positive, 7–20 V', evidence: 'hardware/rodeo-power-barrel/README.md:21' },
       { label: 'switchover', value: 'barrel takes priority, USB is the fallback', evidence: 'hardware/rodeo-power-barrel/README.md:4-6' },
@@ -289,6 +293,29 @@ export const boards: Board[] = [
         status: 'designed',
         text: 'Drawn and routed on 2026-10-12; uploaded to JLC on 2026-10-16, not yet ordered. Not yet built or tested.',
         evidence: FAB,
+      },
+    ],
+  },
+
+  {
+    slug: 'rodeo-power-switch',
+    name: 'rodeo-power-switch',
+    kind: 'daughterboard',
+    status: 'designed',
+    rev: 'B',
+    outline: { w: 30, h: 20 },
+    summary: 'A latching button on the back panel that turns the synth off without stopping the charge.',
+    body: 'One button and one connector, and nothing else — the resistors and the filter live on the motherboard. Pressed in, it enables the buck-boost converter; out, the synth is off and the battery carries on charging. The plunger comes through a slot in the panel and works bare, so the printed cap is optional.',
+    specs: [
+      { label: 'switch', value: 'latching push button, panel mount', evidence: 'hardware/rodeo-power-switch/README.md:3' },
+      { label: 'to the motherboard', value: 'JST SH 2-pin on J3', evidence: `${R}:515` },
+      { label: 'outline', value: '30 × 20 mm', evidence: 'hardware/rodeo-power-switch/README.md:10-11' },
+    ],
+    caveats: [
+      {
+        status: 'designed',
+        text: 'Drawn, routed and DRC-clean on 2026-10-16, with fab outputs. It came after the first JLC upload, so it is not in that batch.',
+        evidence: 'hardware/rodeo-power-switch/README.md:10',
       },
     ],
   },
@@ -373,7 +400,7 @@ export const prototype = {
     {
       label: 'conversion path',
       value: 'bench-confirmed on silicon, 2026-08-14',
-      evidence: `${SDK}:125-127`,
+      evidence: `${SDK}:133-134`,
     },
     { label: 'digital in', value: '12 raw Daisy GPIO', evidence: `${MAP}:114` },
     { label: 'audio', value: 'line in and out, 3.5 mm', evidence: `${MAP}:143` },
@@ -388,7 +415,7 @@ export const prototype = {
     {
       label: 'register contract',
       value: 'silicon-verified, 2026-08-20',
-      evidence: `${SDK}:129-130`,
+      evidence: `${SDK}:137-138`,
     },
     { label: 'host', value: 'Daisy Seed3, 40-pin footprint', evidence: `${MAP}:15` },
   ] satisfies Spec[],
@@ -436,6 +463,13 @@ export const prototype = {
       revB: 'data through the power board: USB-MIDI, USB audio and firmware flashing',
       why: 'The most-checked spec on the Rev-A board, and the one most worth fixing.',
       evidence: `${R}:304`,
+    },
+    {
+      area: 'Power',
+      revA: 'USB-C in, straight to a regulator — tethered to a wall for as long as it runs',
+      revB: 'a 1S Li-ion battery with a charger, power path and fuel gauge on the motherboard',
+      why: 'Rev A had no battery of any kind. Rev B charges over USB-C and keeps charging with the switch off, which is the difference between a thing on a bench and an instrument you can pick up.',
+      evidence: `${R}:465-474`,
     },
     {
       area: 'Jacks and MIDI',
