@@ -1,0 +1,57 @@
+---
+title: Audio, four in and four out
+description: Both codecs in one callback — the Seed's own on channels 1/2 and the CS4272 on channels 3/4.
+draft: true
+sidebar:
+  order: 2
+---
+
+:::caution[Design draft — not written yet]
+The design for the Rev B audio driver. Unpublished until it runs on a board.
+Hardware: `rev-b.md`, "Second codec on SAI2" and "Audio interface and jack board".
+:::
+
+Rev B adds a CS4272 on SAI2 beside the Seed's own codec on SAI1. libDaisy can run
+both from one callback, the way Daisy Patch does
+(`AudioHandle::Init(cfg, sai1, sai2)`), so an app sees eight channels and one
+callback.
+
+## Channel numbering
+
+Channels follow the back panel, which reads **IN 1/2, IN 3/4, OUT 1/2, OUT 3/4**:
+
+| Channels | Codec | Bus |
+|---|---|---|
+| 1, 2 | The Seed's own | SAI1 |
+| 3, 4 | CS4272 | SAI2 |
+
+## Proposed shape
+
+```cpp
+rodeo::Audio audio;
+
+void Callback(const float* const* in, float** out, size_t n)
+{
+    for(size_t i = 0; i < n; i++)
+        for(int ch = 0; ch < 4; ch++)
+            out[ch][i] = in[ch][i];
+}
+
+int main()
+{
+    hw.Init();
+    audio.Init(hw, 48000, 48); // sample rate, block size
+    audio.Start(Callback);
+}
+```
+
+`Init` configures SAI2 as the master for the CS4272, starts its clocks, and only
+then releases `CODEC2_RST`: the codec's datasheet wants reset held until MCLK and
+LRCK are stable, so the order has to come from firmware.
+
+## To verify on the first board
+
+- Daisy Patch re-initialises SAI1 with its own Seed's settings; Rodeo must reuse
+  what libDaisy configures for the Seed3, whose codec libDaisy does not name.
+- Full scale: ≈5.65 Vpp differential in and ≈4.8 Vpp out on the CS4272 at 5 V.
+  The jack board's front end sets what that means at the panel.

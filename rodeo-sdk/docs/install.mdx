@@ -41,11 +41,11 @@ cd rodeo-sdk
 make deps          # builds the libDaisy + DaisySP static libs
 ```
 
-Then build any example:
+Then build an example. `usb_device` needs nothing but a Daisy Seed:
 
 ```sh
-cd examples/01_blink
-make               # -> build/blink.{elf,bin,hex}
+cd examples/usb_device
+make               # -> build/usb_device.{elf,bin,hex}
 ```
 
 `make all` from `rodeo-sdk/` builds every example.
@@ -58,7 +58,12 @@ Put the Daisy in DFU mode — **hold BOOT, tap RESET** — then:
 make program-dfu
 ```
 
-:::note[Flash over the Daisy's own port]
-The motherboard's panel USB-C is **power only**: the Seed's USB data pins are not
-routed to it. Flash over the Daisy's own USB connector, or over SWD.
+Today that is the Seed's own micro-USB, or SWD.
+
+:::note[Flashing through the panel USB-C]
+On the Rev B boards the panel USB-C carries USB data as well as power, and the
+plan is to flash through it with the Daisy bootloader's `extdfu` build, which
+takes DFU on the pins that reach the panel. The bootloader itself still goes in
+once over the Seed's micro-USB. None of this is in the build yet, and it is
+checked on the first board before this page says otherwise.
 :::

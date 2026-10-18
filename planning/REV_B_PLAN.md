@@ -13,8 +13,8 @@ Settled with Derek on 2026-10-18:
 
 1. **The SDK becomes Rev B only.** No board switch, no Rev A code paths. Rev A is frozen
    at `v0.2.0`, and rodeo-001 and rodeo-002 keep building against that frozen copy (see
-   [Freezing Rev A](#freezing-rev-a)). They get no further SDK fixes unless they are
-   ported to Rev B, which is not part of this plan.
+   [Freezing Rev A](#freezing-rev-a)) and get no further SDK fixes there. rodeo-002 is
+   ported to Rev B after bring-up (decision 5); rodeo-001 is not.
 2. **Satellite firmware lives in a top-level `rodeo-satellite/`**, built with
    [ch32v003fun](https://github.com/cnlohr/ch32v003fun): open source, a plain Makefile
    and riscv-gcc, flashed with a WCH-LinkE over SWIO. One image for every satellite

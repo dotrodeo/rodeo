@@ -1,0 +1,47 @@
+---
+title: I/O connectors
+description: Ten 3-pin connectors on the motherboard — digital in and out, analog in through the Seed's ADC, and DAC out on CV1/CV2.
+draft: true
+sidebar:
+  order: 4
+---
+
+:::caution[Design draft — not written yet]
+The design for the I/O connector API. Unpublished until it runs on a board.
+Hardware: `rev-b.md`, "Generic I/O connectors".
+:::
+
+Every leftover Seed pin is a 3-pin JST SH connector (GND, signal through 1 kΩ,
+3.3 V), the same pinout the single-pot board uses, so a pot plugs straight in.
+
+| Silkscreen | Can do |
+|---|---|
+| `D1` | Digital in or out |
+| `A1`–`A7` | Digital in or out, or analog in |
+| `CV1`, `CV2` | DAC out (0–3.3 V), or analog in |
+
+## Proposed shape
+
+```cpp
+rodeo::Io io;
+
+io.Init();
+io.Analog(io::A1);             // configure as analog in
+io.DigitalIn(io::D1, Pull::Up);
+io.DacOut(io::CV1);
+
+float knob = io.Read(io::A1);  // 0..1
+bool  gate = io.Get(io::D1);
+io.Write(io::CV1, 0.5f);       // half of 3.3 V
+```
+
+Analog reads come from the Seed's own ADC through libDaisy's `AdcHandle`, which
+scans in the background, so `Read()` returns the latest value without blocking.
+
+## Limits worth knowing
+
+- The DACs reach 0–3.3 V only. Useful CV ranges need an op-amp stage, which
+  belongs on the jack board.
+- `A3` and `A6` (PB1, PC1) share an external-interrupt line, so only one of them
+  can be an interrupt-driven clock or gate input.
+- No 5 V on these connectors.

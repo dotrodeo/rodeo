@@ -1,0 +1,279 @@
+---
+title: rodeo_dsp.h
+description: "Rodeo DSP utilities — the small building blocks, host-safe and dependency-free."
+sidebar:
+  order: 12
+editUrl: https://github.com/dotrodeo/rodeo/edit/main/rodeo-sdk/common/rodeo_dsp.h
+---
+
+{/* Generated from rodeo-sdk/common/rodeo_dsp.h by rodeo-sdk/tools/docs/gen_reference.py. Do not edit:
+    change the header's comments and run `make docs` in rodeo-sdk/. */}
+
+:::note[Generated from the header]
+This page is [`rodeo-sdk/common/rodeo_dsp.h`](https://github.com/dotrodeo/rodeo/blob/main/rodeo-sdk/common/rodeo_dsp.h) — its comments and declarations.
+To change it, change the header.
+:::
+
+Same philosophy as adc_convert.h and pot_ui.h: pure math and state, no
+libDaisy, no hardware, so it builds and is tested on the host and the
+firmware calls THESE functions rather than a reimplementation of them.
+
+Written for rodeo-002 and moved here on 2026-10-01 because none of it is
+about a synthesiser. rodeo-001 had already hand-rolled its own one-pole
+smoother inline in main.cpp, which is the duplication this prevents the third
+instrument from repeating.
+
+A note on what is NOT here: anything that needs a sample rate at
+construction. Every type takes its rate in Init(), so one header serves an
+audio-rate and a block-rate user in the same build -- which matters, because
+getting that wrong is exactly how rodeo-002's LFO ended up running 48x slow
+(initialised at the audio rate, ticked once per block).
+
+## kPi
+
+```cpp
+constexpr float kPi = 3.14159265358979f;
+```
+
+## kTwoPi
+
+```cpp
+constexpr float kTwoPi = 2.f * kPi;
+```
+
+## Clamp
+
+```cpp
+inline float Clamp(float x, float lo, float hi);
+```
+
+## ExpMap
+
+```cpp
+inline float ExpMap(float t, float lo, float hi);
+```
+
+Exponential map of t in 0..1 onto lo..hi (lo &gt; hi works too). Control rate.
+
+## TimeCoeff
+
+```cpp
+inline float TimeCoeff(float seconds, float sample_rate);
+```
+
+One-pole coefficient for a time constant in seconds. Control rate.
+
+## FreqCoeff
+
+```cpp
+inline float FreqCoeff(float hz, float sample_rate);
+```
+
+One-pole coefficient for a cutoff frequency in Hz. Control rate.
+
+## FastTanh
+
+```cpp
+inline float FastTanh(float x);
+```
+
+Padé tanh: within ~2% of tanhf, exactly +/-1 beyond +/-3, and continuous
+there. Several times cheaper than tanhf, which matters per sample.
+
+## FastSin01
+
+```cpp
+inline float FastSin01(float p);
+```
+
+sin(2*pi*p) for p in [0, 1), parabolic approximation (~0.1% error).
+
+## Rng
+
+```cpp
+struct Rng
+```
+
+xorshift32 -- deterministic, lock-free, and far cheaper than rand().
+
+**Members**
+
+- `uint32_t state = 0x9E3779B9u`
+
+### Rng::Seed
+
+```cpp
+void Seed(uint32_t s);
+```
+
+### Rng::Next
+
+```cpp
+uint32_t Next();
+```
+
+### Rng::Uniform
+
+```cpp
+float Uniform();
+```
+
+0..1
+
+### Rng::Bipolar
+
+```cpp
+float Bipolar();
+```
+
+-1..1
+
+## Smoother
+
+```cpp
+struct Smoother
+```
+
+Per-sample one-pole smoother for control values. Set() the target from the
+control rate, Next() once per sample. Kills zipper noise from pots that only
+update ~100 times a second.
+
+**Members**
+
+- `float cur = 0.f`
+- `float cur = 0.f, target = 0.f`
+- `float cur = 0.f, target = 0.f, coeff = 0.01f`
+
+### Smoother::Init
+
+```cpp
+void Init(float sample_rate, float seconds, float value);
+```
+
+### Smoother::Set
+
+```cpp
+void Set(float v);
+```
+
+### Smoother::Snap
+
+```cpp
+void Snap(float v);
+```
+
+### Smoother::Next
+
+```cpp
+float Next();
+```
+
+### Smoother::Settled
+
+```cpp
+bool Settled(float eps = 1e-4f) const;
+```
+
+## OnePole
+
+```cpp
+struct OnePole
+```
+
+One-pole low-pass. The high-pass is x - Lp(x).
+
+**Members**
+
+- `float y = 0.f`
+- `float y = 0.f, a = 1.f`
+
+### OnePole::SetFreq
+
+```cpp
+void SetFreq(float hz, float sample_rate);
+```
+
+### OnePole::Reset
+
+```cpp
+void Reset();
+```
+
+### OnePole::Lp
+
+```cpp
+float Lp(float x);
+```
+
+### OnePole::Hp
+
+```cpp
+float Hp(float x);
+```
+
+## DcBlocker
+
+```cpp
+struct DcBlocker
+```
+
+DC blocker (~7 Hz at 48 kHz). Waveshapers with a bias offset make DC.
+
+**Members**
+
+- `float x1 = 0.f`
+- `float x1 = 0.f, y1 = 0.f`
+
+### DcBlocker::Reset
+
+```cpp
+void Reset();
+```
+
+### DcBlocker::Process
+
+```cpp
+float Process(float x);
+```
+
+## Lfo
+
+```cpp
+class Lfo
+```
+
+Two-phase LFO with the four Movement shapes. One phase accumulator; the
+second output is offset by a fraction of a cycle (stereo width, autopan).
+
+### Lfo::Init
+
+```cpp
+void Init(float sample_rate);
+```
+
+### Lfo::ShapeName
+
+```cpp
+static const char* ShapeName(int s);
+```
+
+### Lfo::SetFreq
+
+```cpp
+void SetFreq(float hz);
+```
+
+### Lfo::SetShape
+
+```cpp
+void SetShape(int s);
+```
+
+### Lfo::Process
+
+```cpp
+void Process(float offset, float* a, float* b);
+```
+
+Advance one sample. Writes bipolar (-1..1) values for phase and
+phase + offset (offset in cycles, 0..1).

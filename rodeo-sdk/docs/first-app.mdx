@@ -33,6 +33,12 @@ include ../../common/rodeo.mk
 `board.h` is the single source of truth for the Rodeo pin and channel map, and it is
 host-safe — it has no libDaisy in it, so host tests can include it too.
 
+:::caution[Still the prototype's map]
+The `board.h` in the SDK today describes the prototype motherboard. The Rev B map
+replaces it before the boards are brought up, and nothing below depends on which
+one you have: the blink only uses the Seed's own LED.
+:::
+
 ```cpp title="src/main.cpp"
 #include "daisy_seed.h"
 #include "board.h"
@@ -64,4 +70,5 @@ which is exactly what `01_blink` is for.
 An instrument lives outside the SDK, in its own component directory, and *consumes*
 the SDK rather than forking it. `instruments/rodeo-002/firmware/` is the worked example: it links
 the vendored libDaisy and DaisySP and the shared drivers, and keeps only its own voice
-and panel code.
+and panel code. It builds against the frozen v0.2.0 SDK for now, and is the first
+instrument to move onto this one once the boards are brought up.

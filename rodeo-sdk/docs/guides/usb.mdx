@@ -1,0 +1,59 @@
+---
+title: USB
+description: One composite USB device on the panel USB-C — MIDI and a serial port always, audio per instrument, and a disk mode for the SD card.
+draft: true
+sidebar:
+  order: 6
+---
+
+:::caution[Design draft — the library is not written yet]
+What runs today is `examples/usb_device` on a bare Seed's micro-USB. This page is
+the design for turning it into `rodeo_usb`, the library an instrument uses on the
+panel USB-C. Unpublished until that runs on a Rev B board. The exploration and its
+measurements are in `planning/REV_B_PLAN.md`, "USB".
+:::
+
+Rodeo is always the USB device. The panel USB-C on the power board carries the
+Seed's second USB port (USB_OTG_HS, full speed, pins 36/37). TinyUSB replaces
+libDaisy's USB stack: it has every class needed, and a composite device is one
+descriptor away.
+
+## What an instrument gets
+
+| Function | When |
+|---|---|
+| MIDI | Always |
+| Serial | Always — debugging, and commands like "enter disk mode" |
+| Audio | Per instrument: stereo 2×2, or 4×4 across both codecs |
+| Mass storage | Only in disk mode, with the SD card as the drive |
+
+Audio is UAC1, asynchronous: the codec clock leads and a feedback endpoint keeps
+the computer in step, so there is no resampling. UAC1 rather than UAC2 because
+at full speed every OS accepts UAC1's feedback format.
+
+## Proposed shape
+
+```cpp
+rodeo::Usb usb;
+
+rodeo::Usb::Config cfg;
+cfg.product     = "rodeo-002";
+cfg.audio       = rodeo::Usb::Audio::Stereo; // or None, Quad
+usb.Init(cfg);
+
+// main loop
+usb.Process();
+while(usb.Midi().Available()) HandleMidi(usb.Midi().Read());
+
+// disk mode: unmount, re-enumerate as serial + storage, wait for the eject
+usb.EnterDiskMode(sd);
+```
+
+## Rules the example established
+
+- USB's interrupt priority sits below audio.
+- TinyUSB's audio FIFOs overwrite their oldest data when full and still report a
+  full write: check the free space first.
+- Each configuration needs its own product ID, or the host reuses a cached one.
+- Disk mode ends on the computer's eject; leaving early pulls the drive out from
+  under it.

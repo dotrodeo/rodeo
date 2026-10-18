@@ -18,23 +18,29 @@ a finished one. Each page says what is written and what is not; the plan is
 
 ## What works today
 
-- **USB.** `examples/usb_device` turns a bare Seed into a composite USB device on
-  TinyUSB: stereo audio in and out at 48 kHz / 24-bit, USB-MIDI, a serial port
-  and a RAM disk, all at once. Measured full-duplex loopback came back
-  glitch-free over sixty seconds at 31 ms round trip. This replaces libDaisy's
-  own USB stack.
+- **USB, on a bare Daisy Seed.** `examples/usb_device` turns a Seed's own
+  micro-USB into a composite device on TinyUSB: stereo audio in and out at
+  48 kHz / 24-bit, MIDI, a serial port and a RAM disk, all at once. Measured
+  full-duplex loopback came back glitch-free over sixty seconds at 31 ms round
+  trip. On a Rodeo board the same device moves to the panel USB-C; that has not
+  been tried yet, because no board has been built.
 - **The [pure-logic headers](/sdk/reference/pure-logic/).** Scaling, filtering,
   UI smoothing, the scope — no hardware in them, tested on a laptop, and
-  unaffected by the board revision.
+  unaffected by the board revision. Every function and type is in the
+  [API reference](/sdk/reference/api/pot-ui/), generated from the headers.
 - **[Toolchain and template](/sdk/install/).** Building, flashing and starting an
   app have not changed.
 
 ## What is still being written
 
 The satellite-chain driver, the second codec on SAI2, a new `board.h` for the Rev
-B pin map, and the bring-up examples that go with them. The satellite firmware
-will be its own top-level tree built with ch32v003fun — one image for every
-satellite kind, with an ID resistor choosing which.
+B pin map, the I/O connectors, the SD card, the battery gauge, USB as a library
+rather than an example, and the bring-up examples that go with them. The
+satellite firmware will be its own top-level tree built with ch32v003fun — one
+image for every satellite kind, with an ID resistor choosing which.
+
+Each of these gets its page here when its code lands. Once every board has been
+brought up, rodeo-002 is the first instrument to move onto this SDK.
 
 ## How it is put together
 
@@ -58,6 +64,8 @@ the wrong place.
 - [Your first app](/sdk/first-app/) — copy the template and get something running
 - [Pure-logic headers](/sdk/reference/pure-logic/) — the parts you can test
   without hardware
+- [API reference](/sdk/reference/api/version/) — every header's functions and
+  types, generated from the code
 - [Examples](/sdk/reference/examples/) — what exists to run right now
 - [Versioning](/sdk/reference/versioning/) — how the SDK is tagged, and how an app
   refuses to build against one that is too old

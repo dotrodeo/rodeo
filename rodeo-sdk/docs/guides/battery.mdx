@@ -1,0 +1,33 @@
+---
+title: Battery and power
+description: Charge level from the MAX17048 fuel gauge, and saving state before the cell runs out.
+draft: true
+sidebar:
+  order: 7
+---
+
+:::caution[Design draft — not written yet]
+The design for the battery driver. Unpublished until it runs on a board.
+Hardware: `rev-b.md`, "Power".
+:::
+
+A single Li-ion cell can power Rodeo, through a charger and a buck-boost on the
+motherboard. A MAX17048 fuel gauge on the I²C bus (address `0x36`) reports its
+state of charge.
+
+## Proposed shape
+
+```cpp
+rodeo::Battery bat;
+
+bat.Init(i2c);
+float pct = bat.Percent();        // 0..100, or < 0 with no cell
+if(bat.Low())                     // below the save threshold
+    SaveStateAndDim();
+```
+
+## What the Seed cannot see
+
+The charger's power-good and charging outputs and the source mux's status do
+not reach the Seed. The board also cannot tell a 500 mA USB port from a 1.5 A
+one, so LED brightness should default low.

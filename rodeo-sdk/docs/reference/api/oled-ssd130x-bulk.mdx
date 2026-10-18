@@ -1,0 +1,86 @@
+---
+title: oled_ssd130x_bulk.h
+description: "Rodeo OLED transport — bulk (one-transaction-per-page) SSD130x I2C transport."
+sidebar:
+  order: 20
+editUrl: https://github.com/dotrodeo/rodeo/edit/main/rodeo-sdk/common/oled_ssd130x_bulk.h
+---
+
+{/* Generated from rodeo-sdk/common/oled_ssd130x_bulk.h by rodeo-sdk/tools/docs/gen_reference.py. Do not edit:
+    change the header's comments and run `make docs` in rodeo-sdk/. */}
+
+:::note[Generated from the header]
+This page is [`rodeo-sdk/common/oled_ssd130x_bulk.h`](https://github.com/dotrodeo/rodeo/blob/main/rodeo-sdk/common/oled_ssd130x_bulk.h) — its comments and declarations.
+To change it, change the header.
+:::
+
+Drop-in replacement for daisy::SSD130xI2CTransport, which sends ONE 2-byte I2C
+transaction PER DISPLAY BYTE (libDaisy dev/oled_ssd130x.h). A 128x64 frame is
+8 pages x 128 bytes, so a stock Update() is ~1024 blocking transactions — on
+the order of 100 ms at 400 kHz. That is fine for 08_oled_i2c, which does
+nothing else, but fatal for a synth: the same main loop pumps rodeo::RodeoAdc
+and MidiUartHandler, so every frame would freeze the knobs and delay note-on.
+
+Two changes:
+
+1. SendData() pushes a whole page in ONE transaction: [0x40][page bytes]. ~4x fewer bus turnarounds -&gt; ~23 ms/frame instead of ~100 ms.
+2. A yield hook, invoked after each page. SSD130xDriver::Update() calls SendData() once per page, so the hook gives the app 8 chances per frame to pump the ADC scan / MIDI. Worst-case main-loop stall drops from a whole frame to a single page (~3 ms).
+
+The hook is namespace-level rather than a member because the transport
+instance is unreachable from the app: OledDisplay::driver_ is PRIVATE and
+SSD130xDriver::transport_ is protected. gnu++14 (no inline variables), hence
+the .cpp.
+
+Usage — identical to the stock transport apart from the template argument:
+
+```cpp
+using OledType
+    = OledDisplay<SSD130xDriver<128, 64, rodeo::Ssd130xI2cBulkTransport>>;
+rodeo::SetOledYield(PumpIo);
+```
+
+## Ssd130xI2cBulkTransport
+
+```cpp
+class Ssd130xI2cBulkTransport
+```
+
+**Members**
+
+- `using Config = daisy::SSD130xI2CTransport::Config` — Same shape as the stock transport's, so app-side config code is unchanged.
+
+### Ssd130xI2cBulkTransport::Init
+
+```cpp
+void Init(const Config &config);
+```
+
+### Ssd130xI2cBulkTransport::SendCommand
+
+```cpp
+void SendCommand(uint8_t cmd);
+```
+
+### Ssd130xI2cBulkTransport::SendData
+
+```cpp
+void SendData(uint8_t *buff, size_t size);
+```
+
+## SetOledYield
+
+```cpp
+void SetOledYield(void (*fn)());
+```
+
+Called after each page is pushed. Must not touch the display, and must not
+block (no USB logging) — it runs in the middle of a frame.
+
+## OledLinkOk
+
+```cpp
+bool OledLinkOk();
+```
+
+False once a transfer has been NAKed or timed out — i.e. no display is
+answering. Lets an app say so over serial instead of drawing into the void.

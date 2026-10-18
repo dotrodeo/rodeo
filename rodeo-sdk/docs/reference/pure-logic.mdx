@@ -9,11 +9,14 @@ rather than a parallel implementation that drifts from the tested one.
 
 | Header | What is in it |
 |---|---|
-| `adc_convert.h` | The ADC value pipeline, and `PotSpan` knob-travel calibration |
-| `pot_ui.h` | Panel logic: stepped pots, and "which knob is the user moving?" |
-| `rodeo_dsp.h` | `Smoother`, `OnePole`, `DcBlocker`, `Lfo`, `Rng` |
-| `rodeo_scope.h` | A triggered, normalised waveform for a small display |
-| `rodeo_screen.h` | 128×64 primitives: title bar, list rows, scroll bar |
+| [`adc_convert.h`](/sdk/reference/api/adc-convert/) | The ADC value pipeline, and `PotSpan` knob-travel calibration |
+| [`pot_ui.h`](/sdk/reference/api/pot-ui/) | Panel logic: stepped pots, and "which knob is the user moving?" |
+| [`rodeo_dsp.h`](/sdk/reference/api/rodeo-dsp/) | `Smoother`, `OnePole`, `DcBlocker`, `Lfo`, `Rng` |
+| [`rodeo_scope.h`](/sdk/reference/api/rodeo-scope/) | A triggered, normalised waveform for a small display |
+| [`rodeo_screen.h`](/sdk/reference/api/rodeo-screen/) | 128×64 primitives: title bar, list rows, scroll bar |
+
+Each links to its page in the API reference, which is generated from the header
+itself.
 
 ## Why this matters
 

@@ -1,0 +1,42 @@
+---
+title: The SD card
+description: The internal microSD slot in 1-bit mode with FatFs — reading samples and saving state, and handing the card to a computer in disk mode.
+draft: true
+sidebar:
+  order: 5
+---
+
+:::caution[Design draft — not written yet]
+The design for SD card support. Unpublished until it runs on a board.
+Hardware: `rev-b.md`, "SD card slot (native mode, 1-bit)".
+:::
+
+The motherboard's microSD slot runs libDaisy's `SdmmcHandler` in **1-bit mode**:
+the pins four-bit mode would need carry the satellite chain instead. FatFs sits on
+top, so files are files.
+
+## Proposed shape
+
+```cpp
+rodeo::SdCard sd;
+
+if(sd.Mount())                      // false: no card, or not FAT
+{
+    FIL f;
+    f_open(&f, "0:/PATCH.TXT", FA_READ);
+    // ... FatFs as usual
+}
+```
+
+## Disk mode
+
+The card can also be the computer's: in disk mode the instrument unmounts it and
+offers it as a USB drive, so samples load without opening the case. The computer
+and the instrument never have the file system at the same time — see
+[USB](/sdk/guides/usb/) for how the switch works. The model is proven on a RAM disk in
+`examples/usb_device`; the card version is bring-up step 09.
+
+## Not available
+
+The Daisy bootloader's update-from-SD needs all four data lines, so Rev B cannot
+use it. Firmware updates go over USB.

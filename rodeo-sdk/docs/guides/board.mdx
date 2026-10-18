@@ -1,0 +1,70 @@
+---
+title: The board and its pin map
+description: board.h for the Rev B motherboard — every Seed pin, what it is wired to, and the names the rest of the SDK uses for them.
+draft: true
+sidebar:
+  order: 1
+---
+
+:::caution[Design draft — not written yet]
+This page is the design for code that does not exist. It is left off the
+published site until `board.h` is rewritten for Rev B, and is the place to change
+the design before then. Source of truth for the hardware:
+`hardware/rodeo-motherboard/docs/rev-b.md`, "Seed pin map".
+:::
+
+`board.h` names every pin the motherboard uses, so drivers and apps say
+`board::kSatTx` rather than `seed::D2`. It stays host-safe: constants only, no
+libDaisy types, so host tests can include it.
+
+## What changes from the prototype
+
+Every pin on the Seed's header is now spoken for. The two on-board ADCs, the
+encoder hub and the status LED are gone; the satellite chain, the second codec,
+the SD card and the USB data pins arrive.
+
+| Seed pin | libDaisy | Rev B use |
+|---|---|---|
+| 1 | `D0` | Expansion header chip-select (`SPI_EXT_CS`) |
+| 2, 3 | `D1`, `D2` | Satellite chain RX, TX (USART3) |
+| 4 | `D3` | Second codec reset (`CODEC2_RST`) |
+| 5–7 | `D4`–`D6` | SD card, 1-bit SDMMC |
+| 8 | `D7` | I/O connector `D1`, digital only |
+| 9–11 | `D8`–`D10` | SPI1, to the expansion header |
+| 12, 13 | `D11`, `D12` | I²C1: OLED, battery gauge, four taps |
+| 14, 15 | `D13`, `D14` | MIDI (USART1) |
+| 22–28 | `D15`–`D21` | I/O connectors `A1`–`A7`, digital or analog |
+| 29, 30 | `D22`, `D23` | I/O connectors `CV2`, `CV1`: DAC out or analog in |
+| 31–35 | `D24`–`D28` | Second codec, SAI2 |
+| 36, 37 | `D29`, `D30` | USB data to the power board |
+
+## Proposed shape
+
+```cpp title="common/board.h (proposed)"
+namespace rodeo::board
+{
+// Satellite chain, USART3
+constexpr Pin kSatTx = seed::D2;
+constexpr Pin kSatRx = seed::D1;
+
+// Second codec (CS4272) on SAI2; reset is released by the audio driver
+constexpr Pin kCodec2Reset = seed::D3;
+
+// The ten I/O connectors, in silkscreen order: D1, A1–A7, CV1, CV2
+constexpr int kNumIo = 10;
+constexpr IoPin kIo[kNumIo] = { /* pin, analog channel or -1, has DAC */ };
+
+constexpr uint8_t kBatteryGaugeAddr = 0x36; // MAX17048
+constexpr uint8_t kOledAddr         = 0x3C;
+}
+```
+
+`Pin` and `IoPin` are plain structs here, not libDaisy's `Pin`, to keep the header
+host-safe; the drivers convert.
+
+## Open
+
+- Whether connector names follow the silkscreen (`A1`) or the net (`DIG_2`).
+  The silkscreen is what a builder sees, so it should win.
+- PB1 (pin 24) and PC1 (pin 27) share external-interrupt line 1: the I/O driver
+  must refuse to make both interrupt inputs at once.

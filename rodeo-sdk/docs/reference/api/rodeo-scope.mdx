@@ -1,0 +1,82 @@
+---
+title: rodeo_scope.h
+description: "Rodeo scope — the output as a picture: triggered, normalised, host-safe."
+sidebar:
+  order: 13
+editUrl: https://github.com/dotrodeo/rodeo/edit/main/rodeo-sdk/common/rodeo_scope.h
+---
+
+{/* Generated from rodeo-sdk/common/rodeo_scope.h by rodeo-sdk/tools/docs/gen_reference.py. Do not edit:
+    change the header's comments and run `make docs` in rodeo-sdk/. */}
+
+:::note[Generated from the header]
+This page is [`rodeo-sdk/common/rodeo_scope.h`](https://github.com/dotrodeo/rodeo/blob/main/rodeo-sdk/common/rodeo_scope.h) — its comments and declarations.
+To change it, change the header.
+:::
+
+Written from the audio callback and read from the main loop. One writer, one
+reader, and a torn sample is a pixel, so there is no locking: Trace() takes a
+copy and works from that.
+
+Three things make it readable on a strip twenty pixels tall:
+
+- TRIGGERING on a rising zero crossing, so a held note stands still instead of crawling sideways.
+- NORMALISING to the region it is given, so a quiet patch reads as well as a loud one -- with the gain following over a few frames rather than snapping, so a decaying note does not pump, and a floor below which it stops chasing rather than turning silence into a picture of its own noise.
+- CLAMPING to that region. The gain trails the signal, so the attack of a note arrives while the gain still belongs to what came before it; the display's coordinates are unsigned, so an unclamped overshoot would wrap and paint a band across the whole screen.
+
+Written for rodeo-002 and moved here on 2026-10-01: nothing in it is about a
+synthesiser, and any Rodeo instrument with a screen wants a waveform on it.
+Pure logic and no hardware, like adc_convert.h and pot_ui.h, so the tests on
+the host guard the real firmware path.
+
+## Scope
+
+```cpp
+class Scope
+```
+
+**Members**
+
+- `static constexpr int kLen = 192` — Samples kept: 128 are drawn, the rest give the trigger somewhere to look.
+- `static constexpr int kWidth = 128`
+- `static constexpr int kDecimate = 8` — One sample kept per this many: 6 kHz, so the width is ~32 ms.
+- `static constexpr int kFloor = 4` — Peak below which the gain stops chasing, of 127: about -30 dB.
+- `static constexpr float kGainRate = 0.4f` — How far the gain closes on its target each Trace.
+
+### Scope::Init
+
+```cpp
+void Init();
+```
+
+### Scope::Push
+
+```cpp
+void Push(float x);
+```
+
+Every output sample; the decimation is done here. Audio-callback rate.
+
+### Scope::Trace
+
+```cpp
+void Trace(int y0, int y1, uint8_t* y);
+```
+
+Fill `y` with kWidth screen rows spanning y0..y1 inclusive.
+
+### Scope::Hash
+
+```cpp
+uint32_t Hash() const;
+```
+
+What the picture would look like, cheaply: a still trace costs the bus
+nothing because the screen can tell it has not changed. The gain is in
+here too, since it is still converging when the samples repeat.
+
+### Scope::Gain
+
+```cpp
+float Gain() const;
+```

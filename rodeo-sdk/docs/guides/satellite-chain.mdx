@@ -1,0 +1,62 @@
+---
+title: The satellite chain
+description: Pots, encoders and buttons on a self-closing UART ring — discovery, scans, faults, and reading a control from an app.
+draft: true
+sidebar:
+  order: 3
+---
+
+:::caution[Design draft — not written yet]
+The design for `sat_chain.*` and `sat_frame.h`. Unpublished until the chain runs.
+The wire protocol is `hardware/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md`;
+this page is the app's side of it.
+:::
+
+Every control beyond the I/O connectors — pot banks, encoder banks, buttons — is
+on a chain of small satellite boards, each with a CH32V003 that reads its
+controls and passes frames along a UART ring. A satellite's position in the chain
+is its address. The last satellite closes the ring by itself when nothing is
+plugged into its OUT.
+
+## Two parts
+
+- **`sat_frame.h`** — the frame and slot layout, CRC-8/SMBUS, slot kinds, build
+  and parse. Pure logic, no hardware. The SDK's driver *and* the satellite
+  firmware include this one header, and host tests exercise it from both sides,
+  so the two ends cannot drift apart.
+- **`sat_chain.*`** — the Seed's driver: USART3 at 1 Mbaud on DMA, a scan paced by
+  a timer (4 ms by default), discovery at start-up and whenever the chain
+  changes, and fault and break reporting.
+
+## Proposed shape
+
+```cpp
+rodeo::SatChain chain;
+
+int main()
+{
+    hw.Init();
+    chain.Init();           // USART3, DMA, timer; runs DISCOVER
+    for(;;)
+    {
+        chain.Process();    // call from the main loop
+        if(chain.Changed())
+            Rebuild(chain.Slots());   // what is plugged in, in chain order
+
+        float cutoff = chain.Pot(0, 2);     // satellite 0, pot 3: 0..1
+        int   detents = chain.Encoder(1, 0); // satellite 1, encoder 1: steps since last read
+    }
+}
+```
+
+Controls are addressed by satellite and slot, in chain order. Mapping a physical
+control to a parameter is the instrument's job, in its own control map — the SDK
+never names a knob.
+
+## Open
+
+- How pot conditioning splits between satellite and Seed (`planning/REV_B_PLAN.md`,
+  "The pot pipeline"). It decides whether `Pot()` returns a calibrated value or a
+  raw one.
+- What an app sees when the ring breaks mid-performance: last good values held,
+  plus a fault it can show.

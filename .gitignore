@@ -46,3 +46,6 @@ __pycache__/
 # renders); part models in lib/*.3dshapes/ are tracked ---
 hardware/*/*.step
 hardware/panels/*/*.step
+
+# rodeo-sdk API reference generator (make docs)
+rodeo-sdk/tools/docs/.venv/

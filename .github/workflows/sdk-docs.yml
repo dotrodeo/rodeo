@@ -82,3 +82,25 @@ jobs:
           echo "commit message when the change genuinely has no documented effect"
           echo "— a refactor, a typo, a formatting pass."
           exit 1
+
+  reference-current:
+    name: API reference matches the headers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      # Two headers include libDaisy's, and clang needs them to parse.
+      - name: Check out libDaisy
+        run: git submodule update --init --depth 1 rodeo-sdk/libDaisy
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # docs/reference/api/ is generated from the headers' comments. A header
+      # changed without `make docs` leaves the published reference describing
+      # code that no longer exists.
+      - name: Regenerate and compare
+        run: make -C rodeo-sdk docs-check

@@ -8,14 +8,25 @@ subsystem each — flash one, confirm the hardware, move on. Built on
 
 Published documentation is in [`docs/`](docs/) and appears at
 <https://rodeooh.rodeo/sdk/>. Everything in that folder is a page on the website,
-so a change to the code wants a change there too — CI enforces it.
+so a change to the code wants a change there too — CI enforces it. Three kinds of
+page live there:
+
+* **Written pages** (`index`, `install`, `first-app`, `reference/*.mdx`): edit them
+  directly.
+* **The API reference** (`reference/api/`) is **generated** from the headers'
+  comments by `tools/docs/gen_reference.py`. Change a header's comments, run
+  `make docs`, commit both; CI runs `make docs-check` and fails if they disagree. A
+  header joins the reference by being added to the script's `HEADERS` list.
+* **Design drafts** (`guides/`, `draft: true`) describe APIs that aren't written
+  yet. `astro dev` shows them and the published site leaves them out; when the
+  code lands, bring the page in line with it and delete the `draft` line.
 
 > **Mid-rewrite.** `v0.2.0` is the last release for the prototype boards, and the
 > tree is being rewritten for the hardware that was ordered on 18 October 2026:
 > a satellite chain in place of the I²C hubs, a second codec, a new pin map. The
 > plan is in [`planning/REV_B_PLAN.md`](../planning/REV_B_PLAN.md). Instruments
-> built before the line stay on the frozen copy at `rev-a/rodeo-sdk/` and are not
-> being ported.
+> built before the line stay on the frozen copy at `rev-a/rodeo-sdk/`; rodeo-002
+> moves onto the rewritten SDK first, once the boards are brought up.
 
 > The previous contents (a 12-voice subtractive synth) are preserved on the git
 > tag `archive/synth-m2`. Restore with `git checkout archive/synth-m2 -- firmware/src`.
@@ -55,7 +66,8 @@ firmware/
     10_audio_levels/   # bench tool: stepped 1 kHz sine out, input peaks over USB serial
   tools/
     screens/           # render an instrument's real OLED screens on your laptop
-  docs/
+    docs/              # gen_reference.py: the API reference from the headers
+  docs/                # the published pages: guides/ (drafts), reference/api/ (generated)
   libDaisy/  DaisySP/ # vendored submodules (static libs live in their build/)
   Makefile           # top-level helpers: `make deps`, `make all`, `make clean`
 ```

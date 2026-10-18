@@ -63,16 +63,18 @@ constexpr char kSdkVersionString[] = "0.2.0";
 
 } // namespace rodeo
 
-/** True when the SDK is at least the version given. Usable in a static_assert,
- *  which is the point: an app that needs something new should fail to build
- *  rather than fail on the bench. */
+/** A version as one comparable number: 0.2.0 is 200, 1.0.0 is 10000. */
 #define RODEO_SDK_VERSION_NUM(major, minor, patch) \
     ((major) * 10000 + (minor) * 100 + (patch))
 
+/** This SDK's version, as RODEO_SDK_VERSION_NUM gives it. */
 #define RODEO_SDK_VERSION                                  \
     RODEO_SDK_VERSION_NUM(rodeo::kSdkVersionMajor,         \
                           rodeo::kSdkVersionMinor,         \
                           rodeo::kSdkVersionPatch)
 
+/** True when the SDK is at least the version given. Usable in a static_assert,
+ *  which is the point: an app that needs something new should fail to build
+ *  rather than fail on the bench. */
 #define RODEO_SDK_AT_LEAST(major, minor, patch) \
     (RODEO_SDK_VERSION >= RODEO_SDK_VERSION_NUM(major, minor, patch))

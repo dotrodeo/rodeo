@@ -1,0 +1,101 @@
+---
+title: rodeo_screen.h
+description: "Rodeo screen primitives — title bars, list rows, scroll bars, bounded text."
+sidebar:
+  order: 14
+editUrl: https://github.com/dotrodeo/rodeo/edit/main/rodeo-sdk/common/rodeo_screen.h
+---
+
+{/* Generated from rodeo-sdk/common/rodeo_screen.h by rodeo-sdk/tools/docs/gen_reference.py. Do not edit:
+    change the header's comments and run `make docs` in rodeo-sdk/. */}
+
+:::note[Generated from the header]
+This page is [`rodeo-sdk/common/rodeo_screen.h`](https://github.com/dotrodeo/rodeo/blob/main/rodeo-sdk/common/rodeo_screen.h) — its comments and declarations.
+To change it, change the header.
+:::
+
+The platform's display is a 128x64 SSD130x (see oled_ssd130x_bulk.h), so the
+geometry here is the platform's, not any one instrument's: 21 characters of
+Font_6x8 across, five list rows under a title bar. An instrument supplies its
+own layout constants and its own Draw(); these are the pieces every list
+screen on this hardware ends up needing.
+
+TEMPLATED ON THE DISPLAY, which is what lets these render on a laptop as well
+as on the board: libDaisy's OledDisplay is a template over its driver and
+everything under it is plain C++, so a stub driver holding a framebuffer gives
+pixel-exact screens with nothing flashed. See firmware/tools/screens.
+
+Written for rodeo-002 and moved here on 2026-10-01.
+
+NOTHING WRAPS ON THIS DISPLAY: a string longer than its room draws straight
+over whatever is beside it. That is why AppendUpTo exists and why every field
+goes in through it.
+
+## kListTop
+
+```cpp
+constexpr int kListTop = 12;
+```
+
+The list convention on a 128x64 panel: a 10-pixel title bar, then five rows
+of 6x8 on a 10-pixel pitch. An instrument may ignore these and lay out its
+own screen; a list screen almost never wants to.
+
+## kRowPitch
+
+```cpp
+constexpr int kRowPitch = 10;
+```
+
+## kListRows
+
+```cpp
+constexpr int kListRows = 5;
+```
+
+## kChar
+
+```cpp
+constexpr int kChar = 6;
+```
+
+Font_6x8 is the header's font, so a character is six pixels and the line
+holds twenty-one of them. Spelled once, because the header now packs two
+fields against each other and every number here is derived from it.
+
+## AppendUpTo
+
+```cpp
+template <size_t kCap> static void AppendUpTo(FixedCapStr<kCap>& s, const char* text, int room);
+```
+
+Append what fits and no more.
+
+Nothing wraps on this display: a string longer than its room draws straight
+over whatever is to its right. Every header field is bounded by what the
+field beside it leaves, so every one of them goes in through here.
+
+## DrawTitle
+
+```cpp
+template <typename Display> static void DrawTitle(Display& display, const char* text, const char* right);
+```
+
+A title bar: inverted, with an optional counter on the right.
+
+## DrawRow
+
+```cpp
+template <typename Display> static void DrawRow(Display& display, int r, const char* left, const char* right, bool selected);
+```
+
+One list row. The selected row inverts rather than carrying a marker, which
+would eat a character of width on a 21-character line.
+
+## DrawScrollBar
+
+```cpp
+template <typename Display> static void DrawScrollBar(Display& display, int first, int visible, int total, int y0 = kListTop, int track = kListRows * kRowPitch - (kRowPitch - 8));
+```
+
+How far down a long list you are. Nothing is drawn when it all fits.
