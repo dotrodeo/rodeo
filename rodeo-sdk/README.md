@@ -1,13 +1,21 @@
-# Rodeo Motherboard — Firmware
+# rodeo-sdk
 
-Boilerplate and PCB bring-up examples for the Rodeo motherboard (an Electrosmith
-Daisy Seed carrier). This tree is a **starting point for Rodeo
-firmware** plus **small standalone programs that validate each subsystem** of a
-freshly assembled board — flash one, confirm the hardware, move on.
+The firmware side of Rodeo: a starting point for instrument code, the drivers for
+everything on the boards, and small standalone programs that validate one
+subsystem each — flash one, confirm the hardware, move on. Built on
+[libDaisy](https://github.com/electro-smith/libDaisy) and
+[DaisySP](https://github.com/electro-smith/DaisySP), both vendored here.
 
-> **This is the Rev A SDK** (tagged `rodeo-sdk/v0.2.0`, the last Rev A release). It is
-> about to be rewritten for the Rev B motherboard and satellites; the plan is in
-> [`planning/REV_B_PLAN.md`](../planning/REV_B_PLAN.md).
+Published documentation is in [`docs/`](docs/) and appears at
+<https://rodeooh.rodeo/sdk/>. Everything in that folder is a page on the website,
+so a change to the code wants a change there too — CI enforces it.
+
+> **Mid-rewrite.** `v0.2.0` is the last release for the prototype boards, and the
+> tree is being rewritten for the hardware that was ordered on 18 October 2026:
+> a satellite chain in place of the I²C hubs, a second codec, a new pin map. The
+> plan is in [`planning/REV_B_PLAN.md`](../planning/REV_B_PLAN.md). Instruments
+> built before the line stay on the frozen copy at `rev-a/rodeo-sdk/` and are not
+> being ported.
 
 > The previous contents (a 12-voice subtractive synth) are preserved on the git
 > tag `archive/synth-m2`. Restore with `git checkout archive/synth-m2 -- firmware/src`.

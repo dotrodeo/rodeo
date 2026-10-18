@@ -6,9 +6,13 @@ description: How rodeo-sdk is tagged and versioned, and how an app can refuse to
 Tags are **component first** — `rodeo-sdk/vX.Y.Z`, matching `rodeo-002/vX.Y.Z` — so a
 tag listing groups by component rather than interleaving unrelated numbers.
 
-The current release is **`rodeo-sdk/v0.1.0`**.
+The current release is **`rodeo-sdk/v0.2.0`**, and it is a line in the sand: the
+last release before the rewrite for the shipping boards. `common/version.h`
+carries the number and the real changelog.
 
-`common/version.h` carries the number and the real changelog.
+The instruments built before it — `rodeo-001` and `rodeo-002` — keep building
+against that release, frozen at `rev-a/rodeo-sdk/`, and do not follow the
+rewrite. They are not being ported.
 
 ## Requiring a minimum
 
@@ -18,7 +22,7 @@ failing at a missing symbol or, worse, silently compiling against changed behavi
 ```cpp
 #include "version.h"
 
-static_assert(RODEO_SDK_AT_LEAST(0, 1, 0), "this app needs a newer SDK");
+static_assert(RODEO_SDK_AT_LEAST(0, 2, 0), "this app needs a newer SDK");
 ```
 
 ## Why 0.x

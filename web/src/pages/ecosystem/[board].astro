@@ -46,9 +46,8 @@ const others = boards.filter((b) => b.slug !== board.slug);
 
     <section class="flex flex-col gap-10 pt-8 lg:flex-row lg:gap-14">
       {
-        /* Only rodeo-potentiometer carries an image: it is the one board that
-           survives into Rev-B unchanged. The rest are unfabricated, and their
-           renders wait on the stackup fix in WEB_ROADMAP.md (rodeo-internal) decision 8. */
+        /* Nothing here has been fabricated, so nothing has a photograph yet.
+           The placeholder draws the board's real outline instead. */
         board.shot ? (
           <div class="lg:w-[44%] lg:shrink-0">
             <BoardFigure

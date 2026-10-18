@@ -1,38 +1,36 @@
 ---
-title: Bring-up examples
-description: Nine standalone programs that validate one subsystem each of a freshly assembled Rodeo motherboard — flash one, confirm the hardware, move on.
+title: Examples
+description: The standalone programs in rodeo-sdk/examples — what runs today on a bare Daisy Seed, and what arrives when the boards do.
 ---
 
-Nine small programs, each validating one subsystem of a freshly assembled board.
-Flash one, confirm the hardware works, move on. They are also the shortest honest
-answer to "how do I use this driver?"
+Small programs that each prove one thing. Flash one, confirm it works, move on.
+They are also the shortest honest answer to "how do I use this?"
+
+## Runs today, on a bare Seed
+
+Neither of these needs a Rodeo board — a Daisy Seed and a USB cable is the whole
+setup.
 
 | Example | What it proves |
 |---|---|
-| `01_blink` | Onboard and carrier LED — boots and is alive |
-| `02_audio_tone` | 440 Hz sine on the output jacks — codec and SAI path |
-| `03_midi_mono_sine` | MIDI IN to a monophonic sine voice with a short ADSR |
-| `04_adc_1ch` | One channel of the external ADS114S08 to serial |
-| `05_adc_scan` | Full 24-channel scan via `rodeo::RodeoAdc` |
-| `06_poly_synth` | 6-voice poly subtractive synth, 10 live pots — the first musical demo |
-| `07_encoder_scan` | Hub scan via `rodeo::RodeoEncoders`, shown on the OLED |
-| `08_oled_i2c` | SSD1309 128×64 smoke test, I²C at `0x3C` |
-| `09_poly_synth_oled` | `06` plus the OLED: knob popups and a live output scope |
+| `usb_midi_cdc` | TinyUSB on the Seed's micro-USB: composite USB-MIDI and a serial port. Echoes every MIDI message, plays middle C once a second, and echoes what you type. |
+| `usb_device` | The full device: stereo audio in and out at 48 kHz / 24-bit, USB-MIDI, serial and a RAM disk, simultaneously. The serial port switches what the computer records — the Seed's inputs, a digital loopback, or a test tone. |
 
 ```sh
-cd rodeo-sdk/examples/05_adc_scan
+cd rodeo-sdk/examples/usb_device
 make && make program-dfu
 ```
 
-## Suggested order on a new board
+`usb_device` is the interesting one. The computer plays to "Rodeo" and it comes
+out of the Seed's outputs; the Seed's codec clock sets the rate and a feedback
+endpoint keeps the computer in step, so there is no resampling and no drift.
 
-`01` first — if the LED does not blink, nothing else is worth trying. Then `02` for
-the audio path, `04` before `05` so a single channel is proven before the full scan,
-and `08` before `07` because the encoder example draws to the display.
+## Arrives with the boards
 
-:::note[What has actually been run]
-`04_adc_1ch` and `05_adc_scan` are bench-confirmed on real hardware, and
-`07_encoder_scan` proved the hub's I²C pass-through and bus pull-ups at the hub's
-first bring-up. The others carry a stated pass criterion but are not individually
-attested here — treat them as written and expected to work rather than witnessed.
-:::
+The bring-up set — one example per board, proving each subsystem before any
+instrument is built on it — is being written against hardware that has not been
+delivered. It is listed in `planning/REV_B_PLAN.md` under Milestone 1.
+
+Until then the only programs here that touch a Rodeo board are the ones in the
+frozen SDK at `rev-a/rodeo-sdk/examples/`, which target the prototype and not
+the boards being shipped.
