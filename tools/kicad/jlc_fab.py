@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate JLCPCB fabrication and assembly files for a KiCad project.
 
-  jlc_fab.py path/to/project.kicad_pro [--skip A1,H*] [--no-check-image]
+  jlc_fab.py path/to/project.kicad_pro [--skip A1,H*] [--no-check-image] [--no-step]
 
 Writes, next to the project, the same layout as the Rodeo satellite boards:
 
@@ -10,6 +10,11 @@ Writes, next to the project, the same layout as the Rodeo satellite boards:
   jlcpcb/production_files/BOM-<name>.csv   Comment, Designator, Footprint, LCSC, Quantity
   jlcpcb/production_files/CPL-<name>.csv   corrected for JLC's footprints (see below)
   jlcpcb/placement-check.png          JLC's footprints, placed by the CPL, over our pads
+  <name>.step                         3D model for renders (Fusion etc.): board, pads,
+                                      silkscreen, soldermask and every part's model,
+                                      origin at the board's top-left corner
+
+A project without a schematic (the rear panels) gets Gerbers and the STEP only.
 
 Why the CPL needs correcting: JLC places each part with its own EasyEDA footprint
 for that LCSC number, origin at the CPL position, rotated by the CPL rotation.
@@ -219,6 +224,7 @@ def main():
     ap.add_argument('--skip', default='A1,H*', help='refs left out of BOM/CPL (globs); default A1,H*')
     ap.add_argument('--tolerance', type=float, default=0.3, help='mm; worse fits are reported')
     ap.add_argument('--no-check-image', action='store_true')
+    ap.add_argument('--no-step', action='store_true', help="don't write <name>.step")
     a = ap.parse_args()
 
     base = os.path.splitext(os.path.abspath(a.project))[0]
@@ -241,6 +247,18 @@ def main():
         for f in sorted(glob.glob(os.path.join(gdir, '*'))):
             if not f.endswith('.pdf'):
                 z.write(f, os.path.basename(f))
+
+    # STEP for renders, origin at the outline's top-left corner
+    if not a.no_step:
+        pts = [p for _, ps in pcb_outline(pcb) for p in ps]
+        x0, y0 = min(x for x, _ in pts), -max(y for _, y in pts)
+        run('pcb', 'export', 'step', '-f', '--subst-models', '--include-pads', '--include-silkscreen',
+            '--include-soldermask', '--user-origin', f'{x0:g}x{y0:g}mm', '-o', base + '.step', pcb)
+        print(f'  STEP: {name}.step')
+
+    if not os.path.exists(sch):
+        print('  no schematic: Gerbers and STEP only')
+        return
 
     # BOM
     nl = Netlist.from_schematic(sch)
