@@ -52,8 +52,8 @@ export interface Shot {
   /** Photograph of real hardware, or a CAD render. Stated in the caption. */
   media: 'photo' | 'render';
   caption: string;
-  /** The revision the image depicts, which is not always the board's own. */
-  rev: Rev;
+  /** What the image shows: a revision, or the earlier prototype. */
+  rev: Rev | 'prototype';
 }
 
 export interface Board {
@@ -108,7 +108,7 @@ export const boards: Board[] = [
     outline: { w: 90, h: 112 },
     summary:
       'The host board. A Daisy Seed, two codecs, ten general-purpose I/O connectors and the satellite chain.',
-    body: 'Rev B gives the motherboard one job: carry the Daisy, the audio, and the connectors everything else plugs into. The two on-board converters that defined Rev A are gone — their pins went to a second codec, and the analog bank they provided became an optional expander board. Controls no longer compete for motherboard channels, because the satellite chain grows by adding satellites. It also carries the battery, its charger and a fuel gauge, which Rev A had none of — the instrument charges over USB-C and runs off the desk.',
+    body: 'The motherboard has one job: carry the Daisy, the audio, and the connectors everything else plugs into. There are no converters on it: those pins drive a second codec instead, and high-resolution analog moved to an optional expander board. Controls no longer compete for motherboard channels, because the satellite chain grows by adding satellites. It also carries the battery, its charger and a fuel gauge, so the instrument charges over USB-C and runs off the desk.',
     specs: [
       { label: 'audio', value: '4 in / 4 out, two codecs', evidence: `${R}:328` },
       { label: 'general-purpose I/O', value: '10 connectors, 8 analog-capable', evidence: `${R}:81` },
@@ -183,27 +183,6 @@ export const boards: Board[] = [
     ],
   },
 
-  {
-    slug: 'rodeo-potentiometer',
-    name: 'rodeo-potentiometer',
-    kind: 'satellite',
-    status: 'shipped',
-    rev: 'A+B',
-    summary: 'One pot, three pins, entirely passive — and it still plugs into Rev B.',
-    body: 'The simplest board in the family, and the only one that survives the Rev B redesign unchanged. The general-purpose I/O connectors deliberately use the pinout this board already has, so a single pot drops onto any analog-capable connector without an adapter. Use it where one control does not justify a satellite.',
-    shot: {
-      src: potentiometerImg,
-      alt: 'Render of the rodeo-potentiometer board: a small square PCB with a single potentiometer footprint, two gold mounting pads, a resistor, a capacitor and a three-pin JST-SH connector at the bottom edge.',
-      media: 'render',
-      caption: 'rodeo-potentiometer',
-      rev: 'A',
-    },
-    specs: [
-      { label: 'connector', value: '3-pin JST SH: GND, wiper, supply', evidence: `${R}:574-578` },
-      { label: 'Rev B fit', value: 'plugs into any analog-capable I/O connector', evidence: `${R}:574-578` },
-      { label: 'electronics', value: 'passive — one RC filter', evidence: `${SDK}:133-134` },
-    ],
-  },
 
   {
     slug: 'rodeo-audio-3.5mm',
@@ -213,7 +192,7 @@ export const boards: Board[] = [
     rev: 'B',
     outline: { w: 60, h: 30 },
     summary: 'Four stereo 3.5 mm jacks carrying the motherboard’s eight audio signals.',
-    body: 'Rev B has twice the audio of Rev A, and the jacks move off the motherboard onto a board that bolts to the rear rail. It is passive apart from protection: a series resistor and a clamp on every input, an ESD diode on every jack contact. A quarter-inch variant will share the circuit with different jacks.',
+    body: 'Eight audio signals leave the motherboard on one ribbon and land here, on a board that bolts to the rear rail. It is passive apart from protection: a series resistor and a clamp on every input, an ESD diode on every jack contact. A quarter-inch variant will share the circuit with different jacks.',
     specs: [
       { label: 'jacks', value: '4 × stereo 3.5 mm TRS', evidence: 'hardware/rodeo-audio-3.5mm/README.md:3' },
       { label: 'carries', value: 'the 8 audio signals on the 2×10 ribbon', evidence: 'hardware/rodeo-audio-3.5mm/README.md:3-4' },
@@ -259,7 +238,7 @@ export const boards: Board[] = [
     rev: 'B',
     outline: { w: 40, h: 20 },
     summary: 'The default power input, and the board that carries USB data to the Seed.',
-    body: 'A USB-C jack behind the panel, cabled to the motherboard. It is why Rev B has USB at all: the Seed’s data lines run through this board rather than dead-ending inside the case as they did on Rev A. That is what should bring USB-MIDI, USB audio and DFU flashing to the panel port — should, because no Rev B board has been powered on yet.',
+    body: 'A USB-C jack behind the panel, cabled to the motherboard. It is why there is USB at all: the Seed’s data lines run through this board instead of stopping inside the case. That is what should bring USB-MIDI, USB audio and DFU flashing to the panel port — should, because no Rev B board has been powered on yet.',
     specs: [
       { label: 'input', value: 'USB-C, 5 V sink, no USB-PD', evidence: 'hardware/rodeo-power-usbc/README.md:22' },
       { label: 'also carries', value: 'USB data for the Seed, and status LEDs', evidence: 'hardware/rodeo-power-usbc/README.md:4-5' },
@@ -326,8 +305,8 @@ export const boards: Board[] = [
     kind: 'daughterboard',
     status: 'planned',
     rev: 'B',
-    summary: 'Where Rev A’s 24 high-resolution analog inputs went: an optional board on the SPI header.',
-    body: 'Rev A put two 16-bit converters on every motherboard whether a build needed them or not, at around nineteen dollars a board. The satellite chain covers ordinary knobs, so the converters become optional: a board on the SPI expansion header, for builds that genuinely need ratiometric 16-bit inputs rather than the Seed’s own ADC.',
+    summary: 'Twenty-four 16-bit analog inputs, for builds that need better than the Seed’s own converter.',
+    body: 'Ordinary knobs go on the satellite chain, which is cheaper and scales further, so high-resolution conversion is not something every build should pay for. It lives here instead: one ADS114S08 on the SPI expansion header, about nineteen dollars of parts, for the builds that genuinely need ratiometric 16-bit inputs.',
     specs: [
       { label: 'converter', value: 'one ADS114S08 on the SPI header', evidence: `${R}:218` },
       { label: 'why optional', value: 'satellites cover ordinary controls; ~$19 a board saved', evidence: `${R}:218` },
@@ -335,7 +314,7 @@ export const boards: Board[] = [
     caveats: [
       {
         status: 'planned',
-        text: 'Specified, not drawn. The part is chosen and the circuit is carried over from the Rev-A review, but no schematic or layout exists.',
+        text: 'Specified, not drawn. The part is chosen and the circuit is worked out, but no schematic or layout exists.',
         evidence: `${R}:218`,
       },
     ],
@@ -392,7 +371,30 @@ export interface Change {
 }
 
 export const prototype = {
-  rev: 'A' as Rev,
+  rev: 'prototype' as const,
+
+  /** The prototype's satellite, kept here with the board it was built for. */
+  satellite: {
+    slug: 'rodeo-potentiometer',
+    name: 'rodeo-potentiometer',
+    kind: 'satellite',
+    status: 'shipped',
+    rev: 'A+B',
+    summary: 'One pot, three pins, entirely passive — and it still plugs into Rev B.',
+    body: 'The simplest board in the family, and the only one that survives the Rev B redesign unchanged. The general-purpose I/O connectors deliberately use the pinout this board already has, so a single pot drops onto any analog-capable connector without an adapter. Use it where one control does not justify a satellite.',
+    shot: {
+      src: potentiometerImg,
+      alt: 'Render of the rodeo-potentiometer board: a small square PCB with a single potentiometer footprint, two gold mounting pads, a resistor, a capacitor and a three-pin JST-SH connector at the bottom edge.',
+      media: 'render',
+      caption: 'rodeo-potentiometer',
+      rev: 'A',
+    },
+    specs: [
+      { label: 'connector', value: '3-pin JST SH: GND, wiper, supply', evidence: `${R}:574-578` },
+      { label: 'Rev B fit', value: 'plugs into any analog-capable I/O connector', evidence: `${R}:574-578` },
+      { label: 'electronics', value: 'passive — one RC filter', evidence: `${SDK}:133-134` },
+    ],
+  },
 
   /** Proven on the fabricated Rev-A boards. Past tense on purpose. */
   proven: [
@@ -483,45 +485,45 @@ export const prototype = {
   shots: [
     {
       src: motherboardImg,
-      alt: 'Photograph of the assembled Rev-A Rodeo motherboard: a black PCB with the Daisy Seed footprint, two banks of analog connectors, a row of digital connectors and the panel I/O along one edge.',
+      alt: 'Photograph of the assembled prototype Rodeo motherboard: a black PCB with the Daisy Seed footprint, two banks of analog connectors, a row of digital connectors and the panel I/O along one edge.',
       media: 'photo' as const,
       caption: 'rodeo motherboard, assembled',
-      rev: 'A' as Rev,
+      rev: 'prototype' as const,
     },
     {
       src: motherboardBackImg,
-      alt: 'Photograph of the back of the Rev-A motherboard, showing the ground pour, the board name in silkscreen and the mounting holes.',
+      alt: 'Photograph of the back of the prototype motherboard, showing the ground pour, the board name in silkscreen and the mounting holes.',
       media: 'photo' as const,
       caption: 'the same board, reverse',
-      rev: 'A' as Rev,
+      rev: 'prototype' as const,
     },
     {
       src: motherboardIoImg,
-      alt: 'Close-up photograph of the Rev-A motherboard’s panel I/O: the MIDI DIN connector, the 3.5 mm audio jacks and the USB-C connector along the board edge.',
+      alt: 'Close-up photograph of the prototype motherboard’s panel I/O: the MIDI DIN connector, the 3.5 mm audio jacks and the USB-C connector along the board edge.',
       media: 'photo' as const,
       caption: 'panel I/O — the USB-C here is power only',
-      rev: 'A' as Rev,
+      rev: 'prototype' as const,
     },
     {
       src: motherboardDaisyImg,
-      alt: 'Close-up photograph of the Rev-A motherboard’s Daisy Seed footprint: two rows of plated through-holes with the UART, I2C and SPI headers above them and the indicator LEDs beside.',
+      alt: 'Close-up photograph of the prototype motherboard’s Daisy Seed footprint: two rows of plated through-holes with the UART, I2C and SPI headers above them and the indicator LEDs beside.',
       media: 'photo' as const,
       caption: 'the Daisy Seed footprint and bus headers',
-      rev: 'A' as Rev,
+      rev: 'prototype' as const,
     },
     {
       src: encoderHubImg,
       alt: 'Photograph of the rodeo-encoder-hub board: a small square PCB with nine three-pin connectors around its edge and an STM32 microcontroller in the centre.',
       media: 'photo' as const,
       caption: 'rodeo-encoder-hub — retired in Rev-B',
-      rev: 'A' as Rev,
+      rev: 'prototype' as const,
     },
     {
       src: encoderHubBackImg,
       alt: 'Photograph of the back of the rodeo-encoder-hub board, showing the I²C address jumpers and the ground pour.',
       media: 'photo' as const,
       caption: 'the hub’s reverse, with its address jumpers',
-      rev: 'A' as Rev,
+      rev: 'prototype' as const,
     },
   ] satisfies Shot[],
 };

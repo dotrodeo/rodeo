@@ -1,5 +1,5 @@
 // USB step 1: TinyUSB on a bare Daisy Seed, composite USB-MIDI + CDC serial on the
-// Seed's own micro-USB. Replaces libDaisy's USB (see rodeo-sdk/docs/REV_B_PLAN.md,
+// Seed's own micro-USB. Replaces libDaisy's USB (see planning/REV_B_PLAN.md,
 // "USB: explore first"). No Rodeo board needed.
 //
 // What it does, once the computer has enumerated it as "Rodeo USB test":

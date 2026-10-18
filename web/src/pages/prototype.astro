@@ -99,6 +99,17 @@ const [lead, ...rest] = prototype.shots;
       </ul>
     </section>
 
+    <section class="flex flex-col gap-5 border-t border-rule py-14">
+      <Eyebrow>Its satellite</Eyebrow>
+      <h2 class="display m-0 max-w-[22ch] text-[clamp(26px,4vw,38px)]">
+        {prototype.satellite.name}
+      </h2>
+      <p class="prose-body m-0 max-w-[62ch] text-[16.5px]">{prototype.satellite.body}</p>
+      <div class="max-w-[840px] pt-1">
+        <SpecTable specs={prototype.satellite.specs} columns={1} />
+      </div>
+    </section>
+
     <section class="flex flex-col gap-7 border-t border-rule py-14">
       <Eyebrow>What changed</Eyebrow>
       <h2 class="display m-0 max-w-[24ch] text-[clamp(28px,4.4vw,42px)]">

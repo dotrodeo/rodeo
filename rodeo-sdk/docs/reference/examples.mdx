@@ -1,0 +1,36 @@
+---
+title: Examples
+description: The standalone programs in rodeo-sdk/examples — what runs today on a bare Daisy Seed, and what arrives when the boards do.
+---
+
+Small programs that each prove one thing. Flash one, confirm it works, move on.
+They are also the shortest honest answer to "how do I use this?"
+
+## Runs today, on a bare Seed
+
+Neither of these needs a Rodeo board — a Daisy Seed and a USB cable is the whole
+setup.
+
+| Example | What it proves |
+|---|---|
+| `usb_midi_cdc` | TinyUSB on the Seed's micro-USB: composite USB-MIDI and a serial port. Echoes every MIDI message, plays middle C once a second, and echoes what you type. |
+| `usb_device` | The full device: stereo audio in and out at 48 kHz / 24-bit, USB-MIDI, serial and a RAM disk, simultaneously. The serial port switches what the computer records — the Seed's inputs, a digital loopback, or a test tone. |
+
+```sh
+cd rodeo-sdk/examples/usb_device
+make && make program-dfu
+```
+
+`usb_device` is the interesting one. The computer plays to "Rodeo" and it comes
+out of the Seed's outputs; the Seed's codec clock sets the rate and a feedback
+endpoint keeps the computer in step, so there is no resampling and no drift.
+
+## Arrives with the boards
+
+The bring-up set — one example per board, proving each subsystem before any
+instrument is built on it — is being written against hardware that has not been
+delivered. It is listed in `planning/REV_B_PLAN.md` under Milestone 1.
+
+Until then the only programs here that touch a Rodeo board are the ones in the
+frozen SDK at `rev-a/rodeo-sdk/examples/`, which target the prototype and not
+the boards being shipped.

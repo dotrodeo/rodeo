@@ -1,6 +1,6 @@
 # USB device test on a bare Daisy Seed's micro-USB, on TinyUSB: UAC1 audio 2x2 48 kHz
 # 24-bit + MIDI + serial, and a disk mode that offers a RAM disk as USB storage.
-# See rodeo-sdk/docs/REV_B_PLAN.md, "USB".
+# See planning/REV_B_PLAN.md, "USB".
 TARGET      = usb_device
 CPP_SOURCES = src/main.cpp
 

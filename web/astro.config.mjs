@@ -93,17 +93,10 @@ export default defineConfig({
           ],
         },
         {
-          label: 'Drivers',
-          items: [
-            { label: 'Analog inputs', slug: 'sdk/drivers/adc' },
-            { label: 'Encoders', slug: 'sdk/drivers/encoders' },
-          ],
-        },
-        {
           label: 'Reference',
           items: [
             { label: 'Pure-logic headers', slug: 'sdk/reference/pure-logic' },
-            { label: 'Bring-up examples', slug: 'sdk/reference/examples' },
+            { label: 'Examples', slug: 'sdk/reference/examples' },
             { label: 'Versioning', slug: 'sdk/reference/versioning' },
           ],
         },

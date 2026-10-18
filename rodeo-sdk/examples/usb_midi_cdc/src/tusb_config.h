@@ -1,6 +1,6 @@
 // TinyUSB configuration for the USB step-1 test: MIDI + CDC serial on the Daisy
 // Seed's micro-USB (the STM32H750's OTG_FS core, TinyUSB root-hub port 0).
-// See rodeo-sdk/docs/REV_B_PLAN.md, "USB: explore first".
+// See planning/REV_B_PLAN.md, "USB: explore first".
 #pragma once
 
 #define CFG_TUSB_MCU OPT_MCU_STM32H7

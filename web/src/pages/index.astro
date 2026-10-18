@@ -18,12 +18,13 @@ const steps = [
   },
   {
     title: 'Give it a voice',
-    body: 'A Daisy Seed does the DSP with libDaisy and DaisySP. rodeo-sdk handles the hardware around it: the Rev-A drivers are proven on real boards and frozen at v0.2.0, and the Rev-B rewrite is scoped in the open but not written yet.',
+    body: 'A Daisy Seed does the DSP with libDaisy and DaisySP, and rodeo-sdk handles the hardware around it. USB already works — audio, MIDI and serial at once. The chain and codec drivers are being written in the open.',
   },
 ];
 
-// Rev-A photographs, captioned as such by BoardFigure. They are the only real
-// hardware that exists, and the home page says plainly which board they show.
+// Photographs of the prototype, captioned as such by BoardFigure. They are the
+// only real hardware that exists; the page says so rather than implying these
+// are the boards being sold.
 const gallery = prototype.shots.slice(0, 3);
 const lead = prototype.shots[0]!;
 ---
@@ -42,8 +43,8 @@ const lead = prototype.shots[0]!;
         desk.
       </p>
       <p class="copy-tech m-0 max-w-[560px] text-[14.5px] text-hardware">
-        The Rev-B boards are drawn, routed and ordered from the fab — not built, not powered
-        on. This site is careful about which is which — see
+        The boards are drawn, routed and ordered from the fab — not built, not powered on
+        yet. This site is careful about which is which — see
         <a href="/ecosystem/" class="text-yellow">the boards</a>.
       </p>
       <div class="flex flex-wrap items-stretch gap-4">
@@ -63,10 +64,9 @@ const lead = prototype.shots[0]!;
 
   <section class="wrap flex flex-col gap-4 pb-16 pt-10">
     <p class="copy-tech m-0 max-w-[640px] text-[14px] text-hardware">
-      The board below is the Rev-A prototype, the one that proved the platform.
-      It is not what the campaign ships — Rev-B drops the on-board converters
-      for a second codec and moves controls onto the chain.
-      <a href="/ecosystem/" class="text-yellow">See what Rev-B is.</a>
+      The board below is the prototype — the one that proved this works, and not
+      what the campaign ships. <a href="/prototype/" class="text-yellow">What it
+      proved, and what changed since.</a>
     </p>
     <BoardFigure
       src={lead.src}

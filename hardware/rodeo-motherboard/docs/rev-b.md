@@ -39,7 +39,7 @@ rewired or remapped as needed if they move to Rev B.
 This doc gathers every Rev B item in one place. Before it existed they were
 spread across `hardware-map.md`, `instruments/rodeo-001/docs/RODEO_CONTROL_MAP.md`,
 `instruments/rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md` and
-`rodeo-sdk/docs/RODEO_ADC_LIB_DESIGN.md`. Those are the history; this is the list.
+`planning/RODEO_ADC_LIB_DESIGN.md`. Those are the history; this is the list.
 
 ---
 

@@ -1,0 +1,63 @@
+---
+title: rodeo-sdk
+description: The firmware side of Rodeo — libDaisy and DaisySP underneath, with the drivers, pure-logic headers and bring-up examples the boards need on top.
+---
+
+The firmware side of the platform. You are writing an Electrosmith Daisy
+program: **libDaisy** and **DaisySP** do the work they always did, and
+`rodeo-sdk` adds what the Daisy cannot do on its own — the connectors, the
+satellite chain, the second codec, and a pile of logic that is easier to test on
+a laptop than on a bench.
+
+:::caution[Being rewritten, in the open]
+The boards were ordered on 18 October 2026 and none has been powered on. The SDK
+is mid-rewrite to match them, so this documents a library in motion rather than
+a finished one. Each page says what is written and what is not; the plan is
+`planning/REV_B_PLAN.md`.
+:::
+
+## What works today
+
+- **USB.** `examples/usb_device` turns a bare Seed into a composite USB device on
+  TinyUSB: stereo audio in and out at 48 kHz / 24-bit, USB-MIDI, a serial port
+  and a RAM disk, all at once. Measured full-duplex loopback came back
+  glitch-free over sixty seconds at 31 ms round trip. This replaces libDaisy's
+  own USB stack.
+- **The [pure-logic headers](/sdk/reference/pure-logic/).** Scaling, filtering,
+  UI smoothing, the scope — no hardware in them, tested on a laptop, and
+  unaffected by the board revision.
+- **[Toolchain and template](/sdk/install/).** Building, flashing and starting an
+  app have not changed.
+
+## What is still being written
+
+The satellite-chain driver, the second codec on SAI2, a new `board.h` for the Rev
+B pin map, and the bring-up examples that go with them. The satellite firmware
+will be its own top-level tree built with ch32v003fun — one image for every
+satellite kind, with an ID resistor choosing which.
+
+## How it is put together
+
+**Layer 1 is pure logic.** Headers with no hardware in them at all, so they build
+and run on a laptop under `common/tests`. If something can be tested without a
+board, it belongs here.
+
+**Layer 2 is the board.** Drivers that talk to real silicon over SPI, I²C and
+UART. They depend on `board.h`, which is the single source of truth for the pin
+map.
+
+**Layer 3 is your instrument.** The control assignments — which knob is cutoff,
+which encoder picks the waveform — live in your app and its own control map, not
+in the SDK. If something here names a specific knob or a specific sound, it is in
+the wrong place.
+
+## Where to go next
+
+- [Install and build](/sdk/install/) — toolchain, submodules, and the macOS
+  newlib trap
+- [Your first app](/sdk/first-app/) — copy the template and get something running
+- [Pure-logic headers](/sdk/reference/pure-logic/) — the parts you can test
+  without hardware
+- [Examples](/sdk/reference/examples/) — what exists to run right now
+- [Versioning](/sdk/reference/versioning/) — how the SDK is tagged, and how an app
+  refuses to build against one that is too old
