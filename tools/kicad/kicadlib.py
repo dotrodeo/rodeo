@@ -110,8 +110,13 @@ def pcb_footprints(pcb_path):
     X/Y are cartesian (y up), the same frame kicad-cli's position export and the
     Gerbers use.
     """
+    return dict(pcb_footprint_list(pcb_path))
+
+
+def pcb_footprint_list(pcb_path):
+    """pcb_footprints as a list of (ref, dict), keeping repeated references (a panel)."""
     t = open(pcb_path).read()
-    out = {}
+    out = []
     for f in re.split(r'\n\t\(footprint ', t)[1:]:
         ref = re.search(r'\(property "Reference" "([^"]*)"', f).group(1)
         at = re.search(r'\n\t\t\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)', f)
@@ -124,7 +129,7 @@ def pcb_footprints(pcb_path):
                              X=x0 + dx, Y=-(y0 + dy), w=float(m.group(7)), h=float(m.group(8)),
                              rot=float(m.group(6) or 0)))
         layer = re.search(r'\n\t\t\(layer "([^"]+)"\)', f).group(1)
-        out[ref] = dict(lib=f.split('"')[1], x=x0, y=-y0, rot=r0, layer=layer, pads=pads)
+        out.append((ref, dict(lib=f.split('"')[1], x=x0, y=-y0, rot=r0, layer=layer, pads=pads)))
     return out
 
 

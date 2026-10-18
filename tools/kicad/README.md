@@ -11,6 +11,7 @@ schematic closed in KiCad, or KiCad overwrites the change on its next save.
 | `jlc_parts.py` | JLC stock and part search: `jlc_parts.py stock C25744`, `jlc_parts.py search "BM05B-SRSS-TB"`. JLC's stock, not LCSC's; they differ, and only JLC's counts for assembly. |
 | `grid_check.py` | Check a board against the mounting system (`hardware/mounting/README.md`): `--rear EDGE` for rear-I/O daughterboards (holes on the rail rows, 10 mm spacing, keep-outs, connector overhang), `--frame` for the motherboard's hole pattern. |
 | `rear_panels.py` | Generate the Rev B back panels (`hardware/panels/`), one KiCad project per rear board, from its table of openings: outline and openings on Edge.Cuts, four M3 holes, silkscreen labels. Run with KiCad's Python; rerun after changing an opening, then `jlc_fab.py` for Gerbers. |
+| `rodeo_tabs.py` | KiKit tabs plugin for `panel.json`: tabs at given positions along each board edge (see Panels). |
 | `jlc_fab.py` | Everything JLCPCB needs, into `jlcpcb/` next to the project: Gerbers and drill (zipped), BOM, and a CPL **corrected to JLC's own footprints**, plus `placement-check.png` to confirm it by eye. With `--panel`, the same for a KiKit panel of the board, into `jlcpcb-panel/` (see Panels). |
 
 ## Setup
@@ -26,20 +27,44 @@ tools/kicad/.venv/bin/pip install -r tools/kicad/requirements.txt
 
 ## Panels
 
-For production runs, small assembled boards go to JLC as panels of copies of
+For production runs, the small assembled boards go to JLC as panels of copies of
 the same board (never mixed designs). A board's `panel.json`, next to its
 `.kicad_pro`, is a [KiKit](https://github.com/yaqwsx/KiKit) panelize config;
-`jlc_fab.py --panel` runs KiKit on it into `panel/` (ignored by git, open it in
+`jlc_fab.py --panel` runs KiKit on it into `panel/` (ignored by git; open it in
 KiCad to inspect) and writes the panel's Gerbers, BOM, CPL and placement check
-into `jlcpcb-panel/`. KiKit names each copy's parts `<ref>_<n>`; the BOM lists
-every copy and the CPL is solved per copy, so rotated copies come out right.
+into `jlcpcb-panel/`. The panel keeps the board's references, so its silkscreen
+is the board's; the BOM and CPL name each copy's parts `<ref>_<n>` (copies
+numbered top to bottom, left to right), and the CPL is solved per copy, so
+rotated copies place correctly.
 
-House rules, from JLC's mouse-bite guide: 0.6 mm holes ~0.35 mm apart, at least
-two tab sets placed symmetrically, tabs away from connectors, mounting holes and
-any edge that meets a rear panel; parts that overhang the edge face outward with
-no rail on that side; rails (5 mm, three tooling holes, three fiducials) on the
-other two sides. Order with "panel by customer" and edge rails/fiducials added
-by customer.
+| Board | Panel | Size |
+|---|---|---|
+| power switch | 2 × 2, second row turned 180° | 76 × 42 mm |
+| MIDI | 2 × 2, second row turned | 96 × 52 mm |
+| USB-C power | 2 × 2, second row turned | 96 × 42 mm |
+| audio 3.5 mm | 2 × 2, second row turned | 136 × 62 mm |
+| power barrel | 2 × 2, second row turned | 136 × 82 mm |
+| pot bank, encoder bank | 4 side by side | 100 × 100 mm |
+
+The rear boards' I/O edges (jacks and switches past the edge) face out of the
+panel with no rail there, and their cable-connector edges face each other.
+
+House rules:
+
+* Mouse bites from JLC's guide: 0.6 mm holes, 0.95 mm pitch, 5 mm tabs, at least
+  two tabs per board placed symmetrically, none on a connector, a part at the
+  edge or a curved corner. Rails 5 mm on two sides with three tooling holes and
+  three fiducials. Order with "panel by customer" and edge rails/fiducials added
+  by customer.
+* **The holes sit outside the board** (`offset` -0.3 mm, -0.45 mm on the banks).
+  The boards' ground pours run 0.5 mm (rear boards) or 0.17 mm (banks) from the
+  edge, with signal traces close to the edge too, so holes inside the outline cut
+  copper. Outside, they leave a nub of about 0.3 mm at each tab: file it if it
+  matters. Check with DRC on the panel: no `hole_clearance` violation may name a
+  `KiKit_MB` hole.
+* `rodeo_tabs.py` is a KiKit tabs plugin that puts tabs at given positions along
+  each edge of the source board (KiKit's own tabs spread evenly and land on
+  parts), following each copy's rotation. Its docstring has the format.
 
 KiKit needs pcbnew, so it runs on KiCad's own Python (`$KICAD_PYTHON`, default the
 macOS bundle's) from its own folder:

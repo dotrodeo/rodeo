@@ -1,0 +1,47 @@
+{
+    "layout": {
+        "type": "grid",
+        "rows": 2,
+        "cols": 2,
+        "hspace": "2mm",
+        "vspace": "2mm",
+        "alternation": "rows"
+    },
+    "tabs": {
+        "type": "plugin",
+        "code": "rodeo_tabs.EdgeTabs",
+        "arg": "{\"ref\": \"H1\", \"left\": [7, 30], \"right\": [9], \"bottom\": [8, 52]}",
+        "hwidth": "5mm",
+        "vwidth": "5mm"
+    },
+    "cuts": {
+        "type": "mousebites",
+        "drill": "0.6mm",
+        "spacing": "0.95mm",
+        "offset": "-0.3mm",
+        "prolong": "0.5mm"
+    },
+    "framing": {
+        "type": "railslr",
+        "width": "5mm",
+        "space": "2mm"
+    },
+    "tooling": {
+        "type": "3hole",
+        "hoffset": "2.5mm",
+        "voffset": "2.5mm",
+        "size": "1.152mm",
+        "paste": false,
+        "soldermaskmargin": "1.3mm"
+    },
+    "fiducials": {
+        "type": "3fid",
+        "hoffset": "2.5mm",
+        "voffset": "8mm",
+        "coppersize": "1mm",
+        "opening": "2mm"
+    },
+    "post": {
+        "millradius": "1mm"
+    }
+}

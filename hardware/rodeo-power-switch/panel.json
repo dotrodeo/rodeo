@@ -5,8 +5,7 @@
         "cols": 2,
         "hspace": "2mm",
         "vspace": "2mm",
-        "alternation": "rows",
-        "renameref": "{orig}_{n}"
+        "alternation": "rows"
     },
     "tabs": {
         "type": "fixed",

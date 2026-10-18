@@ -20,8 +20,10 @@ A project without a schematic (the rear panels) gets Gerbers and the STEP only.
 
 --panel builds a panel of the board with KiKit from the panel.json next to the
 project (see "Panels" in README.md) into panel/, then writes the same files for the
-panel into jlcpcb-panel/ (no STEP). KiKit names each copy's parts <ref>_<n>; the BOM
-lists every copy and the CPL is solved per copy, so rotated copies come out right.
+panel into jlcpcb-panel/ (no STEP). The panel keeps the board's references (so its
+silkscreen is the board's); the BOM and CPL name each copy's parts <ref>_<n>, copies
+numbered in reading order, and the CPL is solved per copy, so rotated copies come
+out right.
 
 Why the CPL needs correcting: JLC places each part with its own EasyEDA footprint
 for that LCSC number, origin at the CPL position, rotated by the CPL rotation.
@@ -54,7 +56,7 @@ import sys
 import time
 import zipfile
 
-from kicadlib import HERE, Netlist, pcb_footprints, pcb_outline, rotate, run
+from kicadlib import HERE, Netlist, pcb_footprint_list, pcb_footprints, pcb_outline, rotate, run
 
 # JLC's footprints, one JSON per LCSC number. Tracked in git: the EasyEDA API
 # rate-limits, and the files are small.
@@ -116,7 +118,7 @@ def kikit_panel(base):
     pdir = os.path.join(d, 'panel')
     os.makedirs(pdir, exist_ok=True)
     panel = os.path.join(pdir, f'{name}-panel.kicad_pcb')
-    env = dict(os.environ, PYTHONPATH=KIKIT_DIR)
+    env = dict(os.environ, PYTHONPATH=os.pathsep.join([KIKIT_DIR, HERE]))  # HERE: rodeo_tabs.py
     r = subprocess.run([KICAD_PYTHON, '-m', 'kikit.ui', 'panelize', '-p', spec, base + '.kicad_pcb', panel],
                        env=env, capture_output=True, text=True)
     if r.returncode or not os.path.exists(panel):
@@ -124,6 +126,39 @@ def kikit_panel(base):
     for f in set(glob.glob(os.path.join(pdir, '*.lck')) + glob.glob(os.path.join(pdir, '~*'))):
         os.remove(f)
     return panel
+
+
+def panel_copies(src, panel):
+    """Name each copy's footprints on a panel <ref>_<n>.
+
+    src: pcb_footprints of the board; panel: pcb_footprint_list of the panel, whose
+    references repeat once per copy. Each copy is a rotation and translation of the
+    board, found from one part's instances and confirmed by every other part's.
+    Copies are numbered top to bottom, then left to right. Returns {name: footprint}.
+    """
+    def place(theta, c, p):
+        a = math.radians(theta)
+        return (c[0] + p['x'] * math.cos(a) - p['y'] * math.sin(a),
+                c[1] + p['x'] * math.sin(a) + p['y'] * math.cos(a))
+    inst = [(r, f) for r, f in panel if r in src]
+    anchor = max(src, key=lambda r: (sum(1 for q, _ in inst if q == r), len(src[r]['pads'])))
+    copies = []
+    for r, f in inst:
+        if r == anchor:
+            theta = (f['rot'] - src[r]['rot']) % 360
+            x, y = place(theta, (0, 0), src[r])
+            copies.append((theta, (f['x'] - x, f['y'] - y)))
+    copies.sort(key=lambda c: (-round(c[1][1], 1), round(c[1][0], 1)))
+    out = {}
+    for r, f in inst:
+        for n, (theta, c) in enumerate(copies):
+            x, y = place(theta, c, src[r])
+            if math.dist((x, y), (f['x'], f['y'])) < 0.01 and (f['rot'] - src[r]['rot'] - theta) % 360 < 0.01:
+                out[f'{r}_{n}'] = f
+                break
+        else:
+            sys.exit(f'{r} at ({f["x"]:.2f}, {f["y"]:.2f}) on the panel matches no copy of the board')
+    return out
 
 
 def easyeda_footprint(code):
@@ -306,6 +341,7 @@ def main():
     fps = pcb_footprints(pcb)
     # Each schematic part's footprints on the board: itself, or a panel's copies
     if a.panel:
+        fps = panel_copies(pcb_footprints(base + '.kicad_pcb'), pcb_footprint_list(pcb))
         copies = {r: sorted((p for p in fps if re.fullmatch(re.escape(r) + r'_\d+', p)), key=refkey) for r in refs}
     else:
         copies = {r: [r] for r in refs}
