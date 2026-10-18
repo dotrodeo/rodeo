@@ -90,7 +90,10 @@ const MAP = 'rev-a/rodeo-motherboard/docs/hardware-map.md';
 const HUB = 'rev-a/rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md';
 const HUBFW = 'rev-a/rodeo-encoder-hub/firmware/README.md';
 const CHAIN = 'hardware/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md';
-const SDK = 'rodeo-sdk/README.md';
+// Rev-A facts cite the *frozen* Rev-A SDK. The live rodeo-sdk/ tree is being
+// rewritten for Rev B, so its line numbers move — citing it for Rev-A claims
+// drifted by four lines within a day of the freeze.
+const SDK = 'rev-a/rodeo-sdk/README.md';
 // The first order: the motherboard and six daughterboards were uploaded to JLC
 // on 2026-10-16, five of each, and are not ordered yet. One record covers all seven.
 const FAB = 'hardware/rodeo-motherboard/docs/rev-b.md:3-6';
@@ -198,7 +201,7 @@ export const boards: Board[] = [
     specs: [
       { label: 'connector', value: '3-pin JST SH: GND, wiper, supply', evidence: `${R}:574-578` },
       { label: 'Rev B fit', value: 'plugs into any analog-capable I/O connector', evidence: `${R}:574-578` },
-      { label: 'electronics', value: 'passive — one RC filter', evidence: `${SDK}:125-127` },
+      { label: 'electronics', value: 'passive — one RC filter', evidence: `${SDK}:133-134` },
     ],
   },
 
@@ -397,7 +400,7 @@ export const prototype = {
     {
       label: 'conversion path',
       value: 'bench-confirmed on silicon, 2026-08-14',
-      evidence: `${SDK}:125-127`,
+      evidence: `${SDK}:133-134`,
     },
     { label: 'digital in', value: '12 raw Daisy GPIO', evidence: `${MAP}:114` },
     { label: 'audio', value: 'line in and out, 3.5 mm', evidence: `${MAP}:143` },
@@ -412,7 +415,7 @@ export const prototype = {
     {
       label: 'register contract',
       value: 'silicon-verified, 2026-08-20',
-      evidence: `${SDK}:129-130`,
+      evidence: `${SDK}:137-138`,
     },
     { label: 'host', value: 'Daisy Seed3, 40-pin footprint', evidence: `${MAP}:15` },
   ] satisfies Spec[],

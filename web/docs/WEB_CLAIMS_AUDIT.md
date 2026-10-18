@@ -139,7 +139,7 @@ above.
 | Claim | Evidence |
 |---|---|
 | 24 analog input channels, 16-bit | 2× TI ADS114S08 on SPI1; `rev-a/rodeo-motherboard/docs/hardware-map.md:76` |
-| ADC conversion path proven on real silicon | SPI orientation and conversion bench-confirmed 2026-08-14 via `04_adc_1ch` / `05_adc_scan`; `rodeo-sdk/README.md:125-127` |
+| ADC conversion path proven on real silicon | SPI orientation and conversion bench-confirmed 2026-08-14 via `04_adc_1ch` / `05_adc_scan`; `rev-a/rodeo-sdk/README.md:133-134` |
 | 12 digital inputs | Raw Daisy Seed GPIO, no expanders; `rev-a/rodeo-motherboard/docs/hardware-map.md:114` |
 | I²C control bus | `rev-a/rodeo-motherboard/docs/hardware-map.md:173` |
 | MIDI **in and out**, TRS | J2 in via 6N138 opto; J3 out. `rev-a/rodeo-motherboard/docs/hardware-map.md:165-166` |
@@ -147,7 +147,7 @@ above.
 | Encoder hub: 9 encoders, one I²C target | `rev-a/rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md:39` |
 | Hub addresses 0x30–0x33 (4 hubs per bus) | Two cuttable jumpers; `RODEO_HUB_I2C_CONTRACT.md:35` |
 | Hub firmware **running on hardware** | First bring-up on a fabbed board 2026-09-12; enumerates, serves telemetry, counts correctly alongside the OLED. `rev-a/rodeo-encoder-hub/firmware/README.md:177-191` |
-| I²C register contract silicon-verified | `rodeo-sdk/README.md:129-130` (locked, silicon-verified 2026-08-20); map at `RODEO_HUB_I2C_CONTRACT.md:80-99` |
+| I²C register contract silicon-verified | `rev-a/rodeo-sdk/README.md:137-138` (locked, silicon-verified 2026-08-20); map at `RODEO_HUB_I2C_CONTRACT.md:80-99` |
 | `rodeo-potentiometer` finalized | `instruments/rodeo-001/docs/RODEO_CONTROL_MAP.md:33-36` |
 | `rodeo-encoder`, `rodeo-encoder-hub` interface-verified | `instruments/rodeo-001/docs/RODEO_CONTROL_MAP.md:37-39` |
 | Satellite dimensions: pot 25×30 mm, encoder 25×25 mm, button 25×25 mm | Board outlines; uniform ~25 mm panel grid |
@@ -172,7 +172,7 @@ damaging thing the site could do.
 
 | Claim | Note | Evidence |
 |---|---|---|
-| ADS114S08 **absolute-voltage accuracy** | Conversion path is proven; absolute accuracy is still unverified pending a jumper/pot test | `rodeo-sdk/README.md:126-127` |
+| ADS114S08 **absolute-voltage accuracy** | Conversion path is proven; absolute accuracy is still unverified pending a jumper/pot test | `rev-a/rodeo-sdk/README.md:133-134` |
 | Hub I²C at 400 kHz | Boots at 100 kHz and works; the 400 kHz `TIMINGR` value has never been generated, and SDA/SCL setup-hold has never been looked at on a logic analyser | `rev-a/rodeo-encoder-hub/firmware/README.md:179-183`; `RODEO_HUB_I2C_CONTRACT.md:36` |
 | Motherboard board outline | Edge.Cuts not finalized — the mounting rectangle is verified, the overall outline is provisional | `rev-a/rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb` |
 | `rodeo-button` | Interface verified, but the switch footprint is not yet assigned | `instruments/rodeo-001/docs/RODEO_ENCLOSURE_SPEC.md` open items |
