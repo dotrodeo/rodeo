@@ -58,19 +58,22 @@ jobs:
           # eight land, zero gerbers do, and check-claims.mjs resolves all 97
           # citations.
           sparse-checkout-cone-mode: false
+          # Markdown repo-wide, then the handful of non-markdown files the
+          # audit cites by line.
+          #
+          # `**/*.md` rather than a list of directories, because the
+          # directory list has now broken the build three times: once when
+          # Rev B moved into its own folder, once when the repo was
+          # reorganised around hardware/, and once when the Rev A SDK was
+          # frozen into rev-a/. Every one was a citation the runner could not
+          # see. Markdown is small and the submodules are not checked out, so
+          # taking all of it costs little and cannot be outrun by a rename.
           sparse-checkout: |
             /web/
-            /rodeo-sdk/
-            /rev-a/rodeo-motherboard/docs/
+            /**/*.md
             /rev-a/rodeo-motherboard/kicad/
-            /rev-a/rodeo-encoder-hub/firmware/
-            /rev-a/rodeo-potentiometer/
-            /rev-a/rodeo-encoder/
-            /rev-a/rodeo-button/
-            /instruments/rodeo-001/docs/
             /instruments/rodeo-001/firmware/src/
             /instruments/rodeo-002/firmware/common/
-            /hardware/**/*.md
 
       - uses: actions/setup-node@v4
         with:
