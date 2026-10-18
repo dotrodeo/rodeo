@@ -1,8 +1,10 @@
 # rodeo-002 — firmware
 
 Instance firmware for rodeo-002. Shares the platform's toolchain, vendored
-libDaisy/DaisySP and build rules with `rodeo-sdk` — each app
-here just points `RODEO_ROOT` back at that tree.
+libDaisy/DaisySP and build rules with the **Rev A SDK, frozen at `rodeo-sdk/v0.2.0`
+in [`rev-a/rodeo-sdk/`](../../../rev-a/rodeo-sdk/)** — each app here just points
+`RODEO_ROOT` back at that tree. (The top-level `rodeo-sdk/` is being rewritten for Rev B;
+rodeo-002 is the first instrument planned to move to it.)
 
 | App | What it is |
 |---|---|
@@ -15,9 +17,9 @@ here just points `RODEO_ROOT` back at that tree.
 ## Building
 
 Same toolchain as the SDK (see
-[`rodeo-sdk/README.md`](../../../rodeo-sdk/README.md)):
+[`rev-a/rodeo-sdk/README.md`](../../../rev-a/rodeo-sdk/README.md)):
 the official Arm GNU Toolchain with newlib, `GCC_PATH` set in
-`rodeo-sdk/config.mk`, and the submodules initialised
+`rev-a/rodeo-sdk/config.mk`, and the submodules initialised
 (`git submodule update --init --recursive`).
 
 **rodeo-002 runs under the Daisy bootloader** (`APP_TYPE = BOOT_SRAM`): the Seed's 128 KB
@@ -67,7 +69,7 @@ If you are building inside a git worktree where the submodules aren't checked
 out, point at the main checkout instead of initialising them again:
 
 ```bash
-make RODEO_ROOT=/path/to/rodeo/rodeo-sdk
+make RODEO_ROOT=/path/to/rodeo/rev-a/rodeo-sdk
 ```
 
 ## `bench_voices` — what it measures and how to read it

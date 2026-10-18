@@ -8,7 +8,7 @@
 #   make              # build this app
 #   make program-dfu  # flash over USB DFU (hold BOOT, tap RESET first)
 
-RODEO_ROOT := ../../../rodeo-sdk
+RODEO_ROOT := ../../../rev-a/rodeo-sdk
 
 TARGET = rodeo_001
 CPP_SOURCES = \

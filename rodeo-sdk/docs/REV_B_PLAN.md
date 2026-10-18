@@ -1,6 +1,6 @@
 # rodeo-sdk: the Rev B rewrite
 
-**Status: plan, 2026-10-18.** Nothing here is written yet. The SDK as it stands is the
+**Status: plan, 2026-10-18.** Rev A is frozen; nothing for Rev B is written yet. The SDK as it stands is the
 Rev A SDK, tagged [`rodeo-sdk/v0.2.0`](../common/version.h), the last Rev A release.
 The hardware this targets is in
 [`hardware/rodeo-motherboard/docs/rev-b.md`](../../hardware/rodeo-motherboard/docs/rev-b.md)
@@ -21,6 +21,11 @@ Settled with Derek on 2026-10-18:
    kind; the ID resistor picks the kind (contract §1.6).
 3. **The first milestone is bring-up: every Rev B board proven** by an example of its
    own, before any instrument moves to Rev B (see [Milestone 1](#milestone-1-bring-up)).
+4. **The encoder hub ceases to exist on Rev B.** Encoder banks on the satellite chain
+   replace it; the hub board, its firmware and its I²C contract stay Rev A parts, and
+   `encoder_hub.*` and `rodeo_encoders.*` don't come forward.
+5. **rodeo-002 is the first instrument to move to Rev B**, after bring-up.
+6. **USB needs exploring before it's designed** (see [USB](#usb-explore-first)).
 
 ## What happens to each part of the SDK
 
@@ -28,7 +33,7 @@ Settled with Derek on 2026-10-18:
 |---|---|---|
 | `adc_convert.h`, `pot_ui.h`, `rodeo_dsp.h`, `rodeo_scope.h`, `rodeo_screen.h` | **Keep** | Pure logic, host-tested; nothing board-specific in them. |
 | `oled_ssd130x_bulk.*` | **Keep** | The I²C bus is unchanged (I²C1, now with on-board pull-ups and four taps). |
-| `encoder_hub.*`, `rodeo_encoders.*` | **Keep** | The hub and its contract are unchanged on Rev B (`rev-b.md`: "The hub firmware is unaffected"). Encoder banks on the satellite chain are the new route; the hub stays for I²C builds. |
+| `encoder_hub.*`, `rodeo_encoders.*` | **Remove** | The encoder hub doesn't exist on Rev B (decision 4); encoders arrive on the satellite chain as encoder-bank slots. The Rev A versions stay in `rev-a/rodeo-sdk/`. |
 | `tools/screens` | **Keep** | |
 | `board.h` | **Rewrite** | Rev B's pin map (`rev-b.md`, "Seed pin map"): the 8 I/O connectors (`D7`, `D15`–`D21`, seven analog-capable), CV1/CV2 on `D23`/`D22` (DAC out or analog in), satellite chain on USART3 (`D2` TX, `D1` RX), expansion-header chip-select `D0`, second codec reset `D3` and SAI2, SD on `D4`–`D6`, USB on `D29`/`D30`. The status LED is gone. |
 | `rodeo_adc.*`, `ads114s08.*` | **Change** | The two on-board ADS114S08s are gone; one optional ADS114S08 sits on the expansion header (`SPI_EXT_CS`). `RodeoAdc` goes from a fixed 2-chip, 24-channel scanner to N chips (0 or 1 on Rev B). An ADS124S08 needs `ReadData()` to take 3 bytes. |
@@ -54,13 +59,36 @@ Settled with Derek on 2026-10-18:
   includes it by path.
 * **SD card** through `SdmmcHandler` with `BusWidth::BITS_1`, and FatFs.
 * **USB device**, composite: MIDI, mass storage on the SD card (samples load without
-  opening the case) and serial. **Risk:** libDaisy ships USB MIDI and CDC but not mass
-  storage or a composite descriptor; this is the piece most likely to need real work in
-  the STM32 USB stack, so it goes last in the bring-up order.
+  opening the case) and serial. How is an open question, explored before it's designed
+  (below); it goes last in the bring-up order.
 * **Battery gauge**: a MAX17048 driver (I²C 0x36) for charge %, and a save-and-dim hook
   before the cell runs out.
 * **I/O connectors**: a small API over the 8 connectors and CV1/CV2: digital in/out,
   analog in (the Seed's ADC), DAC out on CV1/CV2.
+
+## USB: explore first
+
+What Rev B wants over its one USB port: **USB-MIDI, the SD card as a USB drive, and a
+serial console, at the same time** (one composite device), plus DFU flashing through the
+bootloader. libDaisy ships USB MIDI and CDC serial on ST's USB device library, but no
+mass storage and no composite descriptor. Before choosing, a short exploration answers:
+
+* **How far does libDaisy's stack go?** Can its ST middleware be extended with MSC and a
+  composite MIDI + MSC + CDC descriptor, and what does that cost in flash and RAM next to
+  the audio and the chain?
+* **Is TinyUSB the better base?** It does composite devices (MIDI, MSC, CDC) natively
+  and supports the STM32H7's OTG HS core; the questions are how cleanly it sits beside
+  libDaisy (both want the USB peripheral and its interrupt) and whether it keeps up with
+  audio-rate callbacks.
+* **Does mass storage coexist with the instrument using the card?** While the host owns
+  the SD card as a drive the firmware can't write to it; decide whether the drive is
+  only offered in a "load samples" mode.
+* **DFU:** the Daisy bootloader's `extdfu` handles flashing; confirm it still works
+  when the app presents a composite device, and how the user gets into it.
+
+Output: a short findings section here and a recommendation, from a test build on a bare
+Daisy Seed (no Rev B board needed). Until then `08_usb_midi` uses libDaisy's existing
+USB MIDI, and `09_usb_storage` waits.
 
 ## The pot pipeline (the 1.0 blocker)
 
@@ -98,26 +126,25 @@ resistor, a pot bank and an encoder bank answering DISCOVER and SCAN, then the c
 
 ## Work that can start before the boards arrive
 
-1. **Freeze Rev A** (below), so the rewrite can begin without breaking rodeo-001/002.
+1. ~~**Freeze Rev A**~~ done 2026-10-18 (below).
 2. **`board.h` for Rev B** from `rev-b.md`'s pin map.
 3. **`sat_frame.h` and its host tests**: frame build/parse, CRC, every slot kind,
    truncated and corrupted frames. Pure code; it needs no hardware.
 4. **`rodeo-satellite/` skeleton** on ch32v003fun, built and flashed on a CH32V003
    development board: kind detection, the slot-forwarding loop, a fake input slot.
-5. **The audio, SD and USB examples' code**, written against libDaisy, ready to run
-   when the motherboard arrives.
+5. **The audio and SD examples' code**, written against libDaisy, ready to run when the
+   motherboard arrives.
+6. **The USB exploration** above, on a bare Daisy Seed.
 
 ## Freezing Rev A
 
-rodeo-001 and rodeo-002 point `RODEO_ROOT` at the SDK by relative path, so the moment
-the SDK changes they build against Rev B code. Before the first Rev B commit:
-
-* **Proposal:** copy the SDK as tagged into `rev-a/rodeo-sdk/` (the Rev A archive),
-  with its own pinned `libDaisy`/`DaisySP` submodules at `v0.2.0`'s commits, and point
-  the instruments' `RODEO_ROOT` there. Self-contained: anyone who clones the repo can
-  still build the Rev A instruments, with no tag checkout. Its README says it's frozen.
-* The alternative, building against a worktree checked out at the tag, saves the copy
-  but makes every Rev A build depend on a git step.
+**Done 2026-10-18.** The SDK as tagged `v0.2.0` is copied into
+[`rev-a/rodeo-sdk/`](../../rev-a/rodeo-sdk/), with its own `libDaisy`/`DaisySP`
+submodules pinned at the tag's commits, and rodeo-001's and rodeo-002's `RODEO_ROOT`
+point there. The one edit from the tag is the encoder-hub include path in its
+`common/rodeo.mk`, for its new location. Checked: rodeo-002's three firmwares and
+rodeo-001's build clean against it, and rodeo-002's 181 host tests pass. The top-level
+`rodeo-sdk/` is now free to change.
 
 ## Versioning
 
@@ -131,8 +158,7 @@ the SDK changes they build against Rev B code. Before the first Rev B commit:
 ## Open questions
 
 * The pot conditioning split between satellite and Seed (above).
-* Whether the hub (`encoder_hub.*`) is still worth carrying once encoder banks exist on
-  the chain, or becomes a Rev A only part.
-* USB mass storage: libDaisy's USB stack, or a different one (e.g. TinyUSB) if a
-  composite MIDI + MSC + CDC device proves hard.
-* Which instrument moves to Rev B first, once bring-up is done.
+* USB: libDaisy's stack or TinyUSB, after the exploration above.
+* Porting rodeo-002: its 16 pots and its encoders move from the Rev A ADCs and the hub
+  onto satellites (four pot banks and two encoder banks, say), and its control map gets
+  rewritten for that.

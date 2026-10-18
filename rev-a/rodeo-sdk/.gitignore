@@ -1,0 +1,14 @@
+# Local machine toolchain config
+config.mk
+
+# Firmware build artifacts
+build/
+tests/test_*
+!tests/test_*.cpp
+*.o
+*.d
+*.elf
+*.bin
+*.hex
+*.map
+*.lst

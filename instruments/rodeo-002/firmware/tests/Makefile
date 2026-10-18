@@ -10,11 +10,11 @@
 #   make clean
 #
 # In a git worktree without submodules, point RODEO_ROOT at the main checkout:
-#   make test RODEO_ROOT=/path/to/rodeo/rodeo-sdk
+#   make test RODEO_ROOT=/path/to/rodeo/rev-a/rodeo-sdk
 
 CXX ?= clang++
 
-RODEO_ROOT ?= ../../../../rodeo-sdk
+RODEO_ROOT ?= ../../../../rev-a/rodeo-sdk
 
 BUILD_PATH = build
 BIN_NAME   = rodeo002_gtest

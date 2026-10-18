@@ -4,7 +4,7 @@
 # <string_view>. Nothing else differs, and the drawing code is shared verbatim.
 
 CXX ?= clang++
-RODEO_ROOT ?= ../../../../../rodeo-sdk
+RODEO_ROOT ?= ../../../../../rev-a/rodeo-sdk
 
 BUILD = build
 BIN   = $(BUILD)/preview

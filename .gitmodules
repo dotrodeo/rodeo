@@ -4,3 +4,9 @@
 [submodule "firmware/DaisySP"]
 	path = rodeo-sdk/DaisySP
 	url = https://github.com/electro-smith/DaisySP
+[submodule "rev-a/libDaisy"]
+	path = rev-a/rodeo-sdk/libDaisy
+	url = https://github.com/electro-smith/libDaisy
+[submodule "rev-a/DaisySP"]
+	path = rev-a/rodeo-sdk/DaisySP
+	url = https://github.com/electro-smith/DaisySP

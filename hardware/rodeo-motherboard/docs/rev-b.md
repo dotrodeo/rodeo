@@ -782,4 +782,5 @@ so they come first.
 * LED brightness defaults low, since the board can't tell a 500 mA USB-A port
   from a 1.5 A one. The charger's PGOOD/CHG and the mux's ST don't reach the
   Seed.
-* The hub firmware is unaffected. The Rev B hub only loses two resistors.
+* **The encoder hub doesn't carry over to Rev B** (decided 2026-10-18): encoder banks on
+  the satellite chain replace it, and the hub stays a Rev A part.
