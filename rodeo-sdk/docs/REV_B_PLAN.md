@@ -182,13 +182,21 @@ as references (MIT) rather than as dependencies.
 4. **MSC disk mode**, first on a RAM disk, then on Rev B's SD card.
 5. **UAC2 4×4** on Rev B, both codecs.
 
-**Step 1, 2026-10-18: built, waiting for the bench.** TinyUSB 0.21.0 is a submodule
+**Step 1, 2026-10-18: works.** TinyUSB 0.21.0 is a submodule
 at `rodeo-sdk/tinyusb`, and [`examples/usb_midi_cdc`](../examples/usb_midi_cdc/) is a
 composite MIDI + CDC device on the Seed's micro-USB (OTG_FS, TinyUSB port 0): 67 KB of
 flash, 13.6 KB of RAM, built with the SDK's usual rules. It uses libDaisy's `System`
 rather than `DaisySeed`, because `DaisySeed` owns a `UsbHandle` that links libDaisy's
 USB stack and its OTG_FS interrupt handler. Development VID/PID: pid.codes' test pair,
 `1209:0001`; a product needs its own.
+
+Tested on a Daisy Seed 2 against macOS 26.5.2: it enumerates as "Rodeo USB test" by DOT
+RODEO (serial number from the chip's unique ID); CoreMIDI shows one source and one
+destination; the Seed's notes arrive every 500 ms and a note sent to it comes straight
+back; at the same time the serial port gives the banner, echoes, and answers `s`
+(137 MIDI messages out, 13 in). macOS also sends a new MIDI device its MIDI-CI
+discovery SysEx (`F0 7E 7F 0D 70 …`), which the echo returned, so SysEx passes both
+ways. Not yet tried: Windows, Linux, unplug/replug cycles.
 
 **Found for step 2:** libDaisy defines `OTG_HS_IRQHandler` (the external pins' core,
 TinyUSB port 1) in `src/sys/system.cpp`, which every app links, so TinyUSB can't simply
