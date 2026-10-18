@@ -105,7 +105,7 @@ export const boards: Board[] = [
     outline: { w: 90, h: 112 },
     summary:
       'The host board. A Daisy Seed, two codecs, ten general-purpose I/O connectors and the satellite chain.',
-    body: 'Rev B gives the motherboard one job: carry the Daisy, the audio, and the connectors everything else plugs into. The two on-board converters that defined Rev A are gone — their pins went to a second codec, and the analog bank they provided became an optional expander board. Controls no longer compete for motherboard channels, because the satellite chain grows by adding satellites.',
+    body: 'Rev B gives the motherboard one job: carry the Daisy, the audio, and the connectors everything else plugs into. The two on-board converters that defined Rev A are gone — their pins went to a second codec, and the analog bank they provided became an optional expander board. Controls no longer compete for motherboard channels, because the satellite chain grows by adding satellites. It also carries the battery, its charger and a fuel gauge, which Rev A had none of — the instrument charges over USB-C and runs off the desk.',
     specs: [
       { label: 'audio', value: '4 in / 4 out, two codecs', evidence: `${R}:328` },
       { label: 'general-purpose I/O', value: '10 connectors, 8 analog-capable', evidence: `${R}:81` },
@@ -460,6 +460,13 @@ export const prototype = {
       revB: 'data through the power board: USB-MIDI, USB audio and firmware flashing',
       why: 'The most-checked spec on the Rev-A board, and the one most worth fixing.',
       evidence: `${R}:304`,
+    },
+    {
+      area: 'Power',
+      revA: 'USB-C in, straight to a regulator — tethered to a wall for as long as it runs',
+      revB: 'a 1S Li-ion battery with a charger, power path and fuel gauge on the motherboard',
+      why: 'Rev A had no battery of any kind. Rev B charges over USB-C and keeps charging with the switch off, which is the difference between a thing on a bench and an instrument you can pick up.',
+      evidence: `${R}:465-474`,
     },
     {
       area: 'Jacks and MIDI',
