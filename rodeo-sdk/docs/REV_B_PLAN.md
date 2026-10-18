@@ -175,10 +175,12 @@ as references (MIT) rather than as dependencies.
 **Order, each step on hardware before the next:**
 
 1. **MIDI + CDC** on a bare Seed's micro-USB (OTG_FS): replaces libDaisy's USB-MIDI, and
-   proves the TinyUSB port, clocks and interrupt priorities.
-2. **Move to the external pins** (OTG_HS, Seed pins 36/37): the Rev B port. Testable
+   proves the TinyUSB port, clocks and interrupt priorities. *Done.*
+2. **USB audio, stereo 2×2**, still on the micro-USB (swapped ahead of the port move
+   on 2026-10-18: it needs no extra hardware and is the hard part). *Done on macOS;
+   Windows and Linux to try.*
+3. **Move to the external pins** (OTG_HS, Seed pins 36/37): the Rev B port. Testable
    before Rev B with a USB breakout wired to a Seed.
-3. **UAC2 stereo**, 2×2, both feedback formats: macOS and Windows, then Linux.
 4. **MSC disk mode**, first on a RAM disk, then on Rev B's SD card.
 5. **UAC2 4×4** on Rev B, both codecs.
 
@@ -203,6 +205,39 @@ TinyUSB port 1) in `src/sys/system.cpp`, which every app links, so TinyUSB can't
 define its own. Options: point the vector at TinyUSB at run time (copy the vector table
 to RAM and set `SCB->VTOR`), or carry a one-line patch to libDaisy making that handler
 weak. Decide when step 2 starts.
+
+**USB audio, 2026-10-18: works on macOS.** [`examples/usb_audio`](../examples/usb_audio/)
+is one composite device, "Rodeo": audio both ways, stereo, 48 kHz, 24-bit, asynchronous
+(the Seed's codec clock leads, a feedback endpoint keeps the computer in step), plus
+MIDI and the serial port; 101 KB of flash. Decisions and findings:
+
+* **UAC1, not UAC2.** TinyUSB 0.21 (and its development branch) sends UAC2 feedback as
+  16.16 in 4 bytes, which Windows needs and macOS rejects at full speed; UAC1's feedback
+  is 10.14 in 3 bytes and every OS takes it. Rev B's port is full speed only, and UAC1
+  at full speed carries 24-bit, multi-channel, two-way audio, so nothing is lost and
+  TinyUSB needs no patch. TinyUSB's own `uac2_*` examples drop to UAC1 at full speed for
+  the same reason.
+* **The interrupt clash is solved** by pointing the vector at TinyUSB at run time: the
+  vector table is copied to DTCM, the USB entry replaced, `SCB->VTOR` moved. That lets the
+  app use `DaisySeed` (and its codec set-up) even though `DaisySeed` links libDaisy's
+  own USB handler, and it is the same fix the external-pin core needs in step 3.
+* **USB's interrupt priority is set below audio** (6 vs libDaisy's 0 for the SAI DMA).
+* **TinyUSB's audio FIFOs overwrite their oldest data when full** and still report a
+  full write, so the app checks the free space before writing and counts a real overrun.
+* Measured on a Seed 2 against macOS 26.5: the codec runs exactly 1,000 callbacks a
+  second; one IN packet per millisecond, 48 or 49 frames, 48.02 frames a millisecond on
+  average (the Seed's crystal is ~0.07 % fast against the Mac's, which is what the
+  asynchronous mode absorbs). **A 60 s full-duplex loopback** (440/660 Hz played to the
+  Seed and recorded back) came back with **no glitches**, exact frequencies, the level to
+  0.04 dB, and a 31 ms round trip (mostly the Mac's buffering). A few under/overruns
+  happen at stream start and stop only.
+* **Test-tool trap:** ffmpeg's macOS (`avfoundation`) audio capture drops about 32 frames
+  every ~70 ms at 48 kHz. It looked like a Seed bug until a recording with Apple's own
+  `AVAudioEngine` came back clean. Don't use ffmpeg to judge USB audio on a Mac.
+* For development the test app reboots itself into the STM32's DFU bootloader on `B`
+  over the serial port, so it can be reflashed without the buttons.
+
+Not yet tried: Windows, Linux, the codec path on headphones, and 4×4.
 
 Risks to watch: the feedback-format split (solved once, must stay solved across TinyUSB
 updates); USB interrupt load next to the satellite chain and audio; FIFO sizing on the
