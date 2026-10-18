@@ -668,8 +668,8 @@
 		(uuid "66113a83-9234-43c1-a5af-c82b41baedec")
 	)
 	(gr_rect
-		(start 118.5 113.4)
-		(end 127.5 124.4)
+		(start 118.31 113.2)
+		(end 127.71 124.6)
 		(stroke
 			(width 0.1)
 			(type solid)

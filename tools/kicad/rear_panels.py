@@ -42,19 +42,19 @@ LABEL_GAP = 1.2       # label baseline clearance above an opening
 
 # Openings per board: (kind, x on the board from its KiCad left end, height above
 # the floor, size, label). kind: 'circle' (size = diameter) or 'slot' (size =
-# (width, height), rounded corners). Label goes above the opening; 'below:' puts it
+# (width, height) with r 0.5 corners, or (width, height, corner radius)). Label goes above the opening; 'below:' puts it
 # under. Heights and sizes are the mounting README's cut-out table.
 BOARDS = {
     'rodeo-power-usbc': dict(width=40, openings=[
-        ('slot', 20.0, 17.2, (13.5, 7.5), 'USB-C'),
+        ('slot', 20.0, 17.2, (11.0, 5.5, 1.5), 'USB-C'),
         ('circle', 10.0, 16.1, 2.5, 'below:PWR'),     # D1, green, power good
         ('circle', 30.0, 16.1, 2.5, 'below:CHG'),     # D2, red, charging
     ]),
     # Hand-edited in KiCad by Derek on 2026-10-18 (the KiCad file is the source now;
-    # this entry is what it was generated from): the barrel opening is a 9.0 x 11.0 mm
-    # rectangle, x 18.5-27.5, y 13.4-24.4 on the panel (the jack body's face, no
-    # clearance); USB-C 11 x 5.5 mm, r 1.5; LED labels both above at 1.0 mm; a drawn
-    # centre-positive symbol beside 'DC 7-20 V'; no RODEO wordmark.
+    # this entry is what it was generated from): the barrel opening is a 9.4 x 11.4 mm
+    # rectangle, x 18.31-27.71, y 13.2-24.6 on the panel (the jack body's 9.0 x 11.0
+    # face plus 0.2 mm a side); USB-C 11 x 5.5 mm, r 1.5; LED labels both above at
+    # 1.0 mm; a drawn centre-positive symbol beside 'DC 7-20 V'.
     'rodeo-power-barrel': dict(width=60, hand_edited=True, openings=[
         ('slot', 15.0, 17.2, (13.5, 7.5), 'USB-C'),
         ('circle', 42.0, 22.1, 11.0, 'DC 7–20 V\nCENTER +'),
@@ -149,8 +149,9 @@ def make(name, spec):
             circle(board, x, y, size)
             half = size / 2
         else:
-            w, h = size
-            rounded_rect(board, x - w / 2, y - h / 2, x + w / 2, y + h / 2, min(CORNER_R, h / 2))
+            w, h = size[:2]
+            r = size[2] if len(size) > 2 else CORNER_R
+            rounded_rect(board, x - w / 2, y - h / 2, x + w / 2, y + h / 2, min(r, h / 2))
             half = h / 2
         below = label.startswith('below:')
         label = label[6:] if below else label
@@ -158,7 +159,6 @@ def make(name, spec):
         ty = y + half + LABEL_GAP + block / 2 if below else y - half - LABEL_GAP - block / 2
         text(board, label, x, ty)
 
-    text(board, 'RODEO', W / 2, PANEL_H - HOLE_INSET, h=2.0, bold=True)
 
     pcb = os.path.join(d, proj + '.kicad_pcb')
     board.Save(pcb)

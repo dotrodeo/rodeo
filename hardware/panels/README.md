@@ -25,8 +25,10 @@ tools/kicad/.venv/bin/python tools/kicad/jlc_fab.py hardware/panels/<panel>/<pan
 Edits made in KiCad are overwritten by the next run, except on panels marked
 `hand_edited` in the table, which the generator leaves alone (`--force` to
 regenerate). **`rodeo-power-barrel-panel` is hand-edited** (Derek, 2026-10-18): a
-9 × 11 mm rectangular barrel opening, an 11 × 5.5 mm USB-C opening, a drawn
-centre-positive symbol and no wordmark; its KiCad file is the source.
+9.4 × 11.4 mm rectangular barrel opening, an 11 × 5.5 mm USB-C opening and a
+drawn centre-positive symbol; its KiCad file is the source.
+
+No panel carries a `RODEO` wordmark (Derek, 2026-10-18).
 
 **Ordering at JLC:** Gerbers only (`jlcpcb/production_files/GERBER-*.zip`), 1.6 mm
 FR4, **black soldermask, white silkscreen**, no assembly. The panels have no copper, and the mounting holes are unplated.
