@@ -112,8 +112,8 @@ above the enclosure floor** (board top at 15.6 mm: boss 6 + standoff 8 + PCB 1.6
 |---|---|---|---|---|
 | `rodeo-power-usbc` | J1 USB-C | 20 | ≈17.2 | Through, sized for the plug overmould: ≈13.5 × 7.5 mm, r 2 |
 | | D1, D2 LEDs | 10, 30 | ≈16.1 | Ø2.5 through |
-| `rodeo-power-barrel` | J1 USB-C | 15 | ≈17.2 | As above |
-| | J3 barrel jack | 42 | ≈22.1 | Ø11 through (5.5 × 2.1 plug bodies are ≈9–10 mm) |
+| `rodeo-power-barrel` | J1 USB-C | 15 | ≈17.2 | **11 × 5.5 mm, r 1.5** (Derek, 2026-10-18, on trial): clears the 8.94 × 3.2 receptacle; overmoulds bigger than this stop at the panel, ≈1.2 mm short of the receptacle face |
+| | J3 barrel jack | 42 | ≈22.1 | **9.0 × 11.0 mm rectangle** (Derek, 2026-10-18, on trial), from the board top up: exactly the jack body's face, which reaches 0.5 mm into the panel. Zero clearance, and the router rounds the inside corners (≈r 0.5) so the body's corners meet panel; Ø11 round was the generated opening (5.5 × 2.1 plug bodies are ≈9–10 mm) |
 | | D1, D2 LEDs | 30.14, 34.64 | ≈16.1 | Ø2.5 through |
 | `rodeo-audio-3.5mm` | J2–J5 jacks | 46.55, 35.5, 24.45, 13.4 | ≈18.2 | Ø6.0 through, for the jack's Ø5.5 collar |
 | `rodeo-midi` | J2 IN, J3 OUT | 13, 27 | ≈18.2 | As the audio jacks |

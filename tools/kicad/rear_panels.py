@@ -3,12 +3,14 @@
 
   rear_panels.py                 # writes hardware/panels/<board>-panel/ for every board below
   rear_panels.py rodeo-midi      # just one
+  rear_panels.py --force rodeo-power-barrel   # also overwrite a hand-edited panel
 
 Run with KiCad's Python (it needs pcbnew):
   /Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3
 
 Each panel is a KiCad project with no parts: the outline and every opening on
-Edge.Cuts, four M3 mounting holes, labels on the front silkscreen. Fab outputs
+Edge.Cuts, four M3 mounting holes, labels on the front silkscreen. Panels marked
+hand_edited have been changed in KiCad and are skipped unless --force. Fab outputs
 come from jlc_fab.py like any board. The panel system is described in
 hardware/mounting/README.md; this table is the one place the openings are set.
 
@@ -48,7 +50,12 @@ BOARDS = {
         ('circle', 10.0, 16.1, 2.5, 'below:PWR'),     # D1, green, power good
         ('circle', 30.0, 16.1, 2.5, 'below:CHG'),     # D2, red, charging
     ]),
-    'rodeo-power-barrel': dict(width=60, openings=[
+    # Hand-edited in KiCad by Derek on 2026-10-18 (the KiCad file is the source now;
+    # this entry is what it was generated from): the barrel opening is a 9.0 x 11.0 mm
+    # rectangle, x 18.5-27.5, y 13.4-24.4 on the panel (the jack body's face, no
+    # clearance); USB-C 11 x 5.5 mm, r 1.5; LED labels both above at 1.0 mm; a drawn
+    # centre-positive symbol beside 'DC 7-20 V'; no RODEO wordmark.
+    'rodeo-power-barrel': dict(width=60, hand_edited=True, openings=[
         ('slot', 15.0, 17.2, (13.5, 7.5), 'USB-C'),
         ('circle', 42.0, 22.1, 11.0, 'DC 7–20 V\nCENTER +'),
         ('circle', 30.14, 16.1, 2.5, 'PWR'),          # D1, green
@@ -162,8 +169,13 @@ def make(name, spec):
 
 
 def main():
-    names = sys.argv[1:] or list(BOARDS)
+    args = sys.argv[1:]
+    force = '--force' in args
+    names = [a for a in args if a != '--force'] or list(BOARDS)
     for n in names:
+        if BOARDS[n].get('hand_edited') and not force:
+            print(f'{n}-panel: hand-edited in KiCad, left alone (--force to regenerate)')
+            continue
         make(n, BOARDS[n])
 
 
