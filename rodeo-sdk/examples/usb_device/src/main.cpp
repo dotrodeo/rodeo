@@ -1,6 +1,6 @@
 // USB device test: a bare Daisy Seed on its micro-USB, on TinyUSB, as a USB audio
 // interface (two-way stereo, 48 kHz, 24-bit) with USB-MIDI and a serial port, plus a
-// disk mode that offers a RAM disk as USB storage. See rodeo-sdk/docs/REV_B_PLAN.md,
+// disk mode that offers a RAM disk as USB storage. See planning/REV_B_PLAN.md,
 // "USB".
 //
 //   * Computer -> Seed: whatever the computer plays to "Rodeo" comes out of the Seed's

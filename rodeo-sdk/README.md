@@ -7,7 +7,7 @@ freshly assembled board — flash one, confirm the hardware, move on.
 
 > **This is the Rev A SDK** (tagged `rodeo-sdk/v0.2.0`, the last Rev A release). It is
 > about to be rewritten for the Rev B motherboard and satellites; the plan is in
-> [`docs/REV_B_PLAN.md`](docs/REV_B_PLAN.md).
+> [`planning/REV_B_PLAN.md`](../planning/REV_B_PLAN.md).
 
 > The previous contents (a 12-voice subtractive synth) are preserved on the git
 > tag `archive/synth-m2`. Restore with `git checkout archive/synth-m2 -- firmware/src`.
@@ -48,7 +48,6 @@ firmware/
   tools/
     screens/           # render an instrument's real OLED screens on your laptop
   docs/
-    RODEO_ADC_LIB_DESIGN.md  # design of the ADS114S08 / RodeoAdc driver stack
   libDaisy/  DaisySP/ # vendored submodules (static libs live in their build/)
   Makefile           # top-level helpers: `make deps`, `make all`, `make clean`
 ```
@@ -129,7 +128,7 @@ between this and a 1.0.
 - **External ADC (ADS114S08) status:** the SPI orientation and conversion path
   are bench-confirmed on real hardware (`04_adc_1ch`, 2026-08-14); absolute-voltage
   accuracy is still unverified pending a jumper/pot test (needs JST connectors).
-  See `docs/RODEO_ADC_LIB_DESIGN.md` for the driver design and scan-timing facts.
+  See `planning/RODEO_ADC_LIB_DESIGN.md` for the driver design and scan-timing facts.
 - **Encoder hub:** the master↔hub I²C wire contract is
   `rev-a/rodeo-motherboard/docs/RODEO_HUB_I2C_CONTRACT.md` (locked, silicon-verified 2026-08-20).
 - **I²C bus caveat:** the motherboard carries no on-board I²C pull-ups; the

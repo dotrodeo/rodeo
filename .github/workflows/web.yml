@@ -15,10 +15,14 @@ on:
     branches: [main]
     paths:
       - 'web/**'
+      # The SDK's published pages are the /sdk/ section, so a doc change there
+      # must redeploy the site.
+      - 'rodeo-sdk/docs/**'
       - '.github/workflows/web.yml'
   pull_request:
     paths:
       - 'web/**'
+      - 'rodeo-sdk/docs/**'
       - '.github/workflows/web.yml'
   workflow_dispatch:
 
@@ -54,7 +58,9 @@ jobs:
           # directories. The Rev B board folders are 2-10 MB each of gerbers
           # and fab outputs wrapped around one README the audit cites; the
           # `*.md` pattern takes the eight markdown files and leaves 23 MB of
-          # manufacturing data behind. Verified against a scratch clone: the
+          # manufacturing data behind. `.mdx` too, since the SDK's published
+          # pages live in rodeo-sdk/docs/ and the site symlinks to them — miss
+          # that and /sdk/ builds empty. Verified against a scratch clone: the
           # eight land, zero gerbers do, and check-claims.mjs resolves all 97
           # citations.
           sparse-checkout-cone-mode: false
@@ -71,6 +77,7 @@ jobs:
           sparse-checkout: |
             /web/
             /**/*.md
+            /**/*.mdx
             /rev-a/rodeo-motherboard/kicad/
             /instruments/rodeo-001/firmware/src/
             /instruments/rodeo-002/firmware/common/

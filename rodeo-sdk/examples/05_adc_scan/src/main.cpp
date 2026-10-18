@@ -27,7 +27,7 @@
 //         FAILED at boot.
 //
 // Bench harness for the multi-channel + revisit-rate validation (needs the JST
-// harness). See docs/RODEO_ADC_LIB_DESIGN.md.
+// harness). See planning/RODEO_ADC_LIB_DESIGN.md.
 
 #include "daisy_seed.h"
 #include "board.h"

@@ -1,5 +1,5 @@
 # USB step 1: TinyUSB MIDI + CDC serial on a bare Daisy Seed's micro-USB.
-# See rodeo-sdk/docs/REV_B_PLAN.md, "USB: explore first".
+# See planning/REV_B_PLAN.md, "USB: explore first".
 TARGET      = usb_midi_cdc
 CPP_SOURCES = src/main.cpp
 

@@ -16,7 +16,7 @@
 // Pipelining: the two chips convert in PARALLEL (independent converters, shared
 // bus). Each settle window services one channel on EACH chip, so a 24-channel
 // scan is two parallel 12-channel scans (~72 Hz/ch at 1000 SPS). See
-// docs/RODEO_ADC_LIB_DESIGN.md.
+// planning/RODEO_ADC_LIB_DESIGN.md.
 //
 #include "daisy_seed.h"
 #include "board.h"

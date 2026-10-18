@@ -9,7 +9,7 @@
 // low-latency filter @ 1000 SPS). It knows nothing about "which pot" — the
 // two-chip scan + channel mapping live in Layer 2 (RodeoAdc) and board.h.
 //
-// See docs/RODEO_ADC_LIB_DESIGN.md for the full design + datasheet references.
+// See planning/RODEO_ADC_LIB_DESIGN.md for the full design + datasheet references.
 //
 #include "daisy_seed.h"
 

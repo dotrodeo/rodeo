@@ -81,36 +81,46 @@ with `build.format: 'directory'` (so canonical URLs, internal links, RSS and Pag
 redirect behaviour all agree — a mismatch here produces duplicate-URL SEO noise),
 integrations `[mdx(), sitemap()]`, `vite: { plugins: [tailwindcss()] }`.
 
-## The SDK docs: Starlight at /sdk/
+## Documentation: Starlight at /docs/ and /sdk/
 
-`rodeo-sdk` documentation runs on **Starlight**, Astro's own docs framework, rather
-than being hand-built. It brings the sidebar, the table of contents, prev/next,
-code highlighting and Pagefind search for free, and because it is an Astro
-integration it lives in this project and ships in the same build and deploy.
+One Starlight instance serves both sections, fed from two places:
 
-Three things had to be worked out, and are worth not rediscovering:
+| Route | Source | Why there |
+|---|---|---|
+| `/docs/` | `web/src/content/docs/docs/` | Hardware docs, maintained with the site |
+| `/sdk/` | **`rodeo-sdk/docs/`** | Versioned with the code it documents, reviewed in the same change |
 
-- **Version pinning.** Current Starlight (0.42) peer-depends on Astro ^7; this site is
-  on Astro 5. **0.36.3** is the newest line on Astro ^5, paired with
-  `@astrojs/starlight-tailwind@4.0.1` (Tailwind ^4). Do not bump Starlight without
-  bumping Astro.
-- **No `routeBasePath` in 0.36.** The usual way to mount docs at a subpath does not
-  exist in this version. Routes come from the directory layout instead, so the pages
-  live under `src/content/docs/sdk/` and land on `/sdk/...`. `disable404Route: true`
-  stops Starlight claiming the site's own 404.
-- **Theming, not overriding.** Starlight is driven by CSS custom properties, so
-  `src/styles/starlight.css` remaps its variables onto the tokens rather than
-  fighting its CSS. Light and dark are mapped to the same values so a stray
-  `data-theme` cannot produce white-on-white, and `ThemeSelect` is overridden with an
-  empty component.
+**`web/src/content/docs/sdk` is a symlink** to `../../../../rodeo-sdk/docs`.
+Starlight routes by directory and has no `routeBasePath` in 0.36, so the pages
+have to appear under `src/content/docs/sdk/` — but they belong to the SDK, so
+that is where they live and the site points at them.
 
-`SiteTitle` is also overridden. Starlight's header otherwise links only to `/sdk/`,
-which leaves a visitor who lands on a docs page with no route back into the site.
+Two alternatives were tried first and both failed, which is worth not
+rediscovering:
 
-**One accepted build warning.** Pagefind spawns a child process and Node emits
-`DEP0190` about it. It comes from inside Starlight, not from this code, and cannot be
-fixed here — so the build is no longer strictly warning-free, and that one warning is
-the only permitted exception.
+- **Two loaders into one collection does not work.** Astro's glob loader
+  deletes every entry in the collection it did not itself touch
+  (`astro/dist/content/loaders/glob.js`, `untouchedEntries`), so whichever
+  loader runs second wipes the other's pages. The symptom is Starlight
+  complaining that a sidebar slug does not exist.
+- **A sync step** would have worked but generates files into the source tree
+  for no gain over a symlink.
+
+Consequences to remember:
+
+- **CI must check out `*.mdx`, not just `*.md`.** The SDK pages are MDX; miss
+  them in the sparse checkout and `/sdk/` builds empty.
+- **Pushing an SDK doc change republishes the site**, because the `web`
+  workflow triggers on `rodeo-sdk/**` as well as `web/**`.
+- `.github/workflows/sdk-docs.yml` fails a change that touches SDK code and
+  leaves `rodeo-sdk/docs/` alone. `[skip-docs]` in a commit message overrides
+  it, so the override is visible in the history. Vendored libDaisy and DaisySP
+  are excluded — they are not ours to document.
+
+**Planning documents live in `planning/`**, not beside the code. `REV_B_PLAN.md`
+and `RODEO_ADC_LIB_DESIGN.md` moved there so that everything left in
+`rodeo-sdk/docs/` is, by definition, a published page. The rule is worth
+keeping: if it is in `rodeo-sdk/docs/`, it is on the website.
 
 ## Content model
 

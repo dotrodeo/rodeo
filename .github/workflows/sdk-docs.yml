@@ -1,0 +1,84 @@
+name: sdk-docs
+
+# The SDK's documentation lives beside its code in rodeo-sdk/docs/ and is
+# published to rodeooh.rodeo/sdk/. This job makes that a two-way street: change
+# the code, say what changed.
+#
+# It is deliberately dumb. It does not judge whether the documentation is any
+# good, only that the author looked at it. A reviewer judges the rest.
+
+on:
+  pull_request:
+    paths:
+      - 'rodeo-sdk/**'
+  push:
+    branches: [main]
+    paths:
+      - 'rodeo-sdk/**'
+
+jobs:
+  docs-touched:
+    name: code changes come with doc changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+          # Need the base commit to diff against.
+          fetch-depth: 0
+
+      - name: Compare code and docs in this change
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          # A first push to a branch has no usable base; skip rather than guess.
+          if [ -z "${BASE}" ] || [ "${BASE}" = "0000000000000000000000000000000000000000" ]; then
+            echo "No base commit to compare against — skipping."
+            exit 0
+          fi
+
+          changed=$(git diff --name-only "${BASE}" "${HEAD}" -- 'rodeo-sdk/**')
+
+          # Vendored dependencies are not ours to document.
+          code=$(echo "${changed}" \
+            | grep -vE '^rodeo-sdk/(libDaisy|DaisySP)/' \
+            | grep -vE '^rodeo-sdk/docs/' \
+            | grep -E '\.(h|hpp|c|cpp|mk|ld|s|S)$|/Makefile$' || true)
+
+          docs=$(echo "${changed}" | grep -E '^rodeo-sdk/docs/.*\.mdx?$' || true)
+
+          if [ -z "${code}" ]; then
+            echo "No SDK code changed. Nothing to require."
+            exit 0
+          fi
+
+          echo "SDK code changed:"
+          echo "${code}" | sed 's/^/  /'
+
+          if [ -n "${docs}" ]; then
+            echo ""
+            echo "Documentation changed too:"
+            echo "${docs}" | sed 's/^/  /'
+            exit 0
+          fi
+
+          # The escape hatch is a commit-message token, so the override is
+          # visible in the history rather than in someone's memory.
+          if git log --format=%B "${BASE}..${HEAD}" | grep -qiF '[skip-docs]'; then
+            echo ""
+            echo "No doc change, but [skip-docs] is in a commit message. Allowed."
+            exit 0
+          fi
+
+          echo ""
+          echo "::error::SDK code changed and rodeo-sdk/docs/ did not."
+          echo "These pages are published at https://rodeooh.rodeo/sdk/, so a driver"
+          echo "that changes behaviour and leaves the docs alone ships a lie."
+          echo ""
+          echo "Either update the page that covers this, or put [skip-docs] in a"
+          echo "commit message when the change genuinely has no documented effect"
+          echo "— a refactor, a typo, a formatting pass."
+          exit 1
