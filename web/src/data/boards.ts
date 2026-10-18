@@ -94,8 +94,8 @@ const CHAIN = 'hardware/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md
 // rewritten for Rev B, so its line numbers move — citing it for Rev-A claims
 // drifted by four lines within a day of the freeze.
 const SDK = 'rev-a/rodeo-sdk/README.md';
-// The first order: the motherboard and six daughterboards were uploaded to JLC
-// on 2026-10-16, five of each, and are not ordered yet. One record covers all seven.
+// The first order: the motherboard, the seven daughterboards and the five rear panels,
+// ordered from JLC on 2026-10-18, five of each. One record covers all of them.
 const FAB = 'hardware/rodeo-motherboard/docs/rev-b.md:3-6';
 
 export const boards: Board[] = [
@@ -103,7 +103,7 @@ export const boards: Board[] = [
     slug: 'rodeo-motherboard',
     name: 'rodeo-motherboard',
     kind: 'host',
-    status: 'designed',
+    status: 'at-fab',
     rev: 'B',
     outline: { w: 90, h: 112 },
     summary:
@@ -122,8 +122,8 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'designed',
-        text: 'Designed and ready to order: the schematic, layout and routing are done and the board is DRC-clean. Uploaded to JLC on 2026-10-16, not yet ordered; no Rev-B motherboard has been built or bench-tested.',
+        status: 'at-fab',
+        text: 'Ordered: the schematic, layout and routing are done and the board is DRC-clean. Ordered from JLC on 2026-10-18 in a first run of five; no Rev-B motherboard has been built or bench-tested yet.',
         evidence: FAB,
       },
       {
@@ -138,7 +138,7 @@ export const boards: Board[] = [
     slug: 'rodeo-pot-bank-4',
     name: 'rodeo-pot-bank-4',
     kind: 'satellite',
-    status: 'designed',
+    status: 'at-fab',
     rev: 'B',
     outline: { w: 20, h: 100 },
     summary: 'Four 9 mm pots on 25 mm centres, read by one CH32V003 on the chain.',
@@ -152,8 +152,8 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'designed',
-        text: 'Drawn and routed on 2026-10-14; uploaded to JLC on 2026-10-16, not yet ordered. Nothing here has been measured on hardware.',
+        status: 'at-fab',
+        text: 'Drawn and routed on 2026-10-14; ordered from JLC on 2026-10-18 in a first run of five. Nothing here has been measured on hardware.',
         evidence: FAB,
       },
     ],
@@ -163,7 +163,7 @@ export const boards: Board[] = [
     slug: 'rodeo-encoder-bank-4',
     name: 'rodeo-encoder-bank-4',
     kind: 'satellite',
-    status: 'designed',
+    status: 'at-fab',
     rev: 'B',
     outline: { w: 20, h: 100 },
     summary: 'Four 12 mm encoders with push switches, built to sit beside the pot bank.',
@@ -176,8 +176,8 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'designed',
-        text: 'Specified and drawn on 2026-10-14; uploaded to JLC on 2026-10-16, not yet ordered. Not yet built or tested.',
+        status: 'at-fab',
+        text: 'Specified and drawn on 2026-10-14; ordered from JLC on 2026-10-18 in a first run of five. Not yet built or tested.',
         evidence: FAB,
       },
     ],
@@ -209,7 +209,7 @@ export const boards: Board[] = [
     slug: 'rodeo-audio-3.5mm',
     name: 'rodeo-audio-3.5mm',
     kind: 'daughterboard',
-    status: 'designed',
+    status: 'at-fab',
     rev: 'B',
     outline: { w: 60, h: 30 },
     summary: 'Four stereo 3.5 mm jacks carrying the motherboard’s eight audio signals.',
@@ -221,8 +221,8 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'designed',
-        text: 'Drawn and laid out on 2026-10-14; uploaded to JLC on 2026-10-16, not yet ordered. Not yet built or tested.',
+        status: 'at-fab',
+        text: 'Drawn and laid out on 2026-10-14; ordered from JLC on 2026-10-18 in a first run of five. Not yet built or tested.',
         evidence: FAB,
       },
     ],
@@ -232,7 +232,7 @@ export const boards: Board[] = [
     slug: 'rodeo-midi',
     name: 'rodeo-midi',
     kind: 'daughterboard',
-    status: 'designed',
+    status: 'at-fab',
     rev: 'B',
     outline: { w: 40, h: 25 },
     summary: 'MIDI in and out on TRS Type A, on the back panel.',
@@ -244,8 +244,8 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'designed',
-        text: 'Drawn and routed on 2026-10-15; uploaded to JLC on 2026-10-16, not yet ordered. Not yet built or tested.',
+        status: 'at-fab',
+        text: 'Drawn and routed on 2026-10-15; ordered from JLC on 2026-10-18 in a first run of five. Not yet built or tested.',
         evidence: FAB,
       },
     ],
@@ -255,7 +255,7 @@ export const boards: Board[] = [
     slug: 'rodeo-power-usbc',
     name: 'rodeo-power-usbc',
     kind: 'daughterboard',
-    status: 'designed',
+    status: 'at-fab',
     rev: 'B',
     outline: { w: 40, h: 20 },
     summary: 'The default power input, and the board that carries USB data to the Seed.',
@@ -267,8 +267,8 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'designed',
-        text: 'Drawn and routed on 2026-10-12; uploaded to JLC on 2026-10-16, not yet ordered. Not yet built or tested.',
+        status: 'at-fab',
+        text: 'Drawn and routed on 2026-10-12; ordered from JLC on 2026-10-18 in a first run of five. Not yet built or tested.',
         evidence: FAB,
       },
     ],
@@ -278,7 +278,7 @@ export const boards: Board[] = [
     slug: 'rodeo-power-barrel',
     name: 'rodeo-power-barrel',
     kind: 'daughterboard',
-    status: 'designed',
+    status: 'at-fab',
     rev: 'B',
     outline: { w: 60, h: 40 },
     summary: 'The USB-C board plus a barrel jack and a separate 5 V output for LED strips.',
@@ -290,8 +290,8 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'designed',
-        text: 'Drawn and routed on 2026-10-12; uploaded to JLC on 2026-10-16, not yet ordered. Not yet built or tested.',
+        status: 'at-fab',
+        text: 'Drawn and routed on 2026-10-12; ordered from JLC on 2026-10-18 in a first run of five. Not yet built or tested.',
         evidence: FAB,
       },
     ],
@@ -301,7 +301,7 @@ export const boards: Board[] = [
     slug: 'rodeo-power-switch',
     name: 'rodeo-power-switch',
     kind: 'daughterboard',
-    status: 'designed',
+    status: 'at-fab',
     rev: 'B',
     outline: { w: 30, h: 20 },
     summary: 'A latching button on the back panel that turns the synth off without stopping the charge.',
@@ -313,9 +313,9 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'designed',
-        text: 'Drawn, routed and DRC-clean on 2026-10-16, with fab outputs. It came after the first JLC upload, so it is not in that batch.',
-        evidence: 'hardware/rodeo-power-switch/README.md:10',
+        status: 'at-fab',
+        text: 'Drawn, routed and DRC-clean on 2026-10-16; ordered from JLC on 2026-10-18 with the other Rev B boards, a first run of five. Not yet built or tested.',
+        evidence: FAB,
       },
     ],
   },

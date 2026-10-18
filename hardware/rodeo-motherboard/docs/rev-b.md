@@ -1,9 +1,9 @@
 # Rodeo Motherboard — Rev B
 
-**Status: designed and ready to order, not yet built.** Schematic, layout and
-routing are done, the board is DRC-clean, and its fab outputs and silkscreen are
-final. It was uploaded to JLC on 2026-10-16 with the six Rev B daughterboards for a
-first run of five of each, and is not ordered yet. Nothing on Rev B has been on a bench yet, so every "decided" item below is
+**Status: ordered, not yet built.** Schematic, layout and routing are done, the
+board is DRC-clean, and its fab outputs and silkscreen are final. It was ordered from
+JLC on 2026-10-18 with the seven Rev B daughterboards and the five rear panels, a
+first run of five of each. Nothing on Rev B has been on a bench yet, so every "decided" item below is
 a design decision, not a measured result; the bench work each one still needs is
 noted where it comes up. The board in hand is still Rev A, described in
 [`hardware-map.md`](../../../rev-a/rodeo-motherboard/docs/hardware-map.md).

@@ -69,9 +69,9 @@ real document is `hardware/rodeo-motherboard/docs/rev-b.md`, 767 lines, which ca
 onto `main` with the Rev-B merge. The stale copy is deleted. **If you are reading
 a Rev-B fact that is not cited to a `hardware/` path, distrust it.**
 
-**Status: designed and ready to order** (`hardware/rodeo-motherboard/docs/rev-b.md:3`) — the
-motherboard and the six Rev B daughterboards are drawn, routed and DRC-clean, and were
-uploaded to JLC on 2026-10-16 but not yet ordered. None has been built or bench-tested yet, so **every
+**Status: ordered** (`hardware/rodeo-motherboard/docs/rev-b.md:3`) — the motherboard,
+the seven Rev B daughterboards and the rear panels are drawn, routed and DRC-clean, and
+were ordered from JLC on 2026-10-18. None has been built or bench-tested yet, so **every
 Rev-B capability is `planned`.**
 
 Rev-B is not a revision of the Rev-A motherboard. It is a different division of

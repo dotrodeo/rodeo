@@ -43,8 +43,8 @@ export type Rev = 'A' | 'B' | 'A+B';
  * whose Gerbers are with a manufacturer.
  *
  * `at-fab` is the stronger of the two and is earned when an order is placed,
- * not when Gerbers are uploaded: on 2026-10-16 all seven Rev-B boards were
- * uploaded to JLC but not yet ordered, so they are `designed`. It still is not
+ * not when Gerbers are uploaded: the Rev-B boards were uploaded on 2026-10-16 and
+ * ordered on 2026-10-18, and only the order moved them to `at-fab`. It still is not
  * `shipped`: the line between "we have had this made" and "we have held this
  * and measured it" is the single most important thing a crowdfunding page has
  * to get right.
