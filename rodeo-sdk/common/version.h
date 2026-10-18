@@ -40,15 +40,26 @@
 //     libDaisy/DaisySP.
 //
 // 56 host tests at this tag (`common/tests`).
+//
+// v0.2.0 (2026-10-18) is THE LAST REV A RELEASE, tagged before the Rev B rewrite
+// so rodeo-001 and rodeo-002 have a fixed SDK to build against. Since v0.1.0:
+//
+//   * examples/10_audio_levels: a bench tool for measuring the Seed's audio
+//     input and output levels (2026-10-07).
+//   * Paths follow the repository's 2026-10-16 reorganisation (the hub's
+//     register map is now under rev-a/rodeo-encoder-hub/).
+//
+// Still Rev A only: board.h is the Rev A motherboard's pin map, and RodeoAdc
+// scans its two on-board ADS114S08s. 56 host tests, unchanged.
 
 #pragma once
 
 namespace rodeo
 {
 constexpr int  kSdkVersionMajor = 0;
-constexpr int  kSdkVersionMinor = 1;
+constexpr int  kSdkVersionMinor = 2;
 constexpr int  kSdkVersionPatch = 0;
-constexpr char kSdkVersionString[] = "0.1.0";
+constexpr char kSdkVersionString[] = "0.2.0";
 
 } // namespace rodeo
 
