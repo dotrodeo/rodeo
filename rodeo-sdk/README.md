@@ -5,6 +5,10 @@ Daisy Seed carrier). This tree is a **starting point for Rodeo
 firmware** plus **small standalone programs that validate each subsystem** of a
 freshly assembled board — flash one, confirm the hardware, move on.
 
+> **This is the Rev A SDK** (tagged `rodeo-sdk/v0.2.0`, the last Rev A release). It is
+> about to be rewritten for the Rev B motherboard and satellites; the plan is in
+> [`docs/REV_B_PLAN.md`](docs/REV_B_PLAN.md).
+
 > The previous contents (a 12-voice subtractive synth) are preserved on the git
 > tag `archive/synth-m2`. Restore with `git checkout archive/synth-m2 -- firmware/src`.
 
