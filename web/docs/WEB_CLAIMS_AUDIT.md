@@ -244,6 +244,39 @@ the only 12-voice code is the scaffold. Don't conflate them.
 | `unison`, `mono mode`, `hard sync` | Planned on `rodeo-001`, not built |
 | `preset`, `effects` | **Scope-dependent.** Banned for platform and `rodeo-001` copy; permitted for `rodeo-002`, where both now exist — see "Reference builds — there are now two". The banned list must become per-scope. |
 
+## The lockfile — check 3, finally built
+
+**Built 2026-10-18**, after the gap it closes was exploited twice.
+
+Checks 1 and 2 prove a cited path exists and that its lines are not blank.
+Neither proves the lines still **say** what the claim says. Both failures looked
+identical from CI — green:
+
+1. A document moved to another repository and the links to it kept pointing at
+   nothing.
+2. Freezing the Rev-A SDK shifted a README by four lines, so a claim of
+   "bench-confirmed on real hardware" came to sit against a paragraph about
+   control maps.
+
+`web/scripts/claims.lock.json` now records the exact text under every cited line
+range — 48 of them — and `check-claims.mjs` compares it on every run. The stored
+value is the **text itself, not a hash**, so `git diff` on the lockfile shows a
+reviewer precisely what moved.
+
+| Command | What it does |
+|---|---|
+| `npm run claims` | Checks against the lock. Drift fails the build. |
+| `npm run claims:update` | Re-records, after you have re-read what moved. |
+
+A new citation is a failure until it is recorded, which forces the lockfile to
+be committed with the claim it protects. Updating is deliberate and the diff is
+meant to be read — a lockfile refreshed without a re-read is ceremony.
+
+Proven against three planted defects before being trusted: rewording a cited
+line, inserting a line above a citation so the range slides, and adding a claim
+that is not in the lock. All three fail, with the previous and current text
+printed side by side.
+
 ## Saying it accurately — the licences
 
 **Settled 2026-10-16.** `LICENSE` and `LICENSES/` are on `main`, so "open source" is

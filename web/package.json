@@ -15,7 +15,8 @@
     "verify": "npm run check && npm run build && node scripts/check-links.mjs && node scripts/check-a11y.mjs",
     "links": "node scripts/check-links.mjs",
     "a11y": "node scripts/check-a11y.mjs",
-    "og": "node scripts/make-og.mjs"
+    "og": "node scripts/make-og.mjs",
+    "claims:update": "node scripts/check-claims.mjs --update"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.0.0",
