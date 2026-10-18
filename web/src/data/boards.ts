@@ -114,6 +114,7 @@ export const boards: Board[] = [
       { label: 'storage', value: 'internal SD, 1-bit SDMMC', evidence: `${R}:260` },
       { label: 'USB', value: 'data via the power board', evidence: `${R}:304` },
       { label: 'MIDI', value: 'on a daughterboard', evidence: `${R}:430` },
+      { label: 'power', value: '1S Li-ion, charger and fuel gauge', evidence: `${R}:465-474` },
       { label: 'expansion', value: 'SPI header with chip-select', evidence: `${R}:100` },
     ],
     caveats: [
@@ -289,6 +290,29 @@ export const boards: Board[] = [
         status: 'designed',
         text: 'Drawn and routed on 2026-10-12; uploaded to JLC on 2026-10-16, not yet ordered. Not yet built or tested.',
         evidence: FAB,
+      },
+    ],
+  },
+
+  {
+    slug: 'rodeo-power-switch',
+    name: 'rodeo-power-switch',
+    kind: 'daughterboard',
+    status: 'designed',
+    rev: 'B',
+    outline: { w: 30, h: 20 },
+    summary: 'A latching button on the back panel that turns the synth off without stopping the charge.',
+    body: 'One button and one connector, and nothing else — the resistors and the filter live on the motherboard. Pressed in, it enables the buck-boost converter; out, the synth is off and the battery carries on charging. The plunger comes through a slot in the panel and works bare, so the printed cap is optional.',
+    specs: [
+      { label: 'switch', value: 'latching push button, panel mount', evidence: 'hardware/rodeo-power-switch/README.md:3' },
+      { label: 'to the motherboard', value: 'JST SH 2-pin on J3', evidence: `${R}:515` },
+      { label: 'outline', value: '30 × 20 mm', evidence: 'hardware/rodeo-power-switch/README.md:10-11' },
+    ],
+    caveats: [
+      {
+        status: 'designed',
+        text: 'Drawn, routed and DRC-clean on 2026-10-16, with fab outputs. It came after the first JLC upload, so it is not in that batch.',
+        evidence: 'hardware/rodeo-power-switch/README.md:10',
       },
     ],
   },
