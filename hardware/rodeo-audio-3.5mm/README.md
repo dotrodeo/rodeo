@@ -58,12 +58,20 @@ footprint `Connector_IDC:IDC-Header_2x10_P2.54mm_Vertical`.
 `Connector_Audio:Jack_3.5mm_PJ320D_Horizontal`. Pin R2 (the ring's switch
 contact) is unused: no connect.
 
-| Jack | Panel label | T (left) | R1 (right) | S |
-|---|---|---|---|---|
-| J2 | SEED OUT | R1 100 Ω from `AUDIO_OUT_1` | R2 100 Ω from `AUDIO_OUT_2` | `GND` |
-| J3 | CODEC OUT | `CODEC2_OUT_A` direct | `CODEC2_OUT_B` direct | `GND` |
-| J4 | SEED IN | R4 470 Ω to `JACK_IN_1` | R3 470 Ω to `JACK_IN_2` | `GND` |
-| J5 | CODEC IN | R6 470 Ω to `CODEC2_IN_A` | R5 470 Ω to `CODEC2_IN_B` | `GND` |
+| Jack | Board silkscreen | Back panel | T (left) | R1 (right) | S |
+|---|---|---|---|---|---|
+| J2 | SEED OUT | AUDIO OUT 1/2 | R1 100 Ω from `AUDIO_OUT_1` | R2 100 Ω from `AUDIO_OUT_2` | `GND` |
+| J3 | CODEC OUT | AUDIO OUT 3/4 | `CODEC2_OUT_A` direct | `CODEC2_OUT_B` direct | `GND` |
+| J4 | SEED IN | AUDIO IN 1/2 | R4 470 Ω to `JACK_IN_1` | R3 470 Ω to `JACK_IN_2` | `GND` |
+| J5 | CODEC IN | AUDIO IN 3/4 | R6 470 Ω to `CODEC2_IN_A` | R5 470 Ω to `CODEC2_IN_B` | `GND` |
+
+**Channel numbering for players:** the back panel numbers the audio channels
+instead of naming the converters, because someone playing the synth won't know
+what the Seed and the codec are. **Channels 1/2 are the Daisy Seed's own codec**
+(the Seed's audio pins, `AUDIO_OUT_1/2` and `JACK_IN_1/2`); **channels 3/4 are
+the motherboard's second codec**, the CS4272 on SAI2 (`CODEC2_*`). Left is the
+odd channel (tip), right the even one (ring). The board's own silkscreen keeps
+SEED/CODEC, for builders and anyone reading the schematic.
 
 **Protection: D1–D8, PESD3V3S1BA (C7472904)**, bidirectional 3.3 V ESD diodes,
 SOD-323, 18 pF. Symbol `Device:D_TVS` (bidirectional, so orientation doesn't

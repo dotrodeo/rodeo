@@ -40,7 +40,7 @@ CORNER_R = 0.5        # outline and slot corners (JLC's router)
 LABEL_H = 1.5         # label text height
 LABEL_GAP = 1.2       # label baseline clearance above an opening
 
-# Openings per board: (kind, x on the board from its KiCad left end, height above
+# Openings per board (label_h: this panel's label text height, if not LABEL_H): (kind, x on the board from its KiCad left end, height above
 # the floor, size, label). kind: 'circle' (size = diameter) or 'slot' (size =
 # (width, height) with r 0.5 corners, or (width, height, corner radius)). Label goes above the opening; 'below:' puts it
 # under. Heights and sizes are the mounting README's cut-out table.
@@ -68,15 +68,35 @@ BOARDS = {
         ('circle', 13.0, 18.2, 6.0, 'MIDI IN'),
         ('circle', 27.0, 18.2, 6.0, 'MIDI OUT'),
     ]),
-    'rodeo-audio-3.5mm': dict(width=60, openings=[
-        ('circle', 46.55, 18.2, 6.0, 'SEED\nOUT'),     # J2
-        ('circle', 35.5, 18.2, 6.0, 'CODEC\nOUT'),     # J3
-        ('circle', 24.45, 18.2, 6.0, 'SEED\nIN'),      # J4
-        ('circle', 13.4, 18.2, 6.0, 'CODEC\nIN'),      # J5
+    'rodeo-audio-3.5mm': dict(width=60, label_h=1.3, openings=[
+        # For players, not builders: 1/2 is the Daisy Seed's own codec, 3/4 the
+        # motherboard's second codec (CS4272). The board's silkscreen keeps SEED/CODEC.
+        ('circle', 46.55, 18.2, 6.0, 'AUDIO\nOUT 1/2'),   # J2, SEED OUT
+        ('circle', 35.5, 18.2, 6.0, 'AUDIO\nOUT 3/4'),    # J3, CODEC OUT
+        ('circle', 24.45, 18.2, 6.0, 'AUDIO\nIN 1/2'),    # J4, SEED IN
+        ('circle', 13.4, 18.2, 6.0, 'AUDIO\nIN 3/4'),     # J5, CODEC IN
     ]),
 }
 
 ORIGIN = (100.0, 100.0)   # where the panel's top-left corner sits on the KiCad sheet
+
+# Black soldermask both sides, white silkscreen: what JLC is asked for, and what
+# KiCad's 3D view and the STEP export show. pcbnew can't set stackup colours, so
+# this goes into the saved file's setup.
+STACKUP = '''		(stackup
+			(layer "F.SilkS" (type "Top Silk Screen") (color "White"))
+			(layer "F.Paste" (type "Top Solder Paste"))
+			(layer "F.Mask" (type "Top Solder Mask") (color "Black") (thickness 0.01))
+			(layer "F.Cu" (type "copper") (thickness 0.035))
+			(layer "dielectric 1" (type "core") (thickness 1.51) (material "FR4") (epsilon_r 4.5) (loss_tangent 0.02))
+			(layer "B.Cu" (type "copper") (thickness 0.035))
+			(layer "B.Mask" (type "Bottom Solder Mask") (color "Black") (thickness 0.01))
+			(layer "B.Paste" (type "Bottom Solder Paste"))
+			(layer "B.SilkS" (type "Bottom Silk Screen") (color "White"))
+			(copper_finish "None")
+			(dielectric_constraints no)
+		)
+'''
 
 
 def mm(x, y):
@@ -155,13 +175,17 @@ def make(name, spec):
             half = h / 2
         below = label.startswith('below:')
         label = label[6:] if below else label
-        block = LABEL_H * (1 + 1.6 * label.count('\n'))      # KiCad's default line spacing
+        lh = spec.get('label_h', LABEL_H)
+        block = lh * (1 + 1.6 * label.count('\n'))      # KiCad's default line spacing
         ty = y + half + LABEL_GAP + block / 2 if below else y - half - LABEL_GAP - block / 2
-        text(board, label, x, ty)
+        text(board, label, x, ty, h=lh)
 
 
     pcb = os.path.join(d, proj + '.kicad_pcb')
     board.Save(pcb)
+    text_ = open(pcb).read()
+    assert '(stackup' not in text_ and '\t(setup\n' in text_
+    open(pcb, 'w').write(text_.replace('\t(setup\n', '\t(setup\n' + STACKUP, 1))
     pro = json.load(open(PROJECT_TEMPLATE))
     pro['meta']['filename'] = proj + '.kicad_pro'
     json.dump(pro, open(os.path.join(d, proj + '.kicad_pro'), 'w'), indent=2)
