@@ -19,7 +19,7 @@ export const site: {
   url: 'https://rodeooh.rodeo',
   tagline: 'Open-source synth platform',
   description:
-    'A host board and a family of drag-drop control satellites. Build an instrument’s control surface without designing a PCB.',
+    'A carrier board for the Electrosmith Daisy and a chain of control satellites. Build an instrument’s control surface without drawing a PCB.',
   // Lowercase, mono, per the mockup. `pending` renders unlinked.
   nav: [
     { href: '/', label: 'home' },

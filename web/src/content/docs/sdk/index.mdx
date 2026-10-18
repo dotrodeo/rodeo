@@ -1,6 +1,6 @@
 ---
 title: rodeo-sdk
-description: Driver libraries and bring-up examples for the Rodeo motherboard — the 24-channel ADC surface, the encoder hubs, and the pure-logic headers that run on your laptop.
+description: Driver libraries and bring-up examples for Rodeo hardware — the ADC surface, the encoder hubs, and the pure-logic headers that run on your laptop. Targets Rev A today; Rev B drivers are in progress.
 ---
 
 The firmware side of the Rodeo platform: the drivers that read the motherboard's
@@ -11,6 +11,17 @@ It is built on **libDaisy** and **DaisySP**, so you are writing an Electrosmith 
 program — `rodeo-sdk` adds what the Daisy cannot do on its own: twenty-four extra
 16-bit analog channels, the I²C encoder hubs, and a display transport fast enough to
 leave headroom for audio.
+
+:::caution[This targets Rev A, the prototype]
+Everything documented here runs against the **Rev A** motherboard, which is the only
+Rodeo hardware that exists. Rev B moves the analog bank onto an optional expander and
+replaces the I²C hubs with a [satellite chain](/docs/satellite-chain/), and **its
+drivers are not written yet** — no chain driver, no second-codec support.
+
+Not all of this becomes legacy. The ADC expander uses the same ADS114S08, so
+`rodeo::RodeoAdc` carries over unchanged. The encoder-hub driver does not: Rev B has
+no hub.
+:::
 
 :::note[Version 0.1.0, and 0.x on purpose]
 Two instruments in, the shape is clear but the seams are not all settled.

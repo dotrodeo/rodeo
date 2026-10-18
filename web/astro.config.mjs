@@ -41,8 +41,9 @@ export default defineConfig({
           attrs: { name: 'twitter:image', content: 'https://rodeooh.rodeo/og/docs.png' },
         },
       ],
+      // Covers /docs/ and /sdk/ both, so it cannot be only about the SDK.
       description:
-        'Driver libraries and bring-up examples for the Rodeo motherboard — the ADC surface, the encoder hubs, and the pure-logic headers.',
+        'Hardware and firmware documentation for Rodeo — pinouts, the satellite chain contract, driver libraries and bring-up examples.',
       customCss: ['./src/styles/starlight.css'],
       expressiveCode: {
         // Starlight's default syntax theme is a Material-ish purple/orange set

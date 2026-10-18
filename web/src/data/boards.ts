@@ -255,7 +255,7 @@ export const boards: Board[] = [
     rev: 'B',
     outline: { w: 40, h: 20 },
     summary: 'The default power input, and the board that carries USB data to the Seed.',
-    body: 'A USB-C jack behind the panel, cabled to the motherboard. It is the reason Rev B has USB at all: the Seed’s data lines run through this board, which is what brings USB-MIDI, USB audio and firmware flashing to the panel port instead of dead-ending inside the case as they did on Rev A.',
+    body: 'A USB-C jack behind the panel, cabled to the motherboard. It is why Rev B has USB at all: the Seed’s data lines run through this board rather than dead-ending inside the case as they did on Rev A. That is what should bring USB-MIDI, USB audio and DFU flashing to the panel port — should, because no Rev B board has been powered on yet.',
     specs: [
       { label: 'input', value: 'USB-C, 5 V sink, no USB-PD', evidence: 'hardware/rodeo-power-usbc/README.md:22' },
       { label: 'also carries', value: 'USB data for the Seed, and status LEDs', evidence: 'hardware/rodeo-power-usbc/README.md:4-5' },
@@ -278,7 +278,7 @@ export const boards: Board[] = [
     rev: 'B',
     outline: { w: 60, h: 40 },
     summary: 'The USB-C board plus a barrel jack and a separate 5 V output for LED strips.',
-    body: 'For builds that need more current than a USB port will give. The barrel jack takes a 9–12 V adapter and wins automatically when it is plugged in, while USB stays connected for data and takes over again if the adapter is pulled. A second regulator feeds an auxiliary 5 V output for LED strips, kept off the motherboard’s supply on purpose.',
+    body: 'For builds that need more current than a USB port will give. The barrel jack takes 7–20 V — a 9 V or 12 V adapter in practice — and wins automatically when it is plugged in, while USB stays connected for data and takes over again if the adapter is pulled. A second regulator feeds an auxiliary 5 V output for LED strips, kept off the motherboard’s supply on purpose.',
     specs: [
       { label: 'adapter', value: '5.5 × 2.1 mm, centre positive, 7–20 V', evidence: 'hardware/rodeo-power-barrel/README.md:21' },
       { label: 'switchover', value: 'barrel takes priority, USB is the fallback', evidence: 'hardware/rodeo-power-barrel/README.md:4-6' },
