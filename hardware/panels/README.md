@@ -10,7 +10,7 @@ four M3 screws, Eurorack-style. The system (sizes, rails, where panels go) is in
 | [`rodeo-power-barrel-panel`](rodeo-power-barrel-panel/) | [`rodeo-power-barrel`](../rodeo-power-barrel/) | 70 × 40 mm | DC barrel (7–20 V, centre +), USB-C, PWR and CHG LEDs |
 | [`rodeo-power-switch-panel`](rodeo-power-switch-panel/) | [`rodeo-power-switch`](../rodeo-power-switch/) | 40 × 40 mm | POWER button |
 | [`rodeo-midi-panel`](rodeo-midi-panel/) | [`rodeo-midi`](../rodeo-midi/) | 50 × 40 mm | MIDI IN, MIDI OUT |
-| [`rodeo-audio-3.5mm-panel`](rodeo-audio-3.5mm-panel/) | [`rodeo-audio-3.5mm`](../rodeo-audio-3.5mm/) | 70 × 40 mm | AUDIO OUT 1/2, AUDIO OUT 3/4, AUDIO IN 1/2, AUDIO IN 3/4 (1/2 = the Seed's codec, 3/4 = the second codec; see the [board README](../rodeo-audio-3.5mm/README.md)) |
+| [`rodeo-audio-3.5mm-panel`](rodeo-audio-3.5mm-panel/) | [`rodeo-audio-3.5mm`](../rodeo-audio-3.5mm/) | 70 × 40 mm | OUT 1/2, OUT 3/4, IN 1/2, IN 3/4 (1/2 = the Seed's codec, 3/4 = the second codec; see the [board README](../rodeo-audio-3.5mm/README.md)) |
 
 **Generated, not drawn.** Every panel comes from
 [`tools/kicad/rear_panels.py`](../../tools/kicad/rear_panels.py), which holds the

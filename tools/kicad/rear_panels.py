@@ -71,10 +71,10 @@ BOARDS = {
     'rodeo-audio-3.5mm': dict(width=60, label_h=1.3, openings=[
         # For players, not builders: 1/2 is the Daisy Seed's own codec, 3/4 the
         # motherboard's second codec (CS4272). The board's silkscreen keeps SEED/CODEC.
-        ('circle', 46.55, 18.2, 6.0, 'AUDIO\nOUT 1/2'),   # J2, SEED OUT
-        ('circle', 35.5, 18.2, 6.0, 'AUDIO\nOUT 3/4'),    # J3, CODEC OUT
-        ('circle', 24.45, 18.2, 6.0, 'AUDIO\nIN 1/2'),    # J4, SEED IN
-        ('circle', 13.4, 18.2, 6.0, 'AUDIO\nIN 3/4'),     # J5, CODEC IN
+        ('circle', 46.55, 18.2, 6.0, 'OUT 1/2'),   # J2, SEED OUT
+        ('circle', 35.5, 18.2, 6.0, 'OUT 3/4'),    # J3, CODEC OUT
+        ('circle', 24.45, 18.2, 6.0, 'IN 1/2'),    # J4, SEED IN
+        ('circle', 13.4, 18.2, 6.0, 'IN 3/4'),     # J5, CODEC IN
     ]),
 }
 
