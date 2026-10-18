@@ -2,6 +2,7 @@
 """Generate JLCPCB fabrication and assembly files for a KiCad project.
 
   jlc_fab.py path/to/project.kicad_pro [--skip A1,H*] [--no-check-image] [--no-step]
+  jlc_fab.py path/to/project.kicad_pro --panel
 
 Writes, next to the project, the same layout as the Rodeo satellite boards:
 
@@ -16,6 +17,11 @@ Writes, next to the project, the same layout as the Rodeo satellite boards:
                                       in git (see .gitignore), regenerated with the rest
 
 A project without a schematic (the rear panels) gets Gerbers and the STEP only.
+
+--panel builds a panel of the board with KiKit from the panel.json next to the
+project (see "Panels" in README.md) into panel/, then writes the same files for the
+panel into jlcpcb-panel/ (no STEP). KiKit names each copy's parts <ref>_<n>; the BOM
+lists every copy and the CPL is solved per copy, so rotated copies come out right.
 
 Why the CPL needs correcting: JLC places each part with its own EasyEDA footprint
 for that LCSC number, origin at the CPL position, rotated by the CPL rotation.
@@ -43,6 +49,7 @@ import json
 import math
 import os
 import re
+import subprocess
 import sys
 import time
 import zipfile
@@ -88,8 +95,35 @@ def plugin_lcsc(out_dir):
 
 
 def refkey(r):
-    m = re.match(r'([A-Za-z]+)(\d*)', r)
-    return (m.group(1), int(m.group(2) or 0))
+    m = re.match(r'([A-Za-z]+)(\d*)(?:_(\d+))?', r)
+    return (m.group(1), int(m.group(2) or 0), int(m.group(3) or 0))
+
+
+# KiCad's own Python, which has pcbnew; KiKit runs on it from tools/kicad/.kikit
+KICAD_PYTHON = os.environ.get(
+    'KICAD_PYTHON', '/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3')
+KIKIT_DIR = os.path.join(HERE, '.kikit')
+
+
+def kikit_panel(base):
+    """Panelize <base>.kicad_pcb with KiKit per panel.json; returns the panel's .kicad_pcb."""
+    d, name = os.path.dirname(base), os.path.basename(base)
+    spec = os.path.join(d, 'panel.json')
+    if not os.path.exists(spec):
+        sys.exit(f'--panel: no panel.json next to {name}.kicad_pro')
+    if not os.path.isdir(KIKIT_DIR):
+        sys.exit(f'--panel needs KiKit in {KIKIT_DIR}: see "Panels" in tools/kicad/README.md')
+    pdir = os.path.join(d, 'panel')
+    os.makedirs(pdir, exist_ok=True)
+    panel = os.path.join(pdir, f'{name}-panel.kicad_pcb')
+    env = dict(os.environ, PYTHONPATH=KIKIT_DIR)
+    r = subprocess.run([KICAD_PYTHON, '-m', 'kikit.ui', 'panelize', '-p', spec, base + '.kicad_pcb', panel],
+                       env=env, capture_output=True, text=True)
+    if r.returncode or not os.path.exists(panel):
+        sys.exit(f'KiKit failed:\n{r.stdout}{r.stderr}')
+    for f in set(glob.glob(os.path.join(pdir, '*.lck')) + glob.glob(os.path.join(pdir, '~*'))):
+        os.remove(f)
+    return panel
 
 
 def easyeda_footprint(code):
@@ -226,12 +260,16 @@ def main():
     ap.add_argument('--tolerance', type=float, default=0.3, help='mm; worse fits are reported')
     ap.add_argument('--no-check-image', action='store_true')
     ap.add_argument('--no-step', action='store_true', help="don't write <name>.step")
+    ap.add_argument('--panel', action='store_true', help='panelize per panel.json, outputs in jlcpcb-panel/')
     a = ap.parse_args()
 
     base = os.path.splitext(os.path.abspath(a.project))[0]
     name = os.path.basename(base)
     pcb, sch = base + '.kicad_pcb', base + '.kicad_sch'
     out = os.path.join(os.path.dirname(base), 'jlcpcb')
+    if a.panel:
+        pcb, name, out = kikit_panel(base), name + '-panel', out + '-panel'
+        a.no_step = True
     gdir, pdir = os.path.join(out, 'gerber'), os.path.join(out, 'production_files')
     os.makedirs(gdir, exist_ok=True)
     os.makedirs(pdir, exist_ok=True)
@@ -264,7 +302,13 @@ def main():
     # BOM
     nl = Netlist.from_schematic(sch)
     refs = sorted((r for r in nl.parts if not r.startswith('#') and not skip(r)), key=refkey)
-    plugin = plugin_lcsc(out)
+    plugin = plugin_lcsc(os.path.join(os.path.dirname(base), 'jlcpcb'))
+    fps = pcb_footprints(pcb)
+    # Each schematic part's footprints on the board: itself, or a panel's copies
+    if a.panel:
+        copies = {r: sorted((p for p in fps if re.fullmatch(re.escape(r) + r'_\d+', p)), key=refkey) for r in refs}
+    else:
+        copies = {r: [r] for r in refs}
     groups, nolcsc = {}, []
     for r in refs:
         p = nl.parts[r]
@@ -272,7 +316,7 @@ def main():
         if not code:
             nolcsc.append(r)
             continue
-        groups.setdefault((p['value'], p['footprint'].split(':')[-1], code), []).append(r)
+        groups.setdefault((p['value'], p['footprint'].split(':')[-1], code), []).extend(copies[r] or [r])
     with open(os.path.join(pdir, f'BOM-{name}.csv'), 'w', newline='') as f:
         w = csv.writer(f)
         w.writerow(['Comment', 'Designator', 'Footprint', 'LCSC', 'Quantity'])
@@ -280,7 +324,7 @@ def main():
             w.writerow([v, ','.join(rs), fp, code, len(rs)])
 
     # CPL, corrected to JLC's footprints
-    fps = pcb_footprints(pcb)
+    value = {c: nl.parts[r]['value'] for r in refs for c in copies[r]}
     placed, eefp, poor = {}, {}, []
     for (v, fp, code), rs in groups.items():
         ee = easyeda_footprint(code)
@@ -300,7 +344,7 @@ def main():
         w.writerow(['Designator', 'Val', 'Package', 'Mid X', 'Mid Y', 'Rotation', 'Layer'])
         for r in sorted(placed, key=refkey):
             s = placed[r]
-            w.writerow([r, nl.parts[r]['value'], fps[r]['lib'].split(':')[-1],
+            w.writerow([r, value[r], fps[r]['lib'].split(':')[-1],
                         f"{s['X']:.4f}", f"{s['Y']:.4f}", f"{cpl_rotation(s):.1f}",
                         'bottom' if s['mirror'] else 'top'])
     if not a.no_check_image:

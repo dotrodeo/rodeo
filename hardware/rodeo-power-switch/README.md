@@ -70,6 +70,17 @@ plunger centre 2.90 mm above the board, measured from the 3D model): a 4.0 ×
 3.5 mm slot, r 0.5, clearing the plunger's 3.4 × 2.9 mm shoulder where it passes
 the panel. A cap would need the slot widened to its outline plus 0.3 mm a side.
 
+## Panel (production runs)
+
+`panel.json` is a 2 × 2 KiKit panel, 76 × 42 mm: four boards, the second row
+turned 180° so every plunger faces out of the panel and the J1 edges face each
+other across a 2 mm gap with no tabs. Each board hangs from two 5 mm mouse-bite
+tabs, one on each 20 mm side, clear of the holes and J1; 5 mm rails on the left
+and right carry the tooling holes and fiducials. `tools/kicad/jlc_fab.py
+rodeo-power-switch.kicad_pro --panel` writes it and its JLC files to
+`jlcpcb-panel/`. Fifty boards are 13 panels. The prototype run was ordered as
+single boards.
+
 ## Cap
 
 Optional since the panels went to 1.6 mm, and not drawn yet. If added: printed,
