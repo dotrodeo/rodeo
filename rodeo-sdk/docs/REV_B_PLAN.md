@@ -58,9 +58,10 @@ Settled with Derek on 2026-10-18:
   sides, so the two ends can't drift. It lives in the SDK (`common/`); `rodeo-satellite/`
   includes it by path.
 * **SD card** through `SdmmcHandler` with `BusWidth::BITS_1`, and FatFs.
-* **USB device**, composite: MIDI, mass storage on the SD card (samples load without
-  opening the case) and serial. How is an open question, explored before it's designed
-  (below); it goes last in the bring-up order.
+* **USB device** (`rodeo_usb`), composite, on TinyUSB: MIDI and serial always, UAC2
+  audio (2×2 or 4×4) per instrument, and mass storage on the SD card in a disk mode, so
+  samples load without opening the case. See [USB](#usb-explore-first) for why TinyUSB
+  and the order it's built in. Needs an interrupt priority table with audio highest.
 * **Battery gauge**: a MAX17048 driver (I²C 0x36) for charge %, and a save-and-dim hook
   before the cell runs out.
 * **I/O connectors**: a small API over the 8 connectors and CV1/CV2: digital in/out,
@@ -86,9 +87,104 @@ mass storage and no composite descriptor. Before choosing, a short exploration a
 * **DFU:** the Daisy bootloader's `extdfu` handles flashing; confirm it still works
   when the app presents a composite device, and how the user gets into it.
 
-Output: a short findings section here and a recommendation, from a test build on a bare
-Daisy Seed (no Rev B board needed). Until then `08_usb_midi` uses libDaisy's existing
-USB MIDI, and `09_usb_storage` waits.
+Derek, 2026-10-18: the goal is **USB-MIDI, USB storage and USB audio**, audio
+expected to be the hardest.
+
+### Findings (2026-10-18)
+
+**libDaisy's USB can't get there.** It vendors ST's USB device library (v2.11.2) as a
+patched copy, and its USB-MIDI is ST's CDC (serial) class with the descriptors swapped:
+a global `usbd_mode` flag makes the one class enumerate as either serial or MIDI, never
+both (`Middlewares/Patched/.../CDC/Src/usbd_cdc.c`). It is class-compliant MIDI, but
+nothing can share the port with it. ST's library does include a `CompositeBuilder`, an
+MSC class and an AUDIO class, but ST has no USB-MIDI class at all, its AUDIO class is
+UAC1 playback only (no recording), and libDaisy's patches would have to be redone inside
+the composite. Building MIDI + MSC + two-way audio there is writing most of a USB stack.
+
+**TinyUSB has every class we need**, MIT-licensed: MIDI, MSC, CDC and UAC2 (two-way
+audio, multi-channel, asynchronous with a feedback endpoint), on the STM32H7's DWC2 USB
+cores, composable in one configuration. It's the base most audio products on
+non-ST stacks use.
+
+**It already works on the Daisy, for audio.** A community port (Daisy forum,
+["Floret, Downlink, interrupt priorities, and USB audio (UAC2) on the Daisy"](https://community.daisy.audio/t/floret-downlink-interrupt-priorities-and-usb-audio-uac2-on-the-daisy/9847),
+code in `a7v7/libDaisy` branch `meadow`, `a7v7/tinyusb` branch `daisy`, both MIT) runs
+TinyUSB beside libDaisy with:
+
+* UAC2 stereo out and stereo in, 48 kHz, 24-bit, plus a CDC serial port, driverless on
+  Windows 11 and macOS (Linux untested);
+* asynchronous playback paced by the codec clock with TinyUSB's feedback endpoint;
+  ~20 minutes of playback (7 with recording) on Windows with no drift or overruns and
+  one inaudible 1 ms underrun;
+* about **2.5 % CPU** for audio both ways, mostly in the USB interrupt; ~95 KB of the
+  Seed's 128 KB internal flash for the whole test app.
+
+Electro-Smith's own 2024 TinyUSB branch got serial and MIDI partly working and stopped
+short of audio.
+
+**Two traps it found, both of which apply to us:**
+
+1. **The feedback value format differs by OS.** USB 2.0 says 10.14 in 3 bytes at full
+   speed and macOS insists on it; Windows' built-in UAC2 driver needs 16.16 in 4 bytes;
+   Linux takes either. TinyUSB sent 16.16 only, so macOS stopped the stream. The port
+   tells them apart because only Windows asks for Microsoft OS 2.0 descriptors, and sends
+   16.16 only after that request. Newer TinyUSB has a callback for choosing the format.
+2. **libDaisy runs nearly every interrupt at priority 0**, so the audio DMA interrupt
+   can't preempt the USB interrupt. Measured on a Pod: 24.9 % of audio callbacks late,
+   worst period 1302 µs instead of 1000 µs. With one priority table (audio highest) it
+   was 0 late, 1000.0 µs. A Rev B SDK with USB audio needs that table.
+
+**MIDI inside a composite works**; the one widely reported failure (TinyUSB discussion
+[#2162](https://github.com/hathach/tinyusb/discussions/2162)) was two classes given the
+same endpoint address. Recent TinyUSB also fixed DWC2 data-cache alignment on the H7,
+which matters with the H7's D-cache: use a current release.
+
+**Bandwidth fits, even 4×4.** Rev B's port is the STM32H750's OTG_HS core on its internal
+full-speed PHY (12 Mbit/s, Seed pins 36/37). Full speed gives periodic (audio) traffic at
+most 90 % of each 1 ms frame, 1350 bytes:
+
+| Audio | Bytes per frame each way | Share of the periodic budget | Left for bulk (MIDI, MSC) |
+|---|---|---|---|
+| 2 in / 2 out, 48 kHz, 24-bit | 294 | 46 % | ~880 kB/s |
+| 4 in / 4 out, 48 kHz, 16-bit | 392 | 60 % | ~690 kB/s |
+| **4 in / 4 out, 48 kHz, 24-bit** | 588 | **89 %** | ~290 kB/s |
+
+(asynchronous: one extra sample per frame of headroom; 9 bytes of isochronous overhead per
+transfer; the feedback endpoint included). All eight channels fit at 24-bit, MIDI is
+untouched, and storage is slow only while audio is streaming.
+
+**Storage and the instrument can't both own the card.** While the computer has the SD
+card mounted as a drive, the firmware must not touch its file system. The usual answer,
+and the proposal here: a **USB disk mode**. The instrument unmounts FatFs, offers MSC,
+and remounts when the computer ejects the drive or the player leaves the mode. MSC isn't
+in the composite at all outside that mode.
+
+**DFU** stays with the Daisy bootloader's `extdfu` build (flashing over the external USB
+pins), entered the bootloader's way at power-up. The app's composite device doesn't
+affect it, since the bootloader runs before the app enumerates. To confirm on hardware.
+
+### Recommendation
+
+**TinyUSB, pinned as a submodule of `rodeo-sdk`, replacing libDaisy's USB entirely**
+(the app never calls `UsbHandle` or `MidiUsbTransport`). A `rodeo_usb` module owns the
+device: one composite configuration with **MIDI and CDC always on, UAC2 audio optional
+per instrument (2×2 or 4×4), and MSC only in disk mode**. Alongside it, the interrupt
+priority table from the community port, with audio highest. Start from the `a7v7` ports
+as references (MIT) rather than as dependencies.
+
+**Order, each step on hardware before the next:**
+
+1. **MIDI + CDC** on a bare Seed's micro-USB (OTG_FS): replaces libDaisy's USB-MIDI, and
+   proves the TinyUSB port, clocks and interrupt priorities.
+2. **Move to the external pins** (OTG_HS, Seed pins 36/37): the Rev B port. Testable
+   before Rev B with a USB breakout wired to a Seed.
+3. **UAC2 stereo**, 2×2, both feedback formats: macOS and Windows, then Linux.
+4. **MSC disk mode**, first on a RAM disk, then on Rev B's SD card.
+5. **UAC2 4×4** on Rev B, both codecs.
+
+Risks to watch: the feedback-format split (solved once, must stay solved across TinyUSB
+updates); USB interrupt load next to the satellite chain and audio; FIFO sizing on the
+DWC2 core for 588-byte isochronous packets each way; Linux, which nobody has tried yet.
 
 ## The pot pipeline (the 1.0 blocker)
 
@@ -118,8 +214,9 @@ nothing else, and is the reference for how an instrument uses it.
 | 05 | `satellite_chain` | Discovery, scans and faults with one pot bank and one encoder bank, then the ring broken and closed | satellites flashed (below) |
 | 06 | `oled_i2c` | OLED and the I²C taps on Rev B | an SSD130x |
 | 07 | `sd_card` | Read and write the internal SD in 1-bit mode | an SD card |
-| 08 | `usb_midi` | USB-MIDI through the power board | USB-C power board |
-| 09 | `usb_storage` | The SD card as a USB drive (composite with MIDI) | the riskiest piece; last |
+| 08 | `usb_midi` | USB-MIDI + serial through the power board, on TinyUSB | USB-C power board |
+| 09 | `usb_storage` | The SD card as a USB drive in disk mode | an SD card |
+| 10 | `usb_audio` | UAC2, 2×2 then 4×4 across both codecs, on macOS, Windows and Linux | the hardest piece; last |
 
 Plus the satellites' own bring-up in `rodeo-satellite/`: kind detection from the ID
 resistor, a pot bank and an encoder bank answering DISCOVER and SCAN, then the chain.
@@ -158,7 +255,7 @@ rodeo-001's build clean against it, and rodeo-002's 181 host tests pass. The top
 ## Open questions
 
 * The pot conditioning split between satellite and Seed (above).
-* USB: libDaisy's stack or TinyUSB, after the exploration above.
+* USB: TinyUSB recommended (above); to confirm with step 1 on a bare Seed.
 * Porting rodeo-002: its 16 pots and its encoders move from the Rev A ADCs and the hub
   onto satellites (four pot banks and two encoder banks, say), and its control map gets
   rewritten for that.
