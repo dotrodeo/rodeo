@@ -1,6 +1,7 @@
-// USB audio test (USB plan, step 2 after the swap): a bare Daisy Seed as a USB audio
-// interface on its micro-USB, two-way stereo, 48 kHz, 24-bit, alongside USB-MIDI and
-// a serial port, all on TinyUSB. See rodeo-sdk/docs/REV_B_PLAN.md, "USB".
+// USB device test: a bare Daisy Seed on its micro-USB, on TinyUSB, as a USB audio
+// interface (two-way stereo, 48 kHz, 24-bit) with USB-MIDI and a serial port, plus a
+// disk mode that offers a RAM disk as USB storage. See rodeo-sdk/docs/REV_B_PLAN.md,
+// "USB".
 //
 //   * Computer -> Seed: whatever the computer plays to "Rodeo" comes out of the Seed's
 //     audio outputs. Asynchronous: the Seed's codec clock sets the rate and a feedback
@@ -10,6 +11,13 @@
 //       l  loopback: what the computer is playing to the Seed, returned digitally
 //       t  a 1 kHz test tone at -12 dBFS (left) and 1.5 kHz (right)
 //   * Serial: 's' prints stream state and counters.
+//   * Disk mode ('d' on the serial port): the Seed unmounts its own file system and
+//     re-enumerates as "Rodeo (disk mode)", serial + USB storage, offering a 16 MB FAT
+//     RAM disk in its SDRAM. Eject it on the computer (or 'n' on the serial port) and
+//     it re-enumerates as the audio device, remounts the disk and reports what it
+//     finds: every file with its size and CRC-32, and the first line of each .TXT.
+//     This is the model for Rev B's SD card: the computer and the instrument never
+//     have the file system at the same time.
 //   * MIDI: echoes what it receives.
 //
 // DaisySeed brings libDaisy's own USB code with it, including an OTG_FS interrupt
@@ -20,10 +28,17 @@
 #include "daisy_seed.h"
 #include "tusb.h"
 #include "usb_descriptors.h"
+#include "ff.h"
+#include "ff_gen_drv.h"
 
 using namespace daisy;
 
 static DaisySeed hw;
+
+extern "C"
+{
+    volatile bool usb_disk_mode = false;
+}
 
 //------------- Interrupt routing -------------//
 
@@ -70,6 +85,189 @@ static void UsbHardwareInit()
 
     // Audio (SAI DMA, libDaisy's priority 0) must be able to preempt USB.
     NVIC_SetPriority(OTG_FS_IRQn, 6);
+}
+
+//------------- RAM disk -------------//
+// 16 MB of the Seed's 64 MB SDRAM, 512-byte sectors, FAT16. Stands in for Rev B's SD
+// card: the same FatFs on one side and USB mass storage on the other.
+
+static constexpr uint32_t kSectorSize = 512;
+static constexpr uint32_t kSectors    = 32768; // 16 MiB
+static uint8_t DSY_SDRAM_BSS ramdisk[kSectors * kSectorSize];
+
+extern "C"
+{
+    static DSTATUS RamDiskInit(BYTE) { return 0; }
+    static DSTATUS RamDiskStatus(BYTE) { return 0; }
+    static DRESULT RamDiskRead(BYTE, BYTE* buf, DWORD sector, UINT count)
+    {
+        if(sector + count > kSectors)
+            return RES_PARERR;
+        memcpy(buf, &ramdisk[sector * kSectorSize], count * kSectorSize);
+        return RES_OK;
+    }
+    static DRESULT RamDiskWrite(BYTE, const BYTE* buf, DWORD sector, UINT count)
+    {
+        if(sector + count > kSectors)
+            return RES_PARERR;
+        memcpy(&ramdisk[sector * kSectorSize], buf, count * kSectorSize);
+        return RES_OK;
+    }
+    static DRESULT RamDiskIoctl(BYTE, BYTE cmd, void* buf)
+    {
+        switch(cmd)
+        {
+            case CTRL_SYNC: return RES_OK;
+            case GET_SECTOR_COUNT: *(DWORD*)buf = kSectors; return RES_OK;
+            case GET_SECTOR_SIZE: *(WORD*)buf = kSectorSize; return RES_OK;
+            case GET_BLOCK_SIZE: *(DWORD*)buf = 1; return RES_OK;
+            default: return RES_PARERR;
+        }
+    }
+
+    // FAT timestamps: no RTC on a bare Seed, so a fixed date (2026-10-18). Overrides the
+    // weak one in ST's diskio.c, which returns 0 (1980-00-00, which macOS shows as 1969).
+    // libDaisy's FatFSInterface (sys/fatfs.cpp) defines one too; this example doesn't
+    // link it.
+    DWORD get_fattime(void)
+    {
+        return ((DWORD)(2026 - 1980) << 25) | ((DWORD)10 << 21) | ((DWORD)18 << 16);
+    }
+}
+
+static const Diskio_drvTypeDef ramdisk_driver = {RamDiskInit,
+                                                 RamDiskStatus,
+                                                 RamDiskRead,
+                                                 RamDiskWrite,
+                                                 RamDiskIoctl};
+
+static FATFS        fs;
+static char         disk_path[4];
+static bool         disk_mounted  = false;
+static volatile bool disk_ejected = false; // the computer ejected the disk
+static volatile bool leave_disk   = false; // set from the eject callback, acted on in main()
+static char          report[1024];         // printed on the serial port once it reopens
+static bool          report_pending = false;
+
+static uint32_t Crc32(uint32_t crc, const uint8_t* p, size_t n)
+{
+    crc = ~crc;
+    while(n--)
+    {
+        crc ^= *p++;
+        for(int k = 0; k < 8; k++)
+            crc = (crc >> 1) ^ (0xEDB88320u & (0u - (crc & 1u)));
+    }
+    return ~crc;
+}
+
+static bool DiskInit()
+{
+    if(FATFS_LinkDriver(&ramdisk_driver, disk_path) != 0)
+        return false;
+    static BYTE work[_MAX_SS * 8];
+    if(f_mkfs(disk_path, FM_FAT, 0, work, sizeof(work)) != FR_OK)
+        return false;
+    if(f_mount(&fs, disk_path, 1) != FR_OK)
+        return false;
+    disk_mounted = true;
+
+    FIL         f;
+    char        name[32];
+    const char* text = "Rodeo RAM disk. Put files here, eject the disk, and the Seed\r\n"
+                       "reports their names, sizes, CRC-32s and the first line of each\r\n"
+                       ".TXT on its serial port.\r\n";
+    snprintf(name, sizeof(name), "%sREADME.TXT", disk_path);
+    UINT bw = 0;
+    if(f_open(&f, name, FA_CREATE_ALWAYS | FA_WRITE) == FR_OK)
+    {
+        f_write(&f, text, strlen(text), &bw);
+        f_close(&f);
+    }
+    return true;
+}
+
+/** List the disk's root: name, size, CRC-32, and a .TXT's first line. */
+static void DiskReport(char* out, size_t len)
+{
+    size_t  n = snprintf(out, len, "\r\nRAM disk, as the Seed sees it:\r\n");
+    DIR     dir;
+    FILINFO fi;
+    if(f_opendir(&dir, disk_path) != FR_OK)
+    {
+        snprintf(out + n, len - n, "  (can't open the disk)\r\n");
+        return;
+    }
+    while(f_readdir(&dir, &fi) == FR_OK && fi.fname[0] && n < len - 100)
+    {
+        if(fi.fattrib & (AM_DIR | AM_HID | AM_SYS) || fi.fname[0] == '.')
+            continue;
+        char path[300];
+        snprintf(path, sizeof(path), "%s%s", disk_path, fi.fname);
+        FIL      f;
+        uint32_t crc   = 0;
+        char     first[48] = "";
+        if(f_open(&f, path, FA_READ) == FR_OK)
+        {
+            static uint8_t buf[4096];
+            UINT           br;
+            bool           firstblock = true;
+            while(f_read(&f, buf, sizeof(buf), &br) == FR_OK && br)
+            {
+                crc = Crc32(crc, buf, br);
+                if(firstblock)
+                {
+                    size_t k = 0;
+                    while(k < br && k < sizeof(first) - 1 && buf[k] != '\r' && buf[k] != '\n')
+                    {
+                        first[k] = (buf[k] >= 32 && buf[k] < 127) ? (char)buf[k] : '?';
+                        k++;
+                    }
+                    first[k]   = 0;
+                    firstblock = false;
+                }
+            }
+            f_close(&f);
+        }
+        const char* ext  = strrchr(fi.fname, '.');
+        bool        text = ext && (strcmp(ext, ".TXT") == 0 || strcmp(ext, ".txt") == 0);
+        n += snprintf(out + n,
+                      len - n,
+                      "  %-20s %8lu bytes  crc32 %08lx%s%s%s\r\n",
+                      fi.fname,
+                      (unsigned long)fi.fsize,
+                      (unsigned long)crc,
+                      text ? "  \"" : "",
+                      text ? first : "",
+                      text ? "\"" : "");
+    }
+    f_closedir(&dir);
+}
+
+/** Drop off the bus and come back with the other configuration. */
+static void Reenumerate(bool disk)
+{
+    tud_disconnect();
+    System::Delay(300); // long enough for the host to notice the device left
+    usb_disk_mode = disk;
+    tud_connect();
+}
+
+static void EnterDiskMode()
+{
+    // The computer gets the disk to itself: unmount ours first.
+    f_mount(nullptr, disk_path, 0);
+    disk_mounted = false;
+    disk_ejected = false;
+    Reenumerate(true);
+}
+
+static void LeaveDiskMode()
+{
+    Reenumerate(false);
+    disk_mounted = f_mount(&fs, disk_path, 1) == FR_OK;
+    DiskReport(report, sizeof(report));
+    report_pending = true;
 }
 
 //------------- Audio state -------------//
@@ -363,6 +561,82 @@ extern "C"
     }
 }
 
+//------------- TinyUSB mass-storage callbacks (disk mode) -------------//
+
+extern "C"
+{
+    void tud_msc_inquiry_cb(uint8_t lun, uint8_t vendor_id[8], uint8_t product_id[16], uint8_t product_rev[4])
+    {
+        (void)lun;
+        memcpy(vendor_id, "RODEO   ", 8);
+        memcpy(product_id, "RAM disk        ", 16);
+        memcpy(product_rev, "1.0 ", 4);
+    }
+
+    bool tud_msc_test_unit_ready_cb(uint8_t lun)
+    {
+        if(disk_ejected)
+        {
+            tud_msc_set_sense(lun, SCSI_SENSE_NOT_READY, 0x3A, 0x00); // medium not present
+            return false;
+        }
+        return true;
+    }
+
+    void tud_msc_capacity_cb(uint8_t lun, uint32_t* block_count, uint16_t* block_size)
+    {
+        (void)lun;
+        *block_count = kSectors;
+        *block_size  = kSectorSize;
+    }
+
+    bool tud_msc_start_stop_cb(uint8_t lun, uint8_t power_condition, bool start, bool load_eject)
+    {
+        (void)lun;
+        (void)power_condition;
+        if(load_eject && !start)
+        {
+            // The computer ejected the disk: hand it back to the Seed.
+            disk_ejected = true;
+            leave_disk   = true;
+        }
+        return true;
+    }
+
+    int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buffer, uint32_t bufsize)
+    {
+        (void)lun;
+        if(lba >= kSectors)
+            return -1;
+        memcpy(buffer, &ramdisk[lba * kSectorSize + offset], bufsize);
+        return (int32_t)bufsize;
+    }
+
+    int32_t tud_msc_write10_cb(uint8_t lun, uint32_t lba, uint32_t offset, uint8_t* buffer, uint32_t bufsize)
+    {
+        (void)lun;
+        if(lba >= kSectors)
+            return -1;
+        memcpy(&ramdisk[lba * kSectorSize + offset], buffer, bufsize);
+        return (int32_t)bufsize;
+    }
+
+    bool tud_msc_is_writable_cb(uint8_t lun)
+    {
+        (void)lun;
+        return true;
+    }
+
+    int32_t tud_msc_scsi_cb(uint8_t lun, uint8_t const scsi_cmd[16], void* buffer, uint16_t bufsize)
+    {
+        (void)scsi_cmd;
+        (void)buffer;
+        (void)bufsize;
+        tud_msc_set_sense(lun, SCSI_SENSE_ILLEGAL_REQUEST, 0x20, 0x00); // invalid command
+        return -1;
+    }
+}
+
 //------------- Serial and MIDI -------------//
 
 static void CdcPrint(const char* s)
@@ -417,10 +691,21 @@ static void CdcTask()
     static bool was_connected = false;
     bool        connected     = tud_cdc_connected();
     if(connected && !was_connected)
-        CdcPrint("\r\nRodeo USB audio test: TinyUSB " TUSB_VERSION_STRING
-                 ", UAC1 2x2 48 kHz 24-bit + MIDI + serial.\r\n"
-                 "s = stats; recording source: c = codec in, l = loopback, t = test tone;\r\n"
-                 "B = reboot into DFU (development)\r\n");
+    {
+        if(usb_disk_mode)
+            CdcPrint("\r\nRodeo USB device test, DISK MODE: the RAM disk is the computer's.\r\n"
+                     "Eject it to hand it back, or n = leave disk mode now.\r\n");
+        else
+            CdcPrint("\r\nRodeo USB device test: TinyUSB " TUSB_VERSION_STRING
+                     ", UAC1 2x2 48 kHz 24-bit + MIDI + serial.\r\n"
+                     "s = stats; recording source: c = codec in, l = loopback, t = test tone;\r\n"
+                     "d = disk mode; r = list the RAM disk; B = reboot into DFU (development)\r\n");
+        if(report_pending && !usb_disk_mode)
+        {
+            CdcPrint(report);
+            report_pending = false;
+        }
+    }
     was_connected = connected;
 
     while(tud_cdc_available())
@@ -429,6 +714,30 @@ static void CdcTask()
         switch(c)
         {
             case 's': PrintStats(); break;
+            case 'd':
+                if(!usb_disk_mode)
+                {
+                    CdcPrint("entering disk mode: this port will close and reopen\r\n");
+                    System::Delay(50);
+                    EnterDiskMode();
+                    return;
+                }
+                break;
+            case 'n':
+                if(usb_disk_mode)
+                {
+                    CdcPrint("leaving disk mode\r\n");
+                    System::Delay(50);
+                    leave_disk = true;
+                }
+                break;
+            case 'r':
+                if(!usb_disk_mode && disk_mounted)
+                {
+                    DiskReport(report, sizeof(report));
+                    CdcPrint(report);
+                }
+                break;
             case 'B':
                 // Straight into the STM32's own DFU bootloader, for reflashing without
                 // the buttons (development only)
@@ -466,6 +775,8 @@ int main(void)
     hw.SetAudioBlockSize(kBlock);
     hw.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
 
+    DiskInit();
+
     RouteUsbIrqToTinyUsb();
     UsbHardwareInit();
     tusb_rhport_init_t dev_init = {TUSB_ROLE_DEVICE, TUSB_SPEED_AUTO};
@@ -480,8 +791,20 @@ int main(void)
         CdcTask();
         MidiTask();
 
+        if(leave_disk)
+        {
+            leave_disk = false;
+            if(usb_disk_mode)
+            {
+                System::Delay(100); // let the eject's status reach the computer
+                LeaveDiskMode();
+            }
+        }
+
         uint32_t now = System::GetNow();
-        uint32_t period = spk_streaming || mic_streaming ? 60 : (tud_mounted() ? 250 : 500);
+        uint32_t period = usb_disk_mode                    ? 1000
+                          : spk_streaming || mic_streaming ? 60
+                          : (tud_mounted() ? 250 : 500);
         if(now - blink >= period)
         {
             blink = now;

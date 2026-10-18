@@ -181,7 +181,8 @@ as references (MIT) rather than as dependencies.
    Windows and Linux to try.*
 3. **Move to the external pins** (OTG_HS, Seed pins 36/37): the Rev B port. Testable
    before Rev B with a USB breakout wired to a Seed.
-4. **MSC disk mode**, first on a RAM disk, then on Rev B's SD card.
+4. **MSC disk mode**, first on a RAM disk, then on Rev B's SD card. *RAM disk done on
+   macOS.*
 5. **UAC2 4×4** on Rev B, both codecs.
 
 **Step 1, 2026-10-18: works.** TinyUSB 0.21.0 is a submodule
@@ -206,8 +207,8 @@ define its own. Options: point the vector at TinyUSB at run time (copy the vecto
 to RAM and set `SCB->VTOR`), or carry a one-line patch to libDaisy making that handler
 weak. Decide when step 2 starts.
 
-**USB audio, 2026-10-18: works on macOS.** [`examples/usb_audio`](../examples/usb_audio/)
-is one composite device, "Rodeo": audio both ways, stereo, 48 kHz, 24-bit, asynchronous
+**USB audio, 2026-10-18: works on macOS.** [`examples/usb_device`](../examples/usb_device/)
+(named `usb_audio` until disk mode joined it) is one composite device, "Rodeo": audio both ways, stereo, 48 kHz, 24-bit, asynchronous
 (the Seed's codec clock leads, a feedback endpoint keeps the computer in step), plus
 MIDI and the serial port; 101 KB of flash. Decisions and findings:
 
@@ -238,6 +239,38 @@ MIDI and the serial port; 101 KB of flash. Decisions and findings:
   over the serial port, so it can be reflashed without the buttons.
 
 Not yet tried: Windows, Linux, the codec path on headphones, and 4×4.
+
+**Disk mode on a RAM disk, 2026-10-18: works on macOS.** The same
+[`examples/usb_device`](../examples/usb_device/) now has a disk mode: 16 MB of the Seed's
+SDRAM is a FAT16 disk, formatted by FatFs at boot (with a README.TXT), and stands in for
+Rev B's SD card. `d` on the serial port unmounts FatFs and re-enumerates the Seed as a
+second configuration, "Rodeo (disk mode)" (PID `1209:0003`): serial + mass storage, no
+audio or MIDI. Ejecting the disk on the computer (SCSI START STOP UNIT with eject) hands
+it back: the Seed re-enumerates as the audio device, remounts, and reports every file
+with its size, CRC-32 and a .TXT's first line on the serial port. 118 KB of flash, of
+the 128 KB internal.
+
+* **The model holds:** the computer and the instrument never have the file system at
+  the same time, so there is no locking and nothing to corrupt. Switching costs a
+  re-enumeration (about a second on macOS), which suits a mode the player chooses.
+* **Separate PIDs per configuration.** The disk configuration uses its own PID so macOS
+  doesn't apply a cached configuration of the other interface set. A product needs a
+  PID for each mode, or a single configuration that is the same in both.
+* Tested on a Seed 2 against macOS 26.5.2: macOS mounted "NO NAME" (16.8 MB, FAT16);
+  README.TXT read back; a text file and 300,000 bytes of random data written from the Mac
+  came back to the Seed with matching CRC-32s after the eject, and survived a second
+  round trip. After each one, a 10 s full-duplex loopback was still glitch-free.
+* `n` on the serial port also leaves disk mode, but pulls the disk out from under the
+  computer (macOS warns that it wasn't ejected properly). The instrument's own way out
+  should wait for the eject, or say on its screen that the player must eject first.
+* **Timestamp trap:** ST's `diskio.c` has a weak `get_fattime` that returns 0, which
+  macOS shows as 1969. With no RTC, the app defines a strong one with a fixed date.
+* macOS writes `._*` AppleDouble files and `.fseventsd` to the disk; the report skips
+  names starting with a dot, and the instrument's file browser should too.
+
+Next for disk mode: the SD card on Rev B (bring-up step `usb_storage`), where read and
+write go through the SDMMC driver instead of `memcpy`, at full speed's ~1 MB/s. Not yet
+tried: Windows, Linux.
 
 Risks to watch: the feedback-format split (solved once, must stay solved across TinyUSB
 updates); USB interrupt load next to the satellite chain and audio; FIFO sizing on the
@@ -273,7 +306,7 @@ nothing else, and is the reference for how an instrument uses it.
 | 07 | `sd_card` | Read and write the internal SD in 1-bit mode | an SD card |
 | 08 | `usb_midi` | USB-MIDI + serial through the power board, on TinyUSB | USB-C power board |
 | 09 | `usb_storage` | The SD card as a USB drive in disk mode | an SD card |
-| 10 | `usb_audio` | UAC2, 2×2 then 4×4 across both codecs, on macOS, Windows and Linux | the hardest piece; last |
+| 10 | `usb_audio` | UAC1, 2×2 then 4×4 across both codecs, on macOS, Windows and Linux | the hardest piece; last |
 
 Plus the satellites' own bring-up in `rodeo-satellite/`: kind detection from the ID
 resistor, a pot bank and an encoder bank answering DISCOVER and SCAN, then the chain.

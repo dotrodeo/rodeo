@@ -19,7 +19,7 @@
 #define CFG_TUD_AUDIO  1
 #define CFG_TUD_CDC    1
 #define CFG_TUD_MIDI   1
-#define CFG_TUD_MSC    0
+#define CFG_TUD_MSC    1 // disk mode only
 #define CFG_TUD_HID    0
 #define CFG_TUD_VENDOR 0
 
@@ -46,6 +46,10 @@
 #define CFG_TUD_AUDIO_EP_IN_FLOW_CONTROL  1 // packet size follows the FIFO level
 #define CFG_TUD_AUDIO_FUNC_1_EP_IN_SZ_MAX AUDIO_EP_SZ
 #define CFG_TUD_AUDIO_FUNC_1_EP_IN_SW_BUF_SZ (4 * AUDIO_EP_SZ)
+
+//------------- MSC (disk mode) -------------//
+// Larger than the 64-byte bulk packet so a 10-sector transfer moves in fewer callbacks
+#define CFG_TUD_MSC_EP_BUFSIZE 4096
 
 //------------- CDC, MIDI -------------//
 #define CFG_TUD_CDC_RX_BUFSIZE 256

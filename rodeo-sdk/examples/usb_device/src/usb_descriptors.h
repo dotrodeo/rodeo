@@ -1,5 +1,26 @@
-// USB audio test: interface numbers and the UAC1 audio function's descriptor.
+// USB device test: interface numbers and the UAC1 audio function's descriptor.
 #pragma once
+
+#include <stdbool.h>
+
+// Which configuration the device presents: normal (audio + serial + MIDI) or disk mode
+// (serial + USB storage). Switching re-enumerates; see main.cpp.
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern volatile bool usb_disk_mode;
+#ifdef __cplusplus
+}
+#endif
+
+// Disk mode's interfaces
+enum
+{
+    ITF_DISK_CDC = 0,
+    ITF_DISK_CDC_DATA,
+    ITF_DISK_MSC,
+    ITF_DISK_TOTAL
+};
 
 enum
 {

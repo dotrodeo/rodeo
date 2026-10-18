@@ -1,13 +1,15 @@
-// USB descriptors for the USB audio test: UAC1 audio + CDC serial + MIDI, one device.
+// USB descriptors for the USB device test. Normal mode: UAC1 audio + CDC serial + MIDI.
+// Disk mode: CDC serial + mass storage (a RAM disk). See main.cpp.
 #include "tusb.h"
 #include "usb_descriptors.h"
 #include "stm32h7xx.h"
 
-// pid.codes test VID/PID, for development only. A product needs its own PID.
-// Different from the MIDI + CDC test's 0x0001 so the host doesn't reuse a cached
-// configuration for a different interface set.
-#define USB_VID 0x1209
-#define USB_PID 0x0002
+// pid.codes test VID/PID, for development only. A product needs its own PIDs.
+// Each interface set gets its own PID so a host never reuses a cached configuration
+// for a different one: 0x0001 the MIDI + CDC test, 0x0002 normal mode, 0x0003 disk mode.
+#define USB_VID      0x1209
+#define USB_PID      0x0002
+#define USB_PID_DISK 0x0003
 
 static tusb_desc_device_t const desc_device = {
     .bLength            = sizeof(tusb_desc_device_t),
@@ -26,9 +28,15 @@ static tusb_desc_device_t const desc_device = {
     .bNumConfigurations = 0x01,
 };
 
+static tusb_desc_device_t desc_device_disk;
+
 uint8_t const* tud_descriptor_device_cb(void)
 {
-    return (uint8_t const*)&desc_device;
+    if(!usb_disk_mode)
+        return (uint8_t const*)&desc_device;
+    desc_device_disk           = desc_device;
+    desc_device_disk.idProduct = USB_PID_DISK;
+    return (uint8_t const*)&desc_device_disk;
 }
 
 // Endpoints, every address distinct
@@ -61,10 +69,27 @@ static uint8_t const desc_configuration[] = {
 
 TU_VERIFY_STATIC(sizeof(desc_configuration) == CONFIG_TOTAL_LEN, "configuration length");
 
+// Disk mode: serial (to report and to leave the mode) + USB storage
+#define EPNUM_DISK_CDC_NOTIF 0x81
+#define EPNUM_DISK_CDC_OUT   0x02
+#define EPNUM_DISK_CDC_IN    0x82
+#define EPNUM_DISK_MSC_OUT   0x03
+#define EPNUM_DISK_MSC_IN    0x83
+
+#define CONFIG_DISK_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_CDC_DESC_LEN + TUD_MSC_DESC_LEN)
+
+static uint8_t const desc_configuration_disk[] = {
+    TUD_CONFIG_DESCRIPTOR(1, ITF_DISK_TOTAL, 0, CONFIG_DISK_TOTAL_LEN, 0x00, 100),
+    TUD_CDC_DESCRIPTOR(ITF_DISK_CDC, 5, EPNUM_DISK_CDC_NOTIF, 8, EPNUM_DISK_CDC_OUT, EPNUM_DISK_CDC_IN, 64),
+    TUD_MSC_DESCRIPTOR(ITF_DISK_MSC, 7, EPNUM_DISK_MSC_OUT, EPNUM_DISK_MSC_IN, 64),
+};
+
+TU_VERIFY_STATIC(sizeof(desc_configuration_disk) == CONFIG_DISK_TOTAL_LEN, "disk configuration length");
+
 uint8_t const* tud_descriptor_configuration_cb(uint8_t index)
 {
     (void)index;
-    return desc_configuration;
+    return usb_disk_mode ? desc_configuration_disk : desc_configuration;
 }
 
 static char const* const string_desc[] = {
@@ -75,6 +100,8 @@ static char const* const string_desc[] = {
     "Rodeo audio",      // 4: audio function
     "Rodeo serial",     // 5: CDC
     "Rodeo MIDI",       // 6: MIDI
+    "Rodeo disk",       // 7: mass storage
+    "Rodeo (disk mode)" // 8: product, in disk mode
 };
 
 static uint16_t desc_str[33];
@@ -102,7 +129,7 @@ uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid)
     {
         if(index >= sizeof(string_desc) / sizeof(string_desc[0]))
             return NULL;
-        char const* s = string_desc[index];
+        char const* s = (index == 2 && usb_disk_mode) ? string_desc[8] : string_desc[index];
         n             = 0;
         while(s[n] && n < 32)
         {
