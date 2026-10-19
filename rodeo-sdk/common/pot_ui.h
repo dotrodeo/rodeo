@@ -59,7 +59,7 @@ StepWithHysteresis(float norm, int steps, int current, float hyst = 0.03f)
 // movement accumulate until it trips.
 struct KnobWatch
 {
-    static constexpr int kMaxPots = 24; // board::kNumAdcChannels
+    static constexpr int kMaxPots = 24; // pots one KnobWatch can track
 
     float    anchor[kMaxPots] = {0.0f};
     int      active           = -1; // most recently moved pot, -1 = none

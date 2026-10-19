@@ -1,0 +1,308 @@
+---
+title: board.h
+description: "Rodeo motherboard, Rev B — the pin map and the board's fixed facts."
+sidebar:
+  order: 2
+editUrl: https://github.com/dotrodeo/rodeo/edit/main/rodeo-sdk/common/board.h
+---
+
+{/* Generated from rodeo-sdk/common/board.h by rodeo-sdk/tools/docs/gen_reference.py. Do not edit:
+    change the header's comments and run `make docs` in rodeo-sdk/. */}
+
+:::note[Generated from the header]
+This page is [`rodeo-sdk/common/board.h`](https://github.com/dotrodeo/rodeo/blob/main/rodeo-sdk/common/board.h) — its comments and declarations.
+To change it, change the header.
+:::
+
+Every Seed pin the motherboard uses, by what it is wired to, so drivers and
+apps say board::pin::kSatTx rather than seed::D2. Host-safe: plain constants
+and constexpr functions only, no libDaisy, so host tests include it too and
+check the map itself (common/tests/board_gtest.cpp). Target code converts a
+SeedPin to libDaisy's Pin with board_daisy.h.
+
+Source of truth: hardware/rodeo-motherboard/docs/rev-b.md, "Seed pin map",
+checked against libDaisy's seed::D0-D30 and seed::A0-A11 (daisy_seed.h).
+
+Which control or sound a connector carries is an instrument's decision, in
+its own control map. Nothing here names one.
+
+## SeedPin
+
+```cpp
+struct SeedPin
+```
+
+One Seed pin: the STM32 port and pin, libDaisy's seed::D number, and the
+physical pin on the Seed's 40-pin header.
+
+**Members**
+
+- `char port` — 'A'..'G'
+- `uint8_t num` — 0..15 within the port; also its EXTI line
+- `int8_t seed_d` — seed::D&lt;n&gt;
+- `uint8_t header` — 1..40
+
+## SharesExti
+
+```cpp
+constexpr bool SharesExti(SeedPin a, SeedPin b);
+```
+
+Two pins share an external-interrupt line when their pin numbers match,
+whatever the port: only one of them can be an interrupt input.
+
+## SamePin
+
+```cpp
+constexpr bool SamePin(SeedPin a, SeedPin b);
+```
+
+## pin::kSatRx
+
+```cpp
+constexpr SeedPin kSatRx = {'C', 11, 1, 2};
+```
+
+Satellite chain, USART3 (AF7). The ring's wire protocol is sat_frame.h.
+
+## pin::kSatTx
+
+```cpp
+constexpr SeedPin kSatTx = {'C', 10, 2, 3};
+```
+
+## pin::kCodec2Reset
+
+```cpp
+constexpr SeedPin kCodec2Reset = {'C', 9, 3, 4};
+```
+
+Second codec (CS4272) on SAI2. Reset has a 10 kOhm pull-down: hold the codec
+in reset until SAI2's MCLK and LRCK run, then release it.
+
+## pin::kCodec2Mclk
+
+```cpp
+constexpr SeedPin kCodec2Mclk = {'A', 1, 24, 31};
+```
+
+## pin::kCodec2Sdout
+
+```cpp
+constexpr SeedPin kCodec2Sdout = {'A', 0, 25, 32};
+```
+
+from its ADC: SAI2 SD_B
+
+## pin::kCodec2Sdin
+
+```cpp
+constexpr SeedPin kCodec2Sdin = {'D', 11, 26, 33};
+```
+
+to its DAC: SAI2 SD_A
+
+## pin::kCodec2Lrck
+
+```cpp
+constexpr SeedPin kCodec2Lrck = {'G', 9, 27, 34};
+```
+
+SAI2 FS
+
+## pin::kCodec2Sclk
+
+```cpp
+constexpr SeedPin kCodec2Sclk = {'A', 2, 28, 35};
+```
+
+SAI2 SCK
+
+## pin::kSdD0
+
+```cpp
+constexpr SeedPin kSdD0 = {'C', 8, 4, 5};
+```
+
+microSD, SDMMC1 in 1-bit mode: D1-D3 would need the satellite chain's pins.
+
+## pin::kSdCmd
+
+```cpp
+constexpr SeedPin kSdCmd = {'D', 2, 5, 6};
+```
+
+## pin::kSdClk
+
+```cpp
+constexpr SeedPin kSdClk = {'C', 12, 6, 7};
+```
+
+## pin::kSpiExtCs
+
+```cpp
+constexpr SeedPin kSpiExtCs = {'B', 12, 0, 1};
+```
+
+SPI1 to the expansion header (an optional ADC board, or an SPI display).
+CS has a 10 kOhm pull-up, so the header's device stays deselected at boot.
+
+## pin::kSpiSck
+
+```cpp
+constexpr SeedPin kSpiSck = {'G', 11, 8, 9};
+```
+
+## pin::kSpiMiso
+
+```cpp
+constexpr SeedPin kSpiMiso = {'B', 4, 9, 10};
+```
+
+## pin::kSpiMosi
+
+```cpp
+constexpr SeedPin kSpiMosi = {'B', 5, 10, 11};
+```
+
+## pin::kI2cScl
+
+```cpp
+constexpr SeedPin kI2cScl = {'B', 8, 11, 12};
+```
+
+I2C1: the OLED, the battery gauge and four taps. 2.2 kOhm pull-ups on board.
+
+## pin::kI2cSda
+
+```cpp
+constexpr SeedPin kI2cSda = {'B', 9, 12, 13};
+```
+
+## pin::kMidiTx
+
+```cpp
+constexpr SeedPin kMidiTx = {'B', 6, 13, 14};
+```
+
+MIDI, USART1, to the MIDI daughterboard.
+
+## pin::kMidiRx
+
+```cpp
+constexpr SeedPin kMidiRx = {'B', 7, 14, 15};
+```
+
+## pin::kUsbDm
+
+```cpp
+constexpr SeedPin kUsbDm = {'B', 14, 29, 36};
+```
+
+USB_OTG_HS on its internal full-speed PHY, to the power board's USB-C.
+
+## pin::kUsbDp
+
+```cpp
+constexpr SeedPin kUsbDp = {'B', 15, 30, 37};
+```
+
+## IoConnector
+
+```cpp
+struct IoConnector
+```
+
+One I/O connector, named by its silkscreen.
+
+**Members**
+
+- `const char* label` — silkscreen: "D1", "A1".."A7", "CV1", "CV2"
+- `SeedPin pin`
+- `int8_t adc` — seed::A&lt;n&gt; for an analog read, or -1 (digital only)
+- `int8_t dac` — DAC channel 1 or 2, or -1
+
+## kNumIo
+
+```cpp
+constexpr int kNumIo = 10;
+```
+
+## kIo
+
+```cpp
+constexpr IoConnector kIo[kNumIo] = { {"D1", {'G', 10, 7, 8}, -1, -1}, {"A1", {'C', 0, 15, 22}, 0, -1}, {"A2", {'A', 3, 16, 23}, 1, -1}, {"A3", {'B', 1, 17, 24}, 2, -1}, {"A4", {'A', 7, 18, 25}, 3, -1}, {"A5", {'A', 6, 19, 26}, 4, -1}, {"A6", {'C', 1, 20, 27}, 5, -1}, {"A7", {'C', 4, 21, 28}, 6, -1}, {"CV1", {'A', 4, 23, 30}, 8, 1}, {"CV2", {'A', 5, 22, 29}, 7, 2}, };
+```
+
+In silkscreen order. Index into this with the Io enum below.
+
+## Io
+
+```cpp
+enum Io : uint8_t { kIoD1, kIoA1, kIoA2, kIoA3, kIoA4, kIoA5, kIoA6, kIoA7, kIoCv1, kIoCv2, };
+```
+
+- `kIoD1`
+- `kIoA1`
+- `kIoA2`
+- `kIoA3`
+- `kIoA4`
+- `kIoA5`
+- `kIoA6`
+- `kIoA7`
+- `kIoCv1`
+- `kIoCv2`
+
+## i2c::kOledAddr
+
+```cpp
+constexpr uint8_t kOledAddr = 0x3C;
+```
+
+SSD130x, on the OLED's own board
+
+## i2c::kBatteryGaugeAddr
+
+```cpp
+constexpr uint8_t kBatteryGaugeAddr = 0x36;
+```
+
+MAX17048 on the motherboard
+
+## kNumAudioIn
+
+```cpp
+constexpr int kNumAudioIn = 4;
+```
+
+--- Audio --------------------------------------------------------------------
+Channels follow the back panel: 1/2 are the Seed's own codec (SAI1), 3/4 the
+CS4272 (SAI2).
+
+## kNumAudioOut
+
+```cpp
+constexpr int kNumAudioOut = 4;
+```
+
+## kSampleRate
+
+```cpp
+constexpr float kSampleRate = 48000.0f;
+```
+
+## kBlockSize
+
+```cpp
+constexpr int kBlockSize = 48;
+```
+
+One block per millisecond, so a USB audio frame is exactly one block.
+
+## kSatUsart
+
+```cpp
+constexpr int kSatUsart = 3;
+```
+
+The satellite chain's UART instance; its baud rate is part of the protocol.

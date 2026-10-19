@@ -1,5 +1,13 @@
 #pragma once
 //
+// NOT YET PORTED TO REV B. This driver scans the prototype's two on-board
+// ADS114S08s, with chip-selects on seed::D25 and seed::D26. On Rev B those pins
+// are the second codec's SAI2 data lines and the ADCs are gone; one optional
+// ADS114S08 sits on the expansion header (board::pin::kSpiExtCs). Don't use it on
+// a Rev B board until it is rewritten for N chips (planning/REV_B_PLAN.md, "What
+// happens to each part of the SDK"). The prototype's copy is rev-a/rodeo-sdk/.
+//
+//
 // Rodeo ADC — Layer 2 scanner over the two ADS114S08 chips (U3/U4).
 //
 // Owns the shared SPI1 handle + two Ads114s08 device drivers and runs a

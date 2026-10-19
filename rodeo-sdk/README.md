@@ -34,43 +34,37 @@ page live there:
 ## Layout
 
 ```
-firmware/
+rodeo-sdk/
   common/
-    board.h              # Rodeo pin map — the single source of truth (host-safe)
+    board.h              # Rev B pin map — the single source of truth (host-safe)
+    board_daisy.h        # board.h's pins as libDaisy Pins (target only)
     version.h            # SDK version + RODEO_SDK_AT_LEAST(); the real changelog
     rodeo.mk             # shared build rules; every app/example includes this
-    ads114s08.{h,cpp}    # Layer 1: per-chip ADS114S08 SPI ADC driver
-    rodeo_adc.{h,cpp}    # Layer 2: 24-ch two-chip pipelined ADC scanner
+    ads114s08.{h,cpp}    # per-chip ADS114S08 SPI ADC driver
+    rodeo_adc.{h,cpp}    # the prototype's two-chip scanner: NOT YET PORTED to Rev B
     adc_convert.h        # pure value pipeline + PotSpan knob-travel calibration
-    encoder_hub.{h,cpp}  # Layer 1: per-hub STM32C0 I2C target driver (master side)
-    rodeo_encoders.{h,cpp} # Layer 2: multi-hub encoder scanner + friendly API
-    status_led.h         # tiny onboard/carrier LED helper
     oled_ssd130x_bulk.{h,cpp} # faster SSD130x I2C transport (page-at-a-time + yield hook)
     pot_ui.h             # pure panel logic: stepped pots, "which knob is moving"
     rodeo_dsp.h          # pure DSP blocks: Smoother, OnePole, DcBlocker, Lfo, Rng
     rodeo_scope.h        # triggered, normalised waveform for a small display
     rodeo_screen.h       # 128x64 screen primitives: title bar, list rows, scroll bar
-    tests/               # host-side GoogleTest for the pure-logic headers
-  template/          # copy-to-start skeleton for a new Rodeo app (blinks LEDs)
+    tests/               # host-side GoogleTest: the pure-logic headers and board.h
+  template/          # copy-to-start skeleton for a new Rodeo app (blinks the Seed's LED)
   examples/
-    01_blink/          # onboard + carrier LED — boots-and-alive smoke test
-    02_audio_tone/     # 440 Hz sine on the output jacks — codec / SAI path
-    03_midi_mono_sine/ # MIDI IN -> monophonic sine voice with a short ADSR
-    04_adc_1ch/        # one channel of the external ADS114S08 SPI ADC -> serial
-    05_adc_scan/       # full 24-ch control-surface scan via rodeo::RodeoAdc
-    06_poly_synth/     # 6-voice poly subtractive synth, 10 live pots (first musical demo)
-    07_encoder_scan/   # rodeo-encoder-hub scan via rodeo::RodeoEncoders, on the OLED
-                       #   (also proves the hub's I2C pass-through + bus pull-ups)
-    08_oled_i2c/       # SSD1309 128x64 feedback display smoke test (I2C @ 0x3C)
-    09_poly_synth_oled/ # 06 + the OLED: knob-value popups and a live output scope
-    10_audio_levels/   # bench tool: stepped 1 kHz sine out, input peaks over USB serial
+    usb_midi_cdc/      # TinyUSB on a bare Seed: MIDI + serial
+    usb_device/        # TinyUSB on a bare Seed: audio, MIDI, serial, RAM-disk mode
   tools/
     screens/           # render an instrument's real OLED screens on your laptop
     docs/              # gen_reference.py: the API reference from the headers
   docs/                # the published pages: guides/ (drafts), reference/api/ (generated)
-  libDaisy/  DaisySP/ # vendored submodules (static libs live in their build/)
-  Makefile           # top-level helpers: `make deps`, `make all`, `make clean`
+  libDaisy/  DaisySP/  tinyusb/ # vendored submodules
+  Makefile           # top-level helpers: `make deps`, `make all`, `make docs`
 ```
+
+The prototype's bring-up examples (`01_blink` to `10_audio_levels`) and its
+encoder-hub and status-LED drivers left this tree with the Rev B pin map; they
+live on in the frozen copy at `rev-a/rodeo-sdk/`. The Rev B bring-up set replaces
+them as the boards are brought up (`planning/REV_B_PLAN.md`, Milestone 1).
 
 Each app/example is a self-contained folder: its own `src/main.cpp` and a tiny
 `Makefile` that just sets `TARGET` + `CPP_SOURCES` and includes
@@ -82,7 +76,7 @@ Each app/example is a self-contained folder: its own `src/main.cpp` and a tiny
   Homebrew `arm-none-eabi-gcc` ships *without* newlib and fails with
   `stdint.h: No such file or directory`. Install the official
   [Arm GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads)
-  and set `GCC_PATH` in `firmware/config.mk` (gitignored, machine-specific;
+  and set `GCC_PATH` in `rodeo-sdk/config.mk` (gitignored, machine-specific;
   auto-included by every build):
   ```make
   GCC_PATH := /Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin
@@ -92,19 +86,19 @@ Each app/example is a self-contained folder: its own `src/main.cpp` and a tiny
 ## Build & flash
 
 ```sh
-cd firmware
+cd rodeo-sdk
 make deps                      # build libDaisy + DaisySP static libs (first time)
 
-cd examples/01_blink
-make                           # -> build/blink.{elf,bin,hex}
+cd examples/usb_device
+make                           # -> build/usb_device.{elf,bin,hex}
 make program-dfu               # flash: hold BOOT, tap RESET on the Daisy first
 ```
 
-`make all` from `firmware/` builds every example.
+`make all` from `rodeo-sdk/` builds every example.
 
 ## Adding a new app or bring-up example
 
-1. Copy `template/` to `examples/<NN_name>/` (two levels below `firmware/`, so
+1. Copy `template/` to `examples/<NN_name>/` (two levels below `rodeo-sdk/`, so
    the default `RODEO_ROOT = ../..` resolves — delete the `RODEO_ROOT` line the
    template carries for its own shallower location).
 2. Edit `TARGET` and `CPP_SOURCES` in its `Makefile`.

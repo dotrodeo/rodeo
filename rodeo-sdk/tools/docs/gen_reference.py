@@ -34,6 +34,7 @@ REPO_URL = 'https://github.com/dotrodeo/rodeo'
 # (header under rodeo-sdk/common/, sidebar order). Pure-logic headers first.
 HEADERS = [
     ('version.h', 1),
+    ('board.h', 2),
     ('adc_convert.h', 10),
     ('pot_ui.h', 11),
     ('rodeo_dsp.h', 12),
@@ -41,6 +42,10 @@ HEADERS = [
     ('rodeo_screen.h', 14),
     ('oled_ssd130x_bulk.h', 20),
 ]
+
+# The SDK's namespaces: `rodeo` for the library, `board` for board.h. A
+# namespace nested in one of them (board::pin) is documented with its prefix.
+NAMESPACES = ('rodeo', 'board')
 
 K = ci.CursorKind
 FUNCS = (K.FUNCTION_DECL, K.FUNCTION_TEMPLATE, K.CXX_METHOD, K.CONSTRUCTOR)
@@ -250,8 +255,8 @@ def render(header):
                 items.append(f'- `{signature(src, m).rstrip(";")}`' + (f' — {esc(note)}' if note else ''))
         return items, methods
 
-    def emit(c, level='##'):
-        name = c.spelling
+    def emit(c, level='##', prefix=''):
+        name = prefix + c.spelling
         doc = prose(doc_of(c))
         if c.kind in RECORDS:
             sections.append(f'{level} {name}\n\n```cpp\n{signature(src, c)[:-0 or None]}\n```\n'
@@ -279,15 +284,20 @@ def render(header):
             sections.append(f'{level} {name}\n\n```cpp\n{signature(src, c)}\n```\n'
                             + (f'\n{body}\n' if body else ''))
 
-    def walk(cur):
+    def walk(cur, prefix='', top=True):
         for c in cur.get_children():
             if not here(c):
                 continue
-            if c.kind == K.NAMESPACE and c.spelling == 'rodeo':
-                walk(c)
+            if c.kind == K.NAMESPACE:
+                if top and c.spelling in NAMESPACES:
+                    walk(c, '', False)
+                elif not top and c.spelling and c.spelling != 'detail':
+                    walk(c, prefix + c.spelling + '::', False)
+            elif top and c.kind != K.MACRO_DEFINITION:
+                continue  # only namespaced declarations, and macros
             elif c.kind in RECORDS + FUNCS + (K.VAR_DECL, K.ENUM_DECL, K.TYPE_ALIAS_DECL):
                 if c.spelling and public(c) and (c.kind not in RECORDS or c.is_definition()):
-                    emit(c)
+                    emit(c, prefix=prefix)
             elif c.kind == K.MACRO_DEFINITION and not c.spelling.endswith('_H') \
                     and not c.spelling.startswith('_'):
                 lines = src[c.extent.start.line - 1:c.extent.end.line]

@@ -20,13 +20,6 @@ RODEO_ROOT ?= ../..
 # Rodeo shared headers. board.h is the single source of truth for the pin map.
 C_INCLUDES += -I$(RODEO_ROOT)/common
 
-# Cross-board wire contract: the encoder-hub I2C register map (rodeo_hub_regs.h)
-# is authored ONCE in rev-a/rodeo-encoder-hub and included verbatim by
-# BOTH firmwares, so the byte layout can never drift. Path is relative to the
-# repo root (one up from rodeo-sdk/). Harmless if that folder is absent
-# (gcc just ignores a missing -I dir) — only the encoder master driver needs it.
-C_INCLUDES += -I$(RODEO_ROOT)/../rev-a/rodeo-encoder-hub/firmware/include
-
 LIBDAISY_DIR = $(RODEO_ROOT)/libDaisy
 DAISYSP_DIR  = $(RODEO_ROOT)/DaisySP
 

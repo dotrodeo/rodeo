@@ -60,6 +60,13 @@ so rodeo-001 and rodeo-002 have a fixed SDK to build against. Since v0.1.0:
 Still Rev A only: board.h is the Rev A motherboard's pin map, and RodeoAdc
 scans its two on-board ADS114S08s. 56 host tests, unchanged.
 
+Unreleased, towards v0.3.0 (the first Rev B release):
+
+- board.h is the Rev B pin map (2026-10-19): the satellite chain, the second codec, SD, SPI to the expansion header, USB, and the ten I/O connectors by silkscreen. board_daisy.h converts its pins for libDaisy. Host tests check it against libDaisy's own pin table.
+- Removed with the Rev A map: examples 01-10, encoder_hub.*, rodeo_encoders.*, status_led.h. They stay in rev-a/rodeo-sdk/.
+- RodeoAdc is not yet ported (its chip-selects are SAI2 pins on Rev B).
+- examples/usb_midi_cdc and usb_device: TinyUSB on a bare Seed.
+
 ## RODEO_SDK_VERSION_NUM
 
 ```cpp

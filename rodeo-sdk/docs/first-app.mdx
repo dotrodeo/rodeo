@@ -33,11 +33,19 @@ include ../../common/rodeo.mk
 `board.h` is the single source of truth for the Rodeo pin and channel map, and it is
 host-safe — it has no libDaisy in it, so host tests can include it too.
 
-:::caution[Still the prototype's map]
-The `board.h` in the SDK today describes the prototype motherboard. The Rev B map
-replaces it before the boards are brought up, and nothing below depends on which
-one you have: the blink only uses the Seed's own LED.
-:::
+It names every pin by what it is wired to — `board::pin::kSatTx`, not
+`seed::D2` — and lists the ten I/O connectors by their silkscreen. Target code
+turns a pin into libDaisy's with `board_daisy.h`:
+
+```cpp
+#include "board_daisy.h"
+
+GPIO gate;
+gate.Init(board::ToDaisy(board::kIo[board::kIoD1].pin), GPIO::Mode::INPUT);
+```
+
+The whole map is on [The board and its pin map](/sdk/guides/board/). The blink
+below needs none of it: it only uses the Seed's own LED.
 
 ```cpp title="src/main.cpp"
 #include "daisy_seed.h"
@@ -62,8 +70,7 @@ int main(void) {
 make && make program-dfu
 ```
 
-If the onboard LED blinks, the toolchain, the board and the flash path all work —
-which is exactly what `01_blink` is for.
+If the onboard LED blinks, the toolchain, the board and the flash path all work.
 
 ## Where instrument code goes
 

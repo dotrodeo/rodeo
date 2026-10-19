@@ -1,70 +1,67 @@
 ---
 title: The board and its pin map
-description: board.h for the Rev B motherboard — every Seed pin, what it is wired to, and the names the rest of the SDK uses for them.
-draft: true
+description: board.h for the Rev B motherboard — every Seed pin by what it is wired to, the ten I/O connectors by their silkscreen, and how target code turns them into libDaisy pins.
 sidebar:
   order: 1
 ---
 
-:::caution[Design draft — not written yet]
-This page is the design for code that does not exist. It is left off the
-published site until `board.h` is rewritten for Rev B, and is the place to change
-the design before then. Source of truth for the hardware:
-`hardware/rodeo-motherboard/docs/rev-b.md`, "Seed pin map".
-:::
-
 `board.h` names every pin the motherboard uses, so drivers and apps say
-`board::kSatTx` rather than `seed::D2`. It stays host-safe: constants only, no
-libDaisy types, so host tests can include it.
+`board::pin::kSatTx` rather than `seed::D2`. It is plain constants with no
+libDaisy in it, so host tests include it too, and they check the map against
+libDaisy's own pin table: a typo in a port or pin number fails a test instead of
+driving the wrong pin. The hardware it describes is
+`hardware/rodeo-motherboard/docs/rev-b.md`. Every name and value is in the
+[API reference](/sdk/reference/api/board/).
 
-## What changes from the prototype
+## Every pin is spoken for
 
-Every pin on the Seed's header is now spoken for. The two on-board ADCs, the
-encoder hub and the status LED are gone; the satellite chain, the second codec,
-the SD card and the USB data pins arrive.
+| Seed pin | libDaisy | Use | `board::pin::` |
+|---|---|---|---|
+| 1 | `D0` | Expansion header chip-select | `kSpiExtCs` |
+| 2, 3 | `D1`, `D2` | Satellite chain RX, TX (USART3) | `kSatRx`, `kSatTx` |
+| 4 | `D3` | Second codec reset | `kCodec2Reset` |
+| 5–7 | `D4`–`D6` | microSD, 1-bit | `kSdD0`, `kSdCmd`, `kSdClk` |
+| 8 | `D7` | I/O connector `D1` | `kIo[kIoD1]` |
+| 9–11 | `D8`–`D10` | SPI1 to the expansion header | `kSpiSck`, `kSpiMiso`, `kSpiMosi` |
+| 12, 13 | `D11`, `D12` | I²C1: OLED, battery gauge, four taps | `kI2cScl`, `kI2cSda` |
+| 14, 15 | `D13`, `D14` | MIDI (USART1) | `kMidiTx`, `kMidiRx` |
+| 22–28 | `D15`–`D21` | I/O connectors `A1`–`A7` | `kIo[kIoA1]`… |
+| 29, 30 | `D22`, `D23` | I/O connectors `CV2`, `CV1` | `kIo[kIoCv2]`, `kIo[kIoCv1]` |
+| 31–35 | `D24`–`D28` | Second codec, SAI2 | `kCodec2Mclk`… |
+| 36, 37 | `D29`, `D30` | USB to the power board | `kUsbDm`, `kUsbDp` |
 
-| Seed pin | libDaisy | Rev B use |
-|---|---|---|
-| 1 | `D0` | Expansion header chip-select (`SPI_EXT_CS`) |
-| 2, 3 | `D1`, `D2` | Satellite chain RX, TX (USART3) |
-| 4 | `D3` | Second codec reset (`CODEC2_RST`) |
-| 5–7 | `D4`–`D6` | SD card, 1-bit SDMMC |
-| 8 | `D7` | I/O connector `D1`, digital only |
-| 9–11 | `D8`–`D10` | SPI1, to the expansion header |
-| 12, 13 | `D11`, `D12` | I²C1: OLED, battery gauge, four taps |
-| 14, 15 | `D13`, `D14` | MIDI (USART1) |
-| 22–28 | `D15`–`D21` | I/O connectors `A1`–`A7`, digital or analog |
-| 29, 30 | `D22`, `D23` | I/O connectors `CV2`, `CV1`: DAC out or analog in |
-| 31–35 | `D24`–`D28` | Second codec, SAI2 |
-| 36, 37 | `D29`, `D30` | USB data to the power board |
+## The I/O connectors
 
-## Proposed shape
+Ten 3-pin connectors — ground, the signal through 1 kΩ, and 3.3 V — named by their
+silkscreen and listed in that order in `board::kIo`:
 
-```cpp title="common/board.h (proposed)"
-namespace rodeo::board
-{
-// Satellite chain, USART3
-constexpr Pin kSatTx = seed::D2;
-constexpr Pin kSatRx = seed::D1;
+| Silkscreen | Can do | `adc` | `dac` |
+|---|---|---|---|
+| `D1` | Digital in or out | — | — |
+| `A1`–`A7` | Digital, or analog in | `seed::A0`–`A6` | — |
+| `CV1` | DAC out (0–3.3 V), or analog in | `seed::A8` | 1 |
+| `CV2` | DAC out (0–3.3 V), or analog in | `seed::A7` | 2 |
 
-// Second codec (CS4272) on SAI2; reset is released by the audio driver
-constexpr Pin kCodec2Reset = seed::D3;
+Two pairs share an external-interrupt line, so only one connector of each pair
+can be an interrupt input: **`A3` and `A6`** (PB1, PC1), and **`A7` and `CV1`**
+(PC4, PA4). `board::SharesExti()` answers it for any two pins, and a host test
+fails if the map ever grows another pair.
 
-// The ten I/O connectors, in silkscreen order: D1, A1–A7, CV1, CV2
-constexpr int kNumIo = 10;
-constexpr IoPin kIo[kNumIo] = { /* pin, analog channel or -1, has DAC */ };
+## From board.h to libDaisy
 
-constexpr uint8_t kBatteryGaugeAddr = 0x36; // MAX17048
-constexpr uint8_t kOledAddr         = 0x3C;
-}
+`board.h` stays host-safe, so the conversion lives in `board_daisy.h`, which only
+target code includes:
+
+```cpp
+#include "board_daisy.h"
+
+GPIO gate;
+gate.Init(board::ToDaisy(board::kIo[board::kIoD1].pin), GPIO::Mode::INPUT);
 ```
 
-`Pin` and `IoPin` are plain structs here, not libDaisy's `Pin`, to keep the header
-host-safe; the drivers convert.
+## Also in board.h
 
-## Open
-
-- Whether connector names follow the silkscreen (`A1`) or the net (`DIG_2`).
-  The silkscreen is what a builder sees, so it should win.
-- PB1 (pin 24) and PC1 (pin 27) share external-interrupt line 1: the I/O driver
-  must refuse to make both interrupt inputs at once.
+- **I²C addresses:** the OLED at `0x3C`, the MAX17048 battery gauge at `0x36`.
+- **Audio:** four in, four out at 48 kHz. Channels 1/2 are the Seed's own codec,
+  3/4 the CS4272, as on the back panel. The block size is 48 samples, one per
+  millisecond, so a USB audio frame is exactly one block.
