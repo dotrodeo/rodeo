@@ -6,7 +6,7 @@ import SpecTable from '../../components/SpecTable.astro';
 import BoardCard from '../../components/BoardCard.astro';
 import BoardFigure from '../../components/BoardFigure.astro';
 import CtaBand from '../../components/CtaBand.astro';
-import { host, satellites, daughterboards, retired } from '../../data/boards';
+import { host, satellites, daughterboards } from '../../data/boards';
 import { statusLabel } from '../../data/site';
 
 // No photographs on this page, and that is deliberate: the only photographs
@@ -128,27 +128,6 @@ const legend = [
     <ul class="m-0 grid list-none gap-6 p-0 sm:grid-cols-2 lg:grid-cols-3">
       {daughterboards.map((b) => <BoardCard board={b} />)}
     </ul>
-  </section>
-
-  <section class="wrap flex flex-col gap-8 pb-20 lg:flex-row">
-    <div class="flex max-w-[280px] flex-col gap-2.5">
-      <Chip variant="status" status="retired" class="self-start">Retired</Chip>
-      <p class="copy-tech m-0 text-[14px]">
-        Designed, then cut. The files stay published; they are not part of the platform.
-      </p>
-    </div>
-    <dl class="m-0 grow">
-      {
-        retired.map((b) => (
-          <div class="flex flex-col gap-1 border-t border-rule py-3.5 sm:flex-row sm:gap-5">
-            <dt class="w-[210px] shrink-0 font-mono text-[14px] text-hardware line-through">
-              {b.name}
-            </dt>
-            <dd class="copy-tech m-0 text-[14px]">{b.retiredReason}</dd>
-          </div>
-        ))
-      }
-    </dl>
   </section>
 
   <CtaBand

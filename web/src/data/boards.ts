@@ -7,8 +7,8 @@
 //     drawn and routed and nothing more. Nothing here has been fabricated.
 //   - Every board carries `rev`, and every image carries its own, because the
 //     only photographs that exist are of Rev-A hardware.
-//   - Retired boards stay listed, marked retired. A platform with an
-//     inaccurate parts list loses trust instantly.
+//   - Only boards in the platform are listed. Cut boards and planned ones
+//     that are not drawn yet (the ADC expander) stay off the site.
 //
 // REV-B, read this before editing. The campaign sells Rev-B, and Rev-B is not
 // a revision of the Rev-A board — it is a different division of labour. The
@@ -78,8 +78,6 @@ export interface Board {
   gallery?: Shot[];
   specs: Spec[];
   caveats?: Caveat[];
-  /** Why it was cut. Retired boards only. */
-  retiredReason?: string;
 }
 
 // Rev-B renders: placeholders until the boards come back from the fab and can
@@ -366,59 +364,6 @@ export const boards: Board[] = [
     ],
   },
 
-  {
-    slug: 'rodeo-adc-expander',
-    name: 'rodeo-adc-expander',
-    kind: 'daughterboard',
-    status: 'planned',
-    rev: 'B',
-    summary: 'Twenty-four 16-bit analog inputs, for builds that need better than the Seed’s own converter.',
-    body: 'Ordinary knobs go on the satellite chain, which is cheaper and scales further, so high-resolution conversion is not something every build should pay for. It lives here instead: one ADS114S08 on the SPI expansion header, about nineteen dollars of parts, for the builds that genuinely need ratiometric 16-bit inputs.',
-    specs: [
-      { label: 'converter', value: 'one ADS114S08 on the SPI header', evidence: `${R}:218` },
-      { label: 'why optional', value: 'satellites cover ordinary controls; ~$19 a board saved', evidence: `${R}:218` },
-    ],
-    caveats: [
-      {
-        status: 'planned',
-        text: 'Specified, not drawn. The part is chosen and the circuit is worked out, but no schematic or layout exists.',
-        evidence: `${R}:218`,
-      },
-    ],
-  },
-];
-
-export const retired: Pick<Board, 'slug' | 'name' | 'retiredReason'>[] = [
-  {
-    slug: 'rodeo-encoder-hub',
-    name: 'rodeo-encoder-hub',
-    retiredReason:
-      'An STM32 that read nine encoders and served them over I²C. Silicon-verified and genuinely good, and replaced anyway: the satellite chain does the same job without a central hop, and a satellite’s position in the chain is its address, so nothing has to be configured.',
-  },
-  {
-    slug: 'rodeo-encoder',
-    name: 'rodeo-encoder',
-    retiredReason:
-      'A single encoder on a hub port. It went with the hub — four encoders now arrive together on rodeo-encoder-bank-4 for less than four of these cost.',
-  },
-  {
-    slug: 'rodeo-button',
-    name: 'rodeo-button',
-    retiredReason:
-      'A two-pin button board. Rev B’s I/O connectors are three-pin, so these no longer plug in directly, and buttons move onto the satellite chain.',
-  },
-  {
-    slug: 'rodeo-rotary-switch',
-    name: 'rodeo-rotary-switch',
-    retiredReason:
-      'A resistor-ladder selector reading as one analog voltage. Dropped once encoders covered the same job with fewer parts and no channel cost.',
-  },
-  {
-    slug: 'rodeo-encoder-bank',
-    name: 'rodeo-encoder-bank',
-    retiredReason:
-      'A four-gang RP2040 encoder strip. An early attempt at what rodeo-encoder-bank-4 now does on a cent-scale part.',
-  },
 ];
 
 /**
