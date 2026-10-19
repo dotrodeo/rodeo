@@ -15,7 +15,7 @@ on the panel.
 | Item | Text | Kickstarter? | Why |
 |---|---|---|---|
 | Board name | `RODEO <BOARD NAME>` | **Needed** | Builders sort ~23 boards per kit; support starts with "which board is this?" |
-| Revision and date | `Rev B1 · 2026-10` | **Needed** | Rev A and Rev B boards will coexist; firmware and docs are per revision |
+| Revision and date | `Rev B1 · 2026-10` | **Needed** | Rev A and Rev B boards will coexist; firmware and docs are per revision. Letter and number: [`versioning.md`](versioning.md) |
 | Licence and source location | `CERN-OHL-W-2.0` and `github.com/dotrodeo/rodeo` or `rodeooh.rodeo/source` (or a QR code to it) | **Needed** | The licence asks for a notice of the source location on distributed products; the silkscreen is the reliable place |
 | Pin 1 / key on every connector | footprint markers (check they survived) | **Needed** | Builders plug in every cable |
 | Connector function names | e.g. `CHAIN IN`, `TO MOTHERBOARD MIDI` | **Needed** | The reference designator (J2) means nothing to a builder |
