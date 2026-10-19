@@ -43,7 +43,10 @@ jobs:
       # skips, so the checkout is what makes it a real check. Not tinyusb,
       # ch32v003fun or the frozen rev-a submodules: nothing here uses them.
       - name: Check out libDaisy and DaisySP
-        run: git submodule update --init --depth 1 rodeo-sdk/libDaisy rodeo-sdk/DaisySP
+        run: |
+          git submodule update --init --depth 1 rodeo-sdk/libDaisy rodeo-sdk/DaisySP
+          # googletest is libDaisy's own submodule; its CMSIS and HAL ones aren't needed.
+          git -C rodeo-sdk/libDaisy submodule update --init --depth 1 tests/googletest
 
       - name: SDK host tests
         run: make -C rodeo-sdk/common/tests test
