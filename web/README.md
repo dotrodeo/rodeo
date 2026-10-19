@@ -11,9 +11,9 @@ The brief and the roadmap hold campaign planning, so they live in the private
 | Document | What it settles |
 |---|---|
 | [`WEB_DISCOVERY.md`](https://github.com/dotrodeo/rodeo-internal/blob/main/web/docs/WEB_DISCOVERY.md) (in `rodeo-internal`) | What the site is for, who it talks to, the message, the information architecture, content inventory, risks |
-| [`docs/WEB_BRAND.md`](docs/WEB_BRAND.md) | The visual language — palette, typefaces, graphic devices, wordmark. All derived from the motherboard PCB |
-| [`docs/WEB_ARCHITECTURE.md`](docs/WEB_ARCHITECTURE.md) | Stack, directory layout, content model, deploy pipeline, email capture, verification |
-| [`docs/WEB_CLAIMS_AUDIT.md`](docs/WEB_CLAIMS_AUDIT.md) | What we're allowed to claim today, with evidence; what must never appear; the accuracy guardrail to build |
+| [`../planning/WEB_BRAND.md`](../planning/WEB_BRAND.md) | The visual language — palette, typefaces, graphic devices, wordmark. All derived from the motherboard PCB |
+| [`../planning/WEB_ARCHITECTURE.md`](../planning/WEB_ARCHITECTURE.md) | Stack, directory layout, content model, deploy pipeline, email capture, verification |
+| [`../planning/WEB_CLAIMS_AUDIT.md`](../planning/WEB_CLAIMS_AUDIT.md) | What we're allowed to claim today, with evidence; what must never appear; the accuracy guardrail to build |
 | [`WEB_ROADMAP.md`](https://github.com/dotrodeo/rodeo-internal/blob/main/web/docs/WEB_ROADMAP.md) (in `rodeo-internal`) | Phases, estimates, and the open-decisions checklist |
 
 **Design canvas** (artboards for the foundations, wordmark, home, boards, board detail and a
@@ -33,9 +33,9 @@ Dark mode only.
 ## Before writing any code
 
 1. Read [`WEB_ROADMAP.md`](https://github.com/dotrodeo/rodeo-internal/blob/main/web/docs/WEB_ROADMAP.md) in `rodeo-internal` and clear phase 0.
-2. Read [`docs/WEB_CLAIMS_AUDIT.md`](docs/WEB_CLAIMS_AUDIT.md). Product copy is not
+2. Read [`../planning/WEB_CLAIMS_AUDIT.md`](../planning/WEB_CLAIMS_AUDIT.md). Product copy is not
    freehand: every spec statement renders from `src/data/specs.ts` and carries a status.
-3. Transcribe [`docs/WEB_BRAND.md`](docs/WEB_BRAND.md) into the token layer rather than
+3. Transcribe [`../planning/WEB_BRAND.md`](../planning/WEB_BRAND.md) into the token layer rather than
    re-deciding it.
 
 ## Regenerating board imagery
@@ -79,7 +79,7 @@ npm run build
 - `astro check` — types and content-collection schemas
 - `scripts/check-claims.mjs` — every `evidence` citation in `src/data/boards.ts`
   resolves to a real, non-blank line, and no `shipped` claim sits within three
-  lines of a `TODO`. See [docs/WEB_CLAIMS_AUDIT.md](docs/WEB_CLAIMS_AUDIT.md).
+  lines of a `TODO`. See [../planning/WEB_CLAIMS_AUDIT.md](../planning/WEB_CLAIMS_AUDIT.md).
 - `scripts/check-assets.mjs` — nothing committed under `src/assets/` or
   `public/` exceeds 500 KB.
 

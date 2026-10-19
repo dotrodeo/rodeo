@@ -9,7 +9,7 @@ name: claims
 #
 # What it enforces: every public claim in web/src/data/boards.ts cites a real
 # line of evidence in the repo, and no claim marked shipped sits next to a
-# TODO. See web/docs/WEB_CLAIMS_AUDIT.md.
+# TODO. See planning/WEB_CLAIMS_AUDIT.md.
 
 on:
   push:
@@ -24,7 +24,7 @@ on:
       - 'rev-a/rodeo-potentiometer/**'
       - 'rev-a/rodeo-button/**'
       - 'web/src/data/**'
-      - 'web/docs/**'
+      - 'planning/**'
       - 'web/scripts/check-claims.mjs'
       - 'hardware/**'
       - '.github/workflows/claims.yml'
@@ -39,7 +39,7 @@ on:
       - 'rev-a/rodeo-potentiometer/**'
       - 'rev-a/rodeo-button/**'
       - 'web/src/data/**'
-      - 'web/docs/**'
+      - 'planning/**'
       - 'web/scripts/check-claims.mjs'
       - 'hardware/**'
       - '.github/workflows/claims.yml'

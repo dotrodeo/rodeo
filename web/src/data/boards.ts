@@ -1,6 +1,6 @@
 // The board catalogue — the single source for /ecosystem/ and every board page.
 //
-// RULES (web/docs/WEB_CLAIMS_AUDIT.md):
+// RULES (planning/WEB_CLAIMS_AUDIT.md):
 //   - Every `spec` and `caveat` carries `evidence`: a repo-relative path, or
 //     path:line. If you cannot cite it, it does not go on the site.
 //   - `status: 'shipped'` means proven on real hardware. `designed` means

@@ -1,4 +1,4 @@
-// Fail the build if a committed asset busts the budget in web/docs/WEB_ARCHITECTURE.md.
+// Fail the build if a committed asset busts the budget in planning/WEB_ARCHITECTURE.md.
 // Policy without enforcement does not survive a late-night commit.
 import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';

@@ -4,7 +4,7 @@
  * As of 2026-10-05 that is no longer the rule: Derek chose round, legible hex
  * values over measured ones. The board is still where the *identity* comes
  * from — black mask, white legend, plated yellow — but the exact numbers are
- * now chosen for the screen. See web/docs/WEB_BRAND.md.
+ * now chosen for the screen. See planning/WEB_BRAND.md.
  *
  * Layer 2 is the semantic set in @theme (global.css). Components reference
  * ONLY layer 2.

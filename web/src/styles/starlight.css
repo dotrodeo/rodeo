@@ -3,7 +3,7 @@
  * Starlight has its own design system driven by CSS custom properties, so the
  * site's look is applied by remapping those rather than fighting its CSS with
  * overrides. Values come from src/styles/tokens.css — this file must not
- * invent colours. See web/docs/WEB_BRAND.md.
+ * invent colours. See planning/WEB_BRAND.md.
  */
 
 @import './tokens.css';

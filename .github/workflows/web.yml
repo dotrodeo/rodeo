@@ -4,7 +4,7 @@ name: web
 #
 # Not Pages: Cloudflare's dashboard now calls that the "legacy Pages workflow"
 # and its docs carry a migration banner, so a site started in late 2026 belongs
-# on Workers. Config is web/wrangler.jsonc. See web/docs/WEB_ARCHITECTURE.md.
+# on Workers. Config is web/wrangler.jsonc. See planning/WEB_ARCHITECTURE.md.
 #
 # Deploying from Actions rather than from Workers Builds keeps the checkout
 # sparse and submodule-free — the repo carries libDaisy and DaisySP, which the

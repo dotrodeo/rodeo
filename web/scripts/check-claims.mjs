@@ -1,7 +1,7 @@
-// Claim-accuracy guardrail — see web/docs/WEB_CLAIMS_AUDIT.md.
+// Claim-accuracy guardrail — see planning/WEB_CLAIMS_AUDIT.md.
 //
 // Implemented here: check 1 (evidence resolves) and check 2 (TODO proximity),
-// over src/data/boards.ts and over the repo paths cited in web/docs/*.md.
+// over src/data/boards.ts and over the repo paths cited in planning/*.md.
 // Checks 3-6 (line-hash drift lockfile, banned phrases in built HTML,
 // relatedSpecs cross-refs, revision scope) come with the log and specs work.
 //
@@ -137,28 +137,30 @@ for (const board of boards) {
   for (const cite of cites) await checkCite(board.slug, cite);
 }
 
-// The documents in web/docs/ cite the hardware tree too, and the claims audit
-// cites it most of all. Those citations went unchecked until 2026-10-15, when
+// The website's planning documents (planning/WEB_*.md) cite the hardware tree
+// too, and the claims audit cites it most of all. Those citations went unchecked until 2026-10-15, when
 // merging the Rev B branch moved a file out from under nine of them and
 // nothing noticed — the file that defines the truth rules had rotted silently.
 //
 // Markdown gets the path and range check but not TODO proximity: these docs
 // discuss unfinished work on purpose, which is the opposite of a spec table
 // claiming something is shipped.
-const DOCS = resolve(HERE, '../docs');
+// Moved from web/docs/ to planning/ on 2026-10-19. Only the WEB_ documents:
+// the SDK and hardware plans beside them aren't claims about the product.
+const DOCS = resolve(HERE, '../../planning');
 // Longest extension first: `ts` before `tsx` would clip main.cpp to main.c
 // and wrangler.jsonc to wrangler.json, inventing two files that do not exist.
 const CITE_IN_PROSE =
   /(?:^|[\s(`[])((?:hardware|rev-a|instruments|rodeo-sdk|tools|web)\/[A-Za-z0-9._/-]+\.(?:kicad_pcb|kicad_sch|jsonc|json|mjs|tsx|ts|hpp|cpp|md|py|h|c))(:\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*)?/g;
 
-for (const name of (await readdir(DOCS)).filter((f) => f.endsWith('.md'))) {
+for (const name of (await readdir(DOCS)).filter((f) => f.startsWith('WEB_') && f.endsWith('.md'))) {
   const text = await readFile(resolve(DOCS, name), 'utf8');
   const seen = new Set();
   for (const m of text.matchAll(CITE_IN_PROSE)) {
     const cite = m[1] + (m[2] ?? '');
     if (seen.has(cite)) continue;
     seen.add(cite);
-    await checkCite(`docs/${name}`, cite, { proximity: false });
+    await checkCite(`planning/${name}`, cite, { proximity: false });
   }
 }
 

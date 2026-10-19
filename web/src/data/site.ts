@@ -1,5 +1,5 @@
 // Site-wide constants. The public brand is "Rodeo"; rodeooh.rodeo is a pun on
-// "Romeo, oh Romeo" and does no brand work — see web/docs/WEB_BRAND.md.
+// "Romeo, oh Romeo" and does no brand work — see planning/WEB_BRAND.md.
 
 export interface NavItem {
   href: string;
@@ -35,7 +35,7 @@ export const site: {
 export type Rev = 'A' | 'B' | 'A+B';
 
 /**
- * Claim status — see web/docs/WEB_CLAIMS_AUDIT.md.
+ * Claim status — see planning/WEB_CLAIMS_AUDIT.md.
  *
  * `designed` and `at-fab` exist because the original words could not say where
  * the Rev-B boards actually are. `shipped` means proven on hardware and would
