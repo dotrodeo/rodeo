@@ -35,6 +35,7 @@ REPO_URL = 'https://github.com/dotrodeo/rodeo'
 HEADERS = [
     ('version.h', 1),
     ('board.h', 2),
+    ('sat_frame.h', 3),
     ('adc_convert.h', 10),
     ('pot_ui.h', 11),
     ('rodeo_dsp.h', 12),
@@ -46,6 +47,11 @@ HEADERS = [
 # The SDK's namespaces: `rodeo` for the library, `board` for board.h. A
 # namespace nested in one of them (board::pin) is documented with its prefix.
 NAMESPACES = ('rodeo', 'board')
+
+# Plain C headers have no namespace; their top-level declarations are documented
+# when they carry the header's prefix (sat_frame.h is C so the satellites can
+# build it).
+C_PREFIXES = ('sat_', 'SAT_')
 
 K = ci.CursorKind
 FUNCS = (K.FUNCTION_DECL, K.FUNCTION_TEMPLATE, K.CXX_METHOD, K.CONSTRUCTOR)
@@ -273,16 +279,49 @@ def render(header):
                 sections.append(f'### {name}::{m.spelling}\n\n```cpp\n{signature(src, m)}\n```\n'
                                 + (f'\n{mdoc}\n' if mdoc else ''))
         elif c.kind == K.ENUM_DECL:
-            vals = [f'- `{e.spelling}`' + (f' — {esc(trailing_comment(src, e.extent.start.line))}'
-                                          if trailing_comment(src, e.extent.start.line) else '')
-                    for e in c.get_children() if e.kind == K.ENUM_CONSTANT_DECL]
-            sections.append(f'{level} {name}\n\n```cpp\n{signature(src, c)}\n```\n'
+            consts = [e for e in c.get_children() if e.kind == K.ENUM_CONSTANT_DECL]
+            vals = [f'- `{enumerator(e)}`' + (f' — {esc(trailing_comment(src, e.extent.start.line))}'
+                                             if trailing_comment(src, e.extent.start.line) else '')
+                    for e in consts]
+            if c.spelling and not c.is_anonymous():
+                head = f'```cpp\n{signature(src, c).split("{")[0].strip()}\n```\n'
+            else:  # an anonymous enum of constants: name it by its range
+                name = consts[0].spelling + (f' … {consts[-1].spelling}' if len(consts) > 1 else '')
+                head = ''
+            sections.append(f'{level} {esc(name)}\n\n{head}'
                             + (f'\n{doc}\n' if doc else '') + ('\n' + '\n'.join(vals) + '\n' if vals else ''))
         else:
             note = trailing_comment(src, c.extent.start.line)
             body = doc or (esc(note) if note else '')
             sections.append(f'{level} {name}\n\n```cpp\n{signature(src, c)}\n```\n'
                             + (f'\n{body}\n' if body else ''))
+
+    def enumerator(e):
+        """An enumerator as written: `NAME = value`, or just NAME."""
+        s = re.sub(r'\s+', ' ', text_of(src, (e.extent.start.line, e.extent.start.column),
+                                         (e.extent.end.line, e.extent.end.column))).strip()
+        return s.rstrip(',')
+
+    # Enums named by a typedef are documented with the typedef, not again alone.
+    typedefd = {k.underlying_typedef_type.get_declaration().hash
+                for k in tu.cursor.get_children() if k.kind == K.TYPEDEF_DECL}
+
+    def emit_typedef(c):
+        """`typedef struct { ... } name;` and `typedef enum { ... } name;`."""
+        under = [k for k in c.get_children() if k.kind in (K.STRUCT_DECL, K.ENUM_DECL)]
+        doc = prose(doc_of(c))
+        sections.append(f'## {c.spelling}\n\n```cpp\n{"struct" if under and under[0].kind == K.STRUCT_DECL else "enum" if under else "typedef"} {c.spelling}\n```\n'
+                        + (f'\n{doc}\n' if doc else ''))
+        if not under:
+            return
+        lines = []
+        for m in under[0].get_children():
+            if m.kind in (K.FIELD_DECL, K.ENUM_CONSTANT_DECL):
+                note = trailing_comment(src, m.extent.start.line)
+                code = signature(src, m).rstrip(';').rstrip(',') if m.kind == K.FIELD_DECL else enumerator(m)
+                lines.append(f'- `{code}`' + (f' — {esc(note)}' if note else ''))
+        if lines:
+            sections.append(('**Members**\n\n' if under[0].kind == K.STRUCT_DECL else '') + '\n'.join(lines) + '\n')
 
     def walk(cur, prefix='', top=True):
         for c in cur.get_children():
@@ -293,8 +332,15 @@ def render(header):
                     walk(c, '', False)
                 elif not top and c.spelling and c.spelling != 'detail':
                     walk(c, prefix + c.spelling + '::', False)
+            elif top and c.kind == K.TYPEDEF_DECL and c.spelling.startswith(C_PREFIXES):
+                emit_typedef(c)
+            elif top and c.kind == K.ENUM_DECL and c.hash not in typedefd and any(
+                    e.spelling.startswith(C_PREFIXES) for e in c.get_children()):
+                emit(c)
+            elif top and c.kind == K.FUNCTION_DECL and c.spelling.startswith(C_PREFIXES):
+                emit(c)
             elif top and c.kind != K.MACRO_DEFINITION:
-                continue  # only namespaced declarations, and macros
+                continue  # only namespaced or prefixed declarations, and macros
             elif c.kind in RECORDS + FUNCS + (K.VAR_DECL, K.ENUM_DECL, K.TYPE_ALIAS_DECL):
                 if c.spelling and public(c) and (c.kind not in RECORDS or c.is_definition()):
                     emit(c, prefix=prefix)

@@ -3,7 +3,7 @@ title: Pure-logic headers
 description: The headers with no hardware in them — adc_convert, pot_ui, rodeo_dsp, rodeo_scope and rodeo_screen — which build on the host and are covered by GoogleTest.
 ---
 
-Five headers contain no libDaisy and no hardware. They compile on your laptop,
+Six headers contain no libDaisy and no hardware. They compile on your laptop,
 `common/tests/` exercises them there, and the firmware calls **these** functions
 rather than a parallel implementation that drifts from the tested one.
 
@@ -14,6 +14,11 @@ rather than a parallel implementation that drifts from the tested one.
 | [`rodeo_dsp.h`](/sdk/reference/api/rodeo-dsp/) | `Smoother`, `OnePole`, `DcBlocker`, `Lfo`, `Rng` |
 | [`rodeo_scope.h`](/sdk/reference/api/rodeo-scope/) | A triggered, normalised waveform for a small display |
 | [`rodeo_screen.h`](/sdk/reference/api/rodeo-screen/) | 128×64 primitives: title bar, list rows, scroll bar |
+| [`sat_frame.h`](/sdk/reference/api/sat-frame/) | The satellite chain's wire format: frames, slots, CRC, discovery, commands |
+
+`sat_frame.h` is plain C, because the satellites include it too: the chain's two
+ends share one definition of every byte, and the host tests play both parts, down
+to a simulated ring of satellites.
 
 Each links to its page in the API reference, which is generated from the header
 itself.

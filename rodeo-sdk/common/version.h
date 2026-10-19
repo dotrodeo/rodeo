@@ -61,6 +61,9 @@
 //   * Removed with the Rev A map: examples 01-10, encoder_hub.*,
 //     rodeo_encoders.*, status_led.h. They stay in rev-a/rodeo-sdk/.
 //   * RodeoAdc is not yet ported (its chip-selects are SAI2 pins on Rev B).
+//   * sat_frame.h: the satellite chain's wire format (2026-10-19), plain C so
+//     the satellite firmware includes it too. Host tests play both ends, down
+//     to a simulated ring; 78 host tests in all.
 //   * examples/usb_midi_cdc and usb_device: TinyUSB on a bare Seed.
 
 #pragma once

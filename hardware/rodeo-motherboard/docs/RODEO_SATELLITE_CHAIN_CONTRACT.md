@@ -1,9 +1,9 @@
 ---
 title: "Rodeo Satellite Chain — Wire Contract"
 tags: [rodeo, firmware, uart, satellites, contract]
-status: draft v1 — not yet built on either side
+status: draft v1 — frame format in code (rodeo-sdk/common/sat_frame.h); not yet on hardware
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-10-19
 reviewers: [derek]
 ---
 
@@ -112,8 +112,8 @@ the ADC pin, and **R_ID** (1 %, E96) from the ADC pin to GND.
 | 6 | 6.65 kΩ | | 14 | 140 kΩ |
 | 7 | 8.66 kΩ | | 15 | not fitted |
 
-With both resistors at 1 % tolerance, every value lands within ±0.1 of its kind
-number, against a ±0.5 decision band.
+With both resistors at 1 %, every value lands within ±0.1 of its kind number. A
+reading further than ±0.3 from every kind is fault `0x01` (§7), not a guess.
 
 **Assigned kinds (v1):**
 
@@ -173,7 +173,7 @@ Frame length is `4 + 4N` bytes, at most 260 bytes (2.6 ms at 1 Mbaud).
 ### 2.3 What a satellite does with a frame
 
 A satellite at chain position `p = HOP_in + 1` that owns `s` slots (`s` is set by its
-kind; 1 for every v1 kind):
+kind: 4 for the pot and encoder banks, 1 for every other v1 kind):
 
 | `TYPE` | Satellite action | Out |
 |---|---|---|

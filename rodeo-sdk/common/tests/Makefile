@@ -72,8 +72,16 @@ all: $(BIN_PATH)/$(BIN_NAME)
 	@$(RM) $(BIN_NAME)
 	@ln -s $(BIN_PATH)/$(BIN_NAME) $(BIN_NAME)
 
-test: release
+test: release c-headers
 	./$(BIN_NAME)
+
+# sat_frame.h is also built as C, by the satellites' toolchain. Compile it as
+# strict C99 here so a C++-only construct fails on the host, not on the bench.
+CC ?= clang
+.PHONY: c-headers
+c-headers:
+	@echo '#include "sat_frame.h"' | $(CC) -std=c99 -Wall -Wextra -Werror -pedantic -I ../ -x c -fsyntax-only -
+	@echo "sat_frame.h: builds as C99"
 
 $(BIN_PATH)/$(BIN_NAME): $(OBJECTS) $(DSP_OBJECTS)
 	@echo "Linking: $@"
