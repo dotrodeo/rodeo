@@ -6,11 +6,12 @@ sidebar:
   order: 3
 ---
 
-:::caution[Written, not yet run on hardware]
-The driver is written and host-tested against a simulated ring: discovery,
-scanning, a live break found and repaired, a satellite added while running. It
-stays unpublished until it has run on a Seed: first as a loop-back with no
-satellites (`examples/sat_chain`), then with real ones on a Rev B board. API:
+:::caution[Run on a bare Seed, not yet with satellites]
+The driver is host-tested against a simulated ring (discovery, scanning, a live
+break found and repaired, a satellite added while running), and has run on a
+Daisy Seed 2 as a loop-back with no satellites (`examples/sat_chain`): 250 scans
+a second with none bad, and a pulled wire found and recovered from. It stays
+unpublished until it has run with real satellites on a Rev B board. API:
 [`sat_chain.h`](/sdk/reference/api/sat-chain/),
 [`sat_chain_port.h`](/sdk/reference/api/sat-chain-port/),
 [`sat_frame.h`](/sdk/reference/api/sat-frame/).

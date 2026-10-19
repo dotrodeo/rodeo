@@ -8,12 +8,13 @@ They are also the shortest honest answer to "how do I use this?"
 
 ## Runs today, on a bare Seed
 
-Neither of these needs a Rodeo board — a Daisy Seed and a USB cable is the whole
-setup.
+None of these needs a Rodeo board — a Daisy Seed and a USB cable is the whole
+setup, plus one jumper wire for `sat_chain`.
 
 | Example | What it proves |
 |---|---|
 | `usb_midi_cdc` | TinyUSB on the Seed's micro-USB: composite USB-MIDI and a serial port. Echoes every MIDI message, plays middle C once a second, and echoes what you type. |
+| `sat_chain` | The satellite chain driver, with the Seed's pin 3 wired to pin 2: a ring with no satellites. It discovers an empty chain and scans it at 250 a second; pull the wire and it finds the break within a second, put it back and it recovers on the next retry. Status over the Seed's USB serial. |
 | `usb_device` | The full device: stereo audio in and out at 48 kHz / 24-bit, USB-MIDI, serial and a RAM disk, simultaneously. The serial port switches what the computer records — the Seed's inputs, a digital loopback, or a test tone. |
 
 ```sh
@@ -24,12 +25,6 @@ make && make program-dfu
 `usb_device` is the interesting one. The computer plays to "Rodeo" and it comes
 out of the Seed's outputs; the Seed's codec clock sets the rate and a feedback
 endpoint keeps the computer in step, so there is no resampling and no drift.
-
-## Built, waiting for a bench
-
-| Example | What it will prove |
-|---|---|
-| `sat_chain` | The satellite chain driver on a bare Seed: with pin 3 wired to pin 2 it is a ring with no satellites, which should discover empty and scan cleanly; pull the wire and it should find the break. Status over the Seed's USB serial. |
 
 ## Arrives with the boards
 

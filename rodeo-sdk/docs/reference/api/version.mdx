@@ -66,7 +66,7 @@ Unreleased, towards v0.3.0 (the first Rev B release):
 - Removed with the Rev A map: examples 01-10, encoder_hub.*, rodeo_encoders.*, status_led.h. They stay in rev-a/rodeo-sdk/.
 - RodeoAdc is not yet ported (its chip-selects are SAI2 pins on Rev B).
 - sat_frame.h: the satellite chain's wire format (2026-10-19), plain C so the satellite firmware includes it too. Host tests play both ends, down to a simulated ring; 78 host tests in all.
-- sat_chain.h / sat_chain_port.h: the Seed's chain driver (2026-10-19). The engine is pure and host-tested against a simulated ring (discovery, scanning, breaks found and repaired); the port is USART3 on DMA1_Stream7 and DMA2_Stream5. examples/sat_chain runs it on a bare Seed. Not yet run on hardware. 90 host tests.
+- sat_chain.h / sat_chain_port.h: the Seed's chain driver (2026-10-19). The engine is pure and host-tested against a simulated ring (discovery, scanning, breaks found and repaired); the port is USART3 on DMA1_Stream7 and DMA2_Stream5. examples/sat_chain runs it on a bare Seed: as a loop-back on a Seed 2 it scanned at 250/s with none bad, and found and recovered from a pulled wire. Not yet run with satellites. 90 host tests.
 - examples/usb_midi_cdc and usb_device: TinyUSB on a bare Seed.
 
 ## RODEO_SDK_VERSION_NUM
