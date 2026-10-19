@@ -1,47 +1,62 @@
 ---
 title: I/O connectors
-description: Ten 3-pin connectors on the motherboard — digital in and out, analog in through the Seed's ADC, and DAC out on CV1/CV2.
-draft: true
+description: Ten 3-pin connectors on the motherboard — digital in and out, analog in through the Seed's ADC, and CV out from its DAC on CV1/CV2.
 sidebar:
   order: 4
 ---
 
-:::caution[Design draft — not written yet]
-The design for the I/O connector API. Unpublished until it runs on a board.
-Hardware: `rev-b.md`, "Generic I/O connectors".
+:::note[Tested on a bare Seed]
+`examples/io_connectors` has run on a Daisy Seed 2, wired to itself: CV1's DAC
+read back on CV2's ADC within 0.1 % across its range, and a digital output read
+back as an input. Not yet run on a Rev B motherboard, whose connectors add a
+1 kΩ series resistor and the quiet 3V3_A supply.
 :::
 
-Every leftover Seed pin is a 3-pin JST SH connector (GND, signal through 1 kΩ,
-3.3 V), the same pinout the single-pot board uses, so a pot plugs straight in.
+Every Seed pin the motherboard doesn't need for something else is a 3-pin JST SH
+connector: ground, the signal through 1 kΩ, and 3.3 V. It's the pinout the
+single-pot board uses, so a pot plugs straight into any analog-capable one.
 
 | Silkscreen | Can do |
 |---|---|
 | `D1` | Digital in or out |
 | `A1`–`A7` | Digital in or out, or analog in |
-| `CV1`, `CV2` | DAC out (0–3.3 V), or analog in |
+| `CV1`, `CV2` | CV out (0–3.3 V from the DAC), or analog in |
 
-## Proposed shape
+## Using them
+
+Say what each connector is for, once:
 
 ```cpp
+#include "io.h"
+
 rodeo::Io io;
 
-io.Init();
-io.Analog(io::A1);             // configure as analog in
-io.DigitalIn(io::D1, Pull::Up);
-io.DacOut(io::CV1);
-
-float knob = io.Read(io::A1);  // 0..1
-bool  gate = io.Get(io::D1);
-io.Write(io::CV1, 0.5f);       // half of 3.3 V
+bool ok = io.Init(rodeo::IoConfig()
+                      .Set(board::kIoA1, rodeo::IoMode::kAnalogIn)
+                      .Set(board::kIoD1, rodeo::IoMode::kDigitalInPullUp)
+                      .Set(board::kIoCv1, rodeo::IoMode::kCvOut));
 ```
 
-Analog reads come from the Seed's own ADC through libDaisy's `AdcHandle`, which
-scans in the background, so `Read()` returns the latest value without blocking.
+Then read and write by connector:
+
+```cpp
+float knob = io.Read(board::kIoA1);  // 0..1, the latest background scan
+bool  gate = io.Get(board::kIoD1);
+io.Write(board::kIoCv1, 0.5f);       // half of 3.3 V
+```
+
+The configuration is checked before any pin is touched. Ask for analog on `D1`,
+or CV out on anything but `CV1`/`CV2`, and `Init()` returns false with
+`io.Plan().why` saying which connector and why. The ADC scans every analog input
+in the background on DMA, so `Read()` never waits. Every name is in the
+[API reference](/sdk/reference/api/io/).
 
 ## Limits worth knowing
 
-- The DACs reach 0–3.3 V only. Useful CV ranges need an op-amp stage, which
-  belongs on the jack board.
-- `A3` and `A6` (PB1, PC1) share an external-interrupt line, so only one of them
-  can be an interrupt-driven clock or gate input.
-- No 5 V on these connectors.
+- **CV range.** The DAC reaches 0–3.3 V. Useful CV ranges need an op-amp stage,
+  which belongs on the jack board. With its output buffer on (the default here)
+  it bottoms out a few tens of millivolts above 0 V.
+- **Shared interrupts.** `A3` and `A6` (PB1, PC1) share an interrupt line, and so
+  do `A7` and `CV1` (PC4, PA4). Interrupt-driven gate inputs aren't in the API
+  yet; when they come, only one of each pair can have one.
+- **No 5 V** on these connectors.

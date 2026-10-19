@@ -70,6 +70,11 @@
 //     and DMA2_Stream5. examples/sat_chain runs it on a bare Seed: as a
 //     loop-back on a Seed 2 it scanned at 250/s with none bad, and found and
 //     recovered from a pulled wire. Not yet run with satellites. 90 host tests.
+//   * io_plan.h / io.h: the ten I/O connectors (2026-10-19): digital in/out,
+//     analog in on the Seed's ADC, CV out on its DAC, the configuration checked
+//     before any pin is touched. examples/io_connectors self-tests on a bare
+//     Seed 2 with two jumpers: DAC read back within 0.1 %, digital loop passes.
+//     95 host tests.
 //   * examples/usb_midi_cdc and usb_device: TinyUSB on a bare Seed.
 
 #pragma once

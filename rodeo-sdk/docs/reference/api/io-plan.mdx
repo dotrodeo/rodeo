@@ -1,0 +1,87 @@
+---
+title: io_plan.h
+description: "The I/O connectors' configuration, checked before any pin is touched."
+sidebar:
+  order: 6
+editUrl: https://github.com/dotrodeo/rodeo/edit/main/rodeo-sdk/common/io_plan.h
+---
+
+{/* Generated from rodeo-sdk/common/io_plan.h by rodeo-sdk/tools/docs/gen_reference.py. Do not edit:
+    change the header's comments and run `make docs` in rodeo-sdk/. */}
+
+:::note[Generated from the header]
+This page is [`rodeo-sdk/common/io_plan.h`](https://github.com/dotrodeo/rodeo/blob/main/rodeo-sdk/common/io_plan.h) — its comments and declarations.
+To change it, change the header.
+:::
+
+An app says what each of the ten connectors is for; PlanIo() checks it against
+what the hardware can do (analog only where there is an ADC channel, CV out
+only on the two DAC pins) and works out the order the ADC scans in. A wrong
+configuration fails here, by silkscreen name, instead of as a pin that reads
+nothing. Pure logic: host-tested in common/tests/io_plan_gtest.cpp, used by
+io.h on the Seed.
+
+## IoMode
+
+```cpp
+enum class IoMode : uint8_t
+```
+
+- `kUnused`
+- `kDigitalIn`
+- `kDigitalInPullUp`
+- `kDigitalInPullDown`
+- `kDigitalOut`
+- `kAnalogIn` — through the Seed's ADC: A1-A7, CV1, CV2
+- `kCvOut` — the Seed's DAC, 0-3.3 V: CV1, CV2
+
+## IoConfig
+
+```cpp
+struct IoConfig
+```
+
+What each connector is for, indexed by board::Io.
+
+**Members**
+
+- `IoMode mode[board::kNumIo] = {}`
+
+### IoConfig::Set
+
+```cpp
+IoConfig& Set(board::Io c, IoMode m);
+```
+
+## IoPlan
+
+```cpp
+struct IoPlan
+```
+
+A checked configuration, ready for the hardware.
+
+**Members**
+
+- `bool ok`
+- `int8_t bad` — the connector that failed (board::Io), or -1
+- `const char* why` — what's wrong with it
+- `uint8_t n_adc` — analog inputs, in scan order
+- `uint8_t adc_conn[board::kNumIo]` — connector for each scan position
+- `int8_t adc_index[board::kNumIo]` — scan position for each connector, or -1
+- `bool dac1` — DAC channels in use
+- `bool dac1, dac2` — DAC channels in use
+
+## PlanIo
+
+```cpp
+inline IoPlan PlanIo(const IoConfig& cfg);
+```
+
+## DacCode
+
+```cpp
+inline uint16_t DacCode(float v);
+```
+
+0..1 to the DAC's 12-bit code, clamped and rounded.
