@@ -181,7 +181,11 @@ and fault handling are in
   connector matings, out and back) is ≈0.14 Ω, so the last of 30 satellites sits
   ≈67 Ω × (current per satellite) below the motherboard: 0.4 V at 6 mA, leaving
   2.9 V. The chain stays on 3.3 V rather than 5 V so logic levels match the
-  Seed. Anything LED-heavy gets its own power, outside the chain.
+  Seed. The limit is that drop, not the current, so satellites with lit
+  buttons fit within the remaining headroom (rule in the
+  [chain contract §1.4](RODEO_SATELLITE_CHAIN_CONTRACT.md#14-power-budget)).
+  Anything LED-heavy (addressable RGB, meters) gets its LED power from 5 V,
+  outside the chain.
 * **Motherboard protection:** a 0.75 A PTC (nSMD075, C70078) between
   `+3V3_SAT` and the connector, so a crushed cable can't pull down `+3V3_D`;
   33 Ω on `SAT_TX`; ESD protection on pins 3 and 4.

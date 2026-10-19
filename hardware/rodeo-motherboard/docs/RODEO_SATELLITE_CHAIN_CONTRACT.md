@@ -68,11 +68,25 @@ long wire from the end of the chain back to the Seed, passing through every sate
 
 ### 1.4 Power budget
 
-**≈6 mA average per satellite**, MCU and indicator LED included, for 30 satellites on
-one feed. Each link (150 mm of 28 AWG plus two connector matings, out and back) is
-≈0.14 Ω, so the last of 30 satellites sits ≈67 Ω × (current per satellite) below the
-motherboard: 0.4 V at 6 mA, leaving ≈2.9 V. Satellites must run down to 2.7 V. Anything
-LED-heavy (RGB, meters) needs its own power, outside the chain.
+**What limits the chain is voltage drop, not current.** The chain is fed from one end
+at 3.3 V and every satellite must run down to 2.7 V. Each link (150 mm of 28 AWG plus
+two connector matings, out and back) is ≈0.14 Ω and carries the current of every
+satellite past it.
+
+* **Baseline: ≈6 mA average per satellite** (MCU and an indicator LED), 30 satellites
+  on one feed. The last sits ≈67 Ω × (current per satellite) below the motherboard:
+  0.4 V at 6 mA, leaving ≈2.9 V and ≈0.2 V of headroom.
+* **Spending the headroom:** a satellite that draws ΔI more than the baseline at
+  position *p* (1 = next to the motherboard) lowers the end of the chain by
+  ≈0.14 Ω × *p* × ΔI. Keep **Σ (*p* × ΔI) ≤ ≈1.4 A** over the whole chain. Four
+  single-colour lit buttons at ≈5 mA each (ΔI ≈ 20 mA) cost 85 mV even at position
+  30, and under 30 mV in a chain of ten; a short chain has far more room than this,
+  since the baseline drop falls with the square of its length.
+* **Anything whose LEDs need more than 3.3 V or tens of mA** (addressable RGB, which
+  wants ≥3.5 V; meters) takes its LED power from a separate 5 V input and keeps its
+  MCU on the chain's 3.3 V, so logic levels don't change. Ground is shared through
+  both cables. The 5 V comes from the motherboard's `+5V_SYS`, which Rev B doesn't
+  bring to a connector yet (see `hardware/docs/revisions.md`).
 
 ### 1.5 Satellite MCU requirements
 

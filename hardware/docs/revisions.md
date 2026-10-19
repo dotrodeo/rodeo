@@ -50,6 +50,20 @@ brought up.
   of from PC2. The satellite firmware handles both (it reads first without driving
   PC2), so this is tidiness, not a fix; it would free PC2.
 
-### Motherboard, MIDI, audio, barrel, switch, encoder bank, panels
+### Motherboard (`rodeo-motherboard`)
+
+- **Add a 5 V aux output.** The power budget leaves ≈1 A at 5 V for LEDs, but
+  nothing brings `+5V_SYS` to a connector: it reaches only regulators, ferrites
+  and capacitors. The only 5 V on a connector is `+5V_A` (audio ribbon pin 10),
+  the codec's filtered analog supply, which LED current would put into the
+  audio. Add a 2-pin JST PH on `+5V_SYS` through a ≈1 A PTC, like the barrel
+  board's LED-strip output (J4). It is the only 5 V still there on battery
+  (the power boards' outputs need an input plugged in), so it suits RGB or
+  bright satellites, which take their LED power from it and their logic from
+  the chain (see the chain contract, §1.4). On B1, a pigtail on a `+5V_SYS`
+  output capacitor (C17, C19 or C22) or FB1's input side stands in. (Found
+  2026-10-19.)
+
+### MIDI, audio, barrel, switch, encoder bank, panels
 
 - Nothing yet beyond the copyright year.
