@@ -1,0 +1,31 @@
+---
+// A sound clip. For a synth platform this is the most persuasive thing a post
+// can contain, and the cheapest to get wrong — an autoplaying one is the
+// fastest way to lose a reader.
+//
+// `preload="none"` so a page of clips costs nothing until one is played.
+// MP3 rather than Opus: Safari's Opus support is container-limited, and a
+// demo that is silent on a Mac is worse than a slightly larger file.
+interface Props {
+  /** Path under public/audio/, e.g. '/audio/filter-sweep.mp3'. */
+  src: string;
+  title: string;
+  caption?: string;
+}
+const { src, title, caption } = Astro.props;
+if (!src.endsWith('.mp3')) throw new Error('log/AudioDemo: use an MP3 — see the caption rule.');
+---
+
+<figure class="my-8 border border-rule bg-field-raised p-5">
+  <p class="m-0 mb-3 font-display text-[15px] font-black uppercase tracking-[0.04em] text-legend">
+    {title}
+  </p>
+  <audio controls preload="none" class="w-full" src={src}></audio>
+  {
+    caption && (
+      <figcaption class="mt-3 font-mono text-[12.5px] leading-relaxed text-hardware">
+        {caption}
+      </figcaption>
+    )
+  }
+</figure>

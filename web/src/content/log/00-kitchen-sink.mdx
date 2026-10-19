@@ -1,0 +1,181 @@
+---
+title: Kitchen sink — every block a log post can use
+date: 2026-10-19
+summary: A reference post showing every component and block available to the build log, with the markup for each. Draft — never published, kept for copy and paste.
+tags: [process]
+draft: true
+---
+
+import Figure from '../../components/log/Figure.astro';
+import Gallery from '../../components/log/Gallery.astro';
+import Video from '../../components/log/Video.astro';
+import Callout from '../../components/log/Callout.astro';
+import AudioDemo from '../../components/log/AudioDemo.astro';
+import motherboard from '../../assets/hardware/rodeo-motherboard.webp';
+import motherboardBack from '../../assets/hardware/rodeo-motherboard-back.webp';
+import io from '../../assets/hardware/rodeo-motherboard-io.webp';
+import daisy from '../../assets/hardware/rodeo-motherboard-daisy.webp';
+
+This post exists to be looked at, not read. It uses every block a log post can
+contain so there is one place to see how each behaves and one place to copy the
+markup from. It is a **draft**, so it never reaches the built site — it shows up
+in `npm run dev` and nowhere else.
+
+The components below are mapped globally in `src/pages/log/[...slug].astro`, so
+a real post does not need the imports at the top of this file. They are here
+only because this page is also the code reference.
+
+## Prose
+
+Ordinary paragraphs are Source Serif at 18px with a 1.65 line height, capped at
+a reading measure of about 68 characters. That cap is the reason this column
+does not stretch on a wide screen: past roughly 75 characters the eye loses the
+start of the next line.
+
+Inline formatting: **bold for the thing that matters**, *italic for emphasis*,
+`inline_code()` for identifiers, and [a link](/ecosystem/) which is gold so it
+cannot be confused with bold.
+
+> A blockquote, for someone else's words or your own from a year ago. The gold
+> left rule marks it without a quotation mark, which at this size would read as
+> dirt on the screen.
+
+---
+
+A horizontal rule above, for when a post genuinely changes subject.
+
+### A third-level heading
+
+Headings go down to three. If a post needs a fourth level it wants to be two
+posts.
+
+- Unordered lists, for things with no order
+- Each item sits on the same measure as the prose
+- Nested items are allowed but rarely a good sign
+
+1. Ordered lists, for steps
+2. Which run in sequence
+3. And are numbered by the browser, not by hand
+
+## Images
+
+A single figure at the reading measure. `alt` is required — the component
+throws at build time without it, which is the only way a rule like that
+survives a deadline.
+
+<Figure
+  src={motherboard}
+  alt="The assembled prototype motherboard, a black PCB with the Daisy Seed footprint in the centre."
+  caption="A figure at text width. The caption is mono and quiet, so it reads as a label rather than as more prose."
+/>
+
+Wide, for when the detail matters more than the measure. It breaks out of the
+column on large screens and sits flush on small ones.
+
+<Figure
+  src={io}
+  width="wide"
+  alt="Close-up of the panel I/O edge: MIDI DIN, two 3.5 mm jacks and the USB-C connector."
+  caption="width=&quot;wide&quot; — same component, more room."
+/>
+
+Two or three abreast, for before-and-after or two details of one thing. They
+collapse to a single column on a phone.
+
+<Gallery columns={2}>
+  <Figure src={motherboard} alt="The front of the prototype motherboard." caption="Front" />
+  <Figure src={motherboardBack} alt="The back of the prototype motherboard, showing the ground pour." caption="Back" />
+</Gallery>
+
+## Video
+
+A YouTube embed that does not load YouTube until someone presses play. Before
+that it is a poster and a button — no third-party request, no cookies, no
+megabyte of player on a page nobody watches.
+
+<Video
+  id="aqz-KE-bpKQ"
+  title="Big Buck Bunny, a stand-in while a real demo is filmed"
+  poster={daisy}
+  caption="Click to load. Pass a local poster, or leave it out and YouTube's own thumbnail is used."
+/>
+
+## Audio
+
+For a synth, the most persuasive block there is. It never autoplays and
+`preload="none"` means the file is not fetched until someone presses play, so a
+post with six clips still costs nothing to open.
+
+<AudioDemo
+  src="/audio/sample-tone.mp3"
+  title="220 Hz, three seconds"
+  caption="A generated placeholder. Real clips go in public/audio/ as MP3, under 600 KB."
+/>
+
+## Code
+
+Fenced blocks are syntax-highlighted. C++ for firmware:
+
+```cpp
+// Read every pot on the chain and hand the frame to the voice.
+void Rodeo::Scan(SatelliteChain& chain, Voice& voice) {
+  for (const Slot& slot : chain.Poll()) {
+    if (slot.kind != SlotKind::kPot) continue;
+    voice.Set(slot.index, Normalise(slot.value));  // 0..65535 -> 0..1
+  }
+}
+```
+
+A shell session, for toolchain steps:
+
+```sh
+cd rodeo-sdk/examples/usb_device
+make && make program-dfu
+```
+
+And a plain block with no language, for output you want shown verbatim:
+
+```
+Ring time 2.48 ms   30 satellites   0 CRC errors in 10,000 frames
+```
+
+Inline `code` inside a sentence stays cyan and does not wrap oddly mid-word.
+
+## Callouts
+
+Three kinds, for three jobs.
+
+<Callout kind="note" title="Note">
+  The quiet one. Context a reader can skip without losing the thread — a part
+  number, a link to the contract, a measurement taken on the way past.
+</Callout>
+
+<Callout kind="warn" title="Watch out">
+  The one that saves an afternoon. A footgun, a pin that is not 5 V tolerant, a
+  cable that has to go in the other way round.
+</Callout>
+
+<Callout kind="wrong" title="I got this wrong">
+  For correcting an earlier post. A build log that never admits a mistake is
+  marketing with dates on it, and the corrections are usually the most useful
+  posts in the archive.
+</Callout>
+
+## Tables
+
+| Signal | Pin | Note |
+|---|---|---|
+| `SAT_TX` | 3 | 33 Ω at the Seed |
+| `SAT_RX` | 2 | 10 kΩ pull-up |
+| `PRESENT` | 5 | Tied to GND on the IN connector |
+
+Tables inherit the prose font and scroll sideways on a phone rather than
+squashing. Keep them under four columns or they stop being readable where most
+people will see them.
+
+## What is deliberately missing
+
+No footnotes — a post that needs them wants a shorter sentence. No image
+lightbox, because a tap target that opens a modal on a phone is usually a
+mis-tap. No tag cloud, no reading time, no author byline: one person writes all
+of this and the date is already in the header.

@@ -1,0 +1,21 @@
+---
+// Two or three images side by side, for before/after and detail shots.
+// Collapses to one column on a phone, where side-by-side is unreadable.
+interface Props {
+  /** 2 or 3 across on a wide screen. */
+  columns?: 2 | 3;
+}
+const { columns = 2 } = Astro.props;
+const cols = columns === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2';
+---
+
+<div class={`my-8 grid grid-cols-1 gap-5 ${cols}`}>
+  <slot />
+</div>
+
+<style>
+  /* Figures inside a gallery lose their own vertical rhythm — the grid owns it. */
+  div > :global(figure) {
+    margin: 0;
+  }
+</style>

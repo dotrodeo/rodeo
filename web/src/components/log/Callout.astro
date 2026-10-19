@@ -1,0 +1,35 @@
+---
+// An aside: a warning, a correction, or a number worth not losing in prose.
+interface Props {
+  kind?: 'note' | 'warn' | 'wrong';
+  title?: string;
+}
+const { kind = 'note', title } = Astro.props;
+
+// `wrong` is for admitting a mistake in a post — a build log that never does
+// is not a build log.
+const edge = {
+  note: 'border-indigo-text',
+  warn: 'border-yellow',
+  wrong: 'border-hardware',
+}[kind];
+const label = { note: 'text-indigo-text', warn: 'text-yellow', wrong: 'text-hardware' }[kind];
+---
+
+<aside class={`my-8 border-l-2 ${edge} bg-field-raised px-5 py-4`}>
+  {
+    title && (
+      <p class={`m-0 mb-2 font-display text-[13px] font-black uppercase tracking-[0.08em] ${label}`}>
+        {title}
+      </p>
+    )
+  }
+  <slot />
+</aside>
+
+<style>
+  /* The last paragraph should not push the box open at the bottom. */
+  aside > :global(p:last-child) {
+    margin-bottom: 0;
+  }
+</style>

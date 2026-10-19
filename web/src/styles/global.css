@@ -210,4 +210,40 @@
     height: auto;
     margin: 0 0 1.5em;
   }
+
+  /* Tables are a scroll container in their own right: max-content so the
+   * columns size to the text, capped at the measure so a wide one scrolls
+   * sideways on a phone instead of squashing three words into a column. */
+  .post table {
+    display: block;
+    width: max-content;
+    min-width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-family: var(--font-read);
+    font-size: 16px;
+    margin: 0 0 1.6em;
+  }
+  .post th,
+  .post td {
+    border-bottom: 1px solid var(--color-rule);
+    padding: 0.55em 1.4em 0.55em 0;
+    text-align: left;
+    vertical-align: top;
+    color: var(--color-legend-prose);
+  }
+  .post tr > *:last-child {
+    padding-right: 0;
+  }
+  .post th {
+    font-family: var(--font-display);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: var(--color-hardware);
+    padding-bottom: 0.7em;
+  }
 }

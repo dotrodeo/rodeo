@@ -4,6 +4,16 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import Eyebrow from '../../components/Eyebrow.astro';
 import CtaBand from '../../components/CtaBand.astro';
 import { getPosts, slugOf, urlOf, seqOf, formatDate, isoDate, type Post } from '../../lib/posts';
+// Mapped here rather than imported by each post, so a post body stays
+// Markdown with a handful of extra tags. See src/content/log/00-kitchen-sink.mdx
+// for every one of them in use.
+import Figure from '../../components/log/Figure.astro';
+import Gallery from '../../components/log/Gallery.astro';
+import Video from '../../components/log/Video.astro';
+import Callout from '../../components/log/Callout.astro';
+import AudioDemo from '../../components/log/AudioDemo.astro';
+
+const postComponents = { Figure, Gallery, Video, Callout, AudioDemo };
 
 export async function getStaticPaths() {
   const posts = await getPosts();
@@ -57,7 +67,7 @@ const { title, date, updated, summary, tags, draft } = post.data;
       </header>
 
       <div class="post max-w-[680px]">
-        <Content />
+        <Content components={postComponents} />
       </div>
     </article>
 

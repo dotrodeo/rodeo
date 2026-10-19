@@ -1,0 +1,112 @@
+---
+// A YouTube embed that does not load YouTube until it is asked to.
+//
+// An eager iframe costs roughly a megabyte, sets third-party cookies before
+// anyone presses play, and is the single easiest way to lose a Lighthouse
+// score. This renders a poster and a play button; the iframe is created on
+// click. No YouTube code runs on a page nobody watches, which also keeps the
+// privacy page honest.
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+
+interface Props {
+  /** The id from the watch URL — `dQw4w9WgXcQ`, not the whole link. */
+  id: string;
+  /** Spoken aloud by screen readers and shown if the poster fails. */
+  title: string;
+  /** A local poster. Without one it falls back to YouTube's thumbnail. */
+  poster?: ImageMetadata;
+  caption?: string;
+}
+
+const { id, title, poster, caption } = Astro.props;
+
+if (!/^[A-Za-z0-9_-]{6,20}$/.test(id)) {
+  throw new Error(`log/Video: "${id}" does not look like a YouTube id.`);
+}
+if (!title?.trim()) throw new Error('log/Video: `title` is required.');
+
+const fallback = `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`;
+---
+
+<figure class="my-8">
+  <div
+    class="rodeo-video relative aspect-video w-full overflow-hidden border border-rule bg-field-raised"
+    data-video-id={id}
+    data-video-title={title}
+  >
+    {
+      poster ? (
+        <Image
+          src={poster}
+          alt=""
+          widths={[480, 800, 1200]}
+          sizes="(max-width: 768px) 100vw, 680px"
+          loading="lazy"
+          class="absolute inset-0 h-full w-full object-cover opacity-70"
+        />
+      ) : (
+        <img
+          src={fallback}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          class="absolute inset-0 h-full w-full object-cover opacity-70"
+        />
+      )
+    }
+
+    <button
+      type="button"
+      class="group absolute inset-0 flex cursor-pointer items-center justify-center border-none bg-transparent"
+    >
+      <span class="sr-only">Play “{title}” on YouTube</span>
+      <span
+        class="flex h-16 w-16 items-center justify-center bg-yellow transition-transform group-hover:scale-110"
+        aria-hidden="true"
+      >
+        <svg width="22" height="26" viewBox="0 0 22 26" fill="var(--color-field)">
+          <path d="M0 0v26l22-13z"></path>
+        </svg>
+      </span>
+    </button>
+
+    <span
+      class="pointer-events-none absolute bottom-0 left-0 bg-field/85 px-3 py-1.5 font-mono text-[11.5px] uppercase tracking-[0.08em] text-legend"
+      aria-hidden="true">YouTube</span
+    >
+  </div>
+
+  {
+    caption && (
+      <figcaption class="mt-3 border-l-2 border-rule py-1 pl-3 font-mono text-[12.5px] leading-relaxed text-hardware">
+        {caption}
+      </figcaption>
+    )
+  }
+</figure>
+
+<script>
+  // One listener for every video on the page. `autoplay=1` is honoured here
+  // because the visitor just clicked play — it is not an autoplaying video.
+  document.querySelectorAll('.rodeo-video').forEach((box) => {
+    const button = box.querySelector('button');
+    if (!button) return;
+    button.addEventListener(
+      'click',
+      () => {
+        const id = (box as HTMLElement).dataset.videoId;
+        const title = (box as HTMLElement).dataset.videoTitle ?? 'Video';
+        const frame = document.createElement('iframe');
+        frame.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`;
+        frame.title = title;
+        frame.loading = 'lazy';
+        frame.allow = 'accelerometer; autoplay; encrypted-media; picture-in-picture';
+        frame.allowFullscreen = true;
+        frame.className = 'absolute inset-0 h-full w-full border-0';
+        box.replaceChildren(frame);
+      },
+      { once: true }
+    );
+  });
+</script>
