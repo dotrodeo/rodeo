@@ -39,6 +39,12 @@ polls the DMA counters, so nothing here competes with audio for priority.
 class SatChainPort
 ```
 
+**Members**
+
+- `uint32_t exchanges = 0` — Diagnostics: exchanges started, and the last reply's length and first bytes. Read-only for the app; examples/sat_chain prints them.
+- `uint16_t last_len = 0`
+- `uint8_t last_head[8] = {}`
+
 ### SatChainPort::Init
 
 ```cpp

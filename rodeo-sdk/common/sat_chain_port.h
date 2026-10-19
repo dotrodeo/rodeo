@@ -38,6 +38,12 @@ class SatChainPort
     /** Bytes received so far in the exchange in flight (for diagnostics). */
     uint16_t Received() const;
 
+    // Diagnostics: exchanges started, and the last reply's length and first
+    // bytes. Read-only for the app; examples/sat_chain prints them.
+    uint32_t exchanges = 0;
+    uint16_t last_len  = 0;
+    uint8_t  last_head[8] = {};
+
   private:
     void Start(const SatChain::Exchange& ex, uint32_t now_us);
     void Stop();

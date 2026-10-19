@@ -23,6 +23,21 @@ constexpr uint32_t kRxFlags = DMA_HIFCR_CTCIF7 | DMA_HIFCR_CHTIF7 | DMA_HIFCR_CT
 constexpr uint32_t kTxFlags = DMA_HIFCR_CTCIF5 | DMA_HIFCR_CHTIF5 | DMA_HIFCR_CTEIF5
                               | DMA_HIFCR_CDMEIF5 | DMA_HIFCR_CFEIF5;
 
+// USART3's kernel clock. HAL_RCCEx_GetPeriphCLKFreq() returns 0 for the USART
+// group in this HAL, which left BRR at 0 and the UART dead: read the clock
+// selection instead. libDaisy leaves it at its reset value, PCLK1.
+uint32_t Usart3Clock()
+{
+    switch(RCC->D2CCIP2R & RCC_D2CCIP2R_USART28SEL)
+    {
+        case 0: return HAL_RCC_GetPCLK1Freq();
+        case RCC_D2CCIP2R_USART28SEL_0 | RCC_D2CCIP2R_USART28SEL_1: // HSI
+            return HSI_VALUE >> ((RCC->CR & RCC_CR_HSIDIV) >> RCC_CR_HSIDIV_Pos);
+        case RCC_D2CCIP2R_USART28SEL_2: return CSI_VALUE;
+        default: return HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_USART234578);
+    }
+}
+
 void Disable(DMA_Stream_TypeDef* s)
 {
     s->CR &= ~DMA_SxCR_EN;
@@ -47,7 +62,7 @@ void SatChainPort::Init()
     // late DMA can't latch the receiver; a lost byte shows up as a short reply.
     __HAL_RCC_USART3_CLK_ENABLE();
     USART3->CR1 = 0;
-    uint32_t clk = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_USART234578);
+    uint32_t clk = Usart3Clock();
     USART3->BRR  = (clk + SAT_BAUD / 2) / SAT_BAUD;
     USART3->CR2  = 0;
     USART3->CR3  = USART_CR3_DMAR | USART_CR3_DMAT | USART_CR3_OVRDIS;
@@ -93,6 +108,7 @@ void SatChainPort::Start(const SatChain::Exchange& ex, uint32_t now_us)
     t_start_    = now_us;
     timeout_us_ = ex.timeout_us;
     busy_       = true;
+    exchanges++;
 }
 
 void SatChainPort::Stop()
@@ -122,6 +138,9 @@ void SatChainPort::Process(SatChain& chain)
         if(!done && !timedout)
             return;
         Stop();
+        last_len = done ? expect_ : got;
+        for(int i = 0; i < 8; i++)
+            last_head[i] = rx_buf[i];
         chain.Reply(rx_buf, done ? expect_ : got, now);
     }
     SatChain::Exchange ex;
