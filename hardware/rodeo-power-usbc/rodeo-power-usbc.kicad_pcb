@@ -3974,46 +3974,57 @@
 			)
 		)
 	)
-	(gr_text "CERN-OHL-W-2.0"
-		(at 179.42 79.69 0)
-		(layer "B.SilkS")
-		(uuid "f3e3fd74-411a-4b63-ab62-b26213a5addf")
-		(effects
-			(font
-				(size 1 1)
-			)
-			(justify mirror)
-		)
-	)
 	(gr_text "USB-C POWER SUPPLY"
-		(at 179.47 76.79 0)
+		(at 179.47 76.44 0)
 		(layer "B.SilkS")
 		(uuid "92dd3ece-1430-43f9-a726-65df5c39302f")
 		(effects
 			(font
-				(size 1 1)
+				(size 0.8 0.8)
 			)
 			(justify mirror)
 		)
 	)
 	(gr_text "Rev B1 · 2026-10"
-		(at 179.47 78.34 0)
+		(at 179.47 77.64 0)
 		(layer "B.SilkS")
 		(uuid "cad6363d-f35f-4eb3-a893-916c8c87cefa")
 		(effects
 			(font
-				(size 1 1)
+				(size 0.8 0.8)
+			)
+			(justify mirror)
+		)
+	)
+	(gr_text "CERN-OHL-W-2.0"
+		(at 179.47 78.84 0)
+		(layer "B.SilkS")
+		(uuid "f3e3fd74-411a-4b63-ab62-b26213a5addf")
+		(effects
+			(font
+				(size 0.8 0.8)
 			)
 			(justify mirror)
 		)
 	)
 	(gr_text "rodeooh.rodeo/source"
-		(at 179.52 80.99 0)
+		(at 179.52 80.04 0)
 		(layer "B.SilkS")
 		(uuid "862e27c6-a862-4d06-8474-83500caa8d45")
 		(effects
 			(font
-				(size 1 1)
+				(size 0.8 0.8)
+			)
+			(justify mirror)
+		)
+	)
+	(gr_text "© DOT RODEO LLC"
+		(at 179.52 81.39 0)
+		(layer "B.SilkS")
+		(uuid "304cb50a-1470-480c-be41-1368d7bf2a0b")
+		(effects
+			(font
+				(size 0.8 0.8)
 			)
 			(justify mirror)
 		)
