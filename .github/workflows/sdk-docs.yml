@@ -11,10 +11,12 @@ on:
   pull_request:
     paths:
       - 'rodeo-sdk/**'
+      - '.github/workflows/sdk-docs.yml'
   push:
     branches: [main]
     paths:
       - 'rodeo-sdk/**'
+      - '.github/workflows/sdk-docs.yml'
 
 jobs:
   docs-touched:
