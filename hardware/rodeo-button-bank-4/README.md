@@ -6,7 +6,7 @@ satellite, after the [pot bank](../rodeo-pot-bank-4/README.md) and the
 [encoder bank](../rodeo-encoder-bank-4/README.md). Wire contract:
 [`RODEO_SATELLITE_CHAIN_CONTRACT.md`](../rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md).
 
-Specified 2026-10-19.
+Specified 2026-10-19; schematic drawn 2026-10-19.
 
 ## Decisions
 
@@ -83,20 +83,21 @@ white). Supply 3.3–5.3 V; data input high at 0.55 × VDD. 860,680 in stock at 
 ```
 AUX_5V (J3 pin 1) ── D5 B5819W ──┬── V_LED ── D1…D4
                                  │
-+3V3 ── Q1 AO3401A (drain→source)┘    gate ← AUX_5V, R6 100 kΩ to GND
++3V3 ── Q1 AO3401A (drain→source)┘    gate ← AUX_5V
 ```
 
 * **Aux present:** D5 feeds `V_LED` at ≈4.7 V. Q1's gate is at 5 V and its source
   at 4.7 V, so it's off, and its body diode (drain at 3.3 V) is reverse biased: the
   chain's 3V3 sees no LED current.
-* **Aux absent:** R6 pulls Q1's gate to `GND`, so Q1 turns on (V_GS ≈ −3 V,
+* **Aux absent:** R6 + R7 (below) pull Q1's gate to `GND`, so Q1 turns on (V_GS ≈ −3 V,
   85 mΩ) and the chain's 3V3 feeds `V_LED`. D5 keeps `V_LED` off the aux pins.
 * **Q1: AO3401A (C15127)**, P-channel, SOT-23, JLC basic part. **D5: B5819W
   (C8598)**, 1 A Schottky, SOD-123, basic part.
 * 10 µF on `V_LED` (C7) and 10 µF at J3 (C8).
-* **`AUX_SENSE`:** R7 100 kΩ / R8 100 kΩ from `AUX_5V` to `GND`, midpoint to PC4
+* **`AUX_SENSE`:** R6 100 kΩ / R7 100 kΩ from `AUX_5V` to `GND`, midpoint to PC4
   (A2), so firmware knows which supply the LEDs are on and sets the brightness cap.
-  2.5 V with aux, 0 V without; 25 µA.
+  2.5 V with aux, 0 V without; 25 µA. The same divider is Q1's gate pull-down, so
+  Q1 needs no resistor of its own.
 * **Data level:** with aux, the LEDs need 0.55 × 4.7 ≈ 2.6 V on `LED_DIN`; the MCU's
   output high is its own supply, ≥ 2.9 V even at the end of a 30-satellite chain.
 
@@ -198,7 +199,7 @@ Needs, none of it written yet:
 | 10 kΩ 0603 1 % | R3 | 1 | C25804 |
 | 8.66 kΩ 0603 1 % | R4 | 1 | C23114 |
 | 100 Ω 0603 | R5 | 1 | C22775 |
-| 100 kΩ 0603 | R6–R8 | 3 | C25803 |
+| 100 kΩ 0603 | R6, R7 | 2 | C25803 |
 
 All in stock at JLC on 2026-10-19.
 
