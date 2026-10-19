@@ -19,6 +19,7 @@ import { readdir, stat, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const MAX_WIDTH = 1400;
+const HERO_WIDTH = 2400; // <board>-wide: a page's hero, shown up to ~1180 CSS px
 const BUDGET_KB = 500; // matches scripts/check-assets.mjs
 
 let jobs; // [src-dir, dest-dir]
@@ -44,7 +45,8 @@ for (const [src, dest] of jobs) {
   for (const file of files) {
     const flat = file.endsWith('.png');
     const out = flat ? file : file.replace(/\.jpe?g$/, '.webp');
-    const img = sharp(join(src, file)).resize({ width: MAX_WIDTH, withoutEnlargement: true });
+    const width = /-wide\./.test(file) ? HERO_WIDTH : MAX_WIDTH;
+    const img = sharp(join(src, file)).resize({ width, withoutEnlargement: true });
     await (flat
       ? img.png({ compressionLevel: 9, palette: true, quality: 92, effort: 10 })
       : img.webp({ quality: 82, effort: 6 })

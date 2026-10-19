@@ -4,9 +4,11 @@
   blender -b -P tools/render/render.py -- rodeo-power-barrel rodeo-midi
   blender -b -P tools/render/render.py -- rodeo-power-usbc --views iso --samples 64 --res 800
   blender -b -P tools/render/render.py -- rodeo-power-barrel --panel
+  blender -b -P tools/render/render.py -- rodeo-motherboard --views wide
 
 Writes hardware/<board>/renders/<board>-front.jpg, -back.jpg and -iso.jpg (or
-into --out-dir). --panel adds <board>-panel.jpg: the board with its rear panel
+into --out-dir). --views wide makes <board>-wide.jpg, the three-quarter view
+framed 16:9 with room around the board, for a page's hero. --panel adds <board>-panel.jpg: the board with its rear panel
 stood on its I/O edge, as it sits in the synth. KiCad does the geometry:
 kicad-cli exports the board (and panel) as GLB with silkscreen, mask and copper,
 and this script places them, replaces the materials and lights the scene.
@@ -33,7 +35,8 @@ PANEL_MARGIN = 5.0
 
 BACKDROP = (0.68, 0.30, 0.11)       # warm peach under the board, linear
 BACKDROP_EDGE = (0.36, 0.14, 0.05)  # darker and more orange toward the frame edges
-VIEWS = ('front', 'back', 'iso')
+VIEWS = ('front', 'back', 'iso')   # the default set; 'wide' is asked for by name
+WIDE = (1.5, 27 / 32)             # 16:9, 2400 x 1350 at --res 1600
 
 
 def args():
@@ -56,8 +59,8 @@ def args():
             i += 1
         else:
             names.append(a[i]); i += 1
-    if not names or not set(opts['views']) <= set(VIEWS):
-        sys.exit('usage: blender -b -P render.py -- <board>... | --all  [--views front,back,iso] '
+    if not names or not set(opts['views']) <= set(VIEWS + ('wide',)):
+        sys.exit('usage: blender -b -P render.py -- <board>... | --all  [--views front,back,iso,wide] '
                  '[--panel] [--samples N] [--res PX] [--out-dir DIR] [--finish enig|hasl]')
     return names, opts
 
@@ -375,14 +378,22 @@ def render_board(name, o):
     cam = camera()
     render_settings(o['samples'], o['res'])
 
+    scene = bpy.context.scene.render
     for view in o['views']:
         root.matrix_world = home
         bpy.context.view_layer.update()
+        scene.resolution_x = scene.resolution_y = o['res']
         if view == 'back':
             flip(root, meshes)
         if view == 'iso':
             light('iso', centre, size)
             aim_iso(cam, centre, size)
+        elif view == 'wide':
+            # The lens keeps its horizontal field, so step back to leave the
+            # board about two thirds of the width
+            scene.resolution_x, scene.resolution_y = (round(o['res'] * k) for k in WIDE)
+            light('iso', centre, size)
+            aim_iso(cam, centre, size * 1.5)
         else:
             lo, hi = bbox(meshes)
             light('top', (lo + hi) / 2, size)
@@ -391,6 +402,7 @@ def render_board(name, o):
 
     if o['panel'] and os.path.isdir(panel_dir):
         root.matrix_world = home
+        scene.resolution_x = scene.resolution_y = o['res']
         export_glb(pcb_in(panel_dir), os.path.join(tmp, 'panel.glb'))
         proot, pmeshes = import_glb(os.path.join(tmp, 'panel.glb'), name + '-panel')
         place_panel(proot, pmeshes, board_w)

@@ -1,9 +1,11 @@
 ---
+import { Image } from 'astro:assets';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import BoardFigure from '../components/BoardFigure.astro';
 import CtaBand from '../components/CtaBand.astro';
 import Eyebrow from '../components/Eyebrow.astro';
-import { prototype } from '../data/boards';
+import { boards, host } from '../data/boards';
+import heroImg from '../assets/hardware/rev-b/rodeo-motherboard-wide.webp';
 import { site } from '../data/site';
 
 // Numbered in the data so they cannot run 01, 02, 01 again.
@@ -22,11 +24,22 @@ const steps = [
   },
 ];
 
-// Photographs of the prototype, captioned as such by BoardFigure. They are the
-// only real hardware that exists; the page says so rather than implying these
-// are the boards being sold.
-const gallery = prototype.shots.slice(0, 3);
-const lead = prototype.shots[0]!;
+// The boards being sold, as CAD renders until they are back from the fab and
+// can be photographed. BoardFigure and the strip's captions say so. Nothing on
+// this page refers to the Rev-A prototype; /prototype/ tells that story.
+const hero = {
+  src: heroImg,
+  alt: 'Render of the Rodeo motherboard at an angle on a warm backdrop: a square black board with the empty Daisy Seed footprint across the middle, the boxed audio-interface ribbon header and a microSD slot on one edge, and rows of white connectors labelled GPIO TAPS, CHAIN, SPI, MIDI and SWITCH.',
+  media: 'render' as const,
+  rev: host.rev,
+  caption: 'the motherboard',
+};
+// One per step below: controls, then more controls, then the sound.
+const strip = ['rodeo-pot-bank-4', 'rodeo-encoder-bank-4', 'rodeo-audio-3.5mm'].map((slug) => {
+  const b = boards.find((x) => x.slug === slug);
+  if (!b?.shot) throw new Error(`homepage strip: ${slug} has no render`);
+  return { name: b.name, ...b.shot };
+});
 ---
 
 <BaseLayout title={site.name} description={site.description}>
@@ -39,7 +52,7 @@ const lead = prototype.shots[0]!;
         <span class="font-display font-black text-legend">RODEO</span> is a carrier board for the
         Electrosmith Daisy and a chain of control satellites. Four ins, four outs, ten I/O
         connectors, and as many knobs as your panel has room for — without you drawing a single
-        PCB. Rev B runs on a battery and charges over USB-C, so what you build can leave the
+        PCB. It runs on a battery and charges over USB-C, so what you build can leave the
         desk.
       </p>
       <p class="copy-tech m-0 max-w-[560px] text-[14.5px] text-hardware">
@@ -62,20 +75,15 @@ const lead = prototype.shots[0]!;
     </div>
   </section>
 
-  <section class="wrap flex flex-col gap-4 pb-16 pt-10">
-    <p class="copy-tech m-0 max-w-[640px] text-[14px] text-hardware">
-      The board below is the prototype — the one that proved this works, and not
-      what the campaign ships. <a href="/prototype/" class="text-yellow">What it
-      proved, and what changed since.</a>
-    </p>
+  <section class="wrap pb-16 pt-10">
     <BoardFigure
-      src={lead.src}
-      alt={lead.alt}
-      media={lead.media}
-      rev={lead.rev}
-      caption={lead.caption}
+      src={hero.src}
+      alt={hero.alt}
+      media={hero.media}
+      rev={hero.rev}
+      caption={hero.caption}
       loading="eager"
-      widths={[700, 1100, 1600]}
+      widths={[700, 1100, 1600, 2400]}
       sizes="(max-width: 1240px) 100vw, 1176px"
     />
   </section>
@@ -87,17 +95,22 @@ const lead = prototype.shots[0]!;
     <div class="wrap">
       <ul class="m-0 grid list-none grid-cols-1 gap-7 p-0 sm:grid-cols-3">
         {
-          gallery.map((shot) => (
+          strip.map((shot) => (
             <li>
-              <img
-                src={shot.src.src}
-                width={shot.src.width}
-                height={shot.src.height}
-                alt={shot.alt}
-                loading="lazy"
-                decoding="async"
-                class="block aspect-square w-full rounded-[10px] object-cover"
-              />
+              <figure class="m-0">
+                <Image
+                  src={shot.src}
+                  alt={shot.alt}
+                  widths={[400, 700]}
+                  sizes="(max-width: 640px) 100vw, 380px"
+                  loading="lazy"
+                  class="block aspect-square h-auto w-full rounded-[10px] object-cover"
+                />
+                <figcaption class="mt-2.5 font-mono text-[12px] text-field">
+                  <span class="font-bold">Rev-{shot.rev}</span> — {shot.name} ·{' '}
+                  {shot.media === 'photo' ? 'photo' : 'CAD render'}
+                </figcaption>
+              </figure>
             </li>
           ))
         }
