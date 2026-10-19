@@ -76,7 +76,7 @@ jobs:
             /instruments/rodeo-002/firmware/common/
             /hardware/**/*.md
             # Every markdown file, as web.yml takes them: a directory list here
-            # broke when 86c30a0 cited rev-a/rodeo-sdk/README.md, which no
+            # broke when 58f7f27 cited rev-a/rodeo-sdk/README.md, which no
             # listed path covered. Markdown is small; a rename can't outrun it.
             /**/*.md
       - uses: actions/setup-node@v4
