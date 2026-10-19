@@ -1,0 +1,62 @@
+name: host-tests
+
+# The pure-logic code both firmwares lean on is tested on the host, in
+# milliseconds, with no board: the SDK's headers (board.h checked against
+# libDaisy's pin table, sat_frame.h played from both ends of a simulated ring,
+# the DSP and UI helpers) and the satellite's logic (frame streaming, board
+# kind, encoders, the switch ladder). Until this job, those suites ran only on
+# whoever's laptop remembered to run them.
+
+on:
+  pull_request:
+    paths:
+      - 'rodeo-sdk/common/**'
+      - 'rodeo-satellite/src/**'
+      - 'rodeo-satellite/tests/**'
+      - '.github/workflows/host-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'rodeo-sdk/common/**'
+      - 'rodeo-satellite/src/**'
+      - 'rodeo-satellite/tests/**'
+      - '.github/workflows/host-tests.yml'
+
+jobs:
+  host-tests:
+    name: SDK and satellite host tests
+    runs-on: ubuntu-latest
+    # clang on both suites, as on the Macs the tests are written on. GNU make
+    # predefines CC and CXX, so the Makefiles' `?=` defaults never apply: set
+    # them here.
+    env:
+      CC: clang
+      CXX: clang++
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      # googletest comes from libDaisy's vendored copy, and the SVF stability
+      # test builds three DaisySP sources. board_gtest.cpp also reads libDaisy's
+      # daisy_seed.h at run time to check the pin map; without it that test
+      # skips, so the checkout is what makes it a real check. Not tinyusb,
+      # ch32v003fun or the frozen rev-a submodules: nothing here uses them.
+      - name: Check out libDaisy and DaisySP
+        run: git submodule update --init --depth 1 rodeo-sdk/libDaisy rodeo-sdk/DaisySP
+
+      - name: SDK host tests
+        run: make -C rodeo-sdk/common/tests test
+
+      - name: Satellite host tests
+        run: make -C rodeo-satellite/tests test
+
+      # A skipped board check would pass silently; make sure it ran.
+      - name: board.h was checked against libDaisy
+        run: |
+          cd rodeo-sdk/common/tests
+          ./rodeo_gtest --gtest_filter='Board.AgreesWithLibDaisy' | tee out.txt
+          if grep -q SKIPPED out.txt; then
+            echo "::error::Board.AgreesWithLibDaisy skipped: libDaisy's daisy_seed.h wasn't found"
+            exit 1
+          fi
