@@ -245,6 +245,18 @@ class Lfo
 Two-phase LFO with the four Movement shapes. One phase accumulator; the
 second output is offset by a fraction of a cycle (stereo width, autopan).
 
+### Lfo::Shape
+
+```cpp
+enum Shape
+```
+
+- `kSine = 0`
+- `kTriangle`
+- `kSquare`
+- `kRandom`
+- `kNumShapes`
+
 ### Lfo::Init
 
 ```cpp

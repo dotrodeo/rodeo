@@ -25,6 +25,12 @@ make && make program-dfu
 out of the Seed's outputs; the Seed's codec clock sets the rate and a feedback
 endpoint keeps the computer in step, so there is no resampling and no drift.
 
+## Built, waiting for a bench
+
+| Example | What it will prove |
+|---|---|
+| `sat_chain` | The satellite chain driver on a bare Seed: with pin 3 wired to pin 2 it is a ring with no satellites, which should discover empty and scan cleanly; pull the wire and it should find the break. Status over the Seed's USB serial. |
+
 ## Arrives with the boards
 
 The bring-up set — one example per board, proving each subsystem before any

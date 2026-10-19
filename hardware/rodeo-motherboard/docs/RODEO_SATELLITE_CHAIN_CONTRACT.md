@@ -284,7 +284,12 @@ A dead or unflashed satellite still pulls `PRESENT` low on the board before it, 
 board keeps sending into a dead end. Commands still reach every satellite up to the
 break, so:
 
-1. For `p = 1, 2, …`: send `CLOSE_RING_HERE` to position `p`, then DISCOVER.
+1. For `p = 1, 2, …`: send `RING_AUTO` to position `p − 1` (from `p = 2`), then
+   `CLOSE_RING_HERE` to position `p`, then DISCOVER. The `RING_AUTO` matters: a
+   satellite stays closed until told otherwise, so without it every DISCOVER after
+   the first turns round at satellite 1 and the search never gets past it.
+   (Added 2026-10-19; `rodeo-sdk/common/sat_chain.cpp` does this, and its host test
+   fails without it.)
 2. The largest `p` for which DISCOVER returns is the last working satellite. The fault is
    in satellite `p + 1` or the cable into it.
 3. Report "chain broken after satellite p" (OLED), and keep scanning the first `p`

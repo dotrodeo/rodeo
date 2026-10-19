@@ -6,10 +6,14 @@ sidebar:
   order: 3
 ---
 
-:::caution[Design draft — the driver is not written yet]
-`sat_frame.h`, the wire format, is written and tested: see its
-[API reference](/sdk/reference/api/sat-frame/). This page is the design for
-`sat_chain.*`, the Seed's driver, and stays unpublished until the chain runs.
+:::caution[Written, not yet run on hardware]
+The driver is written and host-tested against a simulated ring: discovery,
+scanning, a live break found and repaired, a satellite added while running. It
+stays unpublished until it has run on a Seed: first as a loop-back with no
+satellites (`examples/sat_chain`), then with real ones on a Rev B board. API:
+[`sat_chain.h`](/sdk/reference/api/sat-chain/),
+[`sat_chain_port.h`](/sdk/reference/api/sat-chain-port/),
+[`sat_frame.h`](/sdk/reference/api/sat-frame/).
 The wire protocol is `hardware/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md`;
 this page is the app's side of it.
 :::
@@ -30,26 +34,35 @@ plugged into its OUT.
   a timer (4 ms by default), discovery at start-up and whenever the chain
   changes, and fault and break reporting.
 
-## Proposed shape
+## Using it
 
 ```cpp
-rodeo::SatChain chain;
+rodeo::SatChain     chain; // the engine: pure logic
+rodeo::SatChainPort port;  // USART3 and its DMA
 
 int main()
 {
     hw.Init();
-    chain.Init();           // USART3, DMA, timer; runs DISCOVER
+    chain.Init(rodeo::SatChain::Config(), System::GetUs());
+    port.Init();
     for(;;)
     {
-        chain.Process();    // call from the main loop
+        port.Process(chain); // never blocks: call every time round
         if(chain.Changed())
-            Rebuild(chain.Slots());   // what is plugged in, in chain order
+            Rebuild();       // chain.Satellites(), chain.Satellite(i): what is where
 
-        float cutoff = chain.Pot(0, 2);     // satellite 0, pot 3: 0..1
-        int   detents = chain.Encoder(1, 0); // satellite 1, encoder 1: steps since last read
+        float cutoff  = chain.Pot(0, 2);          // satellite 0, slot 2: 0..1
+        int   detents = chain.EncoderSteps(1, 0); // since the last call, + or -
+        chain.SetLed(1, 255, SAT_LED_SLOW_BLINK);
     }
 }
 ```
+
+The engine waits 50 ms for the satellites to boot, discovers, then scans every
+4 ms. Three bad scans in a row and it rediscovers; three failed discoveries and
+it finds the break by closing the ring one satellite further at a time, then
+keeps scanning everything before the break so the instrument stays playable,
+and retries the whole ring every two seconds.
 
 Controls are addressed by satellite and slot, in chain order. Mapping a physical
 control to a parameter is the instrument's job, in its own control map — the SDK

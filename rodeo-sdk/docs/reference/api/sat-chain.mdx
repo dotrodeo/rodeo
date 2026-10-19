@@ -1,0 +1,228 @@
+---
+title: sat_chain.h
+description: "The Seed's side of the satellite chain: discovery, scanning, recovery, and the controls an instrument reads."
+sidebar:
+  order: 4
+editUrl: https://github.com/dotrodeo/rodeo/edit/main/rodeo-sdk/common/sat_chain.h
+---
+
+{/* Generated from rodeo-sdk/common/sat_chain.h by rodeo-sdk/tools/docs/gen_reference.py. Do not edit:
+    change the header's comments and run `make docs` in rodeo-sdk/. */}
+
+:::note[Generated from the header]
+This page is [`rodeo-sdk/common/sat_chain.h`](https://github.com/dotrodeo/rodeo/blob/main/rodeo-sdk/common/sat_chain.h) — its comments and declarations.
+To change it, change the header.
+:::
+
+This is the engine, and it is pure logic: no UART, no clock, no libDaisy. It
+decides what frame to send next and makes sense of what comes back; a
+transport moves the bytes (sat_chain_port.h on the Seed, a simulated ring in
+common/tests/sat_chain_gtest.cpp). The frame format is sat_frame.h, and the
+rules are RODEO_SATELLITE_CHAIN_CONTRACT.md (§ numbers below):
+
+- wait 50 ms after power for the satellites to boot (§6.1), then DISCOVER;
+- SCAN every 4 ms (§6.2), output slots out, input slots back;
+- three bad SCANs in a row: DISCOVER again, up to three times (§5.1);
+- still nothing: find the break by closing the ring one satellite further each time, and keep scanning the satellites before it (§5.2); retry the whole ring every couple of seconds in case it has been fixed.
+
+Controls are addressed by satellite (chain order, from 0) and slot within it.
+Which control is which parameter is the instrument's business.
+
+One exchange at a time:
+
+```cpp
+SatChain::Exchange ex;
+if(chain.Poll(now_us, ex))   // something to send now
+    port.Start(ex);          // ...and later, when it has come back or timed out:
+chain.Reply(rx, len, now_us);
+```
+
+## SatChain
+
+```cpp
+class SatChain
+```
+
+**Members**
+
+- `static constexpr int kMaxSatellites = SAT_MAX_SLOTS` — one slot each, at most
+
+### SatChain::Config
+
+```cpp
+struct Config
+```
+
+**Members**
+
+- `uint32_t scan_period_us = SAT_SCAN_PERIOD_MS * 1000u`
+- `uint32_t power_wait_us = SAT_FIRST_DISCOVER_MS * 1000u`
+- `uint32_t retry_period_us = 2000000u` — how often a broken ring is retried whole
+- `uint8_t fw_major = 1` — the satellite firmware major this build speaks
+
+### SatChain::State
+
+```cpp
+enum class State : uint8_t
+```
+
+- `kPowerWait` — waiting for the satellites to boot
+- `kDiscover` — learning the chain
+- `kScan` — the whole ring answers
+- `kFindBreak` — the ring is broken: looking for where
+- `kPartial` — broken: scanning the satellites before the break
+- `kVersion` — a satellite runs a firmware major this build doesn't speak
+
+### SatChain::Exchange
+
+```cpp
+struct Exchange
+```
+
+One frame to send, and what to expect back.
+
+**Members**
+
+- `uint8_t tx[SAT_MAX_FRAME_LEN]`
+- `uint16_t tx_len`
+- `uint16_t rx_len` — the reply's exact length; 0: read it from the reply's header
+- `uint32_t timeout_us` — give up on the reply after this long
+
+### SatChain::Init
+
+```cpp
+void Init(const Config& cfg, uint32_t now_us);
+```
+
+### SatChain::Poll
+
+```cpp
+bool Poll(uint32_t now_us, Exchange& ex);
+```
+
+True when a frame should go out now; fills `ex`. Call often from the
+main loop. Nothing is sent while a reply is awaited.
+
+### SatChain::Reply
+
+```cpp
+void Reply(const uint8_t* rx, size_t len, uint32_t now_us);
+```
+
+The reply to the last exchange: `len` bytes, or fewer (0 included) when
+it timed out.
+
+### SatChain::GetState
+
+```cpp
+State GetState() const;
+```
+
+### SatChain::Satellites
+
+```cpp
+int Satellites() const;
+```
+
+Satellites being scanned: the whole ring, or those before a break.
+
+### SatChain::Satellite
+
+```cpp
+const sat_descriptor& Satellite(int i) const;
+```
+
+### SatChain::BrokenAfter
+
+```cpp
+int BrokenAfter() const;
+```
+
+A break was found after this many satellites, or -1 if there is none.
+
+### SatChain::Changed
+
+```cpp
+bool Changed();
+```
+
+True once after the chain's layout changes (discovered, grown, broken).
+
+### SatChain::GoodScans
+
+```cpp
+uint32_t GoodScans() const;
+```
+
+SCAN replies that came back whole, and those that didn't.
+
+### SatChain::BadScans
+
+```cpp
+uint32_t BadScans() const;
+```
+
+### SatChain::Input
+
+```cpp
+sat_slot Input(int i, int s) const;
+```
+
+The slot as last received with a good CRC.
+
+### SatChain::Pot
+
+```cpp
+float Pot(int i, int s) const;
+```
+
+A POT slot's position, 0..1.
+
+### SatChain::EncoderSteps
+
+```cpp
+int EncoderSteps(int i, int s);
+```
+
+Encoder detents since the last call, + or -.
+
+### SatChain::Pressed
+
+```cpp
+bool Pressed(int i, int s) const;
+```
+
+Whether a button, or an encoder's push switch, is held now.
+
+### SatChain::Presses
+
+```cpp
+int Presses(int i, int s);
+```
+
+Presses since the last call.
+
+### SatChain::SwitchPosition
+
+```cpp
+int SwitchPosition(int i, int s) const;
+```
+
+A SWITCH slot's position index.
+
+### SatChain::Fault
+
+```cpp
+bool Fault(int i, int s, uint8_t* code = nullptr, uint8_t* detail = nullptr) const;
+```
+
+True if the slot reports a FAULT; *code and *detail say which (§7).
+
+### SatChain::SetLed
+
+```cpp
+void SetLed(int i, uint8_t brightness, uint8_t mode = SAT_LED_STEADY);
+```
+
+A satellite's LED: brightness 0..255 and a SAT_LED_ mode. Sent with
+every scan.

@@ -1,0 +1,65 @@
+---
+title: sat_chain_port.h
+description: "The satellite chain's UART on the Seed: USART3 at 1 Mbaud, both directions on DMA, carrying the exchanges SatChain asks for. Target only; SatChain itself (sat_chain.h) is pure logic and host-tested."
+sidebar:
+  order: 5
+editUrl: https://github.com/dotrodeo/rodeo/edit/main/rodeo-sdk/common/sat_chain_port.h
+---
+
+{/* Generated from rodeo-sdk/common/sat_chain_port.h by rodeo-sdk/tools/docs/gen_reference.py. Do not edit:
+    change the header's comments and run `make docs` in rodeo-sdk/. */}
+
+:::note[Generated from the header]
+This page is [`rodeo-sdk/common/sat_chain_port.h`](https://github.com/dotrodeo/rodeo/blob/main/rodeo-sdk/common/sat_chain_port.h) — its comments and declarations.
+To change it, change the header.
+:::
+
+```cpp
+rodeo::SatChain     chain;
+rodeo::SatChainPort port;
+
+chain.Init(rodeo::SatChain::Config(), System::GetUs());
+port.Init();
+for(;;)
+{
+    port.Process(chain);          // as often as the main loop comes round
+    float cutoff = chain.Pot(0, 2);
+}
+```
+
+Pins and streams (rev-b.md, "Satellite chain on USART3"): TX on PC10 (Seed pin
+3), RX on PC11 (pin 2), alternate function 7. RX on DMA1_Stream7 and TX on
+DMA2_Stream5, which libDaisy doesn't use. Buffers sit in SRAM1, which libDaisy
+maps uncached, so neither side needs cache maintenance. No interrupts: Process()
+polls the DMA counters, so nothing here competes with audio for priority.
+
+## SatChainPort
+
+```cpp
+class SatChainPort
+```
+
+### SatChainPort::Init
+
+```cpp
+void Init();
+```
+
+Pins, USART3 and both DMA streams. Call once, after the Seed's Init().
+
+### SatChainPort::Process
+
+```cpp
+void Process(SatChain& chain);
+```
+
+Collect a finished or timed-out reply, and start the next exchange the
+chain wants. Never blocks.
+
+### SatChainPort::Received
+
+```cpp
+uint16_t Received() const;
+```
+
+Bytes received so far in the exchange in flight (for diagnostics).

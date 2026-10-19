@@ -36,6 +36,8 @@ HEADERS = [
     ('version.h', 1),
     ('board.h', 2),
     ('sat_frame.h', 3),
+    ('sat_chain.h', 4),
+    ('sat_chain_port.h', 5),
     ('adc_convert.h', 10),
     ('pot_ui.h', 11),
     ('rodeo_dsp.h', 12),
@@ -270,6 +272,11 @@ def render(header):
             items, methods = member_lines(c)
             if items:
                 sections.append('**Members**\n\n' + '\n'.join(items) + '\n')
+            # Nested public types (a Config struct, a State enum) under the class.
+            for m in c.get_children():
+                if here(m) and public(m) and m.spelling and m.kind in (K.STRUCT_DECL, K.CLASS_DECL, K.ENUM_DECL) \
+                        and (m.kind == K.ENUM_DECL or m.is_definition()):
+                    emit(m, '###', prefix=name + '::')
             seen = set()
             for m in methods:
                 if m.spelling in seen and not prose(doc_of(m)):

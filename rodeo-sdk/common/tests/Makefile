@@ -29,10 +29,15 @@ DSP_SOURCES = $(DAISYSP_DIR)/Filters/svf.cpp \
               $(DAISYSP_DIR)/Control/adsr.cpp
 DSP_OBJECTS = $(patsubst $(DAISYSP_DIR)/%.cpp,$(BUILD_PATH)/daisysp/%.o,$(DSP_SOURCES))
 
+# Host-safe .cpp files from common/ that the tests link (the rest of common/
+# needs libDaisy and the target).
+COMMON_SOURCES = ../sat_chain.cpp
+COMMON_OBJECTS = $(patsubst ../%.cpp,$(BUILD_PATH)/common/%.o,$(COMMON_SOURCES))
+
 SRC_EXT = cpp
 SOURCES = $(shell find $(SRC_PATH) -name '*.$(SRC_EXT)' | sort -k 1nr | cut -f2-)
 OBJECTS = $(SOURCES:$(SRC_PATH)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)
-DEPS    = $(OBJECTS:.o=.d) $(DSP_OBJECTS:.o=.d)
+DEPS    = $(OBJECTS:.o=.d) $(DSP_OBJECTS:.o=.d) $(COMMON_OBJECTS:.o=.d)
 
 # NOTE: no -Werror here (libDaisy uses it) — the vendored gtest-all.cc can trip
 # newer host-clang warnings, which we don't want failing OUR test build.
@@ -83,9 +88,14 @@ c-headers:
 	@echo '#include "sat_frame.h"' | $(CC) -std=c99 -Wall -Wextra -Werror -pedantic -I ../ -x c -fsyntax-only -
 	@echo "sat_frame.h: builds as C99"
 
-$(BIN_PATH)/$(BIN_NAME): $(OBJECTS) $(DSP_OBJECTS)
+$(BIN_PATH)/$(BIN_NAME): $(OBJECTS) $(DSP_OBJECTS) $(COMMON_OBJECTS)
 	@echo "Linking: $@"
-	$(CXX) $(OBJECTS) $(DSP_OBJECTS) -o $@ $(LIBS)
+	$(CXX) $(OBJECTS) $(DSP_OBJECTS) $(COMMON_OBJECTS) -o $@ $(LIBS)
+
+$(BUILD_PATH)/common/%.o: ../%.cpp
+	@mkdir -p $(dir $@)
+	@echo "Compiling: $< -> $@"
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -MP -MMD -c $< -o $@
 
 $(BUILD_PATH)/daisysp/%.o: $(DAISYSP_DIR)/%.cpp
 	@mkdir -p $(dir $@)

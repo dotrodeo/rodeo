@@ -64,6 +64,11 @@
 //   * sat_frame.h: the satellite chain's wire format (2026-10-19), plain C so
 //     the satellite firmware includes it too. Host tests play both ends, down
 //     to a simulated ring; 78 host tests in all.
+//   * sat_chain.h / sat_chain_port.h: the Seed's chain driver (2026-10-19). The
+//     engine is pure and host-tested against a simulated ring (discovery,
+//     scanning, breaks found and repaired); the port is USART3 on DMA1_Stream7
+//     and DMA2_Stream5. examples/sat_chain runs it on a bare Seed. Not yet run
+//     on hardware. 90 host tests.
 //   * examples/usb_midi_cdc and usb_device: TinyUSB on a bare Seed.
 
 #pragma once
