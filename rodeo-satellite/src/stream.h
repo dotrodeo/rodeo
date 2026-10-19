@@ -42,6 +42,8 @@ typedef struct
     // Results, valid once stream_done() is true
     sat_slot taken[4];   // output slots consumed from a SCAN
     bool     took;
+    sat_slot cmds[4];    // commands in a COMMAND frame addressed to this satellite
+    uint8_t  n_cmds;
     uint8_t  type;
     uint8_t  position;   // HOP in + 1
 } sat_stream;

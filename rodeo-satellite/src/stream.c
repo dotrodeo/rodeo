@@ -16,6 +16,7 @@ void stream_reset(sat_stream* s)
     s->out_len    = 0;
     s->took       = false;
     s->n_appended = 0;
+    s->n_cmds     = 0;
 }
 
 bool stream_done(const sat_stream* s)
@@ -111,6 +112,17 @@ size_t stream_rx(sat_stream* s, uint8_t byte, const sat_slot* inputs, uint8_t* o
                                                               s->ring[(b + 2) & 31], s->ring[(b + 3) & 31]});
             s->took         = slot + 1 == s->me.slots;
         }
+    }
+
+    // A command slot has fully arrived: keep it if it's for this satellite.
+    if(s->type == SAT_COMMAND && s->rx > SAT_HEADER_LEN
+       && (s->rx - SAT_HEADER_LEN) % SAT_SLOT_LEN == 0 && s->n_cmds < 4)
+    {
+        uint16_t b   = (uint16_t)(s->rx - SAT_SLOT_LEN);
+        sat_slot cmd = sat_slot_read((const uint8_t[]){s->ring[b & 31], s->ring[(b + 1) & 31],
+                                                      s->ring[(b + 2) & 31], s->ring[(b + 3) & 31]});
+        if(sat_command_for(cmd, s->position))
+            s->cmds[s->n_cmds++] = cmd;
     }
 
     size_t made = 0;

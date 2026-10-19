@@ -52,3 +52,8 @@ rodeo-sdk/tools/docs/.venv/
 
 # rodeo-satellite host test build
 rodeo-satellite/tests/build/
+rodeo-satellite/firmware/satellite*.bin
+rodeo-satellite/firmware/satellite.elf
+rodeo-satellite/firmware/satellite.hex
+rodeo-satellite/firmware/satellite.lst
+rodeo-satellite/firmware/satellite.map

@@ -13,8 +13,9 @@ defines a frame on its own.
 
 ## Status (2026-10-19)
 
-**The logic is written and host-tested; the hardware layer isn't written yet.**
-Nothing here has run on a CH32V003.
+**Written and building; not yet run on a CH32V003.** The logic is host-tested;
+the hardware glue (`firmware/satellite.c`) builds to 6.5 KB of the 16 KB flash
+and 1 KB of the 2 KB RAM, and waits for a dev board and a WCH-LinkE.
 
 | Part | | |
 |---|---|---|
@@ -24,7 +25,12 @@ Nothing here has run on a CH32V003.
 | `src/ladder.*` | done, tested | The encoder bank's four push switches on one ADC pin |
 | `src/pot.h` | done, tested | 10-bit reading to the POT slot's 0–65535, lightly smoothed |
 | `src/boards.h` | done | Each board's pins, from its schematic |
-| Hardware layer and `main.c` | **not started** | GPIO, ADC, USART1 with its pin remap, the PRESENT check, the LED; on [ch32v003fun](https://github.com/cnlohr/ch32v003fun) |
+| `firmware/satellite.c` | **builds, not run** | GPIO, ADC, USART1 on DMA with its pin remap, PRESENT, the LED, commands; on [ch32v003fun](https://github.com/cnlohr/ch32v003fun), a submodule here |
+
+To check on the first board: that the main loop keeps a byte out for every byte
+in (nothing in it may block for more than a few microseconds), that the return
+tap is released between frames, the encoders' direction, and the ID reads on
+both banks.
 
 ## Two things the boards taught the firmware
 
@@ -40,6 +46,20 @@ forwards comes after its own slots, so it can't send until that byte has
 arrived: 5 byte times for a one-slot satellite, 17 for a four-slot bank. The
 contract said 4 bytes and 40 µs; it now says this, and the Seed's ring timeout
 counts it (`sat_lag_bytes()`, `sat_ring_time_us()`).
+
+## Build and flash
+
+```sh
+git submodule update --init rodeo-satellite/ch32v003fun
+brew install riscv64-elf-gcc riscv64-elf-binutils   # macOS
+cd rodeo-satellite/firmware
+make           # satellite.bin
+make flash     # with a WCH-LinkE on SWIO (PD1), 3V3 and GND
+```
+
+Homebrew's RISC-V GCC has no C library; ch32v003fun needs only newlib's headers,
+and the Makefile takes them from the Arm GNU Toolchain the SDK already uses
+(`NEWLIB=` to point elsewhere). Every satellite gets the same image.
 
 ## Tests
 

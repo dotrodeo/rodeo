@@ -164,3 +164,20 @@ TEST(Stream, AChainOfStreamersEqualsAChainOfReferences)
         EXPECT_EQ(a[SAT_H_HOP], 4);
     }
 }
+
+TEST(Stream, KeepsTheCommandsAddressedToIt)
+{
+    // Three commands: one for position 2, one for everyone, one for position 5.
+    sat_slot cmds[3] = {sat_command(SAT_CMD_IDENTIFY, 2, 4), sat_command(SAT_CMD_RING_AUTO, 0, 0),
+                        sat_command(SAT_CMD_CLOSE_RING_HERE, 5, 0)};
+    std::vector<uint8_t> f(SAT_FRAME_LEN(3));
+    sat_build_command(f.data(), cmds, 3);
+    f[SAT_H_HOP] = 1; // so this satellite is at position 2
+    sat_slot inputs[1] = {sat_pot(0)};
+    auto     got       = Stream(f, Me(SAT_KIND_POT), inputs);
+    ASSERT_EQ(got.st.n_cmds, 2);
+    EXPECT_EQ(got.st.cmds[0].kind, SAT_CMD_IDENTIFY);
+    EXPECT_EQ(got.st.cmds[0].d1, 4);
+    EXPECT_EQ(got.st.cmds[1].kind, SAT_CMD_RING_AUTO);
+    EXPECT_EQ(got.out, Reference(f, Me(SAT_KIND_POT), inputs, nullptr, nullptr));
+}

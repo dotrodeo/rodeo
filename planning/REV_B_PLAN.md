@@ -314,11 +314,14 @@ resistor, a pot bank and an encoder bank answering DISCOVER and SCAN, then the c
 ## Work that can start before the boards arrive
 
 1. ~~**Freeze Rev A**~~ done 2026-10-18 (below).
-2. **`board.h` for Rev B** from `rev-b.md`'s pin map.
-3. **`sat_frame.h` and its host tests**: frame build/parse, CRC, every slot kind,
-   truncated and corrupted frames. Pure code; it needs no hardware.
-4. **`rodeo-satellite/` skeleton** on ch32v003fun, built and flashed on a CH32V003
-   development board: kind detection, the slot-forwarding loop, a fake input slot.
+2. ~~**`board.h` for Rev B**~~ done 2026-10-19: `rodeo-sdk/common/board.h`, host-tested
+   against libDaisy's pin table. Found a second shared interrupt line (A7/CV1).
+3. ~~**`sat_frame.h` and its host tests**~~ done 2026-10-19: plain C, so the satellites
+   include it too; tests play both ends down to a simulated ring. Corrected the
+   contract's pipelining lag (5 byte times a satellite, 17 for a bank, not 4).
+4. **`rodeo-satellite/`** on ch32v003fun: the logic is written and host-tested, and the
+   firmware builds (6.5 KB). Still to do: flash and test it on a CH32V003 dev board
+   with a WCH-LinkE (not yet bought).
 5. **The audio and SD examples' code**, written against libDaisy, ready to run when the
    motherboard arrives.
 6. **The USB exploration** above, on a bare Daisy Seed.
