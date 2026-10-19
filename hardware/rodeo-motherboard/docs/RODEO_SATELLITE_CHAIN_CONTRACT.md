@@ -181,13 +181,18 @@ kind: 4 for the pot and encoder banks, 1 for every other v1 kind):
 | DISCOVER | Forward all `N` slots unchanged. Append one descriptor slot (§4). | `N + 1`, `HOP + 1` |
 | COMMAND | Forward all slots unchanged. Act on any command addressed to it (§5). | Same `N`, `HOP + 1` |
 
-**Pipelining:** a satellite holds back exactly 4 bytes. It buffers the 4 header bytes;
-while the next 4 bytes arrive it transmits the updated header; from then on it transmits
-each byte 4 byte times after receiving it; once the input ends it sends the last 4
-buffered bytes and then its own slot(s). The output is continuous, the frame length is
-what the table says, and each satellite adds 40 µs of delay. The appended slot must be
+**Pipelining:** a satellite starts sending once it holds enough of the frame that it
+can't run dry: the header and, in a SCAN, the `s` slots it consumes, plus the byte in
+flight. That is a lag of `1 + 4s` byte times in a SCAN (5 for a one-slot satellite, 17
+for a four-slot bank) and 5 for DISCOVER and COMMAND. It can't be less: the first byte
+it forwards in a SCAN is the first byte after its own slots, and it must have arrived
+before it can be sent. From then on it sends one byte for every byte it receives, and
+once the input ends it sends what it still holds and then its own slot(s). The output is
+continuous, and the frame length is what the table says. The appended slot must be
 ready before the frame arrives: satellites sample continuously and keep the latest slot
-built.
+built. (Corrected 2026-10-19 from "holds back exactly 4 bytes, 40 µs": that lag can't
+hold for a SCAN, and a four-slot bank needs far more. `sat_lag_bytes()` in
+`rodeo-sdk/common/sat_frame.h`.)
 
 A satellite that receives a SCAN with `N < s` forwards it unchanged with `HOP + 1` and
 reports nothing (the Seed's map is stale; §5.1 recovers).
@@ -305,11 +310,12 @@ DISCOVER **at least 50 ms** after the chain is powered.
 Only one frame is in the ring at a time: the Seed sends the next frame after the
 previous one returns, or after a timeout.
 
-* Ring time ≈ (4 + 4N) × 10 µs + satellites × 40 µs. For 30 one-slot satellites:
-  1.24 ms + 1.2 ms ≈ **2.5 ms**.
+* Ring time ≈ (4 + 4N) × 10 µs for the frame, plus every satellite's lag (§2.3):
+  (satellites + 4N) × 10 µs for a SCAN. For 30 one-slot satellites: 1.24 ms + 1.5 ms ≈
+  **2.7 ms**. For 15 four-slot banks (N = 60): 2.44 ms + 2.55 ms ≈ 5 ms.
 * Timeout: 2 × the expected ring time, at least 1 ms.
 * **Default scan period: 4 ms (250 scans/s).** A control change reaches the Seed within
-  about one period plus one ring time (≈6.5 ms worst case for 30 satellites). Firmware
+  about one period plus one ring time (≈6.7 ms worst case for 30 satellites). Firmware
   may scan faster for small chains.
 * The Seed paces scans from a timer, not from the audio callback.
 

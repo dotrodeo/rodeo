@@ -514,11 +514,22 @@ static inline sat_result sat_check_scan(const uint8_t* in, size_t len, uint8_t n
     return SAT_OK;
 }
 
-/** Expected ring time in microseconds (§6.2): every byte at 10 us, plus 40 us
- *  per satellite. The timeout is twice this, and at least 1 ms. */
+/** How many byte times a satellite holds a frame back (§2.3): the header and,
+ *  in a SCAN, the slots it consumes, plus the byte in flight. It can't send
+ *  the first slot it forwards until that slot has arrived, so a one-slot
+ *  satellite lags 5 bytes (50 us) and a four-slot bank 17 (170 us). */
+static inline uint8_t sat_lag_bytes(uint8_t type, uint8_t n, uint8_t slots_owned)
+{
+    return (uint8_t)(1 + SAT_SLOT_LEN * ((type == SAT_SCAN && n >= slots_owned) ? slots_owned : 1));
+}
+
+/** Expected ring time in microseconds (§6.2): the frame's bytes at 10 us, plus
+ *  each satellite's lag. For a SCAN, n is the total of the slots the satellites
+ *  own, so the lags add up to (satellites + 4n) byte times. The timeout is
+ *  twice this, and at least 1 ms. */
 static inline uint32_t sat_ring_time_us(uint8_t n, uint8_t satellites)
 {
-    return SAT_FRAME_LEN((uint32_t)n) * 10u + satellites * 40u;
+    return (SAT_FRAME_LEN((uint32_t)n) + satellites + SAT_SLOT_LEN * (uint32_t)n) * 10u;
 }
 
 static inline uint32_t sat_timeout_us(uint8_t n, uint8_t satellites)

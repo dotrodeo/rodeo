@@ -364,10 +364,22 @@ TEST(SatFrame, CommandFrameReachesEverySatelliteUnchanged)
 
 // --- Timing ----------------------------------------------------------------------
 
-TEST(SatFrame, RingTimeMatchesTheContractsExample)
+TEST(SatFrame, RingTimeCountsEachSatellitesLag)
 {
-    // §6.2: 30 one-slot satellites, about 2.5 ms; the timeout twice that.
-    EXPECT_EQ(sat_ring_time_us(30, 30), 2440u);
-    EXPECT_EQ(sat_timeout_us(30, 30), 4880u);
+    // §6.2: 30 one-slot satellites. 124 bytes of frame plus 5 byte times of lag
+    // each: 2.74 ms. The timeout is twice that.
+    EXPECT_EQ(sat_ring_time_us(30, 30), 2740u);
+    EXPECT_EQ(sat_timeout_us(30, 30), 5480u);
+    // 15 four-slot banks own 60 slots: 244 bytes plus 17 byte times each.
+    EXPECT_EQ(sat_ring_time_us(60, 15), (244u + 15u * 17u) * 10u);
     EXPECT_EQ(sat_timeout_us(0, 0), 1000u); // never under 1 ms
+}
+
+TEST(SatFrame, LagIsTheConsumedSlotsPlusTheByteInFlight)
+{
+    EXPECT_EQ(sat_lag_bytes(SAT_SCAN, 6, 1), 5);
+    EXPECT_EQ(sat_lag_bytes(SAT_SCAN, 6, 4), 17);
+    EXPECT_EQ(sat_lag_bytes(SAT_SCAN, 2, 4), 5); // stale map: forwarded as is
+    EXPECT_EQ(sat_lag_bytes(SAT_DISCOVER, 0, 4), 5);
+    EXPECT_EQ(sat_lag_bytes(SAT_COMMAND, 1, 4), 5);
 }

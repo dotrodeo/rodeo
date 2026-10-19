@@ -49,3 +49,6 @@ hardware/panels/*/*.step
 
 # rodeo-sdk API reference generator (make docs)
 rodeo-sdk/tools/docs/.venv/
+
+# rodeo-satellite host test build
+rodeo-satellite/tests/build/

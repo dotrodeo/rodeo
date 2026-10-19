@@ -506,14 +506,27 @@ Check a SCAN reply's header against the chain the Seed expects: the same N
 it sent, and HOP equal to the number of satellites. Slot CRCs are checked one
 by one by the caller, so one bad slot doesn't cost the whole frame.
 
+## sat_lag_bytes
+
+```cpp
+static inline uint8_t sat_lag_bytes(uint8_t type, uint8_t n, uint8_t slots_owned);
+```
+
+How many byte times a satellite holds a frame back (§2.3): the header and,
+in a SCAN, the slots it consumes, plus the byte in flight. It can't send
+the first slot it forwards until that slot has arrived, so a one-slot
+satellite lags 5 bytes (50 us) and a four-slot bank 17 (170 us).
+
 ## sat_ring_time_us
 
 ```cpp
 static inline uint32_t sat_ring_time_us(uint8_t n, uint8_t satellites);
 ```
 
-Expected ring time in microseconds (§6.2): every byte at 10 us, plus 40 us
-per satellite. The timeout is twice this, and at least 1 ms.
+Expected ring time in microseconds (§6.2): the frame's bytes at 10 us, plus
+each satellite's lag. For a SCAN, n is the total of the slots the satellites
+own, so the lags add up to (satellites + 4n) byte times. The timeout is
+twice this, and at least 1 ms.
 
 ## sat_timeout_us
 
