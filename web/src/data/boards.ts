@@ -22,8 +22,8 @@ import type { Rev, Status } from './site';
 
 // Photographs of Rev-A hardware. They belong to the prototype, not to the
 // product — see `prototype` at the bottom of this file. No Rev-B board has
-// been fabricated, and its renders are held back until the soldermask
-// stackups agree (WEB_ROADMAP.md (rodeo-internal), decision 8).
+// been fabricated, so the Rev-B boards are shown as CAD renders until there
+// are photographs (see `views` below).
 import motherboardImg from '../assets/hardware/rodeo-motherboard.webp';
 import motherboardBackImg from '../assets/hardware/rodeo-motherboard-back.webp';
 import motherboardDaisyImg from '../assets/hardware/rodeo-motherboard-daisy.webp';
@@ -82,6 +82,33 @@ export interface Board {
   retiredReason?: string;
 }
 
+// Rev-B renders: placeholders until the boards come back from the fab and can
+// be photographed. Every Rev-B stackup declares black soldermask, so the renders
+// match what was ordered (decision 8 in WEB_ROADMAP.md (rodeo-internal) held
+// them back until it did). tools/render/render.py makes them from the KiCad
+// files and `npm run renders` re-encodes them into src/assets/hardware/rev-b/.
+const revB = import.meta.glob<{ default: ImageMetadata }>('../assets/hardware/rev-b/*.webp', {
+  eager: true,
+});
+
+function render(slug: string, view: 'iso' | 'front' | 'back'): ImageMetadata {
+  const m = revB[`../assets/hardware/rev-b/${slug}-${view}.webp`];
+  if (!m) throw new Error(`no render ${slug}-${view}.webp — run npm run renders`);
+  return m.default;
+}
+
+/** A Rev-B board's renders: three-quarter view as the lead, top and bottom below. */
+function views(slug: string, alt: { iso: string; front: string; back: string }) {
+  const shot = (view: 'iso' | 'front' | 'back', caption: string): Shot => ({
+    src: render(slug, view),
+    alt: alt[view],
+    media: 'render',
+    caption,
+    rev: 'B',
+  });
+  return { shot: shot('iso', 'three-quarter view'), gallery: [shot('front', 'top'), shot('back', 'bottom')] };
+}
+
 // Rev-B sources. rev-b.md is authoritative for anything Rev-B and says so
 // itself; the older notes scattered through the Rev-A docs are history.
 const R = 'hardware/rodeo-motherboard/docs/rev-b.md';
@@ -106,6 +133,11 @@ export const boards: Board[] = [
     status: 'at-fab',
     rev: 'B',
     outline: { w: 90, h: 112 },
+    ...views('rodeo-motherboard', {
+      iso: "Render of the Rev-B rodeo-motherboard at an angle: a square black board with the empty Daisy Seed footprint across the middle, the boxed audio-interface ribbon header and a microSD slot along the top edge, and rows of small white connectors down the sides and along the bottom.",
+      front: "Render of the top of the Rev-B rodeo-motherboard. The audio-interface ribbon header and microSD slot run along the top; connectors labelled MIDI, SPI, CHAIN and SWITCH sit down the right edge; four I2C TAPS and ten GPIO TAPS fill the bottom left beside MAIN POWER and a 1S Li-ion BATT connector. The Daisy Seed footprint is two empty rows of plated holes.",
+      back: "Render of the back of the Rev-B rodeo-motherboard: black soldermask with a QR code under the words first rodeo? get started here!, the licence block, and a large RODEO MOTHERBOARD wordmark running off the bottom edge.",
+    }),
     summary:
       'The host board. A Daisy Seed, two codecs, ten general-purpose I/O connectors and the satellite chain.',
     body: 'The motherboard has one job: carry the Daisy, the audio, and the connectors everything else plugs into. There are no converters on it: those pins drive a second codec instead, and high-resolution analog moved to an optional expander board. Controls no longer compete for motherboard channels, because the satellite chain grows by adding satellites. It also carries the battery, its charger and a fuel gauge, so the instrument charges over USB-C and runs off the desk.',
@@ -141,6 +173,11 @@ export const boards: Board[] = [
     status: 'at-fab',
     rev: 'B',
     outline: { w: 20, h: 100 },
+    ...views('rodeo-pot-bank-4', {
+      iso: "Render of the Rev-B rodeo-pot-bank-4 at an angle: a narrow black strip with four potentiometers standing in a row on threaded bushings, the RODEO wordmark between them, and a four-pin header at one end.",
+      front: "Render of the top of the Rev-B rodeo-pot-bank-4: four potentiometers evenly spaced down a 20 by 100 mm black strip, numbered 1 to 4, with RODEO in white silkscreen between each pair.",
+      back: "Render of the underside of the Rev-B rodeo-pot-bank-4, where every other part is mounted: the CH32V003 microcontroller, the chain input and output connectors, and small passives, with the board name and licence in silkscreen.",
+    }),
     summary: 'Four 9 mm pots on 25 mm centres, read by one CH32V003 on the chain.',
     body: 'The first Rev B satellite. Four pots in a row, digitised on the board by a cent-scale microcontroller and passed along the chain as a frame — so the cost of another four controls is another satellite, not another motherboard. The pots mount through the panel and the board hangs off their bushings, with every other part surface-mounted on the underside so assembly stays single-sided.',
     specs: [
@@ -166,6 +203,11 @@ export const boards: Board[] = [
     status: 'at-fab',
     rev: 'B',
     outline: { w: 20, h: 100 },
+    ...views('rodeo-encoder-bank-4', {
+      iso: "Render of the Rev-B rodeo-encoder-bank-4 at an angle: a narrow black strip with four rotary encoders standing in a row, their shafts upright.",
+      front: "Render of the top of the Rev-B rodeo-encoder-bank-4: four rotary encoders evenly spaced down a 20 by 100 mm black strip, numbered 1 to 4.",
+      back: "Render of the underside of the Rev-B rodeo-encoder-bank-4: the CH32V003 microcontroller, the chain input and output connectors and small passives, with the board name and licence in silkscreen.",
+    }),
     summary: 'Four 12 mm encoders with push switches, built to sit beside the pot bank.',
     body: 'The second satellite, deliberately the same shape as the first so the two line up on one panel with their knobs at the same height. The four push switches share a single analog pin through a resistor ladder, because the microcontroller runs out of pins before it runs out of capability — the kind of trade that keeps a satellite under the cost that makes the chain worth having.',
     specs: [
@@ -191,6 +233,11 @@ export const boards: Board[] = [
     status: 'at-fab',
     rev: 'B',
     outline: { w: 60, h: 30 },
+    ...views('rodeo-audio-3.5mm', {
+      iso: "Render of the Rev-B rodeo-audio-3.5mm at an angle: a black board with four 3.5 mm jacks along its front edge and a boxed 2×10 ribbon header behind them.",
+      front: "Render of the top of the Rev-B rodeo-audio-3.5mm: four 3.5 mm jacks along the top edge labelled CODEC IN, SEED IN, CODEC OUT and SEED OUT, protection parts beneath them, and the 2×10 ribbon header along the bottom.",
+      back: "Render of the back of the Rev-B rodeo-audio-3.5mm: the board name, revision and licence in white silkscreen above a large RODEO wordmark that runs off the bottom edge.",
+    }),
     summary: 'Four stereo 3.5 mm jacks carrying the motherboard’s eight audio signals.',
     body: 'Eight audio signals leave the motherboard on one ribbon and land here, on a board that bolts to the rear rail. It is passive apart from protection: a series resistor and a clamp on every input, an ESD diode on every jack contact. A quarter-inch variant will share the circuit with different jacks.',
     specs: [
@@ -214,6 +261,11 @@ export const boards: Board[] = [
     status: 'at-fab',
     rev: 'B',
     outline: { w: 40, h: 25 },
+    ...views('rodeo-midi', {
+      iso: "Render of the Rev-B rodeo-midi at an angle: a small black board with two 3.5 mm TRS jacks along its front edge and a white five-pin connector at the back.",
+      front: "Render of the top of the Rev-B rodeo-midi: two 3.5 mm jacks labelled MIDI IN and MIDI OUT, the words TRS TYPE A, and a five-pin connector labelled TO MOTHERBOARD MIDI.",
+      back: "Render of the back of the Rev-B rodeo-midi: the board name, revision and licence in white silkscreen above a large RODEO wordmark that runs off the bottom edge.",
+    }),
     summary: 'MIDI in and out on TRS Type A, on the back panel.',
     body: 'MIDI leaves the motherboard in Rev B and becomes two jacks on the rear rail. The active parts stay behind — the optocoupler, its resistor and diode, and the output resistors all remain on the motherboard — so this board carries the jacks, one connector and ESD protection on the output, and nothing else.',
     specs: [
@@ -237,6 +289,11 @@ export const boards: Board[] = [
     status: 'at-fab',
     rev: 'B',
     outline: { w: 40, h: 20 },
+    ...views('rodeo-power-usbc', {
+      iso: "Render of the Rev-B rodeo-power-usbc at an angle: a small black board with a USB-C receptacle at its front edge, a status LED either side, and a white eight-pin connector behind.",
+      front: "Render of the top of the Rev-B rodeo-power-usbc: the USB-C receptacle on the top edge between two status LEDs, and the eight-pin connector to the motherboard along the bottom.",
+      back: "Render of the back of the Rev-B rodeo-power-usbc: a large RODEO wordmark running off the top edge above the words USB-C POWER SUPPLY, the revision and the licence.",
+    }),
     summary: 'The default power input, and the board that carries USB data to the Seed.',
     body: 'A USB-C jack behind the panel, cabled to the motherboard. It is why there is USB at all: the Seed’s data lines run through this board instead of stopping inside the case. That is what should bring USB-MIDI, USB audio and DFU flashing to the panel port — should, because no Rev B board has been powered on yet.',
     specs: [
@@ -260,6 +317,11 @@ export const boards: Board[] = [
     status: 'at-fab',
     rev: 'B',
     outline: { w: 60, h: 40 },
+    ...views('rodeo-power-barrel', {
+      iso: "Render of the Rev-B rodeo-power-barrel at an angle: a black board with a barrel jack and a USB-C receptacle along its front edge, two power inductors, an electrolytic capacitor, a white eight-pin connector and a two-pin auxiliary output.",
+      front: "Render of the top of the Rev-B rodeo-power-barrel: USB-C and the barrel jack (labelled DC IN 7–20 V, centre positive) along the top edge, the regulators and inductors in the middle, and the eight-pin motherboard connector and AUX 5V 3A MAX output along the bottom.",
+      back: "Render of the back of the Rev-B rodeo-power-barrel: the words USB-C + BARREL POWER SUPPLY, the revision and licence, and a large RODEO wordmark running off the bottom edge.",
+    }),
     summary: 'The USB-C board plus a barrel jack and a separate 5 V output for LED strips.',
     body: 'For builds that need more current than a USB port will give. The barrel jack takes 7–20 V — a 9 V or 12 V adapter in practice — and wins automatically when it is plugged in, while USB stays connected for data and takes over again if the adapter is pulled. A second regulator feeds an auxiliary 5 V output for LED strips, kept off the motherboard’s supply on purpose.',
     specs: [
@@ -283,6 +345,11 @@ export const boards: Board[] = [
     status: 'at-fab',
     rev: 'B',
     outline: { w: 30, h: 20 },
+    ...views('rodeo-power-switch', {
+      iso: "Render of the Rev-B rodeo-power-switch at an angle: a small black board with a latching push button whose plunger overhangs the front edge, and a white two-pin connector at the back.",
+      front: "Render of the top of the Rev-B rodeo-power-switch: the push button SW1 on the top edge and a two-pin connector labelled TO MOTHERBOARD SWITCH below it.",
+      back: "Render of the back of the Rev-B rodeo-power-switch: the board name, revision and licence in white silkscreen above a large RODEO wordmark that runs off the bottom edge.",
+    }),
     summary: 'A latching button on the back panel that turns the synth off without stopping the charge.',
     body: 'One button and one connector, and nothing else — the resistors and the filter live on the motherboard. Pressed in, it enables the buck-boost converter; out, the synth is off and the battery carries on charging. The plunger comes through a slot in the panel and works bare, so the printed cap is optional.',
     specs: [

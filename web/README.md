@@ -40,8 +40,16 @@ Dark mode only.
 
 ## Regenerating board imagery
 
-No raster images are committed yet. Renders come from KiCad and are reproducible, so
-regenerate them when a board changes instead of maintaining an image library:
+Renders come from KiCad and are reproducible, so regenerate them when a board changes
+instead of maintaining an image library. The Rev-B boards' studio renders (front, back and
+three-quarter, on the warm backdrop) come from Blender, from the repo root:
+
+```bash
+blender -b -P tools/render/render.py -- --all   # writes hardware/<board>/renders/*.jpg
+cd web && npm run renders                        # WebP into src/assets/hardware/rev-b/
+```
+
+A quick flat render straight from KiCad:
 
 ```bash
 /Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli pcb render \
@@ -97,8 +105,10 @@ rendered into the caption by `BoardFigure`, which refuses to render without both
 (`photo` | `render`) and `rev` — a render passed off as a photo is the same class of
 dishonesty as an unlabelled board revision.
 
-Photographed so far: `rodeo-motherboard` (front, back, two detail shots) and
-`rodeo-encoder-hub` (front, back). Still renders: potentiometer, encoder, button.
+Photographed so far, all Rev-A: `rodeo-motherboard` (front, back, two detail shots) and
+`rodeo-encoder-hub` (front, back). Renders: every Rev-B board (three views each, until
+they come back from the fab and can be photographed), and the Rev-A potentiometer,
+encoder and button.
 
 Importing new photos — re-encoding also strips any EXIF, which phone photos can carry:
 
@@ -106,10 +116,8 @@ Importing new photos — re-encoding also strips any EXIF, which phone photos ca
 npm run photos -- <src-dir>   # mapping lives in scripts/prepare-photos.mjs
 ```
 
-Renders are regenerated from KiCad rather than stored as precious artwork:
-
-```bash
-kicad-cli pcb render -o out/<board>.png --width 1800 --height 1400 \
-  --side top --quality high --background opaque <board>.kicad_pcb
-npm run renders out          # re-encode into src/assets/hardware within budget
-```
+Renders are regenerated from KiCad rather than stored as precious artwork — see
+[Regenerating board imagery](#regenerating-board-imagery). `npm run renders` with no
+argument re-encodes every Rev-B board's renders into `src/assets/hardware/rev-b/`;
+`npm run renders -- <src-dir>` re-encodes a directory of renders into
+`src/assets/hardware/` within budget.

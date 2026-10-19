@@ -4,14 +4,15 @@ import Chip from '../../components/Chip.astro';
 import Eyebrow from '../../components/Eyebrow.astro';
 import SpecTable from '../../components/SpecTable.astro';
 import BoardCard from '../../components/BoardCard.astro';
+import BoardFigure from '../../components/BoardFigure.astro';
 import CtaBand from '../../components/CtaBand.astro';
 import { host, satellites, daughterboards, retired } from '../../data/boards';
 import { statusLabel } from '../../data/site';
 
-// No board images on this page any more, and that is deliberate: the only
-// photographs in the repo are of Rev-A hardware, and Rev-B is a different
-// board. Renders of the Rev-B boards land once their soldermask stackups
-// agree — see WEB_ROADMAP.md (rodeo-internal), decision 8.
+// No photographs on this page, and that is deliberate: the only photographs
+// in the repo are of Rev-A hardware, and Rev-B is a different board. The Rev-B
+// boards are shown as CAD renders, captioned as such, until they come back from
+// the fab.
 const legend = [
   { status: 'shipped' as const, label: 'Verified', note: 'proven on real hardware' },
   { status: 'in-progress' as const, label: 'In progress', note: 'being drawn right now' },
@@ -55,7 +56,22 @@ const legend = [
   </section>
 
   <section class="wrap pb-6">
-    <div class="flex flex-col gap-10 border border-rule bg-field-raised p-6 sm:p-8">
+    <div class="flex flex-col gap-10 border border-rule bg-field-raised p-6 sm:p-8 lg:flex-row">
+      {
+        host.shot && (
+          <div class="lg:w-[40%] lg:shrink-0">
+            <BoardFigure
+              src={host.shot.src}
+              alt={host.shot.alt}
+              media={host.shot.media}
+              rev={host.shot.rev}
+              caption={host.shot.caption}
+              widths={[480, 800, 1200]}
+              sizes="(max-width: 1024px) 100vw, 460px"
+            />
+          </div>
+        )
+      }
       <div class="flex min-w-0 grow flex-col gap-5">
         <div class="flex flex-wrap items-center gap-3">
           <h2 class="display m-0 text-[clamp(26px,3.4vw,34px)] normal-case">{host.name}</h2>

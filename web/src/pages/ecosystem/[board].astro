@@ -46,8 +46,9 @@ const others = boards.filter((b) => b.slug !== board.slug);
 
     <section class="flex flex-col gap-10 pt-8 lg:flex-row lg:gap-14">
       {
-        /* Nothing here has been fabricated, so nothing has a photograph yet.
-           The placeholder draws the board's real outline instead. */
+        /* Nothing here has been fabricated, so nothing has a photograph yet:
+           a board shows its CAD render, or failing that the placeholder draws
+           its real outline. */
         board.shot ? (
           <div class="lg:w-[44%] lg:shrink-0">
             <BoardFigure
@@ -95,9 +96,19 @@ const others = boards.filter((b) => b.slug !== board.slug);
       board.gallery?.length ? (
         <section class="pt-16">
           <Eyebrow class="mb-4">More views</Eyebrow>
-          <h2 class="display m-0 mb-8 text-[clamp(26px,3.6vw,34px)]">The board as it arrived</h2>
+          <h2 class="display m-0 mb-8 text-[clamp(26px,3.6vw,34px)]">
+            {board.gallery.every((s) => s.media === 'render')
+              ? 'Top and bottom, from the KiCad files'
+              : 'The board as it arrived'}
+          </h2>
           <ul
-            class={`m-0 grid list-none gap-7 p-0 ${board.gallery.length > 1 ? 'sm:grid-cols-2 lg:grid-cols-3' : 'max-w-[560px]'}`}
+            class={`m-0 grid list-none gap-7 p-0 ${
+              board.gallery.length > 2
+                ? 'sm:grid-cols-2 lg:grid-cols-3'
+                : board.gallery.length === 2
+                  ? 'max-w-[900px] sm:grid-cols-2'
+                  : 'max-w-[560px]'
+            }`}
           >
             {board.gallery.map((shot) => (
               <li>
@@ -108,7 +119,11 @@ const others = boards.filter((b) => b.slug !== board.slug);
                   rev={shot.rev}
                   caption={shot.caption}
                   widths={[400, 700, 1000]}
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
+                  sizes={
+                    board.gallery!.length === 2
+                      ? '(max-width: 640px) 100vw, 440px'
+                      : '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px'
+                  }
                 />
               </li>
             ))}

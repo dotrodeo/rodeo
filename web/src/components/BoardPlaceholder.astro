@@ -1,10 +1,10 @@
 ---
-// Stands in for a photograph that does not exist yet.
+// Stands in for a board with neither a photograph nor a render.
 //
 // Not a grey box: the rectangle is the board's real outline, measured off its
 // KiCad Edge.Cuts layer, so a reader still learns the shape and the scale —
-// which is most of what a catalogue photograph tells you anyway. Renders are
-// deliberately not used here; see WEB_ROADMAP.md (rodeo-internal) decision 8.
+// which is most of what a catalogue photograph tells you anyway. A board with
+// a render shows that instead (its `shot` in src/data/boards.ts).
 interface Props {
   outline: { w: number; h: number };
   /** Caption, matching BoardFigure's grammar so the two read alike. */

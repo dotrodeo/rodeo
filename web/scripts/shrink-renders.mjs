@@ -1,49 +1,68 @@
-// Turn kicad-cli board renders into committable web derivatives.
+// Turn board renders into committable web derivatives.
 //
-// Board renders are mostly flat black soldermask with white silkscreen and a
-// little gold, so a palette PNG crushes them far better than a re-encode at
-// full colour depth. (macOS `sips` makes them *bigger* — don't use it.)
-//
+//   node scripts/shrink-renders.mjs                      # every Rev-B board
 //   node scripts/shrink-renders.mjs <src-dir> [dest-dir]
 //
-// Regenerate the sources first — see web/README.md for the kicad-cli commands.
+// With no arguments it reads the studio renders tools/render/render.py writes
+// into hardware/<board>/renders/ (front, back and iso, JPEG) and writes WebP
+// into src/assets/hardware/rev-b/. Regenerate those first when a board changes:
+//
+//   blender -b -P tools/render/render.py -- --all        # from the repo root
+//
+// Studio renders sit on a graded backdrop, so they go to WebP: a palette PNG
+// bands the gradient. kicad-cli's flat renders (.png) are mostly black mask and
+// white silkscreen, and a palette PNG still crushes those far better than a
+// full-colour re-encode. (macOS `sips` makes them *bigger* — don't use it.)
 
 import sharp from 'sharp';
 import { readdir, stat, mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
 
 const MAX_WIDTH = 1400;
 const BUDGET_KB = 500; // matches scripts/check-assets.mjs
 
-const src = process.argv[2];
-const dest = process.argv[3] ?? 'src/assets/hardware';
-
-if (!src) {
-  console.error('usage: node scripts/shrink-renders.mjs <src-dir> [dest-dir]');
-  process.exit(2);
-}
-
-await mkdir(dest, { recursive: true });
-
-const files = (await readdir(src)).filter((f) => f.endsWith('.png')).sort();
-if (files.length === 0) {
-  console.error(`no .png files in ${src}`);
-  process.exit(2);
+let jobs; // [src-dir, dest-dir]
+if (process.argv[2]) {
+  jobs = [[process.argv[2], process.argv[3] ?? 'src/assets/hardware']];
+} else {
+  const hw = '../hardware';
+  const boards = (await readdir(hw)).filter((d) => d.startsWith('rodeo-')).sort();
+  jobs = boards.map((b) => [join(hw, b, 'renders'), 'src/assets/hardware/rev-b']);
 }
 
 let over = 0;
-for (const file of files) {
-  await sharp(`${src}/${file}`)
-    .resize({ width: MAX_WIDTH, withoutEnlargement: true })
-    .png({ compressionLevel: 9, palette: true, quality: 92, effort: 10 })
-    .toFile(`${dest}/${file}`);
+let count = 0;
+for (const [src, dest] of jobs) {
+  await mkdir(dest, { recursive: true });
+  let files;
+  try {
+    files = (await readdir(src)).filter((f) => /\.(png|jpe?g)$/.test(f)).sort();
+  } catch {
+    console.error(`no renders in ${src} — run tools/render/render.py first`);
+    process.exit(2);
+  }
+  for (const file of files) {
+    const flat = file.endsWith('.png');
+    const out = flat ? file : file.replace(/\.jpe?g$/, '.webp');
+    const img = sharp(join(src, file)).resize({ width: MAX_WIDTH, withoutEnlargement: true });
+    await (flat
+      ? img.png({ compressionLevel: 9, palette: true, quality: 92, effort: 10 })
+      : img.webp({ quality: 82, effort: 6 })
+    ).toFile(join(dest, out));
 
-  const kb = Math.round((await stat(`${dest}/${file}`)).size / 1024);
-  if (kb > BUDGET_KB) over++;
-  console.log(`${String(kb).padStart(6)}KB  ${file}${kb > BUDGET_KB ? '  OVER BUDGET' : ''}`);
+    const kb = Math.round((await stat(join(dest, out))).size / 1024);
+    if (kb > BUDGET_KB) over++;
+    count++;
+    console.log(`${String(kb).padStart(6)}KB  ${out}${kb > BUDGET_KB ? '  OVER BUDGET' : ''}`);
+  }
 }
 
+if (count === 0) {
+  console.error('no renders found');
+  process.exit(2);
+}
 if (over > 0) {
   console.error(`\n${over} file(s) over the ${BUDGET_KB}KB budget — lower MAX_WIDTH or crop.`);
   process.exit(1);
 }
-console.log(`\nall ${files.length} within the ${BUDGET_KB}KB budget`);
+console.log(`\nall ${count} within the ${BUDGET_KB}KB budget`);

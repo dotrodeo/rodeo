@@ -1,10 +1,11 @@
 ---
-// A catalogue card without a photograph.
+// A catalogue card.
 //
-// Every Rev-B board is unfabricated, so there is nothing to photograph and the
-// renders are held back until the soldermask stackups agree. Rather than leave
-// a grey box where an image would go, the card leads with the two specs that
-// actually distinguish the board — which is what a builder is scanning for.
+// Every Rev-B board is unfabricated, so there is nothing to photograph: a card
+// shows the board's CAD render, captioned as one, or its outline when there is
+// no render either. Below it, the two specs that actually distinguish the
+// board — which is what a builder is scanning for.
+import { Image } from 'astro:assets';
 import Chip from './Chip.astro';
 import BoardPlaceholder from './BoardPlaceholder.astro';
 import type { Board } from '../data/boards';
@@ -25,15 +26,22 @@ const lead = board.specs.slice(0, 2);
   >
     {
       board.shot ? (
-        <img
-          src={board.shot.src.src}
-          width={board.shot.src.width}
-          height={board.shot.src.height}
-          alt={board.shot.alt}
-          loading="lazy"
-          decoding="async"
-          class="block aspect-square w-full rounded-[8px] object-cover"
-        />
+        <figure class="m-0">
+          <Image
+            src={board.shot.src}
+            alt={board.shot.alt}
+            widths={[400, 700]}
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
+            loading="lazy"
+            class="block aspect-square h-auto w-full rounded-[8px] object-cover"
+          />
+          <figcaption class="mt-2 font-mono text-[11.5px] text-hardware">
+            <span class="text-legend">
+              {board.shot.rev === 'prototype' ? 'Prototype' : `Rev-${board.shot.rev}`}
+            </span>{' '}
+            · {board.shot.media === 'photo' ? 'photo' : 'CAD render'}
+          </figcaption>
+        </figure>
       ) : board.outline ? (
         <BoardPlaceholder outline={board.outline} rev={board.rev} class="w-full" />
       ) : null
