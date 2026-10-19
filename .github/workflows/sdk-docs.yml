@@ -40,6 +40,13 @@ jobs:
             exit 0
           fi
 
+          # After a force-push the old head isn't in history any more (the STEP
+          # purge of 2026-10-19 did this): compare with the head's parent.
+          if ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            echo "Base ${BASE} isn't in the history (a force-push?): comparing with ${HEAD}'s parent."
+            BASE=$(git rev-parse "${HEAD}^")
+          fi
+
           changed=$(git diff --name-only "${BASE}" "${HEAD}" -- 'rodeo-sdk/**')
 
           # Vendored dependencies are not ours to document.
