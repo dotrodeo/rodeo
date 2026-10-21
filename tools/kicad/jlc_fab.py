@@ -72,6 +72,13 @@ PAD_ALIASES = {
     'C125107': {'1': '2', '2': '1'},
 }
 
+# The other way round, for parts whose KiCad footprint repeats pad numbers: JLC's pad
+# number -> ours. A 6 x 6 mm tact switch is pads 1, 1, 2, 2 in KiCad (each row is one
+# contact) but 1-4 in JLC's footprint, with 3 and 4 on one row.
+EE_PAD_ALIASES = {
+    'C87037': {'3': '1', '4': '1', '1': '2', '2': '2'},   # Omron B3F-1052, SW_PUSH_6mm
+}
+
 
 
 def plot_layers(pcb):
@@ -215,8 +222,10 @@ def solve(kpads, ee, mirror=False):
         pairs = [(q, *rotate(q['x'], q['y'], R)) for q in local if q['num'] in byn]
         if not pairs:
             continue
-        tx = sum(byn[q['num']][0][0] - lx for q, lx, ly in pairs) / len(pairs)
-        ty = sum(byn[q['num']][0][1] - ly for q, lx, ly in pairs) / len(pairs)
+        # Per pad number, the centre of our pads with it; with unique numbers, that pad.
+        cen = {n: (sum(x for x, _ in v) / len(v), sum(y for _, y in v) / len(v)) for n, v in byn.items()}
+        tx = sum(cen[q['num']][0] - lx for q, lx, ly in pairs) / len(pairs)
+        ty = sum(cen[q['num']][1] - ly for q, lx, ly in pairs) / len(pairs)
         err = max(min(math.dist((lx + tx, ly + ty), k) for k in byn[q['num']]) for q, lx, ly in pairs)
         geo = max(min(math.dist((x + tx, y + ty), k) for k in allk)
                   for x, y in (rotate(q['x'], q['y'], R) for q in local))
@@ -364,6 +373,9 @@ def main():
     placed, eefp, poor = {}, {}, []
     for (v, fp, code), rs in groups.items():
         ee = easyeda_footprint(code)
+        ee_alias = EE_PAD_ALIASES.get(code)
+        if ee_alias:
+            ee = dict(ee, pads=[dict(q, num=ee_alias.get(q['num'], q['num'])) for q in ee['pads']])
         for r in rs:
             if r not in fps:
                 sys.exit(f'{r} is in the schematic but not on the board: update the PCB first')
