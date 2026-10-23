@@ -142,7 +142,7 @@
         "max_error": 0.005,
         "min_clearance": 0.0,
         "min_connection": 0.0,
-        "min_copper_edge_clearance": 0.175,
+        "min_copper_edge_clearance": 0.5,
         "min_groove_width": 0.0,
         "min_hole_clearance": 0.25,
         "min_hole_to_hole": 0.25,
@@ -240,7 +240,7 @@
       "internal_id": "",
       "mfg": "",
       "mpn": "",
-      "sch_revision": ""
+      "sch_revision": "B1"
     },
     "layer_pairs": [],
     "layer_presets": [],
@@ -516,7 +516,7 @@
         "clearance": 0.2,
         "microvia_diameter": 0.4,
         "microvia_drill": 0.2,
-        "name": "Power",
+        "name": "LED Power",
         "pcb_color": "rgba(0, 0, 0, 0.000)",
         "priority": 0,
         "schematic_color": "rgba(0, 0, 0, 0.000)",
@@ -533,12 +533,8 @@
     "netclass_assignments": null,
     "netclass_patterns": [
       {
-        "netclass": "Power",
-        "pattern": "+3V3"
-      },
-      {
-        "netclass": "Power",
-        "pattern": "GND"
+        "netclass": "LED Power",
+        "pattern": "V_LED"
       }
     ]
   },
@@ -666,8 +662,8 @@
     "top_level_sheets": [
       {
         "filename": "rodeo-button-bank-4.kicad_sch",
-        "name": "Root",
-        "uuid": "439008f6-e591-4aea-9131-8f00b6cd87c7"
+        "name": "rodeo-button-bank-4",
+        "uuid": "3dc17ce1-1209-4585-9539-e7a08df06580"
       }
     ],
     "used_designators": "",
@@ -675,8 +671,8 @@
   },
   "sheets": [
     [
-      "439008f6-e591-4aea-9131-8f00b6cd87c7",
-      "Root"
+      "3dc17ce1-1209-4585-9539-e7a08df06580",
+      "rodeo-button-bank-4"
     ]
   ],
   "text_variables": {},
