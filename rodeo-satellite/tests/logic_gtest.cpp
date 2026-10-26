@@ -73,6 +73,14 @@ TEST(Kind, EncoderBankIsFoundWithoutEverDrivingPc2)
     EXPECT_EQ(enc_bank.drives, 0);
 }
 
+TEST(Kind, SingleEncoderIsFoundWithoutDrivingPc2)
+{
+    // Fed from 3V3 like the encoder bank: 2.49 k reads 204 counts at once.
+    Divider enc = {2490, false};
+    EXPECT_EQ(Detect(enc), SAT_KIND_ENCODER);
+    EXPECT_EQ(enc.drives, 0);
+}
+
 TEST(Kind, NoIdResistorReadsFullScale)
 {
     Divider none = {1e12, false};
@@ -96,6 +104,17 @@ TEST(Kind, BoardsWireTheIdAndAnalogPinsToAdcChannels)
     sat_board enc = SAT_BOARD_ENC_BANK_4;
     EXPECT_EQ(sat_adc_channel(enc.switches), 7); // PD4
     EXPECT_EQ(enc.id_feed.port, 0);              // tied to 3V3: no feed pin
+    // The single encoder is the encoder bank's slot 1, with the same switch pin.
+    sat_board e1 = SAT_BOARD_ENC_1;
+    EXPECT_EQ(e1.enc_a[0].port, enc.enc_a[0].port);
+    EXPECT_EQ(e1.enc_a[0].pin, enc.enc_a[0].pin);
+    EXPECT_EQ(e1.enc_b[0].pin, enc.enc_b[0].pin);
+    EXPECT_EQ(e1.enc_a[1].port, 0);
+    EXPECT_EQ(sat_adc_channel(e1.switches), 7);
+    EXPECT_EQ(e1.present.port, enc.present.port);
+    EXPECT_EQ(e1.led.port, enc.led.port);
+    EXPECT_EQ(e1.id_feed.port, 0);
+    EXPECT_EQ(sat_kind_slots(SAT_KIND_ENCODER), 1);
     EXPECT_EQ(sat_adc_channel(sat_pin{'D', 3}), 4); // the ID pin, every board
 }
 
@@ -158,6 +177,29 @@ TEST(Ladder, EveryCombinationDecodesAtOnePercentCorners)
                 EXPECT_EQ(ladder_decode(&l, static_cast<uint16_t>(std::lround(v * 1023))), m)
                     << "mask " << int(m);
             }
+}
+
+TEST(Ladder, OneRungForTheSingleEncoder)
+{
+    const uint32_t r[4] = {10000, LADDER_ABSENT, LADDER_ABSENT, LADDER_ABSENT};
+    sat_ladder     l;
+    ladder_init(&l, r, LADDER_PULL_UP, 1023);
+    EXPECT_EQ(l.level[0], 1023);
+    EXPECT_EQ(l.level[1], 511); // 10 k up, 10 k down
+    // Released and pressed decode as switch 1 alone, across 1 % parts and noise.
+    for(int d : {-20, 0, 20})
+    {
+        EXPECT_EQ(ladder_decode(&l, (uint16_t)(1023 + (d < 0 ? d : 0))), 0);
+        EXPECT_EQ(ladder_decode(&l, (uint16_t)(511 + d)), 1);
+    }
+    for(int i = 0; i < 3; i++)
+        ladder_update(&l, 511);
+    EXPECT_EQ(l.pressed, 1);
+    EXPECT_EQ(l.presses[0], 1);
+    for(int i = 0; i < 3; i++)
+        ladder_update(&l, 1023);
+    EXPECT_EQ(l.pressed, 0);
+    EXPECT_EQ(l.presses[1] | l.presses[2] | l.presses[3], 0);
 }
 
 TEST(Ladder, DebouncesAndCountsPresses)

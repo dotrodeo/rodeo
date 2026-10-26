@@ -1,8 +1,8 @@
 #pragma once
 //
 // What each satellite board wires to which CH32V003F4P6 pin, read from the
-// boards' schematics (hardware/rodeo-pot-1, hardware/rodeo-pot-bank-4,
-// hardware/rodeo-encoder-bank-4).
+// boards' schematics (hardware/rodeo-pot-1, hardware/rodeo-encoder-1,
+// hardware/rodeo-pot-bank-4, hardware/rodeo-encoder-bank-4).
 // One firmware image serves every board: it reads the ID resistor (kind.h) and
 // then uses that kind's map. Pure data, no register access.
 //
@@ -47,7 +47,7 @@ typedef struct
     sat_pin led;     // indicator LED, active high
     sat_pin id_feed; // drives the ID divider's 10 k, or port 0 if it's tied to 3V3
     sat_pin pots[4]; // pot wipers, pots 1-4 in slot order; unused ones SAT_NO_PIN
-    sat_pin enc_a[4];
+    sat_pin enc_a[4]; // encoders 1-4 in slot order; unused ones SAT_NO_PIN
     sat_pin enc_b[4];
     sat_pin switches; // the push switches' resistor ladder (encoder bank)
 } sat_board;
@@ -66,6 +66,15 @@ typedef struct
     {                                                                          \
         .present = {'C', 3}, .led = {'C', 6}, .id_feed = {'C', 2},             \
         .pots = {{'A', 2}, {'D', 2}, {'C', 4}, {'A', 1}},                      \
+    }
+
+/** Kind 3, rodeo-encoder-1: the encoder bank's map cut to slot 1. Its push switch
+ *  is a one-rung ladder on PD4 (10 k up, 10 k through the switch), and the ID
+ *  divider is tied to 3V3 like the bank's. */
+#define SAT_BOARD_ENC_1                                                        \
+    {                                                                          \
+        .present = {'D', 2}, .led = {'D', 0}, .id_feed = {0, 0},               \
+        .enc_a = {{'A', 1}}, .enc_b = {{'A', 2}}, .switches = {'D', 4},        \
     }
 
 /** Kind 6, rodeo-encoder-bank-4. The ID divider's top is tied to 3V3, and PC2

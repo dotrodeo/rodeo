@@ -16,6 +16,10 @@ extern "C" {
 
 #define LADDER_PULL_UP 10000u
 #define LADDER_STABLE 3u
+/** A switch the board doesn't have (the single encoder has only switch 1). Its
+ *  conductance comes out as 0, so every combination with it reads as without it
+ *  and the decoder, which takes the lowest of equal levels, never reports it. */
+#define LADDER_ABSENT 0xFFFFFFFFu
 
 typedef struct
 {

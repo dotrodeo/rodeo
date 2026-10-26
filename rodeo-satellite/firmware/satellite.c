@@ -203,6 +203,7 @@ static bool       fault; // the kind couldn't be read, or isn't supported here
 
 static sat_pot_filter pot_filt[4];
 static sat_quad       enc[4];
+static uint8_t        n_enc; // encoders on this board
 static sat_ladder     ladder;
 
 static uint8_t  led_level, led_mode; // from the last LED slot
@@ -234,22 +235,25 @@ static void setup_board(int kind, uint8_t detail)
             adc_chan[adc_n++] = sat_adc_channel(board.pots[i]);
         }
     }
-    else if(kind == SAT_KIND_ENC_BANK_4)
+    else if(kind == SAT_KIND_ENCODER || kind == SAT_KIND_ENC_BANK_4)
     {
-        board = (sat_board)SAT_BOARD_ENC_BANK_4;
-        for(int i = 0; i < 4; i++)
+        board = kind == SAT_KIND_ENCODER ? (sat_board)SAT_BOARD_ENC_1 : (sat_board)SAT_BOARD_ENC_BANK_4;
+        for(n_enc = 0; n_enc < 4 && has(board.enc_a[n_enc]); n_enc++)
         {
-            mode(board.enc_a[i], GPIO_CNF_IN_FLOATING); // pulled up on the board
-            mode(board.enc_b[i], GPIO_CNF_IN_FLOATING);
-            quad_init(&enc[i], (uint8_t)get(board.enc_a[i]), (uint8_t)get(board.enc_b[i]));
+            mode(board.enc_a[n_enc], GPIO_CNF_IN_FLOATING); // pulled up on the board
+            mode(board.enc_b[n_enc], GPIO_CNF_IN_FLOATING);
+            quad_init(&enc[n_enc], (uint8_t)get(board.enc_a[n_enc]), (uint8_t)get(board.enc_b[n_enc]));
         }
         mode(board.switches, GPIO_CNF_IN_ANALOG);
         adc_chan[adc_n++] = sat_adc_channel(board.switches);
-        static const uint32_t r_switch[4] = {10000, 20000, 40200, 80600}; // R7, R11, R14, R17
-        ladder_init(&ladder, r_switch, LADDER_PULL_UP, 1023);
+        // The bank's R7, R11, R14, R17; the single encoder's R8, its only rung.
+        static const uint32_t r_bank[4]   = {10000, 20000, 40200, 80600};
+        static const uint32_t r_single[4] = {10000, LADDER_ABSENT, LADDER_ABSENT, LADDER_ABSENT};
+        ladder_init(&ladder, kind == SAT_KIND_ENCODER ? r_single : r_bank, LADDER_PULL_UP, 1023);
     }
 
-    if(kind == SAT_KIND_POT || kind == SAT_KIND_POT_BANK_4 || kind == SAT_KIND_ENC_BANK_4)
+    if(kind == SAT_KIND_POT || kind == SAT_KIND_ENCODER || kind == SAT_KIND_POT_BANK_4
+       || kind == SAT_KIND_ENC_BANK_4)
     {
         me.kind  = (uint8_t)kind;
         me.slots = sat_kind_slots((uint8_t)kind);
@@ -293,9 +297,7 @@ static bool is_last(void)
 
 static void inputs_poll(void)
 {
-    if(!has(board.enc_a[0]))
-        return;
-    for(int i = 0; i < 4; i++)
+    for(int i = 0; i < n_enc; i++)
         quad_update(&enc[i], (uint8_t)get(board.enc_a[i]), (uint8_t)get(board.enc_b[i]));
 }
 
@@ -307,7 +309,7 @@ static void adc_service(void)
     adc_busy     = false;
     if(st.me.kind == SAT_KIND_POT || st.me.kind == SAT_KIND_POT_BANK_4)
         inputs[adc_i] = sat_pot(pot_filter(&pot_filt[adc_i], pot_scale10(raw), 2));
-    else if(st.me.kind == SAT_KIND_ENC_BANK_4)
+    else if(st.me.kind == SAT_KIND_ENCODER || st.me.kind == SAT_KIND_ENC_BANK_4)
         ladder_update(&ladder, raw);
     if(++adc_i < adc_n)
     {
@@ -325,9 +327,8 @@ static void every_ms(void)
         adc_start(adc_chan[0]);
         adc_busy = true;
     }
-    if(st.me.kind == SAT_KIND_ENC_BANK_4)
-        for(int i = 0; i < 4; i++)
-            inputs[i] = sat_encoder(enc[i].detents, (ladder.pressed >> i) & 1, ladder.presses[i]);
+    for(int i = 0; i < n_enc; i++)
+        inputs[i] = sat_encoder(enc[i].detents, (ladder.pressed >> i) & 1, ladder.presses[i]);
 
     // Re-check PRESENT and re-route, but only between frames.
     if(!st.active && tx_idle())
