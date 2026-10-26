@@ -140,14 +140,14 @@ export const boards: Board[] = [
       'The host board. A Daisy Seed, two codecs, ten general-purpose I/O connectors and the satellite chain.',
     body: 'The motherboard has one job: carry the Daisy, the audio, and the connectors everything else plugs into. There are no converters on it: those pins drive a second codec instead, and high-resolution analog moved to an optional expander board. Controls no longer compete for motherboard channels, because the satellite chain grows by adding satellites. It also carries the battery, its charger and a fuel gauge, so the instrument charges over USB-C and runs off the desk.',
     specs: [
-      { label: 'audio', value: '4 in / 4 out, two codecs', evidence: `${R}:328` },
+      { label: 'audio', value: '4 in / 4 out, two codecs', evidence: `${R}:332` },
       { label: 'general-purpose I/O', value: '10 connectors, 8 analog-capable', evidence: `${R}:81` },
       { label: 'control growth', value: 'satellite chain on USART3', evidence: `${R}:131` },
-      { label: 'I²C', value: '4 taps, pull-ups on board', evidence: `${R}:242` },
-      { label: 'storage', value: 'internal SD, 1-bit SDMMC', evidence: `${R}:260` },
-      { label: 'USB', value: 'data via the power board', evidence: `${R}:304` },
-      { label: 'MIDI', value: 'on a daughterboard', evidence: `${R}:430` },
-      { label: 'power', value: '1S Li-ion, charger and fuel gauge', evidence: `${R}:465-474` },
+      { label: 'I²C', value: '4 taps, pull-ups on board', evidence: `${R}:246` },
+      { label: 'storage', value: 'internal SD, 1-bit SDMMC', evidence: `${R}:264` },
+      { label: 'USB', value: 'data via the power board', evidence: `${R}:308` },
+      { label: 'MIDI', value: 'on a daughterboard', evidence: `${R}:434` },
+      { label: 'power', value: '1S Li-ion, charger and fuel gauge', evidence: `${R}:469-478` },
       { label: 'expansion', value: 'SPI header with chip-select', evidence: `${R}:100` },
     ],
     caveats: [
@@ -159,7 +159,7 @@ export const boards: Board[] = [
       {
         status: 'not-planned',
         text: 'No on-board ADCs. The two ADS114S08s, their 24 pot connectors and the pull-downs are removed; that bank becomes an optional expander on the SPI header.',
-        evidence: `${R}:606-610`,
+        evidence: `${R}:610-614`,
       },
     ],
   },
@@ -181,7 +181,7 @@ export const boards: Board[] = [
     specs: [
       { label: 'controls', value: '4 × 9 mm pot, 25 mm centres', evidence: 'hardware/rodeo-pot-bank-4/README.md:3' },
       { label: 'outline', value: '20 × 100 mm', evidence: 'hardware/rodeo-pot-bank-4/README.md:19' },
-      { label: 'brain', value: 'CH32V003F4P6', evidence: `${CHAIN}:89` },
+      { label: 'brain', value: 'CH32V003F4P6', evidence: `${CHAIN}:103` },
       { label: 'chain link', value: 'JST SH 5-pin, in and out', evidence: `${CHAIN}:32-33` },
       { label: 'chain rate', value: '1 Mbaud', evidence: `${CHAIN}:51` },
     ],
@@ -211,8 +211,8 @@ export const boards: Board[] = [
     specs: [
       { label: 'controls', value: '4 × 12 mm encoder with switch', evidence: 'hardware/rodeo-encoder-bank-4/README.md:3' },
       { label: 'outline', value: '20 × 100 mm, matching the pot bank', evidence: 'hardware/rodeo-encoder-bank-4/README.md:20' },
-      { label: 'brain', value: 'CH32V003F4P6', evidence: `${CHAIN}:89` },
-      { label: 'chain slots', value: 'board kind 6, four encoder slots', evidence: `${CHAIN}:128` },
+      { label: 'brain', value: 'CH32V003F4P6', evidence: `${CHAIN}:103` },
+      { label: 'chain slots', value: 'board kind 6, four encoder slots', evidence: `${CHAIN}:142` },
     ],
     caveats: [
       {
@@ -352,7 +352,7 @@ export const boards: Board[] = [
     body: 'One button and one connector, and nothing else — the resistors and the filter live on the motherboard. Pressed in, it enables the buck-boost converter; out, the synth is off and the battery carries on charging. The plunger comes through a slot in the panel and works bare, so the printed cap is optional.',
     specs: [
       { label: 'switch', value: 'latching push button, panel mount', evidence: 'hardware/rodeo-power-switch/README.md:3' },
-      { label: 'to the motherboard', value: 'JST SH 2-pin on J3', evidence: `${R}:515` },
+      { label: 'to the motherboard', value: 'JST SH 2-pin on J3', evidence: `${R}:519` },
       { label: 'outline', value: '30 × 20 mm', evidence: 'hardware/rodeo-power-switch/README.md:10-11' },
     ],
     caveats: [
@@ -402,8 +402,8 @@ export const prototype = {
       rev: 'A',
     },
     specs: [
-      { label: 'connector', value: '3-pin JST SH: GND, wiper, supply', evidence: `${R}:574-578` },
-      { label: 'Rev B fit', value: 'plugs into any analog-capable I/O connector', evidence: `${R}:574-578` },
+      { label: 'connector', value: '3-pin JST SH: GND, wiper, supply', evidence: `${R}:578-582` },
+      { label: 'Rev B fit', value: 'plugs into any analog-capable I/O connector', evidence: `${R}:578-582` },
       { label: 'electronics', value: 'passive — one RC filter', evidence: `${SDK}:133-134` },
     ],
   },
@@ -455,14 +455,14 @@ export const prototype = {
       revA: '24 channels at 16 bits, from two converters soldered to every board',
       revB: 'the Seed’s own converter across eight I/O connectors; the 16-bit bank becomes an optional board',
       why: 'Every build paid about nineteen dollars for converters whether it needed them or not. Satellites cover ordinary knobs, so the precision bank became opt-in.',
-      evidence: `${R}:218`,
+      evidence: `${R}:222`,
     },
     {
       area: 'Audio',
       revA: 'one codec, in and out',
       revB: 'a second codec on the pins the converters vacated — four in, four out',
       why: 'The freed pins were worth more as audio than as analog inputs that satellites could supply instead.',
-      evidence: `${R}:328`,
+      evidence: `${R}:332`,
     },
     {
       area: 'Growing a panel',
@@ -476,21 +476,21 @@ export const prototype = {
       revA: 'power only — the data lines went nowhere',
       revB: 'data through the power board: USB-MIDI, USB audio and firmware flashing',
       why: 'The most-checked spec on the Rev-A board, and the one most worth fixing.',
-      evidence: `${R}:304`,
+      evidence: `${R}:308`,
     },
     {
       area: 'Power',
       revA: 'USB-C in, straight to a regulator — tethered to a wall for as long as it runs',
       revB: 'a 1S Li-ion battery with a charger, power path and fuel gauge on the motherboard',
       why: 'Rev A had no battery of any kind. Rev B charges over USB-C and keeps charging with the switch off, which is the difference between a thing on a bench and an instrument you can pick up.',
-      evidence: `${R}:465-474`,
+      evidence: `${R}:469-478`,
     },
     {
       area: 'Jacks and MIDI',
       revA: 'on the motherboard',
       revB: 'daughterboards on a rear rail',
       why: 'A smaller host board, and connectors a build does not need are connectors it does not pay for.',
-      evidence: `${R}:430`,
+      evidence: `${R}:434`,
     },
   ] satisfies Change[],
 
