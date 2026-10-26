@@ -104,10 +104,11 @@ only says what the board has on it.
 Kinds 8–14 are unassigned. A new board type needs a resistor value and a
 firmware update, not a firmware of its own.
 
-:::note[Kind 7 is assigned but not written]
+:::note[Kind 7 is written but not yet on a board]
 The contract gives `rodeo-button-bank-4` kind 7 and an `RGB` output slot — a
 colour as RGB565, which fits the two data bytes every slot already has. The
-firmware does not implement either yet, and nor does the WS2812 driver exist.
+satellite firmware and the Seed's driver implement both, along with the WS2812
+driver; like all the satellite firmware, none of it has run on a board yet.
 :::
 
 ## Timing
