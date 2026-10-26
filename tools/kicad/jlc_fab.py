@@ -66,7 +66,6 @@ EASYEDA_CACHE = os.path.join(HERE, 'easyeda-footprints')
 # EasyEDA pad number, per LCSC part, worked out from the two footprints' geometry.
 PAD_ALIASES = {
     'C431535': {'S': '1', 'R2': '2', 'R1': '3', 'T': '4'},   # PJ-320D, Jack_3.5mm_PJ320D_Horizontal
-    'C143790': {'A': '1', 'C': '2', 'B': '3', 'S2': '4', 'S1': '5', 'MP': '7'},  # PEC11R-S on the EC11E-Switch footprint
     # LTST-C230 reverse-mount LED: JLC's pad 1 is the anode, KiCad's LED pad 1 is the
     # cathode (JLC's preview showed its + on our cathode pad, 2026-10-16).
     'C125107': {'1': '2', '2': '1'},
@@ -77,6 +76,8 @@ PAD_ALIASES = {
 # contact) but 1-4 in JLC's footprint, with 3 and 4 on one row.
 EE_PAD_ALIASES = {
     'C87037': {'3': '1', '4': '1', '1': '2', '2': '2'},   # Omron B3F-1052, SW_PUSH_6mm
+    # PEC11R-S on the EC11E-Switch footprint: KiCad names both lugs MP, JLC numbers them 7 and 8.
+    'C143790': {'1': 'A', '2': 'C', '3': 'B', '4': 'S2', '5': 'S1', '7': 'MP', '8': 'MP'},
 }
 
 
