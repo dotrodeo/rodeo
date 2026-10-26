@@ -283,7 +283,7 @@ export const boards: Board[] = [
       },
       {
         status: 'planned',
-        text: 'The satellite firmware does not know this board yet. Kind 7, an RGB output slot in the chain protocol and the WS2812 driver all still have to be written.',
+        text: 'The chain contract assigns this board kind 7 and an RGB output slot, and the firmware implements neither yet. Nor does the WS2812 driver exist.',
         evidence: 'hardware/rodeo-button-bank-4/README.md:184-195',
       },
     ],

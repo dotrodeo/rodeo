@@ -183,13 +183,13 @@ green to dim first. Measure on the first build.
 
 ## Firmware
 
-Needs, none of it written yet:
+The contract now assigns kind 7 and the `RGB` output slot (§1.6, §3.2). The code is
+still to be written:
 
-* **Board kind 7** in `sat_frame.h` and the contract's kind table.
-* **An RGB output slot.** The contract's open item (§9): one output slot carries 2
-  data bytes, so propose `SAT_OUT_RGB` = `0x11` with D0–D1 an RGB565 colour
-  (little-endian), one per button; `SAT_OUT_LED` (brightness and blink) still works,
-  as white.
+* **Board kind 7** in `sat_frame.h`: four slots, `BUTTON` in and `RGB` out, which
+  also means `sat_kind_slots()` stops treating 4 slots as a banks-only case.
+* **`SAT_OUT_RGB` = `0x11`**, `D0`–`D1` an RGB565 colour, little-endian, one per
+  button. `SAT_OUT_LED` still works on the same slot and shows as white.
 * **WS2812 driver** on SPI1 MOSI (PC6) with DMA, as ch32v003fun's
   `ws2812b_dma_spi_led_driver.h` does; 4 LEDs × 24 bits take 120 µs.
 * **Brightness cap** from `AUX_SENSE`.

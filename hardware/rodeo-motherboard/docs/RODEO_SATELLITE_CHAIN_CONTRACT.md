@@ -3,7 +3,7 @@ title: "Rodeo Satellite Chain — Wire Contract"
 tags: [rodeo, firmware, uart, satellites, contract]
 status: draft v1 — frame format in code (rodeo-sdk/common/sat_frame.h); not yet on hardware
 created: 2026-10-08
-updated: 2026-10-19
+updated: 2026-10-26
 reviewers: [derek]
 ---
 
@@ -140,7 +140,8 @@ reading further than ±0.3 from every kind is fault `0x01` (§7), not a guess.
 | 4 | rotary switch | 1 | `SWITCH` | `LED` |
 | 5 | pot bank ×4 (`rodeo-pot-bank-4`) | 4 | `POT` ×4, pots 1–4 in order | slot 1 `LED`, slots 2–4 `NONE` |
 | 6 | encoder bank ×4 (`rodeo-encoder-bank-4`) | 4 | `ENCODER` ×4, encoders 1–4 in order | slot 1 `LED`, slots 2–4 `NONE` |
-| 7–14 | unassigned | | | |
+| 7 | button bank ×4 (`rodeo-button-bank-4`) | 4 | `BUTTON` ×4, buttons 1–4 in order | `RGB` ×4, the LED beside each button |
+| 8–14 | unassigned | | | |
 | 15 | **no ID resistor fitted:** sends `EMPTY` | 1 | `EMPTY` | ignored |
 
 A new board type needs a new resistor value and a firmware update, not a separate
@@ -237,6 +238,13 @@ wrap, and the Seed works out what changed from the difference with the last good
 |---|---|---|
 | `0x00` | `NONE` | ignored; the satellite keeps its current output state |
 | `0x10` | `LED` | `D0`: brightness 0–255 (0 = off). `D1`: 0 steady, 1 slow blink (1 Hz), 2 fast blink (4 Hz). |
+| `0x11` | `RGB` | colour as RGB565, little-endian (`D0` low): bits 0–4 blue, 5–10 green, 11–15 red. 0 is off. |
+
+**`RGB` fits in the two bytes every slot has** because RGB565 is sixteen bits, so a
+colour needs no second slot and no change to §2. It carries no brightness or blink
+field: scale the colour instead, and blink by sending a different colour. A satellite
+with colour LEDs also accepts `LED` on the same slot and shows it as white at that
+brightness, so a Seed that knows nothing about colour can still drive it.
 
 A satellite ignores an output slot that fails its CRC or whose `KIND` it doesn't
 support, and keeps its previous output state.
@@ -381,5 +389,8 @@ produce one.
 * **Multi-slot satellites** (`s` > 1): the format supports up to 4 slots per satellite.
   Kind 5, the pot bank, is the first to use 4; its discovery reply and slot ordering
   are the first real test of §2 and §4 with `s` > 1.
-* **RGB LEDs** need more than one output slot's 2 data bytes; reserve a kind when one
-  exists.
+* **The button bank's LED supply is outside this contract.** Kind 7 draws its LED
+  power from a 5 V aux cable when one is plugged in and from the chain's 3V3 when it
+  is not, capping brightness in firmware in that case (§1.4). Nothing on the chain
+  tells the Seed which supply a satellite is on; if that turns out to matter, it
+  belongs in the discovery reply (§4), not in a slot.

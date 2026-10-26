@@ -98,14 +98,16 @@ only says what the board has on it.
 | `4` | rotary switch | 1 × `SWITCH` |
 | `5` | pot bank ×4 (`rodeo-pot-bank-4`) | 4 × `POT` |
 | `6` | encoder bank ×4 (`rodeo-encoder-bank-4`) | 4 × `ENCODER` |
+| `7` | button bank ×4 (`rodeo-button-bank-4`) | 4 × `BUTTON` |
 | `15` | no resistor fitted — reports `EMPTY` | 1 |
 
-Kinds 7–14 are unassigned. A new board type needs a resistor value and a
+Kinds 8–14 are unassigned. A new board type needs a resistor value and a
 firmware update, not a firmware of its own.
 
-:::note[Kind 7 is spoken for but not written]
-`rodeo-button-bank-4` claims kind 7, and the firmware does not know about it
-yet — the kind, an RGB output slot and the WS2812 driver are all still to come.
+:::note[Kind 7 is assigned but not written]
+The contract gives `rodeo-button-bank-4` kind 7 and an `RGB` output slot — a
+colour as RGB565, which fits the two data bytes every slot already has. The
+firmware does not implement either yet, and nor does the WS2812 driver exist.
 :::
 
 ## Timing
