@@ -276,3 +276,36 @@ TEST(RodeoDsp, RngIsBoundedAndNotStuck)
     EXPECT_GT(hi, 0.9f);
     EXPECT_LT(fabs(sum / 20000.0), 0.05) << "a bipolar source should be centred";
 }
+
+// ToneMeter is how audio_4x4 tells which output came back on which input, so a
+// swapped cable or channel must read as a different frequency, not a near miss.
+TEST(RodeoDsp, ToneMeterReadsFrequencyAndPeak)
+{
+    for(float hz : {250.f, 500.f, 1000.f, 2000.f})
+    {
+        ToneMeter m;
+        m.Init(48000.f, 0.5f);
+        int windows = 0;
+        for(int i = 0; i < 48000; i++)
+            windows += m.Process(0.4f * sinf(2.f * kPi * hz * float(i) / 48000.f));
+        EXPECT_EQ(windows, 2);
+        EXPECT_NEAR(m.Hz(), hz, hz * 0.005f) << hz;
+        EXPECT_NEAR(m.Peak(), 0.4f, 0.001f);
+    }
+}
+
+TEST(RodeoDsp, ToneMeterIgnoresNoiseAndSilence)
+{
+    ToneMeter m;
+    m.Init(48000.f, 0.5f);
+    Rng rng;
+    rng.Seed(42);
+    for(int i = 0; i < 24000; i++)
+        m.Process(0.01f * rng.Bipolar()); // under the hysteresis
+    EXPECT_EQ(m.Hz(), 0.f);
+    EXPECT_LT(m.Peak(), 0.011f);
+    for(int i = 0; i < 24000; i++)
+        m.Process(0.f);
+    EXPECT_EQ(m.Hz(), 0.f);
+    EXPECT_EQ(m.Peak(), 0.f);
+}

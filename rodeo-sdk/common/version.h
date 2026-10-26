@@ -76,6 +76,12 @@
 //     Seed 2 with two jumpers: DAC read back within 0.1 %, digital loop passes.
 //     95 host tests.
 //   * examples/usb_midi_cdc and usb_device: TinyUSB on a bare Seed.
+//   * audio_4x4.h: both codecs in one callback, four channels in and out
+//     (2026-10-26). Daisy Patch's dual-SAI setup with Rev B's pins; releases
+//     the CS4272's reset once SAI2's clocks run. rodeo_dsp.h gains ToneMeter.
+//     examples/audio_4x4 (a tone per output, each input measured) and
+//     examples/sd_card (1-bit SDMMC: write, read back, check, time) build but
+//     wait for the motherboard. 99 host tests.
 
 #pragma once
 

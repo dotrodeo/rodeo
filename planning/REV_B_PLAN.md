@@ -322,8 +322,9 @@ resistor, a pot bank and an encoder bank answering DISCOVER and SCAN, then the c
 4. **`rodeo-satellite/`** on ch32v003fun: the logic is written and host-tested, and the
    firmware builds (6.5 KB). Still to do: flash and test it on a CH32V003 dev board
    with a WCH-LinkE (not yet bought).
-5. **The audio and SD examples' code**, written against libDaisy, ready to run when the
-   motherboard arrives.
+5. ~~**The audio and SD examples' code**~~ written 2026-10-26: `examples/audio_4x4`
+   (on `common/audio_4x4.h`, both codecs in one callback) and `examples/sd_card`.
+   Both build; neither has run, since both need the motherboard.
 6. **The USB exploration** above, on a bare Daisy Seed.
 
 ## Freezing Rev A

@@ -69,6 +69,7 @@ Unreleased, towards v0.3.0 (the first Rev B release):
 - sat_chain.h / sat_chain_port.h: the Seed's chain driver (2026-10-19). The engine is pure and host-tested against a simulated ring (discovery, scanning, breaks found and repaired); the port is USART3 on DMA1_Stream7 and DMA2_Stream5. examples/sat_chain runs it on a bare Seed: as a loop-back on a Seed 2 it scanned at 250/s with none bad, and found and recovered from a pulled wire. Not yet run with satellites. 90 host tests.
 - io_plan.h / io.h: the ten I/O connectors (2026-10-19): digital in/out, analog in on the Seed's ADC, CV out on its DAC, the configuration checked before any pin is touched. examples/io_connectors self-tests on a bare Seed 2 with two jumpers: DAC read back within 0.1 %, digital loop passes. 95 host tests.
 - examples/usb_midi_cdc and usb_device: TinyUSB on a bare Seed.
+- audio_4x4.h: both codecs in one callback, four channels in and out (2026-10-26). Daisy Patch's dual-SAI setup with Rev B's pins; releases the CS4272's reset once SAI2's clocks run. rodeo_dsp.h gains ToneMeter. examples/audio_4x4 (a tone per output, each input measured) and examples/sd_card (1-bit SDMMC: write, read back, check, time) build but wait for the motherboard. 99 host tests.
 
 ## RODEO_SDK_VERSION_NUM
 

@@ -40,6 +40,7 @@ HEADERS = [
     ('sat_chain_port.h', 5),
     ('io_plan.h', 6),
     ('io.h', 7),
+    ('audio_4x4.h', 8),
     ('adc_convert.h', 10),
     ('pot_ui.h', 11),
     ('rodeo_dsp.h', 12),

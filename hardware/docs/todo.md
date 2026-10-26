@@ -10,6 +10,5 @@ already exist go in [`revisions.md`](revisions.md) instead.
   kind number it reports (and whether the user can change it), what its GPIO headers
   carry (3V3, GND, the aux 5 V), and whether firmware for it is a stock image with a
   user hook or the user's own.
-* **Button bank ×4** (in progress): [`rodeo-button-bank-4`](../rodeo-button-bank-4/README.md).
 * **¼" jack board**, with the CV decision.
 * **USB OTG_HS breakout** for the SDK's USB work.

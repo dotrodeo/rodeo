@@ -38,6 +38,7 @@ rodeo-sdk/
   common/
     board.h              # Rev B pin map — the single source of truth (host-safe)
     board_daisy.h        # board.h's pins as libDaisy Pins (target only)
+    audio_4x4.{h,cpp}    # Rev B audio: both codecs, four in and four out, one callback
     version.h            # SDK version + RODEO_SDK_AT_LEAST(); the real changelog
     rodeo.mk             # shared build rules; every app/example includes this
     ads114s08.{h,cpp}    # per-chip ADS114S08 SPI ADC driver
@@ -51,6 +52,10 @@ rodeo-sdk/
     tests/               # host-side GoogleTest: the pure-logic headers and board.h
   template/          # copy-to-start skeleton for a new Rodeo app (blinks the Seed's LED)
   examples/
+    audio_4x4/         # Rev B: all eight audio channels, a tone out and a meter in on each
+    io_connectors/     # the ten I/O connectors, self-testing on a bare Seed
+    sat_chain/         # the satellite chain driver on a bare Seed
+    sd_card/           # Rev B: the internal microSD in 1-bit mode, checked and timed
     usb_midi_cdc/      # TinyUSB on a bare Seed: MIDI + serial
     usb_device/        # TinyUSB on a bare Seed: audio, MIDI, serial, RAM-disk mode
   tools/

@@ -1,0 +1,64 @@
+---
+title: audio_4x4.h
+description: "Rev B's four audio ins and four outs: the Seed's own codec on SAI1 and the CS4272 on SAI2, both in one callback."
+sidebar:
+  order: 8
+editUrl: https://github.com/dotrodeo/rodeo/edit/main/rodeo-sdk/common/audio_4x4.h
+---
+
+{/* Generated from rodeo-sdk/common/audio_4x4.h by rodeo-sdk/tools/docs/gen_reference.py. Do not edit:
+    change the header's comments and run `make docs` in rodeo-sdk/. */}
+
+:::note[Generated from the header]
+This page is [`rodeo-sdk/common/audio_4x4.h`](https://github.com/dotrodeo/rodeo/blob/main/rodeo-sdk/common/audio_4x4.h) — its comments and declarations.
+To change it, change the header.
+:::
+
+```cpp
+rodeo::InitAudio4x4(hw);          // after hw.Init()
+rodeo::StartAudio4x4(hw, Callback);
+
+void Callback(daisy::AudioHandle::InputBuffer in,
+              daisy::AudioHandle::OutputBuffer out, size_t size)
+{
+    // in[0..3] and out[0..3] are back-panel channels 1-4: 0/1 the Seed's
+    // codec, 2/3 the CS4272.
+}
+```
+
+This is Daisy Patch's dual-codec setup with Rev B's pins. SAI1 is rebuilt the
+way DaisySeed::Init configured it for the Seed it found (the directions differ
+on a Seed 1.1), so the Seed's codec keeps working whichever module is
+fitted. Both run at 48 kHz, 24-bit left-justified, which the CS4272 is
+strapped for, with the Seed as clock master.
+
+The CS4272 must stay in reset until SAI2's MCLK and LRCK are running, and
+they only start with the audio, so StartAudio4x4() releases its reset
+(board::pin::kCodec2Reset) after starting it, and StopAudio4x4() puts it
+back. Its first few milliseconds out of reset are silence while it
+calibrates.
+
+## InitAudio4x4
+
+```cpp
+void InitAudio4x4(daisy::DaisySeed& hw, size_t blocksize = 48);
+```
+
+Set up both codecs for four channels in and out. Call after hw.Init() and
+before StartAudio4x4(); holds the CS4272 in reset.
+
+## StartAudio4x4
+
+```cpp
+void StartAudio4x4(daisy::DaisySeed& hw, daisy::AudioHandle::AudioCallback cb);
+```
+
+Start the audio with a four-channel callback, then release the CS4272.
+
+## StopAudio4x4
+
+```cpp
+void StopAudio4x4(daisy::DaisySeed& hw);
+```
+
+Hold the CS4272 in reset, then stop the audio.

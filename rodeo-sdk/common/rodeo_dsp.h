@@ -245,4 +245,66 @@ class Lfo
     Rng   rng_;
 };
 
+/** Peak level and frequency of a test tone, measured over a fixed window. For
+ *  loopback checks: send a known tone out, run what comes back through this,
+ *  and compare. Frequency is counted from rising zero crossings, with
+ *  hysteresis so noise near zero doesn't count, and timed first crossing to
+ *  last for better than 1/window resolution. A window with fewer than two
+ *  crossings reports 0 Hz. */
+class ToneMeter
+{
+  public:
+    void Init(float sample_rate, float window_seconds = 0.5f, float hysteresis = 0.02f)
+    {
+        sample_rate_ = sample_rate;
+        window_      = static_cast<uint32_t>(window_seconds * sample_rate);
+        hyst_        = hysteresis;
+        Restart();
+        peak_ = hz_ = 0.f;
+    }
+
+    /** One sample in. True when a window has just finished and Peak()/Hz() hold
+     *  its results; they keep them until the next window finishes. */
+    bool Process(float x)
+    {
+        const float a = fabsf(x);
+        if(a > run_peak_)
+            run_peak_ = a;
+        if(armed_ && x > hyst_)
+        {
+            if(crossings_ == 0)
+                first_ = n_;
+            last_  = n_;
+            armed_ = false;
+            crossings_++;
+        }
+        else if(x < -hyst_)
+            armed_ = true;
+        if(++n_ < window_)
+            return false;
+        peak_ = run_peak_;
+        hz_   = crossings_ >= 2 && last_ > first_
+                    ? (crossings_ - 1) * sample_rate_ / static_cast<float>(last_ - first_)
+                    : 0.f;
+        Restart();
+        return true;
+    }
+
+    float Peak() const { return peak_; }
+    float Hz() const { return hz_; }
+
+  private:
+    void Restart()
+    {
+        n_ = first_ = last_ = crossings_ = 0;
+        run_peak_                        = 0.f;
+        armed_                           = false;
+    }
+
+    float    sample_rate_ = 48000.f, hyst_ = 0.02f;
+    uint32_t window_ = 24000, n_ = 0, first_ = 0, last_ = 0, crossings_ = 0;
+    float    run_peak_ = 0.f, peak_ = 0.f, hz_ = 0.f;
+    bool     armed_    = false;
+};
+
 } // namespace rodeo

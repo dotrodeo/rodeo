@@ -289,3 +289,43 @@ void Process(float offset, float* a, float* b);
 
 Advance one sample. Writes bipolar (-1..1) values for phase and
 phase + offset (offset in cycles, 0..1).
+
+## ToneMeter
+
+```cpp
+class ToneMeter
+```
+
+Peak level and frequency of a test tone, measured over a fixed window. For
+loopback checks: send a known tone out, run what comes back through this,
+and compare. Frequency is counted from rising zero crossings, with
+hysteresis so noise near zero doesn't count, and timed first crossing to
+last for better than 1/window resolution. A window with fewer than two
+crossings reports 0 Hz.
+
+### ToneMeter::Init
+
+```cpp
+void Init(float sample_rate, float window_seconds = 0.5f, float hysteresis = 0.02f);
+```
+
+### ToneMeter::Process
+
+```cpp
+bool Process(float x);
+```
+
+One sample in. True when a window has just finished and Peak()/Hz() hold
+its results; they keep them until the next window finishes.
+
+### ToneMeter::Peak
+
+```cpp
+float Peak() const;
+```
+
+### ToneMeter::Hz
+
+```cpp
+float Hz() const;
+```
