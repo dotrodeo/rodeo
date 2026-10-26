@@ -6,7 +6,8 @@ range selector whose position must be absolute and survive a power cycle, which 
 encoder's can't. It's built like the [single pot](../rodeo-pot-1/README.md): the same
 mounting, MCU, connectors and pin map, with the switch read on the pot's ADC pin
 through a resistor ladder that has room for 8 positions. The switch's footprint is
-bigger than the pot's, so the outline and placement are its own (see [Board](#board)). Wire contract:
+bigger than the pot's, so the board is 25 × 37.5 mm, half a grid slot taller: two
+of them fill three 25 mm slots (see [Board](#board)). Wire contract:
 [`RODEO_SATELLITE_CHAIN_CONTRACT.md`](../rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md).
 
 Specified 2026-10-26; schematic and layout to come (Derek).
@@ -70,19 +71,28 @@ the pots.
 
 ## Board
 
-* **Outline to be decided, 2 mm corners;** 25 mm wide like the other single boards.
-  Coordinates below are relative to the shaft, seen from the front (panel side),
-  y down.
-  * Switch shaft centred across the board's width. Panel hole Ø9.5 mm for the M9
-    bushing, as for the pots.
-  * **The single pot's placement doesn't fit the footprint.** Its terminal rows are
-    18.3 mm apart and its lugs 16 mm apart, so whichever way it turns, terminals or
-    lugs land where the single pot has D1 (y = 3) and J1/J2 (y = 20). This board
-    needs its own placement, and probably a longer outline (say 25 × 32 mm, with the
-    connectors below the switch): Derek's call.
-  * LED D1 above the shaft, as on the other single boards, wherever the terminal
-    rows leave room for its lens hole.
-  * M2 hole H1, as on the single pot, clear of the body and lugs.
+* **Outline 25 × 37.5 mm, 2 mm corners.** 25 mm wide like the other single boards,
+  and 1.5 grid slots tall, so two rotary switches stack into three 25 mm slots.
+  Coordinates are from the board's top-left corner as seen from the front (panel
+  side), y down; the LED end is the top, as on the single pot. Placement is a
+  proposal for Derek's layout:
+  * **Switch SW1 at the board's centre, (12.5, 18.75), in the footprint's own
+    orientation:** terminal rows across the board at y = 9.6 and 27.9 (x = 7.4–17.6),
+    lugs at (4.5, 17.65) and (20.5, 17.65). The body's silk outline runs y = 8.25–26.75.
+    Centred, two boards stacked in 75 mm put their shafts 37.5 mm apart, symmetric
+    in the three slots. Check against Alps' drawing that the shaft is on the
+    footprint's origin before placing the panel hole (Ø9.5 mm for the M9 bushing,
+    as for the pots).
+  * **LED D1 at (12.5, 3.0), H1 at (22.5, 2.5) and J3 at x = 23, y = 6–13.6:** the
+    single pot's positions. D1's lens hole clears the top terminal row by 4 mm, and
+    J3's lowest pad the right lug by about 1.7 mm.
+  * **Chain connectors J1 (IN) at (3, 32.5) and J2 (OUT) at (22, 32.5):** 5 mm above
+    the bottom edge, as on the single pot, either side of the bottom terminal row.
+  * **U1 and the ladder** on the bottom, in the space between the terminal rows and
+    between the bottom row and the connectors; nothing else on the bottom may sit on
+    the switch's pins or lugs.
+* **The LED is 15.75 mm from the shaft,** so a knob up to about Ø27 mm clears its
+  hole (the single pot's limit is Ø14.8 mm).
 * **Top side (faces the panel): the switch only**, through-hole. **Bottom: every SMD
   part**, the ladder included, so JLC's SMT is single-sided.
 * **Standoff length** follows from the switch's mounting-face height (on Alps'
@@ -214,6 +224,6 @@ single pot.
   1–4 (for the symbol), the mounting-face height and shaft length (for the standoff,
   and a knob level with the pots'), and whether the shaft's flat takes the pots'
   knobs.
-* **The board's placement and outline:** see [Board](#board).
+* **Derek's layout** on the 25 × 37.5 mm outline: see [Board](#board).
 * **Bring-up:** the ID read (kind 4), each position's reading against its tap, the
   10 ms settling while turning briskly, and the LED.
