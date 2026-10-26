@@ -1,83 +1,88 @@
 # Rodeo satellite: rotary switch ×1
 
-One rotary selector switch, up to 8 positions, with a status LED, read by a CH32V003
-on the satellite chain: board kind 4, the contract's single `SWITCH` slot. For a
-mode or range selector whose position must be absolute and survive a power cycle,
-which an encoder's can't. It's built like the [single pot](../rodeo-pot-1/README.md):
-the same outline, MCU, connectors and pin map, with the switch read on the pot's ADC
-pin through a resistor ladder. Wire contract:
+One 4-position rotary selector switch with a status LED, read by a CH32V003 on the
+satellite chain: board kind 4, the contract's single `SWITCH` slot. For a mode or
+range selector whose position must be absolute and survive a power cycle, which an
+encoder's can't. It's built like the [single pot](../rodeo-pot-1/README.md): the same
+outline, mounting, MCU, connectors and pin map, with the switch read on the pot's
+ADC pin through a resistor ladder that has room for 8 positions. Wire contract:
 [`RODEO_SATELLITE_CHAIN_CONTRACT.md`](../rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md).
 
-Specified 2026-10-26; schematic and layout to come (Derek). **The switch itself
-isn't settled** (see [Switch](#switch-sw1)); everything else is written to work with
-any single-pole switch up to 8 positions.
+Specified 2026-10-26; schematic and layout to come (Derek).
 
 ## Decisions
 
+* **Alps SRBV141404, 4 positions** (see [Switch](#switch-sw1-alps-srbv141404-c209777)).
+  It's the one rotary switch JLC stocks in quantity that has a bushing to hang the
+  board from and end stops. Its M9 bushing is the single pot's, so the panel hole and
+  nut are the same.
 * **One ADC pin, not one GPIO per position.** The switch's positions tap a resistor
-  ladder and its common goes to the single pot's wiper pin (PA2). The board is then
-  the single pot with a different part on top, and the ladder doesn't care how many
-  positions the switch has: a 4-position switch just never reaches taps 5–8. One GPIO
-  per position would need 8 pins and a different map from every other single board.
+  ladder, and its common goes to the single pot's wiper pin (PA2). The board is then
+  the single pot with a different part on top.
+* **The ladder has 8 taps though the switch has 4.** A switch with fewer positions
+  just never reaches the upper taps, so the same ladder and the same kind-4 decoder
+  would serve an 8-position switch (the SRBV181004, if its pins match) with no
+  firmware change. The four extra 0603 resistors cost almost nothing.
 * **Taps at 1/9 to 8/9 of 3V3, never at the rails.** Nine equal resistors make eight
   taps 114 counts apart. A 1 MΩ pull-down on the common means a reading near 0 V is
   "between positions", never position 1. The ladder runs from the same 3V3 as the
   ADC's reference, so the reading is ratiometric: a sagging supply at the end of a
   long chain doesn't move it.
-* **The common's 100 nF holds the last position through the switch's gap.**
-  Break-before-make contacts leave the common open for a few milliseconds per step.
+* **The common's 100 nF holds the last position through the switch's gap.** The
+  SRBV's contacts are non-shorting, so the common is open for a moment at each step.
   Through 1 MΩ the cap's voltage barely moves in that time (τ = 0.1 s), so the
   reading goes from one tap straight to the next. Firmware also waits for a stable
   reading before reporting a new position.
 * **Same MCU, CH32V003F4P6, and the single pot's pin map** (`PRESENT` PC3, LED PC6, ID
   on PD3 fed from PC2), for the reasons in its spec.
-* **Hung on the switch's bushing and nut plus an M2 standoff at H1,** as the single
-  pot is. A rotary switch's detents take more torque than a pot, so the standoff
-  matters more here: it stops the board turning when the knob is forced past the
-  end stop.
+* **Hung on the switch's M9 bushing and nut, plus an M2 standoff at H1,** as the
+  single pot is. The standoff stops the board turning when the knob is forced
+  against an end stop.
 
-## Switch SW1
+## Switch SW1: Alps SRBV141404 (C209777)
 
-**Recommended: Taiwan Alpha SR1712F-0108-…-N9** (1 pole, 8 positions, 17 mm body,
-M9 × 0.75 bushing), or the same series with fewer positions. It's the
-compact Alpha series common in modular synths. Its M9 × 0.75 thread is the single
-pot's, so the panel hole (Ø9.5 mm) and nut are the same, and its 17 mm body fits the
-25 mm board. **JLC doesn't stock it** (0 on 2026-10-26), so it would be bought
-elsewhere and either consigned to JLC or hand-soldered after SMT; it's the only
-through-hole part, on the top side.
+1 pole, 4 positions, 30° steps with end stops, non-shorting. M9 bushing and a
+flatted shaft, 15 mm long. Body 16.2 × 18.5 × 7.5 mm. Turning torque 30 ± 15 mN·m,
+lighter than a pot's drag, so it will feel light. Rated 0.3 A at 16 V; life 10,000
+steps. 434 in stock at JLC on 2026-10-26, so it is assembled with the board, like
+the pots.
 
-Considered and set aside:
-
-| Part | JLC stock | Why not |
-|---|---|---|
-| Alps SRRM1C6200 (C278333), 1P12T | 102 | 24.9 × 31 mm, too big for the board; rotates endlessly with no end stop; shorting contacts; Alps lists it as not recommended for new designs |
-| Alps SRBV181004 (C390927), 1P8T | 40 | Low-profile with a plastic flat actuator and no bushing, so nothing to hang the board from; little stock |
-
-To confirm against the SR1712F datasheet before the schematic: the pin circle and
-footprint, the mounting face's height above the PCB, the available shaft lengths
-(the knob should sit level with the pots': shaft end 25 mm above the PCB, as on the
-single pot), whether the bushing has an anti-rotation tab that needs a panel hole,
-and the shaft's flat. A footprint and 3D model will be needed; neither is in
-KiCad's libraries.
+* **The 8-position sibling, SRBV181004 (C390927),** lists the same body. If its
+  footprint matches, the board takes either as a BOM choice. Only 40 in stock at JLC
+  on 2026-10-26.
+* **Footprint and 3D model:** not in KiCad's libraries; take them from EasyEDA
+  (C209777) and check them against Alps' drawing, as was done for the PH connectors.
+* **Considered and set aside:** the Alps SRRM1C6200 (C278333), JLC's only
+  12-position switch: 24.9 × 31 mm, too big for the board, it turns endlessly,
+  shorting contacts, and Alps lists it as not recommended for new designs. The
+  Taiwan Alpha SR1712F would allow up to 8 positions with an M9 bushing, but JLC
+  doesn't stock it.
 
 ## Board
 
 * **25 × 25 mm, 2 mm corners,** the single pot's outline. Coordinates are from the
   top-left corner seen from the front (panel side), y down.
-  * Switch shaft at (12.5, 12.5). Panel hole Ø9.5 mm for the M9 bushing.
-  * LED D1 at (12.5, 3.0), as on the single pot, if the switch's pins leave room.
-    The 17 mm body's edge sits 4 mm from the shaft's top, so D1 may need moving.
-  * M2 hole H1 at (22.5, 2.5), as on the single pot, again if the body allows.
+  * Switch shaft at (12.5, 12.5). Panel hole Ø9.5 mm for the M9 bushing, as for the
+    pots.
+  * LED D1 at (12.5, 3.0), as on the single pot, **if the switch body clears it.**
+    The body reaches 8.1 mm from the shaft along its 16.2 mm side and 9.25 mm along
+    its 18.5 mm side. D1's lens hole reaches 8.3 mm, so the body's 16.2 mm side must
+    run up and down the board (top to bottom), which leaves 0.2 mm. If the footprint
+    doesn't allow that, D1 moves.
+  * M2 hole H1 at (22.5, 2.5), as on the single pot. Check the standoff's
+    footprint on the top side against the body's corner (about (21.8, 4.4) with the
+    body turned as above).
   * Chain connectors J1 (IN) at (3, 20) and J2 (OUT) at (22, 20); programming pads
     J3 down the right edge.
 * **Top side (faces the panel): the switch only**, through-hole. **Bottom: every SMD
   part**, the ladder included, so JLC's SMT is single-sided.
+* **Standoff length** follows from the switch's mounting-face height (on Alps'
+  drawing), so the knob sits level with the pots'.
 * **2 layers,** as on the single pot.
 * **Silkscreen (back):** `RODEO ROTARY SWITCH / Kind 4 · Rev B1 / 2026-10`, the
   licence and source, `© 2026 DOT RODEO LLC`, `CHAIN IN` / `CHAIN OUT` with pin-1
-  marks, `S V G N` at J3. On the back, small, beside each switch terminal: its
-  position number, `1`–`8`, so a builder can check the ladder order against the
-  switch.
+  marks, and `S V G N` at J3. Small position numbers, `1`–`4`, beside the switch's
+  terminals, so the ladder order can be checked against the switch.
 
 ## The ladder
 
@@ -89,7 +94,8 @@ switch position n ── Tn          switch common ── SW_POS ── PA2
 ```
 
 * **R = 4.7 kΩ (1 %), nine of them:** 42.3 kΩ in all, 78 µA. Tap n sits at
-  n/9 × 3V3: 114, 227, 341, 455, 568, 682, 796 and 909 counts for positions 1–8.
+  n/9 × 3V3: 114, 227, 341, 455, 568, 682, 796 and 909 counts for positions 1–8. The
+  SRBV141404 uses taps 1–4; taps 5–8 are only resistor joints.
 * The worst-case source impedance at a tap is under 11 kΩ. The 1 MΩ load pulls a tap
   down by about 1 % at most, 6 counts, against 57 counts to the next decision
   point.
@@ -97,8 +103,9 @@ switch position n ── Tn          switch common ── SW_POS ── PA2
   reading is within 0.3 of a step of the tap (the ID resistor's rule). A reading
   near 0 V, or between taps, keeps the last position. A new position is reported
   after it has read the same for 10 ms.
-* **`SWITCH` slot:** `D0` = position − 1, so 0–7, as the contract's position index.
-  Until the first valid reading after power-up, the slot is `EMPTY`.
+* **`SWITCH` slot:** `D0` = position − 1, so 0–3 here (0–7 with an 8-position
+  switch), as the contract's position index. Until the first valid reading after
+  power-up, the slot is `EMPTY`.
 
 ## MCU: CH32V003F4P6 (C5187096), TSSOP-20
 
@@ -174,7 +181,7 @@ To do in `rodeo-satellite`, when asked:
 
 | Part | Refs | Qty | LCSC |
 |---|---|---|---|
-| Alpha SR1712F-0108 (to confirm) | SW1 | 1 | not at JLC: consign or hand-solder |
+| Alps SRBV141404 | SW1 | 1 | C209777 |
 | CH32V003F4P6 | U1 | 1 | C5187096 |
 | BM05B-SRSS-TB | J1, J2 | 2 | C160391 |
 | LTST-C230KRKT | D1 | 1 | C125107 |
@@ -192,11 +199,11 @@ Fill the new values with `tools/kicad/lcsc_fill.py` once the schematic is drawn.
 
 ## Open
 
-* **The switch:** confirm the SR1712F (above), or choose another, and decide how it
-  gets onto the board (consigned to JLC or hand-soldered). If a JLC-stocked switch
-  with a bushing turns up, it's worth the swap.
-* **Position count:** 8 is the ladder's limit. A 12-position switch would need 13
-  taps, 79 counts apart: still workable, but the switches that size are 24 mm or
-  more and don't fit the 25 mm board.
+* **From Alps' drawing:** the mounting-face height and shaft length (for the
+  standoff, and a knob level with the pots'), whether the shaft's flat takes the
+  pots' knobs, and the footprint's terminal positions.
+* **D1 and H1 against the switch body:** see [Board](#board).
+* **The SRBV181004's footprint:** if it matches, note it here as the 8-position
+  option.
 * **Bring-up:** the ID read (kind 4), each position's reading against its tap, the
   10 ms settling while turning briskly, and the LED.

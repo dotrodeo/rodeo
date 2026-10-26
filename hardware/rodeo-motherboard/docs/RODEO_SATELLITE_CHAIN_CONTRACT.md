@@ -137,7 +137,7 @@ reading further than ±0.3 from every kind is fault `0x01` (§7), not a guess.
 | 1 | potentiometer | 1 | `POT` | `LED` (optional LED) |
 | 2 | button (`rodeo-button-1`, specified) | 1 | `BUTTON` | `LED` |
 | 3 | encoder with push switch | 1 | `ENCODER` | `LED` |
-| 4 | rotary switch, up to 8 positions (`rodeo-rotary-switch-1`, specified) | 1 | `SWITCH` | `LED` |
+| 4 | rotary switch, up to 8 positions (`rodeo-rotary-switch-1`: 4 positions, specified) | 1 | `SWITCH` | `LED` |
 | 5 | pot bank ×4 (`rodeo-pot-bank-4`) | 4 | `POT` ×4, pots 1–4 in order | slot 1 `LED`, slots 2–4 `NONE` |
 | 6 | encoder bank ×4 (`rodeo-encoder-bank-4`) | 4 | `ENCODER` ×4, encoders 1–4 in order | slot 1 `LED`, slots 2–4 `NONE` |
 | 7 | button bank ×4 (`rodeo-button-bank-4`) | 4 | `BUTTON` ×4, buttons 1–4 in order | `RGB` ×4, the LED beside each button |
