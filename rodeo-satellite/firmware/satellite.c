@@ -19,11 +19,22 @@
 #include "ch32fun.h"
 
 #include "boards.h"
+#include "buttons.h"
 #include "encoder.h"
 #include "kind.h"
 #include "ladder.h"
+#include "lights.h"
 #include "pot.h"
 #include "stream.h"
+
+// The button bank's WS2812B LEDs: ch32v003fun's driver clocks their bit stream
+// out of SPI1's MOSI (PC6) by DMA (channel 3; USART1 uses 4 and 5), calling
+// WS2812BLEDCallback() from its interrupt for each LED's word.
+#define WS2812DMA_IMPLEMENTATION
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable" // inside the library
+#include "ws2812b_dma_spi_led_driver.h"
+#pragma GCC diagnostic pop
 
 #define FW_MAJOR 1
 #define FW_MINOR 0
@@ -206,6 +217,17 @@ static sat_quad       enc[4];
 static uint8_t        n_enc; // encoders on this board
 static sat_ladder     ladder;
 
+static sat_buttons    buttons;      // the button bank's switches
+static sat_lights     lights;       // ...its LEDs, as the outputs ask
+static bool           aux_present;  // ...and whether they run from aux 5 V
+static uint32_t       grb_now[LIGHTS_N], grb_sent[LIGHTS_N];
+static uint32_t       lights_sent_ms;
+
+uint32_t WS2812BLEDCallback(int ledno)
+{
+    return ledno >= 0 && ledno < (int)LIGHTS_N ? grb_sent[ledno] : 0;
+}
+
 static uint8_t  led_level, led_mode; // from the last LED slot
 static uint32_t identify_until_ms;
 static bool     forced_last;         // CLOSE_RING_HERE until RING_AUTO
@@ -252,8 +274,23 @@ static void setup_board(int kind, uint8_t detail)
         ladder_init(&ladder, kind == SAT_KIND_ENCODER ? r_single : r_bank, LADDER_PULL_UP, 1023);
     }
 
+    else if(kind == SAT_KIND_BUTTON_BANK_4)
+    {
+        board = (sat_board)SAT_BOARD_BUTTON_BANK_4;
+        for(int i = 0; i < 4; i++)
+        {
+            mode(board.buttons[i], GPIO_CNF_IN_PUPD);
+            put(board.buttons[i], 1); // pull-up: a pressed switch reads 0
+        }
+        mode(board.aux_sense, GPIO_CNF_IN_ANALOG);
+        adc_chan[adc_n++] = sat_adc_channel(board.aux_sense);
+        buttons_init(&buttons);
+        lights_init(&lights);
+        WS2812BDMAInit(); // PC6 to SPI1 MOSI; PC5 and PC7 stay untouched inputs
+    }
+
     if(kind == SAT_KIND_POT || kind == SAT_KIND_ENCODER || kind == SAT_KIND_POT_BANK_4
-       || kind == SAT_KIND_ENC_BANK_4)
+       || kind == SAT_KIND_ENC_BANK_4 || kind == SAT_KIND_BUTTON_BANK_4)
     {
         me.kind  = (uint8_t)kind;
         me.slots = sat_kind_slots((uint8_t)kind);
@@ -311,10 +348,40 @@ static void adc_service(void)
         inputs[adc_i] = sat_pot(pot_filter(&pot_filt[adc_i], pot_scale10(raw), 2));
     else if(st.me.kind == SAT_KIND_ENCODER || st.me.kind == SAT_KIND_ENC_BANK_4)
         ladder_update(&ladder, raw);
+    else if(st.me.kind == SAT_KIND_BUTTON_BANK_4)
+        aux_present = lights_aux_present(raw, 1023);
     if(++adc_i < adc_n)
     {
         adc_start(adc_chan[adc_i]);
         adc_busy = true;
+    }
+}
+
+// The button bank, once a millisecond: debounce the switches into the four
+// BUTTON slots, and work out what the LEDs should show. A new picture goes out
+// only between frames, so the driver's short DMA interrupt never lands while a
+// frame is streaming through, and at least every 100 ms, so a glitch can't stick.
+static void buttons_service(void)
+{
+    uint8_t raw = 0;
+    for(int i = 0; i < 4; i++)
+        if(!get(board.buttons[i]))
+            raw |= (uint8_t)(1u << i);
+    buttons_update(&buttons, raw);
+    for(int i = 0; i < 4; i++)
+        inputs[i] = sat_button((buttons.pressed >> i) & 1, buttons.presses[i]);
+
+    lights_render(&lights, now_ms, now_ms < identify_until_ms,
+                  aux_present ? LIGHTS_CAP_AUX_MA : LIGHTS_CAP_CHAIN_MA, grb_now);
+    bool changed = false;
+    for(unsigned i = 0; i < LIGHTS_N; i++)
+        changed |= grb_now[i] != grb_sent[i];
+    if((changed || now_ms - lights_sent_ms >= 100) && !WS2812BLEDInUse && !st.active)
+    {
+        for(unsigned i = 0; i < LIGHTS_N; i++)
+            grb_sent[i] = grb_now[i];
+        lights_sent_ms = now_ms;
+        WS2812BDMAStart(LIGHTS_N);
     }
 }
 
@@ -327,6 +394,8 @@ static void every_ms(void)
         adc_start(adc_chan[0]);
         adc_busy = true;
     }
+    if(st.me.kind == SAT_KIND_BUTTON_BANK_4)
+        buttons_service();
     for(int i = 0; i < n_enc; i++)
         inputs[i] = sat_encoder(enc[i].detents, (ladder.pressed >> i) & 1, ladder.presses[i]);
 
@@ -360,7 +429,9 @@ static void led_update(uint32_t ticks)
 // A frame has gone through: act on what it brought.
 static void frame_done(void)
 {
-    if(st.took && st.taken[0].kind == SAT_OUT_LED && sat_slot_ok(st.taken[0]))
+    if(st.took && st.me.kind == SAT_KIND_BUTTON_BANK_4)
+        lights_take(&lights, st.taken, LIGHTS_N);
+    else if(st.took && st.taken[0].kind == SAT_OUT_LED && sat_slot_ok(st.taken[0]))
     {
         led_level = st.taken[0].d0;
         led_mode  = st.taken[0].d1;

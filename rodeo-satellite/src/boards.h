@@ -2,7 +2,8 @@
 //
 // What each satellite board wires to which CH32V003F4P6 pin, read from the
 // boards' schematics (hardware/rodeo-pot-1, hardware/rodeo-encoder-1,
-// hardware/rodeo-pot-bank-4, hardware/rodeo-encoder-bank-4).
+// hardware/rodeo-pot-bank-4, hardware/rodeo-encoder-bank-4,
+// hardware/rodeo-button-bank-4).
 // One firmware image serves every board: it reads the ID resistor (kind.h) and
 // then uses that kind's map. Pure data, no register access.
 //
@@ -50,6 +51,8 @@ typedef struct
     sat_pin enc_a[4]; // encoders 1-4 in slot order; unused ones SAT_NO_PIN
     sat_pin enc_b[4];
     sat_pin switches; // the push switches' resistor ladder (encoder bank)
+    sat_pin buttons[4]; // push switches on their own pins, to GND (button bank)
+    sat_pin aux_sense;  // half the aux 5 V, on an ADC pin (button bank)
 } sat_board;
 
 /** Kind 1, rodeo-pot-1: the pot bank's map cut to slot 1. One pot on PA2, and
@@ -75,6 +78,17 @@ typedef struct
     {                                                                          \
         .present = {'D', 2}, .led = {'D', 0}, .id_feed = {0, 0},               \
         .enc_a = {{'A', 1}}, .enc_b = {{'A', 2}}, .switches = {'D', 4},        \
+    }
+
+/** Kind 7, rodeo-button-bank-4. Four switches on their own pins, pulled up
+ *  inside the MCU; four WS2812B-2020 LEDs chained from PC6, which only the SPI
+ *  driver touches (SPI1's MOSI); AUX_SENSE on PC4. No plain status LED: the RGB
+ *  LEDs do IDENTIFY. The ID divider is tied to 3V3. */
+#define SAT_BOARD_BUTTON_BANK_4                                                \
+    {                                                                          \
+        .present = {'C', 3}, .led = {0, 0}, .id_feed = {0, 0},                 \
+        .buttons = {{'A', 1}, {'A', 2}, {'D', 4}, {'D', 0}},                   \
+        .aux_sense = {'C', 4},                                                 \
     }
 
 /** Kind 6, rodeo-encoder-bank-4. The ID divider's top is tied to 3V3, and PC2

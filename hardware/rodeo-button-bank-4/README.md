@@ -183,16 +183,24 @@ green to dim first. Measure on the first build.
 
 ## Firmware
 
-The contract now assigns kind 7 and the `RGB` output slot (§1.6, §3.2). The code is
-still to be written:
+Done 2026-10-26; built and host-tested, not yet run on a board.
 
-* **Board kind 7** in `sat_frame.h`: four slots, `BUTTON` in and `RGB` out, which
-  also means `sat_kind_slots()` stops treating 4 slots as a banks-only case.
-* **`SAT_OUT_RGB` = `0x11`**, `D0`–`D1` an RGB565 colour, little-endian, one per
-  button. `SAT_OUT_LED` still works on the same slot and shows as white.
-* **WS2812 driver** on SPI1 MOSI (PC6) with DMA, as ch32v003fun's
-  `ws2812b_dma_spi_led_driver.h` does; 4 LEDs × 24 bits take 120 µs.
-* **Brightness cap** from `AUX_SENSE`.
+* **Protocol** (`rodeo-sdk/common/sat_frame.h`, the contract §1.6 and §3.2): kind 7,
+  `SAT_KIND_BUTTON_BANK_4`, owns four `BUTTON` slots. The new `RGB` output slot
+  (`0x11`) carries one LED's colour as RGB565, D0 the low byte; `sat_rgb565()`,
+  `sat_rgb()` and `sat_rgb_unpack()` build and read it. An `LED` slot still works,
+  as white with its blink.
+* **Seed:** `SatChain::SetRgb(i, s, r, g, b)` sets slot s's colour on satellite i,
+  sent with every scan.
+* **Satellite** (`rodeo-satellite`): `SAT_BOARD_BUTTON_BANK_4` in `src/boards.h`;
+  `src/buttons.*` debounces the four switches (5 ms) and counts presses;
+  `src/lights.*` turns the four output slots into the LEDs' words, with blink,
+  `IDENTIFY` and the current cap; ch32v003fun's SPI-DMA driver sends them.
+* **Brightness cap** from `AUX_SENSE`: 24 mA in all on chain power, uncapped on aux.
+  The four LEDs are scaled together, so colours stay true.
+
+To check at bring-up: the ID read (≈475 counts, kind 7), the LEDs' colour order,
+their brightness on chain power and on aux, and the switches' debounce.
 
 ## Library and 3D models
 

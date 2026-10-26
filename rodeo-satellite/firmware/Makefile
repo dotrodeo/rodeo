@@ -16,7 +16,8 @@ TARGET     := satellite
 TARGET_MCU := CH32V003
 
 SRC := ../src
-ADDITIONAL_C_FILES := $(SRC)/stream.c $(SRC)/kind.c $(SRC)/encoder.c $(SRC)/ladder.c
+ADDITIONAL_C_FILES := $(SRC)/stream.c $(SRC)/kind.c $(SRC)/encoder.c $(SRC)/ladder.c \
+                      $(SRC)/buttons.c $(SRC)/lights.c
 EXTRA_CFLAGS += -I$(SRC) -I../../rodeo-sdk/common
 
 NEWLIB ?= $(lastword $(sort $(wildcard /Applications/ArmGNUToolchain/*/arm-none-eabi/arm-none-eabi/include)))
