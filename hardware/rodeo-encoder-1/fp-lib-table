@@ -1,0 +1,4 @@
+(fp_lib_table
+	(version 7)
+	(lib (name "rodeo_encoder_bank")(type "KiCad")(uri "${KIPRJMOD}/lib/rodeo_encoder_bank.pretty")(options "")(descr "Rodeo encoder bank parts with 3D models not in the KiCad library"))
+)
