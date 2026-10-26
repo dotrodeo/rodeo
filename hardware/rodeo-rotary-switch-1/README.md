@@ -23,7 +23,7 @@ Specified 2026-10-26; schematic and layout to come (Derek).
   the single pot with a different part on top.
 * **The ladder has 8 taps though the switch has 4.** A switch with fewer positions
   just never reaches the upper taps, so the same ladder and the same kind-4 decoder
-  would serve an 8-position switch (the SRBV181004, if its pins match) with no
+  would serve an 8-position switch (the SRBV181004, wired the same) with no
   firmware change. The four extra 0603 resistors cost almost nothing.
 * **Taps at 1/9 to 8/9 of 3V3, never at the rails.** Nine equal resistors make eight
   taps 114 counts apart. A 1 MΩ pull-down on the common means a reading near 0 V is
@@ -49,8 +49,8 @@ lighter than a pot's drag, so it will feel light. Rated 0.3 A at 16 V; life 10,0
 steps. 434 in stock at JLC on 2026-10-26, so it is assembled with the board, like
 the pots.
 
-* **The 8-position sibling, SRBV181004 (C390927),** lists the same body. If its
-  footprint matches, the board takes either as a BOM choice. Only 40 in stock at JLC
+* **The 8-position sibling, SRBV181004 (C390927),** has the same body and footprint,
+  and the board wires all eight positions, so it takes either as a BOM choice. Only 40 in stock at JLC
   on 2026-10-26.
 * **Footprint and 3D model: in `lib/`,** from EasyEDA (C209777) through
   easyeda2kicad. `rodeo_rotary_switch:SW_Alps_SRBV` has 10 terminals in two rows of
@@ -59,10 +59,17 @@ the pots.
   is identical, so the 4- and 8-position parts are a BOM swap. Alps' own STEP model
   (made in Creo) sits on it correctly: terminals in their holes, lugs in theirs.
 * **Symbol: `lib/rodeo_rotary_switch.kicad_sym`,** EasyEDA's, with its footprint and
-  LCSC fields set. Its pins are numbered 1–10 like the footprint's terminals and say
-  nothing about which is the common and which are positions 1–4; Alps' drawing does.
-  Name the pins from it before drawing the schematic. The lugs (pads 11, 12) have no
-  pins; tie them to `GND` in the footprint or add pins for them.
+  LCSC fields set, and its pins named from Alps' standard circuit diagram (1 pole):
+  * **Terminals 1 and 10 are the common, `C`,** one in each row. Wire both to
+    `SW_POS`.
+  * **Terminals 2–9 are positions `P1`–`P8`,** in that order around the rotor. On the
+    SRBV141404, 6–9 are dummy terminals with no contact behind them; positions 1–4
+    are terminals 2–5.
+  * **Pads 11 and 12 are the lugs, `MP`:** tie them to `GND`.
+  * The diagram's terminal layout (6–10 along the top, 5–1 along the bottom, left to
+    right) matches the footprint seen from the top, which faces the panel, so it's
+    drawn from the knob side. Read that way, 2 → 5 runs clockwise, so position 1 is
+    the counter-clockwise end. Check the direction at bring-up.
 * **Considered and set aside:** the Alps SRRM1C6200 (C278333), JLC's only
   12-position switch: 24.9 × 31 mm, too big for the board, it turns endlessly,
   shorting contacts, and Alps lists it as not recommended for new designs. The
@@ -108,13 +115,15 @@ the pots.
 ```
 +3V3 ─ R ─ T8 ─ R ─ T7 ─ R ─ T6 ─ … ─ T2 ─ R ─ T1 ─ R ─ GND      (9 × R)
 
-switch position n ── Tn          switch common ── SW_POS ── PA2
+Tn ── terminal n+1 (position n)  common (terminals 1, 10) ── SW_POS ── PA2
                                  SW_POS: 1 MΩ to GND, 100 nF to GND
 ```
 
 * **R = 4.7 kΩ (1 %), nine of them:** 42.3 kΩ in all, 78 µA. Tap n sits at
-  n/9 × 3V3: 114, 227, 341, 455, 568, 682, 796 and 909 counts for positions 1–8. The
-  SRBV141404 uses taps 1–4; taps 5–8 are only resistor joints.
+  n/9 × 3V3: 114, 227, 341, 455, 568, 682, 796 and 909 counts for positions 1–8.
+* **Tap n goes to terminal n + 1,** all eight. The SRBV141404 uses taps 1–4 on
+  terminals 2–5; taps 5–8 land on its dummy terminals 6–9, which connect to nothing
+  inside, so the same board takes the 8-position SRBV181004 as a BOM swap.
 * The worst-case source impedance at a tap is under 11 kΩ. The 1 MΩ load pulls a tap
   down by about 1 % at most, 6 counts, against 57 counts to the next decision
   point.
@@ -220,8 +229,7 @@ single pot.
 
 ## Open
 
-* **From Alps' drawing:** which terminal is the common and which are positions
-  1–4 (for the symbol), the mounting-face height and shaft length (for the standoff,
+* **From Alps' drawing:** the mounting-face height and shaft length (for the standoff,
   and a knob level with the pots'), and whether the shaft's flat takes the pots'
   knobs.
 * **Derek's layout** on the 25 × 37.5 mm outline: see [Board](#board).

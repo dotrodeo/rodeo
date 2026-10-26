@@ -553,10 +553,10 @@
 					)
 				)
 			)
-			(pin unspecified line
+			(pin passive line
 				(at 5.08 -10.16 90)
 				(length 2.54)
-				(name "1"
+				(name "C"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -571,10 +571,10 @@
 					)
 				)
 			)
-			(pin unspecified line
+			(pin passive line
 				(at 2.54 -10.16 90)
 				(length 2.54)
-				(name "2"
+				(name "P1"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -589,10 +589,10 @@
 					)
 				)
 			)
-			(pin unspecified line
+			(pin passive line
 				(at 0 -10.16 90)
 				(length 2.54)
-				(name "3"
+				(name "P2"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -607,10 +607,10 @@
 					)
 				)
 			)
-			(pin unspecified line
+			(pin passive line
 				(at -2.54 -10.16 90)
 				(length 2.54)
-				(name "4"
+				(name "P3"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -625,10 +625,10 @@
 					)
 				)
 			)
-			(pin unspecified line
+			(pin passive line
 				(at -5.08 -10.16 90)
 				(length 2.54)
-				(name "5"
+				(name "P4"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -643,10 +643,10 @@
 					)
 				)
 			)
-			(pin unspecified line
+			(pin passive line
 				(at -5.08 10.16 270)
 				(length 2.54)
-				(name "6"
+				(name "P5"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -661,10 +661,10 @@
 					)
 				)
 			)
-			(pin unspecified line
+			(pin passive line
 				(at -2.54 10.16 270)
 				(length 2.54)
-				(name "7"
+				(name "P6"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -679,10 +679,10 @@
 					)
 				)
 			)
-			(pin unspecified line
+			(pin passive line
 				(at 0 10.16 270)
 				(length 2.54)
-				(name "8"
+				(name "P7"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -697,10 +697,10 @@
 					)
 				)
 			)
-			(pin unspecified line
+			(pin passive line
 				(at 2.54 10.16 270)
 				(length 2.54)
-				(name "9"
+				(name "P8"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -715,10 +715,10 @@
 					)
 				)
 			)
-			(pin unspecified line
+			(pin passive line
 				(at 5.08 10.16 270)
 				(length 2.54)
-				(name "10"
+				(name "C"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -733,10 +733,10 @@
 					)
 				)
 			)
-			(pin unspecified line
+			(pin passive line
 				(at 11.43 0 180)
 				(length 5.08)
-				(name "11"
+				(name "MP"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -751,10 +751,10 @@
 					)
 				)
 			)
-			(pin unspecified line
+			(pin passive line
 				(at -10.16 0 0)
 				(length 5.08)
-				(name "12"
+				(name "MP"
 					(effects
 						(font
 							(size 1.27 1.27)
