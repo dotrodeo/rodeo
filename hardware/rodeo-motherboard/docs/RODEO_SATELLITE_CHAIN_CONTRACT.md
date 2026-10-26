@@ -135,17 +135,26 @@ reading further than ±0.3 from every kind is fault `0x01` (§7), not a guess.
 |---|---|---|---|---|
 | 0 | reserved (test fixture) | 1 | — | — |
 | 1 | potentiometer | 1 | `POT` | `LED` (optional LED) |
-| 2 | button | 1 | `BUTTON` | `LED` |
+| 2 | button (`rodeo-button-1`, specified) | 1 | `BUTTON` | `LED` |
 | 3 | encoder with push switch | 1 | `ENCODER` | `LED` |
-| 4 | rotary switch | 1 | `SWITCH` | `LED` |
+| 4 | rotary switch, up to 8 positions (`rodeo-rotary-switch-1`, specified) | 1 | `SWITCH` | `LED` |
 | 5 | pot bank ×4 (`rodeo-pot-bank-4`) | 4 | `POT` ×4, pots 1–4 in order | slot 1 `LED`, slots 2–4 `NONE` |
 | 6 | encoder bank ×4 (`rodeo-encoder-bank-4`) | 4 | `ENCODER` ×4, encoders 1–4 in order | slot 1 `LED`, slots 2–4 `NONE` |
 | 7 | button bank ×4 (`rodeo-button-bank-4`) | 4 | `BUTTON` ×4, buttons 1–4 in order | `RGB` ×4, the LED beside each button |
-| 8–14 | unassigned | | | |
+| 8–13 | unassigned: kept for future Rodeo satellites | | | |
+| 14 | **custom board**, running its own firmware (the satellite dev board, and boards built from it) | 1–4, as its `DISCOVER` reply says | any input kind, per slot | any output kind, per slot |
 | 15 | **no ID resistor fitted:** sends `EMPTY` | 1 | `EMPTY` | ignored |
 
 A new board type needs a new resistor value and a firmware update, not a separate
 firmware image.
+
+**Kind 14 is the exception:** it's for boards Rodeo doesn't make, so the stock image
+doesn't run them; it reports fault `0x02` (kind not supported) on one. A custom
+board runs its own firmware, which speaks this contract and declares its slots in
+its `DISCOVER` reply (§4). The Seed takes a satellite's slot count from that reply,
+never from the kind, and reads each slot by the input kind it carries, so a custom
+board needs nothing new on the Seed. Kinds 8–13 stay for Rodeo's own future
+satellites, which the stock image will learn.
 
 ---
 

@@ -58,6 +58,7 @@ static const char* KindName(uint8_t kind)
         case SAT_KIND_POT_BANK_4: return "pot bank x4";
         case SAT_KIND_ENC_BANK_4: return "encoder bank x4";
         case SAT_KIND_BUTTON_BANK_4: return "button bank x4";
+        case SAT_KIND_CUSTOM: return "custom board";
         case SAT_KIND_NO_ID: return "no ID resistor";
         default: return "unknown kind";
     }

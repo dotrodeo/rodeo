@@ -426,6 +426,7 @@ static const char* kind_name(uint8_t kind)
         case SAT_KIND_POT_BANK_4: return "pot bank";
         case SAT_KIND_ENC_BANK_4: return "encoder bank";
         case SAT_KIND_BUTTON_BANK_4: return "button bank";
+        case SAT_KIND_CUSTOM: return "custom (needs its own firmware)";
         case SAT_KIND_NO_ID: return "no ID resistor";
         default: return "unsupported";
     }

@@ -220,6 +220,7 @@ Fault codes, D0 of a FAULT slot (§7).
 - `SAT_KIND_POT_BANK_4 = 5`
 - `SAT_KIND_ENC_BANK_4 = 6`
 - `SAT_KIND_BUTTON_BANK_4 = 7` — four buttons, an RGB LED beside each
+- `SAT_KIND_CUSTOM = 14` — a board on its own firmware: slots as DISCOVER says
 - `SAT_KIND_NO_ID = 15` — no ID resistor fitted: sends EMPTY
 
 ## sat_kind_slots
@@ -228,7 +229,9 @@ Fault codes, D0 of a FAULT slot (§7).
 static inline uint8_t sat_kind_slots(uint8_t kind);
 ```
 
-Slots a board kind owns: 4 for the banks, 1 for everything else.
+Slots a board kind owns: 4 for the banks, 1 for everything else. A custom
+board (SAT_KIND_CUSTOM) declares its own in its DISCOVER descriptor, which is
+what the Seed goes by for every kind.
 
 ## sat_kind_input
 
@@ -244,7 +247,8 @@ The input slot kind a board kind reports.
 static inline bool sat_kind_supported(uint8_t kind);
 ```
 
-Whether this firmware knows the board kind.
+Whether the stock satellite firmware runs this board kind. Not
+SAT_KIND_CUSTOM: those boards bring their own firmware.
 
 ## sat_kind_from_adc
 

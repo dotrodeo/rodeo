@@ -93,16 +93,19 @@ only says what the board has on it.
 | Kind | Board | Slots |
 |---|---|---|
 | `1` | potentiometer (`rodeo-pot-1`) | 1 × `POT` |
-| `2` | button | 1 × `BUTTON` |
+| `2` | button (`rodeo-button-1`, specified) | 1 × `BUTTON` |
 | `3` | encoder with push switch (`rodeo-encoder-1`) | 1 × `ENCODER` |
-| `4` | rotary switch | 1 × `SWITCH` |
+| `4` | rotary switch, up to 8 positions (`rodeo-rotary-switch-1`, specified) | 1 × `SWITCH` |
 | `5` | pot bank ×4 (`rodeo-pot-bank-4`) | 4 × `POT` |
 | `6` | encoder bank ×4 (`rodeo-encoder-bank-4`) | 4 × `ENCODER` |
 | `7` | button bank ×4 (`rodeo-button-bank-4`) | 4 × `BUTTON` |
+| `14` | custom board on its own firmware (the satellite dev board) | 1–4, as it declares |
 | `15` | no resistor fitted — reports `EMPTY` | 1 |
 
-Kinds 8–14 are unassigned. A new board type needs a resistor value and a
-firmware update, not a firmware of its own.
+Kinds 8–13 are kept for future Rodeo satellites. A new board type needs a
+resistor value and a firmware update, not a firmware of its own. Kind 14 is the
+exception: a board Rodeo doesn't make runs its own firmware and declares its
+slots when the Seed discovers it, so the Seed needs nothing new to read it.
 
 :::note[Kind 7 is written but not yet on a board]
 The contract gives `rodeo-button-bank-4` kind 7 and an `RGB` output slot — a

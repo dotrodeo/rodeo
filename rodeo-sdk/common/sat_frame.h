@@ -124,6 +124,8 @@ enum
     SAT_KIND_POT_BANK_4   = 5,
     SAT_KIND_ENC_BANK_4   = 6,
     SAT_KIND_BUTTON_BANK_4 = 7, // four buttons, an RGB LED beside each
+    // 8-13: kept for future Rodeo satellites
+    SAT_KIND_CUSTOM       = 14, // a board on its own firmware: slots as DISCOVER says
     SAT_KIND_NO_ID        = 15, // no ID resistor fitted: sends EMPTY
 };
 #define SAT_NUM_KINDS 16u
@@ -133,7 +135,9 @@ enum
  *  fault, not a guess. */
 #define SAT_KIND_TOLERANCE_X100 30 // 0.30 of a kind step
 
-/** Slots a board kind owns: 4 for the banks, 1 for everything else. */
+/** Slots a board kind owns: 4 for the banks, 1 for everything else. A custom
+ *  board (SAT_KIND_CUSTOM) declares its own in its DISCOVER descriptor, which is
+ *  what the Seed goes by for every kind. */
 static inline uint8_t sat_kind_slots(uint8_t kind)
 {
     return (kind == SAT_KIND_POT_BANK_4 || kind == SAT_KIND_ENC_BANK_4
@@ -158,7 +162,8 @@ static inline uint8_t sat_kind_input(uint8_t kind)
     }
 }
 
-/** Whether this firmware knows the board kind. */
+/** Whether the stock satellite firmware runs this board kind. Not
+ *  SAT_KIND_CUSTOM: those boards bring their own firmware. */
 static inline bool sat_kind_supported(uint8_t kind)
 {
     return kind <= SAT_KIND_BUTTON_BANK_4 || kind == SAT_KIND_NO_ID;

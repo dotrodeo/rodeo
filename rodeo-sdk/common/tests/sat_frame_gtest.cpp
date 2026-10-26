@@ -166,6 +166,11 @@ TEST(SatFrame, KindsOwnTheirSlotsAndReportTheirInputs)
     EXPECT_EQ(sat_kind_input(SAT_KIND_BUTTON_BANK_4), SAT_IN_BUTTON);
     EXPECT_TRUE(sat_kind_supported(SAT_KIND_BUTTON_BANK_4));
     EXPECT_FALSE(sat_kind_supported(8));
+    // Kind 14 is a custom board on its own firmware: the stock image doesn't run
+    // it, and its slots' kinds come per slot, not from the kind table.
+    EXPECT_EQ(SAT_KIND_CUSTOM, 14);
+    EXPECT_FALSE(sat_kind_supported(SAT_KIND_CUSTOM));
+    EXPECT_EQ(sat_kind_input(SAT_KIND_CUSTOM), SAT_IN_EMPTY);
 }
 
 TEST(SatFrame, RgbSlotCarriesAnRgb565Colour)
