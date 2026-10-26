@@ -55,6 +55,7 @@ int main()
         float cutoff  = chain.Pot(0, 2);          // satellite 0, slot 2: 0..1
         int   detents = chain.EncoderSteps(1, 0); // since the last call, + or -
         chain.SetLed(1, 255, SAT_LED_SLOW_BLINK);
+        chain.SetRgb(2, 0, 255, 96, 0);           // a button bank's first LED: amber
     }
 }
 ```

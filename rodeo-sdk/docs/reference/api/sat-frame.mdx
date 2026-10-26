@@ -174,13 +174,14 @@ Input slots, satellite to Seed. They report state, not events.
 - `SAT_IN_SWITCH = 0x04` — D0 position index
 - `SAT_IN_FAULT = 0x7F` — D0 fault code, D1 detail
 
-## SAT_OUT_NONE … SAT_OUT_LED
+## SAT_OUT_NONE … SAT_OUT_RGB
 
 
 Output slots, Seed to satellite.
 
 - `SAT_OUT_NONE = 0x00` — keep the current output state
 - `SAT_OUT_LED = 0x10` — D0 brightness 0-255; D1 a SAT_LED_ mode
+- `SAT_OUT_RGB = 0x11` — D0-D1 an RGB565 colour, little-endian (sat_rgb565())
 
 ## SAT_LED_STEADY … SAT_LED_FAST_BLINK
 
@@ -218,6 +219,7 @@ Fault codes, D0 of a FAULT slot (§7).
 - `SAT_KIND_SWITCH = 4`
 - `SAT_KIND_POT_BANK_4 = 5`
 - `SAT_KIND_ENC_BANK_4 = 6`
+- `SAT_KIND_BUTTON_BANK_4 = 7` — four buttons, an RGB LED beside each
 - `SAT_KIND_NO_ID = 15` — no ID resistor fitted: sends EMPTY
 
 ## sat_kind_slots
@@ -350,6 +352,31 @@ static inline sat_slot sat_led(uint8_t brightness, uint8_t mode);
 ```cpp
 static inline sat_slot sat_none(void);
 ```
+
+## sat_rgb565
+
+```cpp
+static inline uint16_t sat_rgb565(uint8_t r, uint8_t g, uint8_t b);
+```
+
+8-bit red, green and blue packed as RGB565: 5 bits red, 6 green, 5 blue.
+
+## sat_rgb
+
+```cpp
+static inline sat_slot sat_rgb(uint16_t rgb565);
+```
+
+An RGB output slot: one LED's colour (§3.2).
+
+## sat_rgb_unpack
+
+```cpp
+static inline void sat_rgb_unpack(sat_slot s, uint8_t* r, uint8_t* g, uint8_t* b);
+```
+
+An RGB slot's colour back to 8 bits a channel. Each channel's top bits fill
+its low ones, so full scale stays 255 and 0 stays 0.
 
 ## sat_descriptor
 

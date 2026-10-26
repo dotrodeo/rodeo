@@ -23,7 +23,12 @@ void SatChain::Init(const Config& cfg, uint32_t now_us)
     misses_ = discover_tries_ = 0;
     good_scans_ = bad_scans_ = 0;
     for(int i = 0; i < kMaxSatellites; i++)
+    {
         led_[i][0] = led_[i][1] = 0;
+        rgb_set_[i]             = 0;
+        for(int s = 0; s < 4; s++)
+            rgb_[i][s] = 0;
+    }
     for(int k = 0; k < kMaxSatellites; k++)
         in_[k] = sat_slot_make(SAT_IN_EMPTY, 0, 0);
 }
@@ -58,7 +63,9 @@ void SatChain::Scan(Exchange& ex)
     sat_slot out[SAT_MAX_SLOTS];
     for(int i = 0; i < count_; i++)
         for(int s = 0; s < desc_[i].slots; s++)
-            out[offset_[i] + s] = s == 0 ? sat_led(led_[i][0], led_[i][1]) : sat_none();
+            out[offset_[i] + s] = (rgb_set_[i] >> s) & 1 ? sat_rgb(rgb_[i][s])
+                                  : s == 0            ? sat_led(led_[i][0], led_[i][1])
+                                                      : sat_none();
     ex.tx_len     = static_cast<uint16_t>(sat_build_scan(ex.tx, out, slots_));
     ex.rx_len     = static_cast<uint16_t>(SAT_FRAME_LEN(slots_));
     ex.timeout_us = sat_timeout_us(slots_, static_cast<uint8_t>(count_));
@@ -402,5 +409,13 @@ void SatChain::SetLed(int i, uint8_t brightness, uint8_t mode)
         return;
     led_[i][0] = brightness;
     led_[i][1] = mode;
+}
+
+void SatChain::SetRgb(int i, int s, uint8_t r, uint8_t g, uint8_t b)
+{
+    if(i < 0 || i >= kMaxSatellites || s < 0 || s >= 4)
+        return;
+    rgb_[i][s] = sat_rgb565(r, g, b);
+    rgb_set_[i] |= static_cast<uint8_t>(1u << s);
 }
 } // namespace rodeo

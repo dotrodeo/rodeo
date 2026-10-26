@@ -81,6 +81,7 @@ enum
 {
     SAT_OUT_NONE = 0x00, // keep the current output state
     SAT_OUT_LED  = 0x10, // D0 brightness 0-255; D1 a SAT_LED_ mode
+    SAT_OUT_RGB  = 0x11, // D0-D1 an RGB565 colour, little-endian (sat_rgb565())
 };
 
 enum
@@ -122,6 +123,7 @@ enum
     SAT_KIND_SWITCH       = 4,
     SAT_KIND_POT_BANK_4   = 5,
     SAT_KIND_ENC_BANK_4   = 6,
+    SAT_KIND_BUTTON_BANK_4 = 7, // four buttons, an RGB LED beside each
     SAT_KIND_NO_ID        = 15, // no ID resistor fitted: sends EMPTY
 };
 #define SAT_NUM_KINDS 16u
@@ -134,7 +136,10 @@ enum
 /** Slots a board kind owns: 4 for the banks, 1 for everything else. */
 static inline uint8_t sat_kind_slots(uint8_t kind)
 {
-    return (kind == SAT_KIND_POT_BANK_4 || kind == SAT_KIND_ENC_BANK_4) ? 4 : 1;
+    return (kind == SAT_KIND_POT_BANK_4 || kind == SAT_KIND_ENC_BANK_4
+            || kind == SAT_KIND_BUTTON_BANK_4)
+               ? 4
+               : 1;
 }
 
 /** The input slot kind a board kind reports. */
@@ -144,7 +149,8 @@ static inline uint8_t sat_kind_input(uint8_t kind)
     {
         case SAT_KIND_POT:
         case SAT_KIND_POT_BANK_4: return SAT_IN_POT;
-        case SAT_KIND_BUTTON: return SAT_IN_BUTTON;
+        case SAT_KIND_BUTTON:
+        case SAT_KIND_BUTTON_BANK_4: return SAT_IN_BUTTON;
         case SAT_KIND_ENCODER:
         case SAT_KIND_ENC_BANK_4: return SAT_IN_ENCODER;
         case SAT_KIND_SWITCH: return SAT_IN_SWITCH;
@@ -155,7 +161,7 @@ static inline uint8_t sat_kind_input(uint8_t kind)
 /** Whether this firmware knows the board kind. */
 static inline bool sat_kind_supported(uint8_t kind)
 {
-    return kind <= SAT_KIND_ENC_BANK_4 || kind == SAT_KIND_NO_ID;
+    return kind <= SAT_KIND_BUTTON_BANK_4 || kind == SAT_KIND_NO_ID;
 }
 
 /** Board kind from the ID divider's ADC reading: kind = round(15 x reading /
@@ -277,6 +283,29 @@ static inline sat_slot sat_led(uint8_t brightness, uint8_t mode)
 static inline sat_slot sat_none(void)
 {
     return sat_slot_make(SAT_OUT_NONE, 0, 0);
+}
+
+/** 8-bit red, green and blue packed as RGB565: 5 bits red, 6 green, 5 blue. */
+static inline uint16_t sat_rgb565(uint8_t r, uint8_t g, uint8_t b)
+{
+    return (uint16_t)(((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3));
+}
+
+/** An RGB output slot: one LED's colour (§3.2). */
+static inline sat_slot sat_rgb(uint16_t rgb565)
+{
+    return sat_slot_make(SAT_OUT_RGB, (uint8_t)(rgb565 & 0xFF), (uint8_t)(rgb565 >> 8));
+}
+
+/** An RGB slot's colour back to 8 bits a channel. Each channel's top bits fill
+ *  its low ones, so full scale stays 255 and 0 stays 0. */
+static inline void sat_rgb_unpack(sat_slot s, uint8_t* r, uint8_t* g, uint8_t* b)
+{
+    uint16_t c  = (uint16_t)(s.d0 | (s.d1 << 8));
+    uint8_t  r5 = (uint8_t)(c >> 11), g6 = (uint8_t)((c >> 5) & 0x3F), b5 = (uint8_t)(c & 0x1F);
+    *r          = (uint8_t)((r5 << 3) | (r5 >> 2));
+    *g          = (uint8_t)((g6 << 2) | (g6 >> 4));
+    *b          = (uint8_t)((b5 << 3) | (b5 >> 2));
 }
 
 // --- Discovery (§4) -----------------------------------------------------------------

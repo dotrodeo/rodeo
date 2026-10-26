@@ -21,6 +21,7 @@ struct SimSat
     bool           alive  = true;
     bool           forced = false; // CLOSE_RING_HERE in effect
     sat_slot       led    = {0, 0, 0, 0};
+    sat_slot       outs[4] = {};   // every output slot it took, in slot order
     int            frames = 0;
 };
 
@@ -55,7 +56,11 @@ struct Ring
             frame = out;
             s.frames++;
             if(took)
+            {
                 s.led = taken[0];
+                for(int k = 0; k < s.me.slots; k++)
+                    s.outs[k] = taken[k];
+            }
             if(frame[SAT_H_TYPE] == SAT_COMMAND)
                 for(int k = 0; k < frame[SAT_H_N]; k++)
                 {
@@ -195,6 +200,28 @@ TEST(SatChain, SendsEachSatelliteItsLed)
     EXPECT_EQ(b.ring.sats[1].led.d0, 200);
     EXPECT_EQ(b.ring.sats[1].led.d1, SAT_LED_SLOW_BLINK);
     EXPECT_EQ(b.ring.sats[0].led.d0, 0);
+}
+
+TEST(SatChain, SendsAButtonBankItsColours)
+{
+    Bench b;
+    b.ring.sats = {Sat(SAT_KIND_POT), Sat(SAT_KIND_BUTTON_BANK_4)};
+    b.chain.SetRgb(1, 2, 255, 0, 0);
+    b.chain.SetRgb(1, 0, 0, 0, 255);
+    b.chain.SetRgb(5, 0, 1, 2, 3);  // no such satellite: harmless
+    b.chain.SetRgb(1, 4, 1, 2, 3);  // no such slot: harmless
+    b.RunUntil(100000);
+    const SimSat& bank = b.ring.sats[1];
+    EXPECT_EQ(bank.outs[0].kind, SAT_OUT_RGB);
+    EXPECT_EQ(bank.outs[2].kind, SAT_OUT_RGB);
+    uint8_t r, g, bl;
+    sat_rgb_unpack(bank.outs[2], &r, &g, &bl);
+    EXPECT_EQ(r, 255); EXPECT_EQ(g, 0); EXPECT_EQ(bl, 0);
+    sat_rgb_unpack(bank.outs[0], &r, &g, &bl);
+    EXPECT_EQ(bl, 255);
+    EXPECT_EQ(bank.outs[1].kind, SAT_OUT_NONE); // slots never set keep what they have
+    EXPECT_EQ(bank.outs[3].kind, SAT_OUT_NONE);
+    EXPECT_EQ(b.ring.sats[0].led.kind, SAT_OUT_LED); // the pot's LED slot is untouched
 }
 
 TEST(SatChain, EmptyRingIsAZeroSatelliteChain)

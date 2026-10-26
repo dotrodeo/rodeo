@@ -161,6 +161,39 @@ TEST(SatFrame, KindsOwnTheirSlotsAndReportTheirInputs)
     EXPECT_EQ(sat_kind_input(SAT_KIND_NO_ID), SAT_IN_EMPTY);
     EXPECT_TRUE(sat_kind_supported(SAT_KIND_NO_ID));
     EXPECT_FALSE(sat_kind_supported(9));
+    // The button bank: four BUTTON slots, one per button, each with its own LED.
+    EXPECT_EQ(sat_kind_slots(SAT_KIND_BUTTON_BANK_4), 4);
+    EXPECT_EQ(sat_kind_input(SAT_KIND_BUTTON_BANK_4), SAT_IN_BUTTON);
+    EXPECT_TRUE(sat_kind_supported(SAT_KIND_BUTTON_BANK_4));
+    EXPECT_FALSE(sat_kind_supported(8));
+}
+
+TEST(SatFrame, RgbSlotCarriesAnRgb565Colour)
+{
+    // Packing: 5 bits red, 6 green, 5 blue, little-endian in D0-D1.
+    EXPECT_EQ(sat_rgb565(255, 255, 255), 0xFFFF);
+    EXPECT_EQ(sat_rgb565(255, 0, 0), 0xF800);
+    EXPECT_EQ(sat_rgb565(0, 255, 0), 0x07E0);
+    EXPECT_EQ(sat_rgb565(0, 0, 255), 0x001F);
+    sat_slot s = sat_rgb(0xF81F);
+    EXPECT_EQ(s.kind, SAT_OUT_RGB);
+    EXPECT_EQ(s.d0, 0x1F);
+    EXPECT_EQ(s.d1, 0xF8);
+    EXPECT_TRUE(sat_slot_ok(s));
+
+    // Unpacking keeps the ends exact and every channel within one step of 8 bits.
+    uint8_t r, g, b;
+    sat_rgb_unpack(sat_rgb(sat_rgb565(255, 255, 255)), &r, &g, &b);
+    EXPECT_EQ(r, 255); EXPECT_EQ(g, 255); EXPECT_EQ(b, 255);
+    sat_rgb_unpack(sat_rgb(0), &r, &g, &b);
+    EXPECT_EQ(r | g | b, 0);
+    for(int v = 0; v < 256; v++)
+    {
+        sat_rgb_unpack(sat_rgb(sat_rgb565(v, v, v)), &r, &g, &b);
+        EXPECT_NEAR(r, v, 8) << v;
+        EXPECT_NEAR(g, v, 4) << v;
+        EXPECT_NEAR(b, v, 8) << v;
+    }
 }
 
 // --- Headers ---------------------------------------------------------------------

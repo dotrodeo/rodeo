@@ -121,6 +121,11 @@ class SatChain
      *  every scan. */
     void SetLed(int i, uint8_t brightness, uint8_t mode = SAT_LED_STEADY);
 
+    /** The colour of the RGB LED on satellite i's slot s, for boards with one
+     *  per slot (the button bank). Sent with every scan as an RGB slot (§3.2),
+     *  in place of SetLed's on slot 0. Colours travel as RGB565. */
+    void SetRgb(int i, int s, uint8_t r, uint8_t g, uint8_t b);
+
   private:
     enum class Step : uint8_t
     {
@@ -157,6 +162,8 @@ class SatChain
     uint8_t  read_counter_[SAT_MAX_SLOTS]; // what EncoderSteps/Presses last handed out
     uint8_t  read_presses_[SAT_MAX_SLOTS];
     uint8_t  led_[kMaxSatellites][2];
+    uint16_t rgb_[kMaxSatellites][4]; // RGB565, where rgb_set_ says so
+    uint8_t  rgb_set_[kMaxSatellites]; // bit s: slot s has a colour
 
     uint8_t  misses_ = 0, discover_tries_ = 0;
     uint8_t  probe_ = 0;   // the position being closed while finding a break
