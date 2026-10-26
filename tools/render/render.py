@@ -73,7 +73,9 @@ def pcb_in(d):
 
 
 def export_glb(pcb, out):
-    subprocess.run([KICAD_CLI, 'pcb', 'export', 'glb', '--force', '--subst-models',
+    # --no-dnp: leave out parts marked Do Not Populate (the satellites' programming
+    # headers), which kicad-cli otherwise renders as fitted.
+    subprocess.run([KICAD_CLI, 'pcb', 'export', 'glb', '--force', '--subst-models', '--no-dnp',
                     '--include-tracks', '--include-pads', '--include-zones',
                     '--include-silkscreen', '--include-soldermask', '-o', out, pcb],
                    check=True, stdout=subprocess.DEVNULL)
