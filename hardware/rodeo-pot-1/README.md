@@ -139,9 +139,10 @@ the contract's 6 mA per satellite.
 
 ## Firmware
 
-* **A kind-1 map in `rodeo-satellite/src/boards.h`:** one pot on PA2, LED on PC6,
-  `PRESENT` on PC3, ID divider driven from PC2. That's the kind-5 map's slot 1.
-  `sat_frame.h` already gives kind 1 one slot, reporting `POT`.
+* **Kind 1 is in `rodeo-satellite`** (`SAT_BOARD_POT_1` in `src/boards.h`, set up in
+  `firmware/satellite.c`, 2026-10-25): one pot on PA2, LED on PC6, `PRESENT` on PC3,
+  the ID divider driven from PC2. That's the kind-5 map's slot 1. `sat_frame.h`
+  already gives kind 1 one slot, reporting `POT`.
 * Nothing new in the SDK: a kind-1 satellite reports a `POT` slot like each of a
   bank's four.
 
@@ -176,4 +177,5 @@ R5 is a basic part.
 
 ## Open
 
-* Nothing on the board. Firmware needs its kind-1 map (see [Firmware](#firmware)).
+* Nothing. Bring-up: the ID read (kind 1 reads lowest of any kind, about 68 of
+  1023 counts with PC2 driven), the pot's direction, and the LED.

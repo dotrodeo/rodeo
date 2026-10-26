@@ -1,7 +1,8 @@
 #pragma once
 //
 // What each satellite board wires to which CH32V003F4P6 pin, read from the
-// boards' schematics (hardware/rodeo-pot-bank-4, hardware/rodeo-encoder-bank-4).
+// boards' schematics (hardware/rodeo-pot-1, hardware/rodeo-pot-bank-4,
+// hardware/rodeo-encoder-bank-4).
 // One firmware image serves every board: it reads the ID resistor (kind.h) and
 // then uses that kind's map. Pure data, no register access.
 //
@@ -45,11 +46,19 @@ typedef struct
     sat_pin present; // OUT PRESENT: high = nothing downstream, this is the last
     sat_pin led;     // indicator LED, active high
     sat_pin id_feed; // drives the ID divider's 10 k, or port 0 if it's tied to 3V3
-    sat_pin pots[4]; // pot wipers, pots 1-4 in slot order
+    sat_pin pots[4]; // pot wipers, pots 1-4 in slot order; unused ones SAT_NO_PIN
     sat_pin enc_a[4];
     sat_pin enc_b[4];
     sat_pin switches; // the push switches' resistor ladder (encoder bank)
 } sat_board;
+
+/** Kind 1, rodeo-pot-1: the pot bank's map cut to slot 1. One pot on PA2, and
+ *  the ID divider fed from PC2 like the bank's. */
+#define SAT_BOARD_POT_1                                                        \
+    {                                                                          \
+        .present = {'C', 3}, .led = {'C', 6}, .id_feed = {'C', 2},             \
+        .pots = {{'A', 2}},                                                    \
+    }
 
 /** Kind 5, rodeo-pot-bank-4. The ID divider's top is fed from PC2, which the
  *  firmware drives high only while it reads the ID. */

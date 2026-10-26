@@ -54,6 +54,16 @@ TEST(Kind, PotBankIsFoundByDrivingItsFeed)
     EXPECT_FALSE(pot_bank.feed_high); // released after the read
 }
 
+TEST(Kind, SinglePotIsFoundByDrivingItsFeed)
+{
+    // Kind 1 reads lowest of any kind (R_ID 715 ohm), and like the pot bank its
+    // divider hangs from PC2, so the first read is near ground either way.
+    Divider pot = {715, true};
+    EXPECT_EQ(Detect(pot), SAT_KIND_POT);
+    EXPECT_EQ(pot.drives, 1);
+    EXPECT_FALSE(pot.feed_high);
+}
+
 TEST(Kind, EncoderBankIsFoundWithoutEverDrivingPc2)
 {
     // On the encoder bank PC2 is encoder 2's A line: driving it could short a
@@ -74,6 +84,15 @@ TEST(Kind, BoardsWireTheIdAndAnalogPinsToAdcChannels)
     sat_board pot = SAT_BOARD_POT_BANK_4;
     for(auto p : pot.pots)
         EXPECT_GE(sat_adc_channel(p), 0) << p.port << int(p.pin);
+    // The single pot is the bank's slot 1, and fills only that slot.
+    sat_board one = SAT_BOARD_POT_1;
+    EXPECT_EQ(one.pots[0].port, pot.pots[0].port);
+    EXPECT_EQ(one.pots[0].pin, pot.pots[0].pin);
+    EXPECT_EQ(one.pots[1].port, 0);
+    EXPECT_EQ(one.present.port, pot.present.port);
+    EXPECT_EQ(one.led.port, pot.led.port);
+    EXPECT_EQ(one.id_feed.port, 'C');
+    EXPECT_EQ(sat_kind_slots(SAT_KIND_POT), 1);
     sat_board enc = SAT_BOARD_ENC_BANK_4;
     EXPECT_EQ(sat_adc_channel(enc.switches), 7); // PD4
     EXPECT_EQ(enc.id_feed.port, 0);              // tied to 3V3: no feed pin

@@ -225,10 +225,10 @@ static void setup_board(int kind, uint8_t detail)
     me.slots          = 1;
     n_inputs          = 1;
 
-    if(kind == SAT_KIND_POT_BANK_4)
+    if(kind == SAT_KIND_POT || kind == SAT_KIND_POT_BANK_4)
     {
-        board = (sat_board)SAT_BOARD_POT_BANK_4;
-        for(int i = 0; i < 4; i++)
+        board = kind == SAT_KIND_POT ? (sat_board)SAT_BOARD_POT_1 : (sat_board)SAT_BOARD_POT_BANK_4;
+        for(int i = 0; i < 4 && has(board.pots[i]); i++)
         {
             mode(board.pots[i], GPIO_CNF_IN_ANALOG);
             adc_chan[adc_n++] = sat_adc_channel(board.pots[i]);
@@ -249,16 +249,16 @@ static void setup_board(int kind, uint8_t detail)
         ladder_init(&ladder, r_switch, LADDER_PULL_UP, 1023);
     }
 
-    if(kind == SAT_KIND_POT_BANK_4 || kind == SAT_KIND_ENC_BANK_4)
+    if(kind == SAT_KIND_POT || kind == SAT_KIND_POT_BANK_4 || kind == SAT_KIND_ENC_BANK_4)
     {
         me.kind  = (uint8_t)kind;
-        me.slots = 4;
-        n_inputs = 4;
+        me.slots = sat_kind_slots((uint8_t)kind);
+        n_inputs = me.slots;
         mode(board.present, GPIO_CNF_IN_PUPD);
         put(board.present, 1); // pull-up
         mode(board.led, GPIO_Speed_10MHz | GPIO_CNF_OUT_PP);
         put(board.led, 0);
-        for(int i = 0; i < 4; i++)
+        for(int i = 0; i < n_inputs; i++)
             inputs[i] = sat_none();
     }
     else if(kind < 0)
@@ -305,7 +305,7 @@ static void adc_service(void)
         return;
     uint16_t raw = adc_result();
     adc_busy     = false;
-    if(st.me.kind == SAT_KIND_POT_BANK_4)
+    if(st.me.kind == SAT_KIND_POT || st.me.kind == SAT_KIND_POT_BANK_4)
         inputs[adc_i] = sat_pot(pot_filter(&pot_filt[adc_i], pot_scale10(raw), 2));
     else if(st.me.kind == SAT_KIND_ENC_BANK_4)
         ladder_update(&ladder, raw);

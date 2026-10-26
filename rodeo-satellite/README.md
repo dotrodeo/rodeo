@@ -73,13 +73,15 @@ googletest comes from the copy vendored in `rodeo-sdk/libDaisy`.
 
 ## Pins (CH32V003F4P6)
 
-| | Pot bank (kind 5) | Encoder bank (kind 6) |
-|---|---|---|
-| Chain TX, normal | PD5 (USART1 map 0) | PD5 |
-| Chain RX | PD6, PC1 | PD6, PC1 |
-| Return tap TX, when last | PC0 (map 3) | PC0 |
-| `PRESENT` | PC3 | PD2 |
-| ID divider | PD3 (A4), fed from PC2 | PD3 (A4), fed from 3V3 |
-| LED | PC6 | PD0 |
-| Controls | pots on PA2, PD2, PC4, PA1 | encoders A/B on PA1/PA2, PC2/PC3, PC4/PC5, PC6/PC7; switches on PD4 (A7) |
-| Programming | SWIO on PD1 | SWIO on PD1 |
+| | Single pot (kind 1) | Pot bank (kind 5) | Encoder bank (kind 6) |
+|---|---|---|---|
+| Chain TX, normal | PD5 (USART1 map 0) | PD5 (USART1 map 0) | PD5 |
+| Chain RX | PD6, PC1 | PD6, PC1 | PD6, PC1 |
+| Return tap TX, when last | PC0 (map 3) | PC0 (map 3) | PC0 |
+| `PRESENT` | PC3 | PC3 | PD2 |
+| ID divider | PD3 (A4), fed from PC2 | PD3 (A4), fed from PC2 | PD3 (A4), fed from 3V3 |
+| LED | PC6 | PC6 | PD0 |
+| Controls | pot on PA2 | pots on PA2, PD2, PC4, PA1 | encoders A/B on PA1/PA2, PC2/PC3, PC4/PC5, PC6/PC7; switches on PD4 (A7) |
+| Programming | SWIO on PD1 | SWIO on PD1 | SWIO on PD1 |
+
+The single pot is the pot bank cut to slot 1: one `POT` slot, the same pins.
