@@ -122,6 +122,10 @@ const SDK = 'rev-a/rodeo-sdk/README.md';
 // The first order: the motherboard, the seven daughterboards and the five rear panels,
 // ordered from JLC on 2026-10-18, five of each. One record covers all of them.
 const FAB = 'hardware/rodeo-motherboard/docs/rev-b.md:3-6';
+// Which boards have actually been made, and what each one wants next time it is
+// spun. The Built table is the test for `at-fab`: a board that is not in it has
+// not been ordered, whatever its Gerbers look like.
+const REVS = 'hardware/docs/revisions.md';
 
 export const boards: Board[] = [
   {
@@ -223,6 +227,156 @@ export const boards: Board[] = [
     ],
   },
 
+
+  {
+    slug: 'rodeo-button-bank-4',
+    name: 'rodeo-button-bank-4',
+    kind: 'satellite',
+    status: 'designed',
+    rev: 'B',
+    outline: { w: 20, h: 75 },
+    ...views('rodeo-button-bank-4', {
+      iso: 'Render of the Rev-B rodeo-button-bank-4 at an angle: a narrow black strip with four square tact switches in a row and the RODEO wordmark repeated three times running off one end.',
+      front: 'Render of the top of the Rev-B rodeo-button-bank-4: four tact switches numbered 1 to 4 down a 20 by 75 mm black strip, a tiny RGB LED beside each one, and three overlapping RODEO wordmarks at the top.',
+      back: 'Render of the underside of the Rev-B rodeo-button-bank-4: the CH32V003 microcontroller at the top, the chain input and output connectors labelled CHAIN IN and CHAIN OUT, and two white two-pin connectors labelled AUX 5V at the bottom.',
+    }),
+    summary: 'Four buttons on 12.5 mm centres, each with an addressable RGB LED beside it.',
+    body: 'The third satellite, and the first that can answer back. Lit tact switches this small are either eight dollars each or barely documented, so the buttons are plain and an RGB LED sits beside each one, meant to show through a light pipe in the panel. The LEDs run from the chain’s own 3.3 V with a firmware brightness cap, or at full brightness from an auxiliary 5 V feed, switched over automatically by a MOSFET and a Schottky so there is nothing to set.',
+    specs: [
+      {
+        label: 'controls',
+        value: '4 × tact switch, 12.5 mm centres',
+        evidence: 'hardware/rodeo-button-bank-4/README.md:3',
+      },
+      {
+        label: 'indicators',
+        value: '4 × WS2812B addressable RGB',
+        evidence: 'hardware/rodeo-button-bank-4/README.md:70',
+      },
+      {
+        label: 'outline',
+        value: '20 × 75 mm',
+        evidence: 'hardware/rodeo-button-bank-4/README.md:33',
+      },
+      { label: 'brain', value: 'CH32V003F4P6', evidence: 'hardware/rodeo-button-bank-4/README.md:129' },
+      {
+        label: 'chain slots',
+        value: 'board kind 7, four button slots',
+        evidence: 'hardware/rodeo-button-bank-4/README.md:165-166',
+      },
+      {
+        label: 'LED supply',
+        value: 'chain 3V3, or aux 5 V when it is plugged in',
+        evidence: 'hardware/rodeo-button-bank-4/README.md:22-25',
+      },
+    ],
+    caveats: [
+      {
+        status: 'designed',
+        text: 'Drawn and routed, with fab outputs generated — and not ordered. The first Rev B run went to JLC on 2026-10-18 and covered thirteen boards; this is not one of them.',
+        evidence: `${REVS}:9-27`,
+      },
+      {
+        status: 'planned',
+        text: 'Full brightness needs a 5 V feed, and the Rev B motherboard does not bring one to a connector — the only 5 V it exposes is the codec’s analog supply, which LED current has no business on. An aux output is on the list for the motherboard’s next revision.',
+        evidence: `${REVS}:55-65`,
+      },
+      {
+        status: 'planned',
+        text: 'The satellite firmware does not know this board yet. Kind 7, an RGB output slot in the chain protocol and the WS2812 driver all still have to be written.',
+        evidence: 'hardware/rodeo-button-bank-4/README.md:184-195',
+      },
+    ],
+  },
+
+  {
+    slug: 'rodeo-pot-1',
+    name: 'rodeo-pot-1',
+    kind: 'satellite',
+    status: 'designed',
+    rev: 'B',
+    outline: { w: 25, h: 25 },
+    ...views('rodeo-pot-1', {
+      iso: 'Render of the Rev-B rodeo-pot-1 at an angle: a small square black board with one potentiometer standing on a threaded bushing, its flatted shaft upright.',
+      front: 'Render of the top of the Rev-B rodeo-pot-1: a single potentiometer in the middle of a 25 mm square black board, marked RV1, with a mounting hole and a row of programming pads beside it.',
+      back: 'Render of the underside of the Rev-B rodeo-pot-1: the CH32V003 microcontroller, the status LED, the chain input and output connectors labelled CHAIN IN and CHAIN OUT, and the words RODEO POTENTIOMETER, Kind 1, Rev B1 in white silkscreen.',
+    }),
+    summary: 'One 9 mm pot on the chain, for a knob that does not belong in a row of four.',
+    body: 'The pot bank cut down to one. Same pot, same microcontroller, same connectors, same firmware — so a lone knob and a bank of four read identically to the Seed and sit at the same height on a panel. It hangs from the pot’s own bushing with one M2 standoff beside it, which is there to stop the board swinging round when the nut is tightened or someone forces the knob past its stop.',
+    specs: [
+      { label: 'controls', value: '1 × 9 mm pot, panel mount', evidence: 'hardware/rodeo-pot-1/README.md:3' },
+      { label: 'outline', value: '25 × 25 mm', evidence: 'hardware/rodeo-pot-1/README.md:34' },
+      { label: 'brain', value: 'CH32V003F4P6', evidence: 'hardware/rodeo-pot-1/README.md:79' },
+      {
+        label: 'chain slot',
+        value: 'board kind 1, one pot slot',
+        evidence: 'hardware/rodeo-pot-1/README.md:118-119',
+      },
+      {
+        label: 'firmware',
+        value: 'kind 1 runs on the one satellite image',
+        evidence: 'hardware/rodeo-pot-1/README.md:142-145',
+      },
+    ],
+    caveats: [
+      {
+        status: 'designed',
+        text: 'Drawn and routed, with fab outputs generated — and not ordered. The first Rev B run went to JLC on 2026-10-18 and covered thirteen boards; this is not one of them.',
+        evidence: `${REVS}:9-27`,
+      },
+    ],
+  },
+
+  {
+    slug: 'rodeo-encoder-1',
+    name: 'rodeo-encoder-1',
+    kind: 'satellite',
+    status: 'designed',
+    rev: 'B',
+    outline: { w: 25, h: 25 },
+    ...views('rodeo-encoder-1', {
+      iso: 'Render of the Rev-B rodeo-encoder-1 at an angle: a small square black board with one rotary encoder standing on a threaded bushing, its knurled shaft upright.',
+      front: 'Render of the top of the Rev-B rodeo-encoder-1: a single rotary encoder in the middle of a 25 mm square black board, marked SW1, with a mounting hole and a row of programming pads beside it.',
+      back: 'Render of the underside of the Rev-B rodeo-encoder-1: the CH32V003 microcontroller, the status LED, the chain input and output connectors labelled CHAIN IN and CHAIN OUT, and the words RODEO ENCODER, Kind 3, Rev B1 in white silkscreen.',
+    }),
+    summary: 'One 12 mm encoder with a push switch, on the single pot’s footprint.',
+    body: 'The encoder bank cut down to one, drawn on the same 25 mm square as the single pot: same mounting hole, same standoff, the LED moved a millimetre further out to clear the encoder’s switch pins. The push switch keeps the bank’s resistor ladder with one rung on it, so the firmware that already debounces four switches handles this one without a new line of code.',
+    specs: [
+      {
+        label: 'controls',
+        value: '1 × 12 mm encoder with push switch',
+        evidence: 'hardware/rodeo-encoder-1/README.md:3-4',
+      },
+      {
+        label: 'outline',
+        value: '25 × 25 mm, the single pot’s',
+        evidence: 'hardware/rodeo-encoder-1/README.md:41',
+      },
+      { label: 'brain', value: 'CH32V003F4P6', evidence: 'hardware/rodeo-encoder-1/README.md:86' },
+      {
+        label: 'chain slot',
+        value: 'board kind 3, one encoder slot',
+        evidence: 'hardware/rodeo-encoder-1/README.md:117-119',
+      },
+      {
+        label: 'firmware',
+        value: 'kind 3 runs on the one satellite image',
+        evidence: 'hardware/rodeo-encoder-1/README.md:134-140',
+      },
+    ],
+    caveats: [
+      {
+        status: 'designed',
+        text: 'Drawn and routed, with fab outputs generated — and not ordered. The first Rev B run went to JLC on 2026-10-18 and covered thirteen boards; this is not one of them.',
+        evidence: `${REVS}:9-27`,
+      },
+      {
+        status: 'planned',
+        text: 'The panel hole is Ø7.5 mm for an M7 × 0.75 bushing, which still has to be checked against Bourns’ datasheet before anyone drills a panel for it.',
+        evidence: 'hardware/rodeo-encoder-1/README.md:57',
+      },
+    ],
+  },
 
   {
     slug: 'rodeo-audio-3.5mm',

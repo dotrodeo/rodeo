@@ -84,6 +84,30 @@ last good value.
 | `0x7F` | `FAULT` | Fault code and detail |
 | `0x10` | `LED` | Seed to satellite: brightness, and steady or blinking |
 
+## Board kinds
+
+A resistor to ground on an ADC pin tells the one satellite firmware image which
+board it is running on. Position in the chain is still the address; the kind
+only says what the board has on it.
+
+| Kind | Board | Slots |
+|---|---|---|
+| `1` | potentiometer (`rodeo-pot-1`) | 1 × `POT` |
+| `2` | button | 1 × `BUTTON` |
+| `3` | encoder with push switch (`rodeo-encoder-1`) | 1 × `ENCODER` |
+| `4` | rotary switch | 1 × `SWITCH` |
+| `5` | pot bank ×4 (`rodeo-pot-bank-4`) | 4 × `POT` |
+| `6` | encoder bank ×4 (`rodeo-encoder-bank-4`) | 4 × `ENCODER` |
+| `15` | no resistor fitted — reports `EMPTY` | 1 |
+
+Kinds 7–14 are unassigned. A new board type needs a resistor value and a
+firmware update, not a firmware of its own.
+
+:::note[Kind 7 is spoken for but not written]
+`rodeo-button-bank-4` claims kind 7, and the firmware does not know about it
+yet — the kind, an RGB output slot and the WS2812 driver are all still to come.
+:::
+
 ## Timing
 
 One frame is in the ring at a time. The Seed sends the next after the previous
@@ -98,7 +122,21 @@ returns, or after a timeout.
 
 ## Power
 
-About **6 mA per satellite** including its indicator LED, budgeted for thirty on
-one feed through a 0.75 A resettable fuse. The last of thirty sits roughly 0.4 V
-below the motherboard, so satellites must work down to 2.7 V. Anything
-LED-heavy — RGB, meters — needs its own supply rather than the chain's.
+**What limits the chain is voltage drop, not current.** It is fed from one end
+at 3.3 V, every satellite has to work down to 2.7 V, and each link — 150 mm of
+28 AWG plus two connector matings, there and back — is about 0.14 Ω carrying
+the current of everything past it.
+
+The baseline is **≈6 mA per satellite** including its indicator LED, for thirty
+on one feed through a 0.75 A resettable fuse. That puts the last of thirty
+roughly 0.4 V down, leaving about 0.2 V of headroom.
+
+You can spend that headroom. A satellite drawing ΔI more than the baseline at
+position *p* lowers the far end by ≈0.14 Ω × *p* × ΔI, and the rule is to keep
+**Σ (*p* × ΔI) under about 1.4 A** across the whole chain. Four single-colour
+lit buttons cost 85 mV even at position thirty, and under 30 mV ten boards in.
+
+LEDs that want more than 3.3 V or tens of milliamps — addressable RGB, meters —
+take their LED power from a separate 5 V feed and keep their microcontroller on
+the chain, so logic levels do not move. Rev B does not bring 5 V to a connector
+yet; that is on the motherboard's list for its next revision.

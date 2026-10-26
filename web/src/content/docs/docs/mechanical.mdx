@@ -12,24 +12,34 @@ Measured from each board's KiCad Edge.Cuts layer.
 | `rodeo-motherboard` | 90 × 112 mm |
 | `rodeo-pot-bank-4` | 20 × 100 mm |
 | `rodeo-encoder-bank-4` | 20 × 100 mm |
+| `rodeo-button-bank-4` | 20 × 75 mm |
+| `rodeo-pot-1` | 25 × 25 mm |
+| `rodeo-encoder-1` | 25 × 25 mm |
 | `rodeo-audio-3.5mm` | 60 × 30 mm |
 | `rodeo-midi` | 40 × 25 mm |
 | `rodeo-power-usbc` | 40 × 20 mm |
 | `rodeo-power-barrel` | 60 × 40 mm |
+| `rodeo-power-switch` | 30 × 20 mm |
 
 ## The 25 mm grid
 
-Controls sit on **25 mm centres**, which is what lets a pot bank and an encoder
-bank stand side by side on one panel with their knobs in line. Both bank boards
-are the same 20 × 100 mm outline for the same reason.
+Knobs sit on **25 mm centres**, which is what lets a pot bank and an encoder
+bank stand side by side on one panel with their shafts in line. Both bank
+boards are the same 20 × 100 mm outline for the same reason, and the two single
+boards are a 25 mm square — one cell of the same grid.
 
-The two differ in one detail worth knowing before you drill: the pot bank's
-shafts sit 1.53 mm further along the board than the encoder bank's. Knob
+The two banks differ in one detail worth knowing before you drill: the pot
+bank's shafts sit 1.53 mm further along the board than the encoder bank's. Knob
 spacing is identical; the whole row is offset.
 
+Buttons are the exception. The button bank puts its four switches on **12.5 mm
+centres**, with an LED 7 mm to the side of each — a button does not need a
+knob's clearance, and a row of four fits in 75 mm instead of 100.
+
 :::caution[Two bushing sizes, two hole sizes]
-The pot bank uses pots with **M9 bushings**, so its panel holes are Ø9.5 mm. The
-encoder bank uses **M7**. Drill for the board you are mounting.
+Pots use **M9 bushings**, so their panel holes are Ø9.5 mm. Encoders use **M7**,
+Ø7.5 mm — and that thread is still to be confirmed against Bourns' datasheet.
+Drill for the board you are mounting.
 :::
 
 Pots and encoders both present 15 mm of shaft above their mounting face, so
@@ -38,9 +48,19 @@ knobs sit at the same height across a mixed panel.
 ## How boards mount
 
 **Satellites hang from the panel.** The pots or encoders are through-hole on the
-top side and the board hangs on their bushings and nuts — no standoffs, no
-brackets. Everything else on those boards is surface-mount on the underside,
-which also keeps assembly single-sided.
+top side and the board hangs on their bushings and nuts. Everything else on
+those boards is surface-mount on the underside, which also keeps assembly
+single-sided.
+
+Two cases need a standoff as well:
+
+- **The single boards** carry one bushing each, so an **M2 standoff** beside it
+  stops the board turning when the nut goes on or the knob is forced past its
+  stop. 10 mm for the pot, 6.5 mm for the encoder — the heights of their
+  mounting faces.
+- **The button bank** has no bushings at all, and pressing a button pushes the
+  board away from the panel, so **two M2 standoffs** carry it. Their length goes
+  with the switch height and the caps, which are not chosen yet.
 
 **Everything else sits on printed parts** on the enclosure floor:
 

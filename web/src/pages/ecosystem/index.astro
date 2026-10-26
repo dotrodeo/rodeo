@@ -36,9 +36,10 @@ const legend = [
       <p class="copy-tech m-0 max-w-[620px] text-[16px]">
         Every entry links to its schematic, KiCad project, gerbers, BOM and pinout. These are
         the Rev-B boards, the ones the campaign ships. <strong class="text-legend">Every one is
-        drawn, routed and ordered from the fab — and none of them is built or powered on
-        yet.</strong> The status on each says exactly how far it has got, and nothing
-        here claims to have been measured on hardware nobody has held.
+        drawn and routed; eight are at the fab and three were drawn after that order went
+        in. None of them is built or powered on yet.</strong> The status on each says exactly
+        how far it has got, and nothing here claims to have been measured on hardware nobody
+        has held.
       </p>
     </div>
     <ul class="m-0 flex list-none flex-col gap-2.5 p-0">
@@ -103,12 +104,13 @@ const legend = [
   <section class="wrap py-16">
     <Eyebrow class="mb-4">The satellites</Eyebrow>
     <h2 class="display m-0 mb-4 max-w-[680px] text-[clamp(30px,4.6vw,44px)]">
-      Four controls at a time, on a 25 mm grid
+      Four controls at a time, or one
     </h2>
     <p class="copy-tech m-0 mb-10 max-w-[620px] text-[15px]">
       Each satellite reads its own controls and passes them along a chain. The last one closes
       the ring by itself, and a satellite’s position in the chain is its address — so growing a
-      panel means plugging in another board, never respinning the motherboard.
+      panel means plugging in another board, never respinning the motherboard. The banks put
+      four controls on a 25 mm grid; the singles are for the knob that does not belong in a row.
     </p>
     <ul class="m-0 grid list-none gap-6 p-0 sm:grid-cols-2 lg:grid-cols-3">
       {satellites.map((b) => <BoardCard board={b} />)}
