@@ -42,7 +42,7 @@ panel drawing.
   the top-left corner seen from the front, y down.
   * With the A/C/B row facing the bottom edge, as the pot's pins do: A/C/B at
     y = 20 (x = 10, 12.5, 15), switch pins at y = 5.5 (x = 10 and 15), mounting lugs
-    at x = 6.9 and 18.1. The footprint's courtyard spans x 3.5–21.5, y 5.4–19.6
+    at x = 6.9 and 18.1. The footprint's courtyard spans x 5.4–19.6, y 4.0–21.5
     around the shaft (17.5 × 14.2 mm before turning it).
   * **The single pot's LED spot (12.5, 3.0) doesn't work here:** the switch pins
     leave 0.3 mm between their pads and D1's lens hole. Put D1 on the lug axis,
