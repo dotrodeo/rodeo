@@ -21,13 +21,15 @@
 //   * MIDI: echoes what it receives.
 //
 // DaisySeed brings libDaisy's own USB code with it, including an OTG_FS interrupt
-// handler, so the interrupt is pointed at TinyUSB by copying the vector table to RAM
-// and replacing that one entry (RouteUsbIrqToTinyUsb). Rev B's port (OTG_HS) needs the
-// same, because libDaisy's system.cpp defines that handler for every app.
+// handler, so rodeo::UsbPortInit() points the interrupt at TinyUSB by copying the
+// vector table to RAM and replacing that one entry; Rev B's port (OTG_HS, with
+// `make RODEO_USB=hs`) needs the same, because libDaisy's system.cpp defines that
+// handler for every app. See common/usb_port.h.
 #include <math.h>
 #include "daisy_seed.h"
 #include "tusb.h"
 #include "usb_descriptors.h"
+#include "usb_port.h"
 #include "ff.h"
 #include "ff_gen_drv.h"
 
@@ -38,53 +40,6 @@ static DaisySeed hw;
 extern "C"
 {
     volatile bool usb_disk_mode = false;
-}
-
-//------------- Interrupt routing -------------//
-
-extern "C" void TinyUsbFsIrq(void)
-{
-    tusb_int_handler(0, true);
-}
-
-// 256 entries covers the H750's 16 + 150 vectors; VTOR needs the table aligned to
-// its size rounded up to a power of two. DTCM, so no cache between the CPU's writes
-// and the vector fetch.
-alignas(1024) static uint32_t ram_vectors[256] __attribute__((section(".dtcmram_bss")));
-
-static void RouteUsbIrqToTinyUsb()
-{
-    uint32_t const* flash_vectors = (uint32_t const*)SCB->VTOR;
-    for(int i = 0; i < 256; i++)
-        ram_vectors[i] = flash_vectors[i];
-    ram_vectors[16 + OTG_FS_IRQn] = (uint32_t)&TinyUsbFsIrq;
-    __disable_irq();
-    SCB->VTOR = (uint32_t)ram_vectors;
-    __DSB();
-    __ISB();
-    __enable_irq();
-}
-
-static void UsbHardwareInit()
-{
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    GPIO_InitTypeDef g = {};
-    g.Pin              = GPIO_PIN_11 | GPIO_PIN_12;
-    g.Mode             = GPIO_MODE_AF_PP;
-    g.Pull             = GPIO_NOPULL;
-    g.Speed            = GPIO_SPEED_FREQ_HIGH;
-    g.Alternate        = GPIO_AF10_OTG2_HS;
-    HAL_GPIO_Init(GPIOA, &g);
-
-    HAL_PWREx_EnableUSBVoltageDetector();
-    __HAL_RCC_USB2_OTG_FS_CLK_ENABLE();
-
-    tud_configure_dwc2_t cfg = CFG_TUD_CONFIGURE_DWC2_DEFAULT;
-    cfg.vbus_sensing         = false;
-    tud_configure(BOARD_TUD_RHPORT, TUD_CFGID_DWC2, &cfg);
-
-    // Audio (SAI DMA, libDaisy's priority 0) must be able to preempt USB.
-    NVIC_SetPriority(OTG_FS_IRQn, 6);
 }
 
 //------------- RAM disk -------------//
@@ -777,8 +732,7 @@ int main(void)
 
     DiskInit();
 
-    RouteUsbIrqToTinyUsb();
-    UsbHardwareInit();
+    rodeo::UsbPortInit();
     tusb_rhport_init_t dev_init = {TUSB_ROLE_DEVICE, TUSB_SPEED_AUTO};
     tusb_init(BOARD_TUD_RHPORT, &dev_init);
 

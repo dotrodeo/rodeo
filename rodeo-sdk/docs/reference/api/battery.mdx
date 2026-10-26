@@ -1,0 +1,71 @@
+---
+title: battery.h
+description: "The battery, through the motherboard's MAX17048 fuel gauge on I2C1."
+sidebar:
+  order: 9
+editUrl: https://github.com/dotrodeo/rodeo/edit/main/rodeo-sdk/common/battery.h
+---
+
+{/* Generated from rodeo-sdk/common/battery.h by rodeo-sdk/tools/docs/gen_reference.py. Do not edit:
+    change the header's comments and run `make docs` in rodeo-sdk/. */}
+
+:::note[Generated from the header]
+This page is [`rodeo-sdk/common/battery.h`](https://github.com/dotrodeo/rodeo/blob/main/rodeo-sdk/common/battery.h) — its comments and declarations.
+To change it, change the header.
+:::
+
+```cpp
+rodeo::Battery battery;
+if(!battery.Init())
+    ...;                      // no gauge answered at 0x36
+rodeo::max17048::Reading r;
+if(battery.Read(&r))
+    ...;                      // r.percent, r.volts, r.trend
+```
+
+The register meanings and the decoding are in max17048.h, host-tested. Each
+Read() is three short blocking transfers at 100 kHz, about 1.5 ms: call it
+from the main loop a few times a minute, never from the audio callback.
+
+I2C1 is shared with the OLED and the four taps. libDaisy's I2CHandle is one
+handle per peripheral underneath, so this and the OLED driver can both
+Init() it with the same pins and speed.
+
+## Battery
+
+```cpp
+class Battery
+```
+
+### Battery::Init
+
+```cpp
+bool Init();
+```
+
+Set up I2C1 and check the gauge answers with a MAX17048's version.
+
+### Battery::Read
+
+```cpp
+bool Read(max17048::Reading* r);
+```
+
+The latest voltage, state of charge and rate. False if the bus failed.
+
+### Battery::Version
+
+```cpp
+uint16_t Version() const;
+```
+
+The VERSION register as read by Init().
+
+### Battery::Status
+
+```cpp
+bool Status(uint16_t* status);
+```
+
+The STATUS register. Clears RI (the power-up flag) once read, so the
+first call after a cell is connected is the one that sees it.

@@ -1,12 +1,15 @@
 // TinyUSB configuration for the USB audio test: UAC1 audio (stereo out + stereo in,
 // 48 kHz, 24-bit, asynchronous with feedback) + MIDI + CDC serial, on the Daisy Seed's
-// micro-USB (OTG_FS, TinyUSB port 0). See planning/REV_B_PLAN.md, "USB".
+// micro-USB (OTG_FS, TinyUSB port 0), or Rev B's USB-C with RODEO_USB=hs (port 1).
+// See common/usb_port.h and planning/REV_B_PLAN.md, "USB".
 #pragma once
+
+#include "usb_port.h"
 
 #define CFG_TUSB_MCU OPT_MCU_STM32H7
 #define CFG_TUSB_OS  OPT_OS_NONE
 
-#define BOARD_TUD_RHPORT  0
+#define BOARD_TUD_RHPORT  RODEO_USB_RHPORT
 #define CFG_TUD_ENABLED   1
 #define CFG_TUD_MAX_SPEED OPT_MODE_FULL_SPEED
 

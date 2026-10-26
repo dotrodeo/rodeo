@@ -82,6 +82,18 @@
 //     examples/audio_4x4 (a tone per output, each input measured) and
 //     examples/sd_card (1-bit SDMMC: write, read back, check, time) build but
 //     wait for the motherboard. 99 host tests.
+//   * battery.h / max17048.h: the fuel gauge (2026-10-26); decoding
+//     host-tested. Bring-up tests for every Rev B board, numbered as in the
+//     plan: blink_power, midi, oled_i2c and spi_header are new; io_connectors
+//     reads every free analog input; sat_chain names each satellite, shows
+//     its controls and drives its LEDs from them. 105 host tests.
+//   * USB on either port (2026-10-26): common/tinyusb.mk + usb_port.h pick
+//     the Seed's micro-USB (RODEO_USB=fs) or Rev B's USB-C, OTG_HS on its
+//     full-speed PHY (RODEO_USB=hs); UsbPortInit() sets up pins, clocks and
+//     the interrupt for either. usb_midi_cdc and usb_device use it.
+//     examples/usb_storage (the SD card as a USB drive, in a disk mode) and
+//     examples/usb_audio (UAC1 4x4, 24-bit, both codecs) build for Rev B but
+//     wait for the motherboard.
 
 #pragma once
 

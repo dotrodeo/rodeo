@@ -1,4 +1,5 @@
-// The I/O connectors on a bare Daisy Seed, checking themselves.
+// The ten I/O connectors, checking themselves: on a bare Daisy Seed, or on the
+// Rev B motherboard.
 //
 // Two jumpers turn the Seed into its own test rig (Seed header pin numbers):
 //
@@ -6,10 +7,17 @@
 //   pin 23 (A2)  -> pin 8  (D1)    A2 is a digital out, D1 reads it back
 //
 // At start-up it sweeps CV1 and checks CV2 follows, then toggles A2 and checks
-// D1 follows, and prints PASS or FAIL for each. After that it keeps printing a
-// pot's position on A1 (pin 22: wiper there, ends to 3V3 and ground), D1, and
-// CV2, every quarter second. Without the jumpers the tests fail, which is the
+// D1 follows, and prints PASS or FAIL for each. After that it keeps printing the
+// analog inputs (a pot on A1 is pin 22: wiper there, ends to 3V3 and ground),
+// D1 and CV2, every quarter second. Without the jumpers the tests fail, which is the
 // check that they test something.
+//
+// On the Rev B motherboard the same program tests the connectors themselves:
+// the jumpers become straight 3-pin JST SH cables, CV1 to CV2 and A2 to D1
+// (pin for pin, so GND and 3V3_A meet their own nets), and the pot plugs into
+// A1. The two 1 kOhm series resistors in each loop don't upset either test.
+// Move the pot round A1 and A3-A7 to check each analog connector; the listing
+// prints them all (A2 is the digital output here).
 //
 // Status on the Seed's USB serial; 'B' reboots into DFU for the next flash.
 #include <math.h>
@@ -72,6 +80,11 @@ int main(void)
 
     bool ready = io.Init(rodeo::IoConfig()
                              .Set(board::kIoA1, rodeo::IoMode::kAnalogIn)
+                             .Set(board::kIoA3, rodeo::IoMode::kAnalogIn)
+                             .Set(board::kIoA4, rodeo::IoMode::kAnalogIn)
+                             .Set(board::kIoA5, rodeo::IoMode::kAnalogIn)
+                             .Set(board::kIoA6, rodeo::IoMode::kAnalogIn)
+                             .Set(board::kIoA7, rodeo::IoMode::kAnalogIn)
                              .Set(board::kIoA2, rodeo::IoMode::kDigitalOut)
                              .Set(board::kIoD1, rodeo::IoMode::kDigitalInPullDown)
                              .Set(board::kIoCv1, rodeo::IoMode::kCvOut)
@@ -100,7 +113,10 @@ int main(void)
         if(now - last < 250)
             continue;
         last = now;
-        hw.PrintLine("A1 %4d/1000  D1 %d  CV2 %4d/1000", Milli(io.Read(board::kIoA1)),
+        hw.PrintLine("A1 %4d  A3 %4d  A4 %4d  A5 %4d  A6 %4d  A7 %4d  (/1000)  D1 %d  CV2 %4d",
+                     Milli(io.Read(board::kIoA1)), Milli(io.Read(board::kIoA3)),
+                     Milli(io.Read(board::kIoA4)), Milli(io.Read(board::kIoA5)),
+                     Milli(io.Read(board::kIoA6)), Milli(io.Read(board::kIoA7)),
                      io.Get(board::kIoD1), Milli(io.Read(board::kIoCv2)));
     }
 }

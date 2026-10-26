@@ -207,6 +207,21 @@ define its own. Options: point the vector at TinyUSB at run time (copy the vecto
 to RAM and set `SCB->VTOR`), or carry a one-line patch to libDaisy making that handler
 weak. Decide when step 2 starts.
 
+**Steps 3–5 written 2026-10-26, not yet run.** `make RODEO_USB=hs` builds any USB
+example for Rev B's port (OTG_HS on its internal full-speed PHY, Seed pins 36/37,
+TinyUSB port 1); `common/usb_port.cpp` routes libDaisy's `OTG_HS_IRQHandler` vector to
+TinyUSB the way `usb_device` already did for OTG_FS, and `usb_midi_cdc` and
+`usb_device` now use it on `fs` (the same code, moved; worth re-running on a bare Seed).
+`examples/usb_storage` is disk mode on the real SD card (FatFS's diskio through a
+32-byte-aligned staging buffer), and `examples/usb_audio` is UAC1 4×4 at 24-bit
+(588-byte packets each way, about half the core's FIFO; PID `1209:0004`, pid.codes'
+test range). Still to check on hardware: the OTG_HS PHY through the power board, the
+89 % periodic load, four non-predefined channels on Windows and Linux, SD write
+latency stalling `tud_task`, and whether the STM32's ROM DFU answers only on the
+micro-USB (so an `hs` build is reflashed there, or through the `extdfu` bootloader).
+VBUS sensing is off on both ports, so on battery an unplug looks like a suspend: fine
+for bring-up, a decision for a product.
+
 **USB audio, 2026-10-18: works on macOS.** [`examples/usb_device`](../examples/usb_device/)
 (named `usb_audio` until disk mode joined it) is one composite device, "Rodeo": audio both ways, stereo, 48 kHz, 24-bit, asynchronous
 (the Seed's codec clock leads, a feedback endpoint keeps the computer in step), plus
@@ -295,21 +310,37 @@ satellites, so the rewrite is the moment to settle it once:
 One example per board, in the order the boards can be tested. Each proves its board and
 nothing else, and is the reference for how an instrument uses it.
 
-| # | Example | Proves | Needs |
-|---|---|---|---|
-| 01 | `blink_power` | Seed boots on the Rev B motherboard; battery %, charging and power-good from the MAX17048 over I²C | motherboard, a power board, a cell |
-| 02 | `audio_4x4` | All eight audio channels: tone out on 1–4, loopback in 1–4, both codecs in one callback | jack board |
-| 03 | `midi` | MIDI in and out through the jack board | MIDI board |
-| 04 | `io_connectors` | Pots on the analog-capable connectors, digital in, CV DAC out | a Rev A pot satellite or bare pots |
-| 05 | `satellite_chain` | Discovery, scans and faults with one pot bank and one encoder bank, then the ring broken and closed | satellites flashed (below) |
-| 06 | `oled_i2c` | OLED and the I²C taps on Rev B | an SSD130x |
-| 07 | `sd_card` | Read and write the internal SD in 1-bit mode | an SD card |
-| 08 | `usb_midi` | USB-MIDI + serial through the power board, on TinyUSB | USB-C power board |
-| 09 | `usb_storage` | The SD card as a USB drive in disk mode | an SD card |
-| 10 | `usb_audio` | UAC1, 2×2 then 4×4 across both codecs, on macOS, Windows and Linux | the hardest piece; last |
+| # | Example | Proves | Needs | Status |
+|---|---|---|---|---|
+| 01 | `blink_power` | Seed boots on the Rev B motherboard; cell voltage, % and charge rate from the MAX17048 over I²C. PGOOD/CHG don't reach the Seed, so the power board's LEDs are checked by eye | motherboard, a power board, a cell | written |
+| 02 | `audio_4x4` | All eight audio channels: a different tone out of each output, each input says whose tone it hears; both codecs in one callback | jack board, four loop cables | written |
+| 03 | `midi` | MIDI out to in through the jack board: numbered notes, CCs and SysEx checked in order; or a keyboard and a synth | MIDI board, a TRS cable | written |
+| 04 | `io_connectors` | CV out read back on CV2, digital out read back on D1, every free analog input listed | two 3-pin SH cables, a pot | written; ran on a bare Seed |
+| 05 | `sat_chain` | Discovery, scans and breaks; every satellite listed by kind with its controls, and its LEDs driven from them | satellites flashed (below) | written; ran on a bare Seed as a loop |
+| 06 | `oled_i2c` | I²C scan; OLED drawing; gauge reads counted at 100 and 400 kHz with the tap cables fitted | an SSD130x, tap cables | written |
+| 07 | `sd_card` | Read and write the internal SD in 1-bit mode, checked and timed | an SD card (FAT32) | written |
+| 08 | `usb_midi_cdc` | USB-MIDI + serial through the power board, on TinyUSB (`make RODEO_USB=hs`) | USB-C power board | written; ran on a bare Seed's micro-USB |
+| 09 | `usb_storage` | The SD card as a USB drive in disk mode; files listed with CRC-32 after eject | an SD card | written |
+| 10 | `usb_audio` | UAC1 4×4 at 24-bit across both codecs, on macOS, Windows and Linux | the hardest piece; last | written |
+| 11 | `spi_header` | The expansion header's SPI as a MOSI-to-MISO loop at each clock divider; CS pull-up | a wire | written |
 
-Plus the satellites' own bring-up in `rodeo-satellite/`: kind detection from the ID
-resistor, a pot bank and an encoder bank answering DISCOVER and SCAN, then the chain.
+None of the rows marked written has run on Rev B hardware; they build, and wait for the
+boards.
+
+**Every board, and where it is tested:**
+
+| Board | Tested by |
+|---|---|
+| Motherboard | 01 (power, rails, gauge), 02 (CS4272), 04 (I/O connectors), 05 (chain), 06 (I²C, taps), 07 (SD), 08–10 (USB), 11 (SPI header) |
+| Power, USB-C / barrel | 01 (power-good and charging LEDs, cell takeover); USB-C's data: 08 |
+| Power switch | 01 (switching off cuts everything, plugged in or not) |
+| Audio jack board | 02 |
+| MIDI board | 03 |
+| Pot bank, encoder bank, button bank, single pot, single encoder | `rodeo-satellite`'s debug build on its own, then 05 in a ring |
+
+Plus the satellites' own bring-up in `rodeo-satellite/`: `make DEBUG=1` prints the kind
+read from the ID resistor and the controls over the WCH-LinkE, one satellite at a time
+with no Seed (see its README). Then 05 with satellites in a ring.
 
 ## Work that can start before the boards arrive
 
@@ -322,9 +353,8 @@ resistor, a pot bank and an encoder bank answering DISCOVER and SCAN, then the c
 4. **`rodeo-satellite/`** on ch32v003fun: the logic is written and host-tested, and the
    firmware builds (6.5 KB). Still to do: flash and test it on a CH32V003 dev board
    with a WCH-LinkE (not yet bought).
-5. ~~**The audio and SD examples' code**~~ written 2026-10-26: `examples/audio_4x4`
-   (on `common/audio_4x4.h`, both codecs in one callback) and `examples/sd_card`.
-   Both build; neither has run, since both need the motherboard.
+5. ~~**Bring-up tests for every board**~~ written 2026-10-26: the Milestone 1 table
+   above, 01–11, and the satellites' debug build. All build; none has run on Rev B.
 6. **The USB exploration** above, on a bare Daisy Seed.
 
 ## Freezing Rev A

@@ -1,19 +1,24 @@
-// USB step 1: TinyUSB on a bare Daisy Seed, composite USB-MIDI + CDC serial on the
-// Seed's own micro-USB. Replaces libDaisy's USB (see planning/REV_B_PLAN.md,
-// "USB: explore first"). No Rodeo board needed.
+// TinyUSB on the Seed: composite USB-MIDI + CDC serial, replacing libDaisy's USB
+// (see planning/REV_B_PLAN.md, "USB: explore first").
+//
+//   make                 USB step 1: a bare Seed, on its own micro-USB
+//   make RODEO_USB=hs    bring-up 08: Rev B's USB-C, through the power board
+//                        (OTG_HS on Seed pins 36/37; see common/usb_port.h)
 //
 // What it does, once the computer has enumerated it as "Rodeo USB test":
 //   * MIDI: echoes every message it receives, and plays middle C (on, off) every
 //     second on channel 1, so a MIDI monitor shows traffic both ways.
-//   * Serial: prints a banner when a terminal opens the port, echoes what you type,
-//     prints each MIDI message received, and answers 's' with counters.
+//   * Serial: prints a banner (naming the port) when a terminal opens it, echoes
+//     what you type, prints each MIDI message received, and answers 's' with
+//     counters.
 //   * The Seed's LED blinks slowly until the computer configures the device, then
 //     fast.
 //
 // It uses libDaisy's System, not DaisySeed: DaisySeed owns a UsbHandle, which would
-// link libDaisy's own OTG_FS interrupt handler and USB stack.
+// link libDaisy's own USB stack.
 #include "daisy.h"
 #include "tusb.h"
+#include "usb_port.h"
 
 using namespace daisy;
 
@@ -22,36 +27,6 @@ static GPIO   led;
 
 static uint32_t midi_in_count  = 0;
 static uint32_t midi_out_count = 0;
-
-extern "C"
-{
-    // TinyUSB owns the OTG_FS interrupt (port 0).
-    void OTG_FS_IRQHandler(void) { tusb_int_handler(0, true); }
-
-    uint32_t tusb_time_millis_api(void) { return System::GetNow(); }
-}
-
-/** Pins, clock and VBUS for OTG_FS. libDaisy's System::Init already clocks USB from
- *  HSI48. The Seed doesn't route VBUS to PA9, so VBUS sensing is off and TinyUSB
- *  forces the B-session valid. */
-static void UsbHardwareInit()
-{
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    GPIO_InitTypeDef g = {};
-    g.Pin              = GPIO_PIN_11 | GPIO_PIN_12; // DM, DP
-    g.Mode             = GPIO_MODE_AF_PP;
-    g.Pull             = GPIO_NOPULL;
-    g.Speed            = GPIO_SPEED_FREQ_HIGH;
-    g.Alternate        = GPIO_AF10_OTG2_HS; // the FS core's AF on the H750
-    HAL_GPIO_Init(GPIOA, &g);
-
-    HAL_PWREx_EnableUSBVoltageDetector();
-    __HAL_RCC_USB2_OTG_FS_CLK_ENABLE();
-
-    tud_configure_dwc2_t cfg = CFG_TUD_CONFIGURE_DWC2_DEFAULT;
-    cfg.vbus_sensing         = false;
-    tud_configure(BOARD_TUD_RHPORT, TUD_CFGID_DWC2, &cfg);
-}
 
 static void CdcPrint(const char* s)
 {
@@ -67,7 +42,8 @@ static void CdcTask()
     bool        connected     = tud_cdc_connected();
     if(connected && !was_connected)
         CdcPrint("\r\nRodeo USB test: TinyUSB " TUSB_VERSION_STRING
-                 ", MIDI + serial on OTG_FS.\r\n's' = counters.\r\n");
+                 ", MIDI + serial on " RODEO_USB_PORT_NAME
+                 ".\r\n's' = counters.\r\n");
     was_connected = connected;
 
     while(tud_cdc_available())
@@ -129,7 +105,7 @@ int main(void)
     sys.Init();
     led.Init(Pin(PORTC, 7), GPIO::Mode::OUTPUT); // the Seed's user LED
 
-    UsbHardwareInit();
+    rodeo::UsbPortInit();
     tusb_rhport_init_t dev_init = {TUSB_ROLE_DEVICE, TUSB_SPEED_AUTO};
     tusb_init(BOARD_TUD_RHPORT, &dev_init);
 

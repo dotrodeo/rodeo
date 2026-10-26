@@ -39,6 +39,9 @@ rodeo-sdk/
     board.h              # Rev B pin map — the single source of truth (host-safe)
     board_daisy.h        # board.h's pins as libDaisy Pins (target only)
     audio_4x4.{h,cpp}    # Rev B audio: both codecs, four in and four out, one callback
+    battery.{h,cpp}      # the battery, through the MAX17048 fuel gauge (target only)
+    max17048.h           # the gauge's registers and their decoding (host-safe)
+    tinyusb.mk, usb_port.{h,cpp} # TinyUSB on either port: RODEO_USB=fs (micro-USB) or hs (Rev B)
     version.h            # SDK version + RODEO_SDK_AT_LEAST(); the real changelog
     rodeo.mk             # shared build rules; every app/example includes this
     ads114s08.{h,cpp}    # per-chip ADS114S08 SPI ADC driver
@@ -52,12 +55,18 @@ rodeo-sdk/
     tests/               # host-side GoogleTest: the pure-logic headers and board.h
   template/          # copy-to-start skeleton for a new Rodeo app (blinks the Seed's LED)
   examples/
-    audio_4x4/         # Rev B: all eight audio channels, a tone out and a meter in on each
-    io_connectors/     # the ten I/O connectors, self-testing on a bare Seed
-    sat_chain/         # the satellite chain driver on a bare Seed
-    sd_card/           # Rev B: the internal microSD in 1-bit mode, checked and timed
-    usb_midi_cdc/      # TinyUSB on a bare Seed: MIDI + serial
-    usb_device/        # TinyUSB on a bare Seed: audio, MIDI, serial, RAM-disk mode
+    blink_power/       # Rev B 01: boots on the motherboard; the cell from the fuel gauge
+    audio_4x4/         # Rev B 02: all eight audio channels, a tone out and a meter in on each
+    midi/              # Rev B 03: MIDI out to in through the jack board, checked in order
+    io_connectors/     # Rev B 04: the ten I/O connectors, self-testing (or on a bare Seed)
+    sat_chain/         # Rev B 05: the chain and every satellite's controls and LEDs
+    oled_i2c/          # Rev B 06: I2C scan, the OLED, bus checks at 100 and 400 kHz
+    sd_card/           # Rev B 07: the internal microSD in 1-bit mode, checked and timed
+    usb_midi_cdc/      # Rev B 08: TinyUSB MIDI + serial (RODEO_USB=hs; fs on a bare Seed)
+    usb_storage/       # Rev B 09: the SD card as a USB drive, in a disk mode
+    usb_audio/         # Rev B 10: UAC1 4x4, 24-bit, both codecs, + MIDI and serial
+    spi_header/        # Rev B 11: the expansion header's SPI as a loop-back
+    usb_device/        # TinyUSB on a bare Seed: stereo audio, MIDI, serial, RAM-disk mode
   tools/
     screens/           # render an instrument's real OLED screens on your laptop
     docs/              # gen_reference.py: the API reference from the headers
@@ -69,7 +78,7 @@ rodeo-sdk/
 The prototype's bring-up examples (`01_blink` to `10_audio_levels`) and its
 encoder-hub and status-LED drivers left this tree with the Rev B pin map; they
 live on in the frozen copy at `rev-a/rodeo-sdk/`. The Rev B bring-up set replaces
-them as the boards are brought up (`planning/REV_B_PLAN.md`, Milestone 1).
+them, one test per board (`planning/REV_B_PLAN.md`, Milestone 1, numbered as there).
 
 Each app/example is a self-contained folder: its own `src/main.cpp` and a tiny
 `Makefile` that just sets `TARGET` + `CPP_SOURCES` and includes

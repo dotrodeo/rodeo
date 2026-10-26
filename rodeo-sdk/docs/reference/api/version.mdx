@@ -70,6 +70,8 @@ Unreleased, towards v0.3.0 (the first Rev B release):
 - io_plan.h / io.h: the ten I/O connectors (2026-10-19): digital in/out, analog in on the Seed's ADC, CV out on its DAC, the configuration checked before any pin is touched. examples/io_connectors self-tests on a bare Seed 2 with two jumpers: DAC read back within 0.1 %, digital loop passes. 95 host tests.
 - examples/usb_midi_cdc and usb_device: TinyUSB on a bare Seed.
 - audio_4x4.h: both codecs in one callback, four channels in and out (2026-10-26). Daisy Patch's dual-SAI setup with Rev B's pins; releases the CS4272's reset once SAI2's clocks run. rodeo_dsp.h gains ToneMeter. examples/audio_4x4 (a tone per output, each input measured) and examples/sd_card (1-bit SDMMC: write, read back, check, time) build but wait for the motherboard. 99 host tests.
+- battery.h / max17048.h: the fuel gauge (2026-10-26); decoding host-tested. Bring-up tests for every Rev B board, numbered as in the plan: blink_power, midi, oled_i2c and spi_header are new; io_connectors reads every free analog input; sat_chain names each satellite, shows its controls and drives its LEDs from them. 105 host tests.
+- USB on either port (2026-10-26): common/tinyusb.mk + usb_port.h pick the Seed's micro-USB (RODEO_USB=fs) or Rev B's USB-C, OTG_HS on its full-speed PHY (RODEO_USB=hs); UsbPortInit() sets up pins, clocks and the interrupt for either. usb_midi_cdc and usb_device use it. examples/usb_storage (the SD card as a USB drive, in a disk mode) and examples/usb_audio (UAC1 4x4, 24-bit, both codecs) build for Rev B but wait for the motherboard.
 
 ## RODEO_SDK_VERSION_NUM
 

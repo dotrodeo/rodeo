@@ -63,6 +63,24 @@ Homebrew's RISC-V GCC has no C library; ch32v003fun needs only newlib's headers,
 and the Makefile takes them from the Arm GNU Toolchain the SDK already uses
 (`NEWLIB=` to point elsewhere). Every satellite gets the same image.
 
+## Bring-up
+
+A satellite can be tested on its own before it joins a ring, with only the
+WCH-LinkE (which also powers it):
+
+```sh
+make clean && make DEBUG=1 flash monitor
+```
+
+The debug build prints the kind it read from the ID resistor, then once a
+second its controls as it would send them: pot positions, encoder detents and
+pushes, button presses, and any fault (a missing or out-of-band ID resistor).
+It is silent while frames are passing, since a print stalls the loop for long
+enough to break one; flash the normal build (`make clean && make flash`) before
+it goes in a ring. The Seed's side of the test, with satellites in a ring on the
+motherboard, is `rodeo-sdk/examples/sat_chain`: it lists every satellite and
+lights each one's LEDs from its own controls.
+
 ## Tests
 
 ```sh

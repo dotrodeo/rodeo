@@ -1,14 +1,14 @@
-// TinyUSB configuration for the USB step-1 test: MIDI + CDC serial on the Daisy
-// Seed's micro-USB (the STM32H750's OTG_FS core, TinyUSB root-hub port 0).
-// See planning/REV_B_PLAN.md, "USB: explore first".
+// TinyUSB configuration for the MIDI + CDC serial test, on the port the build
+// chose: the Seed's micro-USB (OTG_FS, port 0) or Rev B's USB-C (OTG_HS on its
+// full-speed PHY, port 1). See common/usb_port.h and planning/REV_B_PLAN.md, "USB".
 #pragma once
+
+#include "usb_port.h"
 
 #define CFG_TUSB_MCU OPT_MCU_STM32H7
 #define CFG_TUSB_OS  OPT_OS_NONE
 
-// Port 0 = OTG_FS (the Seed's micro-USB, PA11/PA12). Rev B's external pins are the
-// OTG_HS core on its internal full-speed PHY: port 1.
-#define BOARD_TUD_RHPORT  0
+#define BOARD_TUD_RHPORT  RODEO_USB_RHPORT
 #define CFG_TUD_ENABLED   1
 #define CFG_TUD_MAX_SPEED OPT_MODE_FULL_SPEED
 

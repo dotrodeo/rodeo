@@ -1,0 +1,215 @@
+---
+title: max17048.h
+description: "The MAX17048 fuel gauge on the Rev B motherboard: its registers, and what their raw values mean. Host-safe, like io_plan.h; battery.h is the driver that reads it over I2C."
+sidebar:
+  order: 15
+editUrl: https://github.com/dotrodeo/rodeo/edit/main/rodeo-sdk/common/max17048.h
+---
+
+{/* Generated from rodeo-sdk/common/max17048.h by rodeo-sdk/tools/docs/gen_reference.py. Do not edit:
+    change the header's comments and run `make docs` in rodeo-sdk/. */}
+
+:::note[Generated from the header]
+This page is [`rodeo-sdk/common/max17048.h`](https://github.com/dotrodeo/rodeo/blob/main/rodeo-sdk/common/max17048.h) — its comments and declarations.
+To change it, change the header.
+:::
+
+```cpp
+rodeo::max17048::Reading r = rodeo::max17048::Decode(vcell, soc, crate);
+r.volts;          // 3.871
+r.percent;        // 64.5
+r.percent_per_hr; // +12.3 while charging, negative while running on the cell
+```
+
+The gauge sits on the cell (CELL and VDD on BATT_P) and works out the state of
+charge from the voltage alone, with no sense resistor. It can't see USB power:
+the charger's PGOOD and CHG only light the power board's LEDs and don't reach
+the Seed. Whether the cell is charging is read from the rate of change, which
+takes a minute or two to settle after the charger starts or stops.
+
+## max17048::kVcell
+
+```cpp
+constexpr uint8_t kVcell = 0x02;
+```
+
+78.125 uV per bit
+
+## max17048::kSoc
+
+```cpp
+constexpr uint8_t kSoc = 0x04;
+```
+
+1/256 % per bit
+
+## max17048::kMode
+
+```cpp
+constexpr uint8_t kMode = 0x06;
+```
+
+## max17048::kVersion
+
+```cpp
+constexpr uint8_t kVersion = 0x08;
+```
+
+0x001x
+
+## max17048::kConfig
+
+```cpp
+constexpr uint8_t kConfig = 0x0C;
+```
+
+## max17048::kCrate
+
+```cpp
+constexpr uint8_t kCrate = 0x16;
+```
+
+signed, 0.208 %/hr per bit
+
+## max17048::kVresetId
+
+```cpp
+constexpr uint8_t kVresetId = 0x18;
+```
+
+## max17048::kStatus
+
+```cpp
+constexpr uint8_t kStatus = 0x1A;
+```
+
+## max17048::kCommand
+
+```cpp
+constexpr uint8_t kCommand = 0xFE;
+```
+
+## max17048::kStatusResetIndicator
+
+```cpp
+constexpr uint16_t kStatusResetIndicator = 1u << 8;
+```
+
+STATUS bits, in the 16-bit register.
+
+## max17048::kStatusVoltageHigh
+
+```cpp
+constexpr uint16_t kStatusVoltageHigh = 1u << 9;
+```
+
+VH
+
+## max17048::kStatusVoltageLow
+
+```cpp
+constexpr uint16_t kStatusVoltageLow = 1u << 10;
+```
+
+VL
+
+## max17048::kStatusVoltageReset
+
+```cpp
+constexpr uint16_t kStatusVoltageReset = 1u << 11;
+```
+
+VR
+
+## max17048::kStatusSocLow
+
+```cpp
+constexpr uint16_t kStatusSocLow = 1u << 12;
+```
+
+HD: SOC under CONFIG's threshold
+
+## max17048::kStatusSocChange
+
+```cpp
+constexpr uint16_t kStatusSocChange = 1u << 13;
+```
+
+SC: SOC moved by 1 %
+
+## max17048::kIdleBandPercentPerHr
+
+```cpp
+constexpr float kIdleBandPercentPerHr = 1.0f;
+```
+
+Above this rate, either way, the cell counts as charging or discharging.
+
+## max17048::Word
+
+```cpp
+constexpr uint16_t Word(const uint8_t b[2]);
+```
+
+A 16-bit register as the gauge sends it: big-endian.
+
+## max17048::Volts
+
+```cpp
+constexpr float Volts(uint16_t vcell);
+```
+
+## max17048::Percent
+
+```cpp
+constexpr float Percent(uint16_t soc);
+```
+
+## max17048::PercentPerHr
+
+```cpp
+constexpr float PercentPerHr(uint16_t crate);
+```
+
+## max17048::VersionOk
+
+```cpp
+constexpr bool VersionOk(uint16_t version);
+```
+
+True if the VERSION register reads as a MAX17048/49.
+
+## max17048::Trend
+
+```cpp
+enum class Trend : uint8_t
+```
+
+- `kIdle` — full, or neither charging nor in use enough to tell
+- `kCharging`
+- `kDischarging`
+
+## max17048::Reading
+
+```cpp
+struct Reading
+```
+
+**Members**
+
+- `float volts`
+- `float percent` — can read a little over 100 when full
+- `float percent_per_hr`
+- `Trend trend`
+
+## max17048::Decode
+
+```cpp
+inline Reading Decode(uint16_t vcell, uint16_t soc, uint16_t crate);
+```
+
+## max17048::TrendName
+
+```cpp
+inline const char* TrendName(Trend t);
+```

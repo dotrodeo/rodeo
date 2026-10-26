@@ -2,6 +2,9 @@
 #
 #   make          build satellite.bin
 #   make flash    flash it with a WCH-LinkE (ch32v003fun's minichlink)
+#   make clean && make DEBUG=1 flash monitor
+#                 a build that prints its kind and controls over the
+#                 WCH-LinkE, for testing one satellite with no Seed attached
 #   make clean
 #
 # Needs a RISC-V GCC (macOS: brew install riscv64-elf-gcc riscv64-elf-binutils)
@@ -19,6 +22,9 @@ SRC := ../src
 ADDITIONAL_C_FILES := $(SRC)/stream.c $(SRC)/kind.c $(SRC)/encoder.c $(SRC)/ladder.c \
                       $(SRC)/buttons.c $(SRC)/lights.c
 EXTRA_CFLAGS += -I$(SRC) -I../../rodeo-sdk/common
+ifeq ($(DEBUG),1)
+EXTRA_CFLAGS += -DSAT_DEBUG
+endif
 
 NEWLIB ?= $(lastword $(sort $(wildcard /Applications/ArmGNUToolchain/*/arm-none-eabi/arm-none-eabi/include)))
 

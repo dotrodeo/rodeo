@@ -1,17 +1,10 @@
-# USB step 1: TinyUSB MIDI + CDC serial on a bare Daisy Seed's micro-USB.
-# See planning/REV_B_PLAN.md, "USB: explore first".
-TARGET      = usb_midi_cdc
-CPP_SOURCES = src/main.cpp
+# TinyUSB MIDI + CDC serial. USB step 1 on a bare Daisy Seed's micro-USB, and
+# bring-up 08 on Rev B's USB-C with `make RODEO_USB=hs`. See src/main.cpp.
+TARGET       = usb_midi_cdc
+CPP_SOURCES  = src/main.cpp
+C_SOURCES    = src/usb_descriptors.c
+RODEO_USB   ?= fs
+TUSB_CLASSES = cdc/cdc_device.c midi/midi_device.c
 
-TINYUSB = ../../tinyusb/src
-C_SOURCES = src/usb_descriptors.c \
-            $(TINYUSB)/tusb.c \
-            $(TINYUSB)/common/tusb_fifo.c \
-            $(TINYUSB)/device/usbd.c \
-            $(TINYUSB)/class/cdc/cdc_device.c \
-            $(TINYUSB)/class/midi/midi_device.c \
-            $(TINYUSB)/portable/synopsys/dwc2/dcd_dwc2.c \
-            $(TINYUSB)/portable/synopsys/dwc2/dwc2_common.c
-C_INCLUDES = -Isrc -I$(TINYUSB)
-
+include ../../common/tinyusb.mk
 include ../../common/rodeo.mk

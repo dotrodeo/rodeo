@@ -17,6 +17,7 @@
 // than a few microseconds. The ADC runs one conversion at a time and is polled.
 
 #include "ch32fun.h"
+#include <stdio.h>
 
 #include "boards.h"
 #include "buttons.h"
@@ -409,6 +410,52 @@ static void every_ms(void)
     }
 }
 
+#ifdef SAT_DEBUG
+// `make DEBUG=1`: status over the WCH-LinkE's debug channel (`make monitor`),
+// for testing a satellite on its own, with no Seed and no ring. It prints only
+// while the chain is quiet, because a print stalls the loop long enough to
+// break a frame passing through; with frames arriving it says nothing. Without
+// a debugger attached, the first print times out (~120 ms) and the rest are
+// skipped at once.
+static const char* kind_name(uint8_t kind)
+{
+    switch(kind)
+    {
+        case SAT_KIND_POT: return "single pot";
+        case SAT_KIND_ENCODER: return "single encoder";
+        case SAT_KIND_POT_BANK_4: return "pot bank";
+        case SAT_KIND_ENC_BANK_4: return "encoder bank";
+        case SAT_KIND_BUTTON_BANK_4: return "button bank";
+        case SAT_KIND_NO_ID: return "no ID resistor";
+        default: return "unsupported";
+    }
+}
+
+static void debug_status(void)
+{
+    printf("kind %d (%s)%s, %s, %s", st.me.kind, kind_name(st.me.kind), fault ? " FAULT" : "",
+           st.me.last ? "last (PRESENT high)" : "not last", has(board.led) ? "LED" : "no LED");
+    if(st.me.kind == SAT_KIND_BUTTON_BANK_4)
+        printf(", aux 5 V %s", aux_present ? "present" : "absent");
+    printf("\n ");
+    for(int i = 0; i < n_inputs; i++)
+    {
+        sat_slot in = inputs[i];
+        switch(in.kind)
+        {
+            case SAT_IN_POT: printf(" pot %5d", sat_pot_position(in)); break;
+            case SAT_IN_ENCODER:
+                printf(" enc %3d%s x%d", (int8_t)in.d0, (in.d1 & 1) ? " held" : "", in.d1 >> 4);
+                break;
+            case SAT_IN_BUTTON: printf(" %s x%d", (in.d0 & 1) ? "held" : "up", in.d1); break;
+            case SAT_IN_FAULT: printf(" fault %d/%d", in.d0, in.d1); break;
+            default: printf(" kind 0x%02x", in.kind); break;
+        }
+    }
+    printf("\n");
+}
+#endif
+
 static void led_update(uint32_t ticks)
 {
     if(!has(board.led))
@@ -462,6 +509,11 @@ int main(void)
     uint8_t     detail = 0;
     int         kind   = sat_detect_kind(&io, &detail);
     setup_board(kind, detail);
+#ifdef SAT_DEBUG
+    printf("rodeo-satellite %d.%d: ID resistor read as kind %d (detail %d)\n", FW_MAJOR,
+           FW_MINOR, kind, detail);
+    uint32_t debug_ms = 0;
+#endif
 
     uart_init();
     route(is_last());
@@ -504,6 +556,13 @@ int main(void)
             ms_tick += TICKS_MS;
             now_ms++;
             every_ms();
+#ifdef SAT_DEBUG
+            if(now_ms - debug_ms >= 1000 && t - last_rx > 100 * TICKS_MS)
+            {
+                debug_ms = now_ms;
+                debug_status();
+            }
+#endif
         }
         led_update(t);
     }
