@@ -4,8 +4,9 @@ One 4-position rotary selector switch with a status LED, read by a CH32V003 on t
 satellite chain: board kind 4, the contract's single `SWITCH` slot. For a mode or
 range selector whose position must be absolute and survive a power cycle, which an
 encoder's can't. It's built like the [single pot](../rodeo-pot-1/README.md): the same
-outline, mounting, MCU, connectors and pin map, with the switch read on the pot's
-ADC pin through a resistor ladder that has room for 8 positions. Wire contract:
+mounting, MCU, connectors and pin map, with the switch read on the pot's ADC pin
+through a resistor ladder that has room for 8 positions. The switch's footprint is
+bigger than the pot's, so the outline and placement are its own (see [Board](#board)). Wire contract:
 [`RODEO_SATELLITE_CHAIN_CONTRACT.md`](../rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md).
 
 Specified 2026-10-26; schematic and layout to come (Derek).
@@ -50,8 +51,17 @@ the pots.
 * **The 8-position sibling, SRBV181004 (C390927),** lists the same body. If its
   footprint matches, the board takes either as a BOM choice. Only 40 in stock at JLC
   on 2026-10-26.
-* **Footprint and 3D model:** not in KiCad's libraries; take them from EasyEDA
-  (C209777) and check them against Alps' drawing, as was done for the PH connectors.
+* **Footprint and 3D model: in `lib/`,** from EasyEDA (C209777) through
+  easyeda2kicad. `rodeo_rotary_switch:SW_Alps_SRBV` has 10 terminals in two rows of
+  five, 2.54 mm pitch, the rows 18.3 mm apart (y = ±9.15 from the shaft), and two
+  Ø2 mm mounting lugs 16 mm apart (x = ±8, y = −1.1). EasyEDA's SRBV181004 footprint
+  is identical, so the 4- and 8-position parts are a BOM swap. Alps' own STEP model
+  (made in Creo) sits on it correctly: terminals in their holes, lugs in theirs.
+* **Symbol: `lib/rodeo_rotary_switch.kicad_sym`,** EasyEDA's, with its footprint and
+  LCSC fields set. Its pins are numbered 1–10 like the footprint's terminals and say
+  nothing about which is the common and which are positions 1–4; Alps' drawing does.
+  Name the pins from it before drawing the schematic. The lugs (pads 11, 12) have no
+  pins; tie them to `GND` in the footprint or add pins for them.
 * **Considered and set aside:** the Alps SRRM1C6200 (C278333), JLC's only
   12-position switch: 24.9 × 31 mm, too big for the board, it turns endlessly,
   shorting contacts, and Alps lists it as not recommended for new designs. The
@@ -60,20 +70,19 @@ the pots.
 
 ## Board
 
-* **25 × 25 mm, 2 mm corners,** the single pot's outline. Coordinates are from the
-  top-left corner seen from the front (panel side), y down.
-  * Switch shaft at (12.5, 12.5). Panel hole Ø9.5 mm for the M9 bushing, as for the
-    pots.
-  * LED D1 at (12.5, 3.0), as on the single pot, **if the switch body clears it.**
-    The body reaches 8.1 mm from the shaft along its 16.2 mm side and 9.25 mm along
-    its 18.5 mm side. D1's lens hole reaches 8.3 mm, so the body's 16.2 mm side must
-    run up and down the board (top to bottom), which leaves 0.2 mm. If the footprint
-    doesn't allow that, D1 moves.
-  * M2 hole H1 at (22.5, 2.5), as on the single pot. Check the standoff's
-    footprint on the top side against the body's corner (about (21.8, 4.4) with the
-    body turned as above).
-  * Chain connectors J1 (IN) at (3, 20) and J2 (OUT) at (22, 20); programming pads
-    J3 down the right edge.
+* **Outline to be decided, 2 mm corners;** 25 mm wide like the other single boards.
+  Coordinates below are relative to the shaft, seen from the front (panel side),
+  y down.
+  * Switch shaft centred across the board's width. Panel hole Ø9.5 mm for the M9
+    bushing, as for the pots.
+  * **The single pot's placement doesn't fit the footprint.** Its terminal rows are
+    18.3 mm apart and its lugs 16 mm apart, so whichever way it turns, terminals or
+    lugs land where the single pot has D1 (y = 3) and J1/J2 (y = 20). This board
+    needs its own placement, and probably a longer outline (say 25 × 32 mm, with the
+    connectors below the switch): Derek's call.
+  * LED D1 above the shaft, as on the other single boards, wherever the terminal
+    rows leave room for its lens hole.
+  * M2 hole H1, as on the single pot, clear of the body and lugs.
 * **Top side (faces the panel): the switch only**, through-hole. **Bottom: every SMD
   part**, the ladder included, so JLC's SMT is single-sided.
 * **Standoff length** follows from the switch's mounting-face height (on Alps'
@@ -181,29 +190,30 @@ To do in `rodeo-satellite`, when asked:
 
 | Part | Refs | Qty | LCSC |
 |---|---|---|---|
-| Alps SRBV141404 | SW1 | 1 | C209777 |
+| Alps SRBV141404 | SW1 | 1 | C209777 (434 at JLC) |
 | CH32V003F4P6 | U1 | 1 | C5187096 |
 | BM05B-SRSS-TB | J1, J2 | 2 | C160391 |
 | LTST-C230KRKT | D1 | 1 | C125107 |
-| 4.7 kΩ 0603 1 % | ladder | 9 | to source |
-| 1 MΩ 0603 | `SW_POS` pull-down | 1 | to source |
+| 4.7 kΩ 0603 1 % | ladder | 9 | C23162 (basic) |
+| 1 MΩ 0603 1 % | `SW_POS` pull-down | 1 | C22935 (basic) |
 | 100 nF 0402 | `SW_POS`, VDD | 2 | C1525 |
 | 10 kΩ 0603 1 % | ID top | 1 | C25804 |
-| 3.65 kΩ 0603 1 % | R_ID | 1 | to source |
+| 3.65 kΩ 0603 1 % | R_ID | 1 | C2930089 (15,327) |
 | 33 Ω 0603 | DATA_FWD, DATA_RET | 2 | C23140 |
 | 1.5 kΩ 0603 | LED | 1 | C22843 |
 | 1 µF 0402 | VDD | 1 | C52923 |
 | M2 mounting hole | H1 | 1 | — |
 
-Fill the new values with `tools/kicad/lcsc_fill.py` once the schematic is drawn.
+Stock checked at JLC on 2026-10-26. `fp-lib-table` and `sym-lib-table` are set up
+for the project; `lib/` also holds the singles' LED footprint, copied from the
+single pot.
 
 ## Open
 
-* **From Alps' drawing:** the mounting-face height and shaft length (for the
-  standoff, and a knob level with the pots'), whether the shaft's flat takes the
-  pots' knobs, and the footprint's terminal positions.
-* **D1 and H1 against the switch body:** see [Board](#board).
-* **The SRBV181004's footprint:** if it matches, note it here as the 8-position
-  option.
+* **From Alps' drawing:** which terminal is the common and which are positions
+  1–4 (for the symbol), the mounting-face height and shaft length (for the standoff,
+  and a knob level with the pots'), and whether the shaft's flat takes the pots'
+  knobs.
+* **The board's placement and outline:** see [Board](#board).
 * **Bring-up:** the ID read (kind 4), each position's reading against its tap, the
   10 ms settling while turning briskly, and the LED.

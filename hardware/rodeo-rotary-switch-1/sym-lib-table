@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "rodeo_rotary_switch")(type "KiCad")(uri "${KIPRJMOD}/lib/rodeo_rotary_switch.kicad_sym")(options "")(descr "Alps SRBV141404 symbol from EasyEDA: pins numbered as the footprint, functions to assign from Alps' drawing"))
+)
