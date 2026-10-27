@@ -43,8 +43,9 @@ Specified 2026-10-26; schematic and layout to come (Derek).
 
 ## Switch SW1: Alps SRBV141404 (C209777)
 
-1 pole, 4 positions, 30° steps with end stops, non-shorting. M9 bushing and a
-flatted shaft, 15 mm long. Body 16.2 × 18.5 × 7.5 mm. Turning torque 30 ± 15 mN·m,
+1 pole, 4 positions, 30° steps with end stops, non-shorting. M9 threaded bushing,
+7 mm long; Ø6 mm shaft with a 4.5 mm flat, 15 mm from the mounting face to the tip
+(Derek, from Alps' drawing). Body 16.2 × 18.5 × 7.5 mm. Turning torque 30 ± 15 mN·m,
 lighter than a pot's drag, so it will feel light. Rated 0.3 A at 16 V; life 10,000
 steps. 434 in stock at JLC on 2026-10-26, so it is assembled with the board, like
 the pots.
@@ -102,8 +103,15 @@ the pots.
   hole (the single pot's limit is Ø14.8 mm).
 * **Top side (faces the panel): the switch only**, through-hole. **Bottom: every SMD
   part**, the ladder included, so JLC's SMT is single-sided.
-* **Standoff length** follows from the switch's mounting-face height (on Alps'
-  drawing), so the knob sits level with the pots'.
+* **Knobs level with the pots' for free.** Both hang from the panel's underside by
+  the mounting face, and both shafts rise 15 mm from it, so a rotary switch's knob
+  sits at the pots' height. The shaft is Ø6 mm with a 4.5 mm flat, like the pots',
+  so the same knobs should fit; check one on the first boards.
+* **Standoff about 7.5 mm, not the single pot's 10 mm:** the mounting face is the top
+  of the 7.5 mm body, sitting on the board. M2 standoffs are commonly 6 or 8 mm, so
+  measure the seated height on the first board and pick the length (or a washer)
+  from that.
+* **The 7 mm bushing** takes the panel and the nut with room to spare.
 * **2 layers,** as on the single pot.
 * **Silkscreen (back):** `RODEO ROTARY SWITCH / Kind 4 · Rev B1 / 2026-10`, the
   licence and source, `© 2026 DOT RODEO LLC`, `CHAIN IN` / `CHAIN OUT` with pin-1
@@ -229,9 +237,8 @@ single pot.
 
 ## Open
 
-* **From Alps' drawing:** the mounting-face height and shaft length (for the standoff,
-  and a knob level with the pots'), and whether the shaft's flat takes the pots'
-  knobs.
+* **On the first boards:** the switch's seated height, for the standoff length, and
+  a pot knob on its shaft.
 * **Derek's layout** on the 25 × 37.5 mm outline: see [Board](#board).
 * **Bring-up:** the ID read (kind 4), each position's reading against its tap, the
   10 ms settling while turning briskly, and the LED.
