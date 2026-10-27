@@ -10,7 +10,8 @@ bigger than the pot's, so the board is 25 × 37.5 mm, half a grid slot taller: t
 of them fill three 25 mm slots (see [Board](#board)). Wire contract:
 [`RODEO_SATELLITE_CHAIN_CONTRACT.md`](../rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md).
 
-Specified 2026-10-26; schematic and layout to come (Derek).
+Specified 2026-10-26. Schematic and layout: a first pass by Claude, 2026-10-26, from
+Derek's single pot files (see [Layout](#layout)). For Derek's review.
 
 ## Decisions
 
@@ -82,23 +83,25 @@ the pots.
 * **Outline 25 × 37.5 mm, 2 mm corners.** 25 mm wide like the other single boards,
   and 1.5 grid slots tall, so two rotary switches stack into three 25 mm slots.
   Coordinates are from the board's top-left corner as seen from the front (panel
-  side), y down; the LED end is the top, as on the single pot. Placement is a
-  proposal for Derek's layout:
+  side), y down; the LED end is the top, as on the single pot.
   * **Switch SW1 at the board's centre, (12.5, 18.75), in the footprint's own
     orientation:** terminal rows across the board at y = 9.6 and 27.9 (x = 7.4–17.6),
-    lugs at (4.5, 17.65) and (20.5, 17.65). The body's silk outline runs y = 8.25–26.75.
-    Centred, two boards stacked in 75 mm put their shafts 37.5 mm apart, symmetric
-    in the three slots. Check against Alps' drawing that the shaft is on the
-    footprint's origin before placing the panel hole (Ø9.5 mm for the M9 bushing,
-    as for the pots).
-  * **LED D1 at (12.5, 3.0), H1 at (22.5, 2.5) and J3 at x = 23, y = 6–13.6:** the
-    single pot's positions. D1's lens hole clears the top terminal row by 4 mm, and
-    J3's lowest pad the right lug by about 1.7 mm.
+    lugs at (4.5, 17.65) and (20.5, 17.65). Alps' model puts the shaft on the
+    footprint's origin. Two boards stacked in 75 mm put their shafts 37.5 mm apart,
+    symmetric in the three slots. Panel hole Ø9.5 mm for the M9 bushing, as for the
+    pots.
+  * **LED D1 at (12.5, 3.0) with R1 beside it, H1 at (22.5, 2.5) and J3 at x = 23,
+    y = 6–13.6:** the single pot's positions.
   * **Chain connectors J1 (IN) at (3, 32.5) and J2 (OUT) at (22, 32.5):** 5 mm above
     the bottom edge, as on the single pot, either side of the bottom terminal row.
-  * **U1 and the ladder** on the bottom, in the space between the terminal rows and
-    between the bottom row and the connectors; nothing else on the bottom may sit on
-    the switch's pins or lugs.
+  * **U1 at the centre of the back, (12.5, 18.75),** between the terminal rows, under
+    the switch body. C2 and C3 (VDD) to its left, C1 and R15 (`SW_POS`) to its right.
+  * **The ladder along the terminal rows:** R6–R9 in two staggered rows under
+    terminals 6–10, R11–R14 above terminals 1–5, each between the two terminals it
+    joins (the ends, R6 from `+3V3` and R14 to `GND`, beside terminals 9 and 2), and
+    R10 (T5–T4) at the left edge, joining the two rows.
+  * **The ID divider R3, R5** top left (front view), above the left lug; **R2, R4**
+    (33 Ω) on the right, above J2.
 * **The LED is 15.75 mm from the shaft,** so a knob up to about Ø27 mm clears its
   hole (the single pot's limit is Ø14.8 mm).
 * **Top side (faces the panel): the switch only**, through-hole. **Bottom: every SMD
@@ -113,10 +116,11 @@ the pots.
   from that.
 * **The 7 mm bushing** takes the panel and the nut with room to spare.
 * **2 layers,** as on the single pot.
-* **Silkscreen (back):** `RODEO ROTARY SWITCH / Kind 4 · Rev B1 / 2026-10`, the
-  licence and source, `© 2026 DOT RODEO LLC`, `CHAIN IN` / `CHAIN OUT` with pin-1
-  marks, and `S V G N` at J3. Small position numbers, `1`–`4`, beside the switch's
-  terminals, so the ladder order can be checked against the switch.
+* **Silkscreen.** Back: `RODEO / ROTARY / SWITCH` top right (seen from the back),
+  `Kind 4 / Rev B1 / 2026-10` between the connectors, `CHAIN IN` / `CHAIN OUT` with
+  pin-1 marks, `S V G N` at J3, and position numbers `1`–`4` under terminals 2–5.
+  Front: the licence, source and `© 2026 DOT RODEO LLC` below the switch, hidden
+  by the panel once fitted (there's no room left on the back).
 
 ## The ladder
 
@@ -142,6 +146,36 @@ Tn ── terminal n+1 (position n)  common (terminals 1, 10) ── SW_POS ─�
 * **`SWITCH` slot:** `D0` = position − 1, so 0–3 here (0–7 with an 8-position
   switch), as the contract's position index. Until the first valid reading after
   power-up, the slot is `EMPTY`.
+
+## Layout
+
+`rodeo-rotary-switch-1.kicad_sch` and `.kicad_pcb` start from the single pot's,
+changed by script rather than by hand:
+
+* **Schematic:** RV1 out, SW1 (`rodeo_rotary_switch:SRBV141404`) in, with terminal 1
+  on the old wiper net (renamed `POT_1` → `SW_POS`) and terminal 10 on a `SW_POS`
+  label; the lugs to `GND`. The ladder R6–R14 is a column of nine 4.7 kΩ with labels
+  `T1`–`T8` at its joints and on terminals 2–9; R15 1 MΩ from `SW_POS` to `GND`; R5
+  715 Ω → 3.65 kΩ. ERC: no errors or warnings.
+* **PCB:** the outline, zones and panel guides stretched to 25 × 37.5 mm; RV1 out;
+  SW1, R6–R15 in; every part but D1, R1, J3 and H1 placed afresh (above). The single
+  pot's tracks didn't survive the move, so the whole board was routed by a grid
+  router: 0.1 mm grid, 45° steps with a cost per turn, 0.2 mm signal tracks, 0.3 mm
+  `+3V3` and `GND`, 0.2 mm clearance, 0.6/0.3 mm vias; signals on B.Cu where they can,
+  `GND` on F.Cu under its pour, U1's decoupling routed first.
+* **DRC, with schematic parity:** two edge-clearance errors, both D1's own pads at its
+  lens hole, as on the single pot; no unconnected items, no footprint or parity
+  errors.
+* **Worth a look in KiCad:**
+  * The routing is correct, not pretty: 38 vias (11 of them `GND` to the front
+    pour), and some runs go the long way round. Re-route as you see fit.
+  * `+3V3` runs partly on F.Cu, cutting the front `GND` pour, and so does `SW_POS`.
+  * F.Cu tracks pass under the switch body, under solder mask. Check Alps' drawing for
+    anything metal on the body's underside.
+  * J1 pin 2 and R6 pin 1 connect solidly to the `+3V3` pour (a local override): with
+    the tracks beside them, a thermal relief got only one spoke.
+  * References R2, R5, R9, R12, R14, R15 and C1 are on B.Fab; there was no room on
+    the back silk clear of pads.
 
 ## MCU: CH32V003F4P6 (C5187096), TSSOP-20
 
@@ -221,14 +255,14 @@ To do in `rodeo-satellite`, when asked:
 | CH32V003F4P6 | U1 | 1 | C5187096 |
 | BM05B-SRSS-TB | J1, J2 | 2 | C160391 |
 | LTST-C230KRKT | D1 | 1 | C125107 |
-| 4.7 kΩ 0603 1 % | ladder | 9 | C23162 (basic) |
-| 1 MΩ 0603 1 % | `SW_POS` pull-down | 1 | C22935 (basic) |
-| 100 nF 0402 | `SW_POS`, VDD | 2 | C1525 |
-| 10 kΩ 0603 1 % | ID top | 1 | C25804 |
-| 3.65 kΩ 0603 1 % | R_ID | 1 | C2930089 (15,327) |
-| 33 Ω 0603 | DATA_FWD, DATA_RET | 2 | C23140 |
-| 1.5 kΩ 0603 | LED | 1 | C22843 |
-| 1 µF 0402 | VDD | 1 | C52923 |
+| 4.7 kΩ 0603 1 % | R6–R14 (ladder) | 9 | C23162 (basic) |
+| 1 MΩ 0603 1 % | R15 (`SW_POS` pull-down) | 1 | C22935 (basic) |
+| 100 nF 0402 | C1 (`SW_POS`), C3 (VDD) | 2 | C1525 |
+| 10 kΩ 0603 1 % | R3 (ID top) | 1 | C25804 |
+| 3.65 kΩ 0603 1 % | R5 (R_ID) | 1 | C2930089 (15,327) |
+| 33 Ω 0603 | R4 (DATA_FWD), R2 (DATA_RET) | 2 | C23140 |
+| 1.5 kΩ 0603 | R1 (LED) | 1 | C22843 |
+| 1 µF 0402 | C2 (VDD) | 1 | C52923 |
 | M2 mounting hole | H1 | 1 | — |
 
 Stock checked at JLC on 2026-10-26. `fp-lib-table` and `sym-lib-table` are set up
@@ -239,6 +273,7 @@ single pot.
 
 * **On the first boards:** the switch's seated height, for the standoff length, and
   a pot knob on its shaft.
-* **Derek's layout** on the 25 × 37.5 mm outline: see [Board](#board).
+* **Derek's review** of the schematic and layout: see [Layout](#layout). JLC
+  outputs, the panel and renders come after.
 * **Bring-up:** the ID read (kind 4), each position's reading against its tap, the
   10 ms settling while turning briskly, and the LED.

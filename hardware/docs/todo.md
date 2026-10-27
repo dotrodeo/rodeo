@@ -6,7 +6,7 @@ already exist go in [`revisions.md`](revisions.md) instead.
 * **Single button** (kind 2, specified 2026-10-26): [`rodeo-button-1`](../rodeo-button-1/README.md).
   Schematic and layout: first pass done 2026-10-26, for Derek's review; open: red or RGB LED.
 * **Rotary switch** (kind 4, specified 2026-10-26): [`rodeo-rotary-switch-1`](../rodeo-rotary-switch-1/README.md).
-  Alps SRBV141404 (4 positions, M9, end stops); its footprint and model are in `lib/`. It needs its own placement (the switch is too big for the single pot's).
+  Alps SRBV141404 (4 positions, M9, end stops) on a 25 × 37.5 mm board. Schematic and layout: first pass done 2026-10-26, for Derek's review.
 * **Satellite dev board** (2026-10-19). A plain satellite for people building their
   own: the chain's IN and OUT connectors, the CH32V003, the kind-14 ID resistor
   (140 kΩ, contract §1.6), and the spare GPIO on headers. It lets users
