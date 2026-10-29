@@ -52,6 +52,23 @@ brought up.
 
 ### Motherboard (`rodeo-motherboard`)
 
+- **Battery polarity: swap J1 and add reverse protection.** Found at bring-up
+  (2026-10-28): every cell Derek has is wired opposite to J1 (pin 1 `BATT_N`,
+  pin 2 `BATT_P`), so the first one went in reversed, and the board got very
+  hot. Afterwards the MAX17048 (U4) answers on I²C but VCELL, SOC and CRATE
+  read 0 with 4.1 V on the cell; it was probably damaged through its VDD/CELL
+  pins. Two changes:
+  * Swap J1's pins to match the packs we actually buy, and keep the + mark.
+  * Add reverse protection after all. B1 relied on the connector and the
+    silkscreen because a high-side PMOS with its gate on board ground doesn't
+    work with the DW01A in the negative lead (board ground is behind Q1). To
+    check: a PMOS in the positive lead with its gate on `BATT_N` (the cell's
+    own negative, ahead of Q1) through a resistor, drain to J1 and source to
+    `BATT_P`. It turns on at Vgs = −Vcell (pick one specified at −2.5 V for an
+    empty cell) and conducts both ways, so the charger still charges through
+    it. R8, the DW01A's supply, would move to the load side so a reversed cell
+    can't drive U3's VCC below its VSS. Work out where the current went in B1
+    (U2's and U4's substrate diodes, and Q1) before settling on it.
 - **Add a 5 V aux output.** The power budget leaves ≈1 A at 5 V for LEDs, but
   nothing brings `+5V_SYS` to a connector: it reaches only regulators, ferrites
   and capacitors. The only 5 V on a connector is `+5V_A` (audio ribbon pin 10),
