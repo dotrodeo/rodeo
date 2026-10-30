@@ -110,6 +110,14 @@ make program-dfu               # flash: hold BOOT, tap RESET on the Daisy first
 
 `make all` from `rodeo-sdk/` builds every example.
 
+With a computer on the USB-C port, the app doesn't start after `make program-dfu`:
+tap RESET once the flash finishes. The `dfu-util` "get_status" error after "Submitting
+leave request" is normal either way. The STM32H750's ROM bootloader also listens for
+a USART1 host on PB14/PB15, and on Rodeo those pins are the USB-C's D−/D+. With a host
+attached there, the ROM's leave never reaches the app: not even its first instruction
+runs. A software reset, or flashing with the USB-C unplugged, starts it normally.
+Nothing in the app can fix this; the Daisy bootloader avoids the ROM altogether.
+
 ## Adding a new app or bring-up example
 
 1. Copy `template/` to `examples/<NN_name>/` (two levels below `rodeo-sdk/`, so

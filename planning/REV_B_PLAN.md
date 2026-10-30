@@ -327,6 +327,13 @@ nothing else, and is the reference for how an instrument uses it.
 Bring-up started 2026-10-28 with a USB-C power board. Rows still marked written haven't
 run on Rev B hardware yet.
 
+With a computer on the USB-C port, an app flashed with `make program-dfu` doesn't start
+until RESET is tapped (found 2026-10-30; it looked like an SD start-up fault at first).
+The ROM bootloader also listens on PB14/PB15 for USART1, and those are the USB-C's
+D−/D+, so with a host attached its DFU leave never reaches the app's first instruction.
+Software resets are fine, and so is flashing with the USB-C unplugged. See
+`rodeo-sdk/README.md`; installing the Daisy bootloader takes the ROM out of the loop.
+
 **Every board, and where it is tested:**
 
 | Board | Tested by |
