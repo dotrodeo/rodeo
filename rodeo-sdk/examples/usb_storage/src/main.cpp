@@ -58,6 +58,8 @@ static bool          report_pending = false;
 // The SD driver moves data by DMA, which can't reach DTCM, and cleans and
 // invalidates the cache around the buffer by 32-byte lines. USB storage's
 // buffers go through this one, so a line is never shared with other data.
+// The stack is in DTCM too, so a FIL can't live there: FatFS moves a partial
+// sector through the FIL's own buffer, and a short file reads as nothing.
 alignas(32) static uint8_t sd_stage[CFG_TUD_MSC_EP_BUFSIZE];
 static_assert(sizeof(sd_stage) % 32 == 0 && sizeof(sd_stage) % kSectorSize == 0, "staging");
 
@@ -89,8 +91,8 @@ static void WriteReadmeIfMissing()
     const char* text = "Rodeo SD card. Put files here, eject the drive, and Rodeo\r\n"
                        "lists their names, sizes, CRC-32s and the first line of each\r\n"
                        ".TXT on its serial port.\r\n";
-    FIL  f;
-    UINT bw = 0;
+    static FIL f; // not on the stack: see sd_stage
+    UINT       bw = 0;
     if(f_open(&f, name, FA_CREATE_ALWAYS | FA_WRITE) == FR_OK)
     {
         f_write(&f, text, strlen(text), &bw);
@@ -127,9 +129,9 @@ static void CardReport(char* out, size_t len)
             continue;
         char path[300];
         snprintf(path, sizeof(path), "%s%s", fsi.GetSDPath(), fi.fname);
-        FIL      f;
-        uint32_t crc       = 0;
-        char     first[48] = "";
+        static FIL f; // not on the stack: see sd_stage
+        uint32_t   crc       = 0;
+        char       first[48] = "";
         if(f_open(&f, path, FA_READ) == FR_OK)
         {
             UINT br;
