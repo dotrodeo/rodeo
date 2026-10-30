@@ -32,6 +32,7 @@
 #include "usb_port.h"
 #include "ff.h"
 #include "ff_gen_drv.h"
+#include "dfu.h"
 
 using namespace daisy;
 
@@ -698,7 +699,7 @@ static void CdcTask()
                 // the buttons (development only)
                 CdcPrint("rebooting into the DFU bootloader\r\n");
                 System::Delay(50);
-                System::ResetToBootloader(System::BootloaderMode::STM);
+                ResetToDfu();
                 break;
             case 'c':
                 mic_source = MicSource::Codec;

@@ -22,6 +22,7 @@
 #include "daisy_seed.h"
 #include "audio_4x4.h"
 #include "rodeo_dsp.h"
+#include "dfu.h"
 
 using namespace daisy;
 
@@ -129,7 +130,7 @@ int main(void)
         if(to_bootloader)
         {
             rodeo::StopAudio4x4(hw);
-            System::ResetToBootloader(System::BootloaderMode::STM);
+            ResetToDfu();
         }
     }
 }

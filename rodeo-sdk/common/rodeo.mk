@@ -24,4 +24,11 @@ LIBDAISY_DIR = $(RODEO_ROOT)/libDaisy
 DAISYSP_DIR  = $(RODEO_ROOT)/DaisySP
 
 SYSTEM_FILES_DIR = $(LIBDAISY_DIR)/core
+
+# Apps run from SRAM under the Daisy bootloader, whose extdfu build takes DFU over
+# pins 36/37: Rodeo's USB-C. `make program-boot` installs it once, through the
+# STM32's ROM on the Seed's micro-USB. Statics then live in DTCM, which DMA can't
+# reach (see README). APP_TYPE=BOOT_NONE builds for internal flash, over the bootloader.
+APP_TYPE ?= BOOT_SRAM
+BOOT_BIN ?= $(SYSTEM_FILES_DIR)/dsy_bootloader_v6_4-extdfu-2000ms.bin
 include $(SYSTEM_FILES_DIR)/Makefile

@@ -24,6 +24,7 @@
 
 #include "daisy_seed.h"
 #include "io.h"
+#include "dfu.h"
 
 using namespace daisy;
 
@@ -107,7 +108,7 @@ int main(void)
     for(;;)
     {
         if(to_bootloader)
-            System::ResetToBootloader(System::BootloaderMode::STM);
+            ResetToDfu();
         hw.SetLed(dac && dig);
         uint32_t now = System::GetNow();
         if(now - last < 250)

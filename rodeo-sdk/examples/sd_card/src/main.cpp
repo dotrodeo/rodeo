@@ -19,6 +19,7 @@
 // is how 64 GB and larger cards come formatted, so reformat those as FAT32.
 #include "daisy_seed.h"
 #include "fatfs.h"
+#include "dfu.h"
 
 using namespace daisy;
 
@@ -28,14 +29,16 @@ constexpr uint32_t kFileBytes  = 4 * 1024 * 1024;
 
 DaisySeed      hw;
 SdmmcHandler   sdmmc;
-FatFSInterface fsi;
-FIL            file;
 DIR            dir;
 FILINFO        info;
 
-// The SD driver moves data by DMA, which can't reach DTCM; .bss is in AXI
-// SRAM. 32-byte aligned for the driver's cache maintenance.
-alignas(32) static uint32_t buf[kChunk / 4];
+// SDMMC1's DMA reaches AXI SRAM and the SDRAM, not DTCM (the stack, and statics
+// under the bootloader) or SRAM1. FatFS reads sectors into the file system's and
+// the file's own buffers, so those go in the SDRAM with the data. 32-byte
+// aligned for the driver's cache maintenance, since the SDRAM is cached.
+FatFSInterface fsi DSY_SDRAM_BSS;
+FIL            file DSY_SDRAM_BSS;
+alignas(32) static uint32_t buf[kChunk / 4] DSY_SDRAM_BSS;
 
 static volatile bool to_bootloader = false, run_again = false;
 
@@ -190,7 +193,7 @@ int main(void)
             pass = RunTest();
         }
         if(to_bootloader)
-            System::ResetToBootloader(System::BootloaderMode::STM);
+            ResetToDfu();
         hw.SetLed((System::GetNow() / (pass ? 100 : 1000)) % 2);
     }
 }

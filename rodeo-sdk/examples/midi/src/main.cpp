@@ -22,6 +22,7 @@
 #include "daisy_seed.h"
 #include "board.h"
 #include "board_daisy.h"
+#include "dfu.h"
 
 using namespace daisy;
 
@@ -115,7 +116,7 @@ int main(void)
     for(;;)
     {
         if(to_bootloader)
-            System::ResetToBootloader(System::BootloaderMode::STM);
+            ResetToDfu();
 
         midi.Listen();
         while(midi.HasEvents())

@@ -105,18 +105,36 @@ make deps                      # build libDaisy + DaisySP static libs (first tim
 
 cd examples/usb_device
 make                           # -> build/usb_device.{elf,bin,hex}
-make program-dfu               # flash: hold BOOT, tap RESET on the Daisy first
+make program-dfu               # flash over the USB-C, with the Seed in its bootloader
 ```
 
 `make all` from `rodeo-sdk/` builds every example.
 
-With a computer on the USB-C port, the app doesn't start after `make program-dfu`:
-tap RESET once the flash finishes. The `dfu-util` "get_status" error after "Submitting
-leave request" is normal either way. The STM32H750's ROM bootloader also listens for
-a USART1 host on PB14/PB15, and on Rodeo those pins are the USB-C's D−/D+. With a host
-attached there, the ROM's leave never reaches the app: not even its first instruction
-runs. A software reset, or flashing with the USB-C unplugged, starts it normally.
-Nothing in the app can fix this; the Daisy bootloader avoids the ROM altogether.
+Apps run from SRAM under the Daisy bootloader (`APP_TYPE=BOOT_SRAM`, set in
+`common/rodeo.mk`), and flash over the USB-C. To get into the bootloader, send `B` on
+any example's serial port: it reboots and waits there until a flash arrives. A tap on
+RESET also works, flashing within the bootloader's 2.5 s window (it pulses the LED).
+The `dfu-util` "get_status" error after "Submitting leave request" is normal.
+
+**Installing the bootloader**, once per Seed: hold BOOT, tap RESET, then
+`make program-boot` from any example, over the Seed's micro-USB. It writes libDaisy's
+`dsy_bootloader_v6_4-extdfu-2000ms.bin`, whose DFU answers on pins 36/37, the USB-C.
+Then tap RESET: with a computer on the USB-C, the STM32's ROM bootloader never starts
+what it has just written. The ROM also listens for a USART1 host on PB14/PB15, which on
+Rodeo are the USB-C's D−/D+. With a host attached there, the ROM's leave never reaches
+the program, not even its first instruction. Software resets are unaffected, and so is
+flashing with the USB-C unplugged. The same goes for `APP_TYPE=BOOT_NONE` builds, which
+replace the bootloader in internal flash.
+
+**Memory under the bootloader.** The code fills AXI SRAM, and statics live in DTCM with
+the stack. SDMMC1's DMA reaches neither DTCM nor SRAM1, so the SD card's FatFS objects
+(`FatFSInterface`, `FIL`) and buffers go in the SDRAM with `DSY_SDRAM_BSS`, the buffers
+32-byte aligned for the driver's cache maintenance (`examples/sd_card`). The other
+DMA (UARTs, SPI, ADC, audio) uses SRAM1 through `DMA_BUFFER_MEM_SECTION`.
+
+**The bootloader reads the SD card at every start**, Rev B's 1-bit card included. It
+looks in the root for a `.bin` and, by its docs, installs any valid program it finds;
+it logs failures to `daisy_boot_log.txt` on the card. Keep stray `.bin` files off it.
 
 ## Adding a new app or bring-up example
 

@@ -30,12 +30,13 @@
 #include "diskio.h"
 #include "tusb.h"
 #include "usb_port.h"
+#include "dfu.h"
 
 using namespace daisy;
 
 static DaisySeed      hw;
 static SdmmcHandler   sdmmc;
-static FatFSInterface fsi;
+static FatFSInterface fsi DSY_SDRAM_BSS; // FatFS reads sectors into it: see sd_stage
 
 extern "C"
 {
@@ -55,12 +56,12 @@ static volatile bool leave_disk   = false; // set from the eject callback, acted
 static char          report[1536];         // printed on the serial port once it reopens
 static bool          report_pending = false;
 
-// The SD driver moves data by DMA, which can't reach DTCM, and cleans and
-// invalidates the cache around the buffer by 32-byte lines. USB storage's
-// buffers go through this one, so a line is never shared with other data.
-// The stack is in DTCM too, so a FIL can't live there: FatFS moves a partial
-// sector through the FIL's own buffer, and a short file reads as nothing.
-alignas(32) static uint8_t sd_stage[CFG_TUD_MSC_EP_BUFSIZE];
+// SDMMC1's DMA reaches AXI SRAM and the SDRAM, not DTCM (the stack, and statics
+// under the bootloader) or SRAM1. USB storage's buffers go through this one, in
+// the SDRAM; 32-byte aligned for the driver's cache maintenance. FatFS moves a
+// partial sector through a FIL's own buffer, so a FIL in DTCM reads a short file
+// as nothing: those go in the SDRAM too.
+alignas(32) static uint8_t sd_stage[CFG_TUD_MSC_EP_BUFSIZE] DSY_SDRAM_BSS;
 static_assert(sizeof(sd_stage) % 32 == 0 && sizeof(sd_stage) % kSectorSize == 0, "staging");
 
 static uint32_t Crc32(uint32_t crc, const uint8_t* p, size_t n)
@@ -91,7 +92,7 @@ static void WriteReadmeIfMissing()
     const char* text = "Rodeo SD card. Put files here, eject the drive, and Rodeo\r\n"
                        "lists their names, sizes, CRC-32s and the first line of each\r\n"
                        ".TXT on its serial port.\r\n";
-    static FIL f; // not on the stack: see sd_stage
+    static FIL f DSY_SDRAM_BSS; // see sd_stage
     UINT       bw = 0;
     if(f_open(&f, name, FA_CREATE_ALWAYS | FA_WRITE) == FR_OK)
     {
@@ -129,7 +130,7 @@ static void CardReport(char* out, size_t len)
             continue;
         char path[300];
         snprintf(path, sizeof(path), "%s%s", fsi.GetSDPath(), fi.fname);
-        static FIL f; // not on the stack: see sd_stage
+        static FIL f DSY_SDRAM_BSS; // see sd_stage
         uint32_t   crc       = 0;
         char       first[48] = "";
         if(f_open(&f, path, FA_READ) == FR_OK)
@@ -367,7 +368,7 @@ static void CdcTask()
             case 'B':
                 CdcPrint("rebooting into the DFU bootloader (on the Seed's micro-USB)\r\n");
                 System::Delay(50);
-                System::ResetToBootloader(System::BootloaderMode::STM);
+                ResetToDfu();
                 break;
             default: break;
         }

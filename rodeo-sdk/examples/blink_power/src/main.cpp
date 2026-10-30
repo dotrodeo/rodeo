@@ -29,6 +29,7 @@
 #include "battery.h"
 #include "board.h"
 #include "version.h"
+#include "dfu.h"
 
 using namespace daisy;
 namespace gauge = rodeo::max17048;
@@ -81,7 +82,7 @@ int main(void)
     for(;;)
     {
         if(to_bootloader)
-            System::ResetToBootloader(System::BootloaderMode::STM);
+            ResetToDfu();
 
         uint32_t now = System::GetNow();
         if(now - last_blink >= (gauge_ok ? 500u : 100u))

@@ -38,7 +38,7 @@ Settled with Derek on 2026-10-18:
 | `board.h` | **Rewrite** | Rev B's pin map (`rev-b.md`, "Seed pin map"): the 8 I/O connectors (`D7`, `D15`–`D21`, seven analog-capable), CV1/CV2 on `D23`/`D22` (DAC out or analog in), satellite chain on USART3 (`D2` TX, `D1` RX), expansion-header chip-select `D0`, second codec reset `D3` and SAI2, SD on `D4`–`D6`, USB on `D29`/`D30`. The status LED is gone. |
 | `rodeo_adc.*`, `ads114s08.*` | **Change** | The two on-board ADS114S08s are gone; one optional ADS114S08 sits on the expansion header (`SPI_EXT_CS`). `RodeoAdc` goes from a fixed 2-chip, 24-channel scanner to N chips (0 or 1 on Rev B). An ADS124S08 needs `ReadData()` to take 3 bytes. |
 | `status_led.h` | **Remove** | No status LED on Rev B. |
-| `rodeo.mk` | **Change** | `extdfu` bootloader build; app Makefiles keep `BOOT_SRAM`; update-from-SD goes away (`rev-b.md`). |
+| `rodeo.mk` | **Change** | `extdfu` bootloader build; app Makefiles keep `BOOT_SRAM`; update-from-SD goes away (`rev-b.md`). Done 2026-10-30; the bootloader does read the 1-bit card (Milestone 1). |
 | Examples 01–10 | **Replace** | With the Rev B bring-up set below. The Rev A ones stay in the frozen copy. |
 | `template/` | **Update** | Rev B `board.h`, new example layout. |
 
@@ -327,12 +327,21 @@ nothing else, and is the reference for how an instrument uses it.
 Bring-up started 2026-10-28 with a USB-C power board. Rows still marked written haven't
 run on Rev B hardware yet.
 
-With a computer on the USB-C port, an app flashed with `make program-dfu` doesn't start
-until RESET is tapped (found 2026-10-30; it looked like an SD start-up fault at first).
-The ROM bootloader also listens on PB14/PB15 for USART1, and those are the USB-C's
-D−/D+, so with a host attached its DFU leave never reaches the app's first instruction.
-Software resets are fine, and so is flashing with the USB-C unplugged. See
-`rodeo-sdk/README.md`; installing the Daisy bootloader takes the ROM out of the loop.
+**Bootloader, 2026-10-30:** the Daisy bootloader (`extdfu-2000ms`) is installed and
+`rodeo.mk` builds every example for it (`BOOT_SRAM`). DFU answers on the USB-C, and only
+there, so the micro-USB is left for the STM32's ROM. `B` on an example's serial port
+reboots into the bootloader and waits; 07 and 09 pass again under it. Two things found
+on the way:
+
+* With a computer on the USB-C, the ROM bootloader's DFU leave never starts the
+  program it wrote. It also listens for USART1 on PB14/PB15, the USB-C's D−/D+. This
+  looked like an SD start-up fault at first. Tap RESET after `make program-boot` or a
+  `BOOT_NONE` flash.
+* The bootloader reads the 1-bit card at every start. It rejected yesterday's
+  `RANDOM.BIN` and logged that to `daisy_boot_log.txt` on the card. By its docs it
+  installs any valid `.bin` it finds in the root. So update-from-SD may still work
+  (`rev-b.md` says it's lost; not tried with a real program), and a stray `.bin`
+  copied in disk mode could replace the firmware: a product decision.
 
 **Every board, and where it is tested:**
 

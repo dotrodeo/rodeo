@@ -34,6 +34,7 @@
 #include "tusb.h"
 #include "usb_descriptors.h"
 #include "usb_port.h"
+#include "dfu.h"
 
 using namespace daisy;
 
@@ -399,7 +400,7 @@ static void CdcTask()
                 CdcPrint("rebooting into the DFU bootloader (on the Seed's micro-USB)\r\n");
                 System::Delay(50);
                 rodeo::StopAudio4x4(hw);
-                System::ResetToBootloader(System::BootloaderMode::STM);
+                ResetToDfu();
                 break;
             case 'c':
                 mic_source = MicSource::Codec;

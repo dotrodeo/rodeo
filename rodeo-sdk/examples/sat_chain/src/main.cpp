@@ -29,6 +29,7 @@
 #include "daisy_seed.h"
 #include "sat_chain.h"
 #include "sat_chain_port.h"
+#include "dfu.h"
 
 using namespace daisy;
 
@@ -220,7 +221,7 @@ int main(void)
         Collect();
         Drive();
         if(to_bootloader)
-            System::ResetToBootloader(System::BootloaderMode::STM);
+            ResetToDfu();
 
         uint32_t now = System::GetNow();
         bool     ok  = chain.GetState() == rodeo::SatChain::State::kScan;

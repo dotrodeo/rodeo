@@ -25,8 +25,9 @@
 // port's entry at TinyUSB instead, and sets its priority below the audio DMA's
 // so audio always preempts USB.
 //
-// The STM32's ROM DFU bootloader (System::ResetToBootloader(STM)) only answers
-// on OTG_FS: on an hs build, reflash through the Seed's micro-USB.
+// The Daisy bootloader (extdfu, see rodeo.mk) takes DFU on the USB-C, so an hs
+// build reflashes there too (dfu.h). The STM32's ROM bootloader only answers on
+// OTG_FS, the Seed's micro-USB.
 //
 #ifdef RODEO_USB_HS
 #define RODEO_USB_RHPORT 1

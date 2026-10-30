@@ -32,6 +32,7 @@
 #include "board_daisy.h"
 #include "max17048.h"
 #include "oled_ssd130x_bulk.h"
+#include "dfu.h"
 
 using namespace daisy;
 using Speed = I2CHandle::Config::Speed;
@@ -170,7 +171,7 @@ int main(void)
     for(;;)
     {
         if(to_bootloader)
-            System::ResetToBootloader(System::BootloaderMode::STM);
+            ResetToDfu();
         if(rescan)
         {
             rescan = false;
