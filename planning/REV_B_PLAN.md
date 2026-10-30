@@ -312,9 +312,9 @@ nothing else, and is the reference for how an instrument uses it.
 
 | # | Example | Proves | Needs | Status |
 |---|---|---|---|---|
-| 01 | `blink_power` | Seed boots on the Rev B motherboard; cell voltage, % and charge rate from the MAX17048 over I²C. PGOOD/CHG don't reach the Seed, so the power board's LEDs are checked by eye | motherboard, a power board, a cell | written |
+| 01 | `blink_power` | Seed boots on the Rev B motherboard; cell voltage, % and charge rate from the MAX17048 over I²C. PGOOD/CHG don't reach the Seed, so the power board's LEDs are checked by eye | motherboard, a power board, a cell | **passed on Rev B 2026-10-28**, except the gauge: it answers on I²C but reads 0 V, probably U4 damaged by a cell plugged in reversed (`hardware/docs/revisions.md`) |
 | 02 | `audio_4x4` | All eight audio channels: a different tone out of each output, each input says whose tone it hears; both codecs in one callback | jack board, four loop cables | written |
-| 03 | `midi` | MIDI out to in through the jack board: numbered notes, CCs and SysEx checked in order; or a keyboard and a synth | MIDI board, a TRS cable | written |
+| 03 | `midi` | MIDI out to in through the jack board: numbered notes, CCs and SysEx checked in order; or a keyboard and a synth | MIDI board, a TRS cable | **passed on Rev B 2026-10-29**: notes, CCs and SysEx all back in order through a TRS loop |
 | 04 | `io_connectors` | CV out read back on CV2, digital out read back on D1, every free analog input listed | two 3-pin SH cables, a pot | written; ran on a bare Seed |
 | 05 | `sat_chain` | Discovery, scans and breaks; every satellite listed by kind with its controls, and its LEDs driven from them | satellites flashed (below) | written; ran on a bare Seed as a loop |
 | 06 | `oled_i2c` | I²C scan; OLED drawing; gauge reads counted at 100 and 400 kHz with the tap cables fitted | an SSD130x, tap cables | written |
@@ -324,8 +324,8 @@ nothing else, and is the reference for how an instrument uses it.
 | 10 | `usb_audio` | UAC1 4×4 at 24-bit across both codecs, on macOS, Windows and Linux | the hardest piece; last | written |
 | 11 | `spi_header` | The expansion header's SPI as a MOSI-to-MISO loop at each clock divider; CS pull-up | a wire | written |
 
-None of the rows marked written has run on Rev B hardware; they build, and wait for the
-boards.
+Bring-up started 2026-10-28 with a USB-C power board. Rows still marked written haven't
+run on Rev B hardware yet.
 
 **Every board, and where it is tested:**
 
