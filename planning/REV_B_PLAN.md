@@ -318,7 +318,7 @@ nothing else, and is the reference for how an instrument uses it.
 | 04 | `io_connectors` | CV out read back on CV2, digital out read back on D1, every free analog input listed | two 3-pin SH cables, a pot | written; ran on a bare Seed |
 | 05 | `sat_chain` | Discovery, scans and breaks; every satellite listed by kind with its controls, and its LEDs driven from them | satellites flashed (below) | written; ran on a bare Seed as a loop |
 | 06 | `oled_i2c` | I²C scan; OLED drawing; gauge reads counted at 100 and 400 kHz with the tap cables fitted | an SSD130x, tap cables | written |
-| 07 | `sd_card` | Read and write the internal SD in 1-bit mode, checked and timed | an SD card (FAT32) | written |
+| 07 | `sd_card` | Read and write the internal SD in 1-bit mode, checked and timed | an SD card (FAT32) | **passed on Rev B 2026-10-29** on a 2 GB card: 4 MiB written and read back intact, 388 KB/s write, 1.24 MB/s read. Below the 3–5 MB/s estimate; time it again on a modern SDHC card |
 | 08 | `usb_midi_cdc` | USB-MIDI + serial through the power board, on TinyUSB (`make RODEO_USB=hs`) | USB-C power board | **passed on Rev B 2026-10-29**: enumerates over the USB-C, serial echoes, MIDI both ways on macOS. A charge-only USB-C cable shows as nothing at all |
 | 09 | `usb_storage` | The SD card as a USB drive in disk mode; files listed with CRC-32 after eject | an SD card | written |
 | 10 | `usb_audio` | UAC1 4×4 at 24-bit across both codecs, on macOS, Windows and Linux | the hardest piece; last | written |
