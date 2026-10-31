@@ -64,6 +64,16 @@ void InitAudio4x4(DaisySeed& hw, size_t blocksize)
     cfg.samplerate = SaiHandle::Config::SampleRate::SAI_48KHZ;
     cfg.postgain   = 1.f;
     hw.audio_handle.Init(cfg, sai[0], sai[1]);
+
+    // libDaisy pulls every SAI pin up, SD_B included, and SD_B is the CS4272's
+    // SDOUT: the pin it reads as it leaves reset to choose master or slave. Its
+    // 47k pull-down (R19) against the STM32's ~40k pull-up sits near the
+    // threshold, so the codec came up as master about half the time, its
+    // clocks fighting SAI2's and its data a few bits off or all noise.
+    const board::SeedPin sdout = board::pin::kCodec2Sdout;
+    GPIO_TypeDef* port = reinterpret_cast<GPIO_TypeDef*>(
+        GPIOA_BASE + (sdout.port - 'A') * (GPIOB_BASE - GPIOA_BASE));
+    port->PUPDR &= ~(3u << (sdout.num * 2));
 }
 
 void StartAudio4x4(DaisySeed& hw, AudioHandle::AudioCallback cb)
