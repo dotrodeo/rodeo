@@ -19,10 +19,13 @@
 //
 //   make                 Rev B's USB-C, through the power board (OTG_HS, pins 36/37)
 //   make RODEO_USB=fs    the Seed's own micro-USB
+//   make AUDIO_BITS=24   24-bit instead of 16: direct ports only, not behind a hub
 //
 // 4x4 at 24-bit is 588-byte packets each way, 89 % of a full-speed frame's
-// periodic budget (planning/REV_B_PLAN.md, "Bandwidth fits"), so this is also the
+// periodic budget (planning/REV_B_PLAN.md, "Bandwidth fits"), so it is also the
 // test of whether the DWC2 core and the computer's driver keep up at that load.
+// They do on a direct port; behind a USB 2.0 hub macOS gives up on it, which is
+// why 16-bit (392 bytes) is the default.
 // The checks, in order: it enumerates with four channels each way on macOS,
 // Windows and Linux; 't' records the four tones on the right channels; playing to
 // channel n with output n patched to input n comes back on channel n ('c'); and a
@@ -83,22 +86,27 @@ static uint8_t usb_tx[kBlockBytes];
 static float   loop[AUDIO_N_CHANNELS][kBlock];
 static float   tone_phase[AUDIO_N_CHANNELS];
 
-static inline float Unpack24(const uint8_t* p)
+// One little-endian sample of AUDIO_BITS, packed, to and from a float.
+static constexpr float kFullScale = (float)(1L << (AUDIO_BITS - 1));
+
+static inline float Unpack(const uint8_t* p)
 {
-    int32_t v = (int32_t)((uint32_t)p[0] << 8 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 24) >> 8;
-    return (float)v * (1.0f / 8388608.0f);
+    int32_t v = 0;
+    for(int b = 0; b < AUDIO_BYTES_PER_SAMPLE; b++)
+        v |= (int32_t)((uint32_t)p[b] << (8 * (4 - AUDIO_BYTES_PER_SAMPLE + b)));
+    v >>= 8 * (4 - AUDIO_BYTES_PER_SAMPLE); // sign-extend
+    return (float)v / kFullScale;
 }
 
-static inline void Pack24(uint8_t* p, float x)
+static inline void Pack(uint8_t* p, float x)
 {
-    if(x > 0.99999988f)
-        x = 0.99999988f;
     if(x < -1.0f)
         x = -1.0f;
-    int32_t v = (int32_t)(x * 8388608.0f);
-    p[0]      = (uint8_t)v;
-    p[1]      = (uint8_t)(v >> 8);
-    p[2]      = (uint8_t)(v >> 16);
+    int32_t v = (int32_t)(x * kFullScale);
+    if(v > (int32_t)kFullScale - 1)
+        v = (int32_t)kFullScale - 1;
+    for(int b = 0; b < AUDIO_BYTES_PER_SAMPLE; b++)
+        p[b] = (uint8_t)(v >> (8 * b));
 }
 
 static void AudioCallback(AudioHandle::InputBuffer  in,
@@ -141,7 +149,7 @@ static void AudioCallback(AudioHandle::InputBuffer  in,
         bool const have = (i + 1) * kFrameBytes <= got;
         for(int c = 0; c < AUDIO_N_CHANNELS; c++)
         {
-            float x    = have ? Unpack24(&usb_rx[i * kFrameBytes + c * AUDIO_BYTES_PER_SAMPLE]) : 0.f;
+            float x    = have ? Unpack(&usb_rx[i * kFrameBytes + c * AUDIO_BYTES_PER_SAMPLE]) : 0.f;
             loop[c][i] = x;
             out[c][i]  = x * gain;
             float a    = fabsf(in[c][i]);
@@ -169,7 +177,7 @@ static void AudioCallback(AudioHandle::InputBuffer  in,
                         break;
                     default: x = in[c][i]; break;
                 }
-                Pack24(&usb_tx[i * kFrameBytes + c * AUDIO_BYTES_PER_SAMPLE], x);
+                Pack(&usb_tx[i * kFrameBytes + c * AUDIO_BYTES_PER_SAMPLE], x);
             }
         }
         // TinyUSB's IN FIFO overwrites its oldest data when full, so check the room
@@ -385,7 +393,7 @@ static void CdcTask()
     bool        connected     = tud_cdc_connected();
     if(connected && !was_connected)
         CdcPrint("\r\nRodeo USB audio test: TinyUSB " TUSB_VERSION_STRING
-                 ", UAC1 4x4 48 kHz 24-bit + MIDI + serial on " RODEO_USB_PORT_NAME ".\r\n"
+                 ", UAC1 4x4 48 kHz " TU_XSTRING(AUDIO_BITS) "-bit + MIDI + serial on " RODEO_USB_PORT_NAME ".\r\n"
                  "s = stats; recording source: c = inputs, l = loopback, t = test tones;\r\n"
                  "B = reboot into DFU (development)\r\n");
     was_connected = connected;

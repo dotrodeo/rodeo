@@ -1,5 +1,5 @@
 // TinyUSB configuration for the 4x4 USB audio test: UAC1 audio (4 out + 4 in,
-// 48 kHz, 24-bit, asynchronous with feedback) + MIDI + CDC serial, on the port the
+// 48 kHz, 16- or 24-bit, asynchronous with feedback) + MIDI + CDC serial, on the port the
 // build chose (Rev B's USB-C by default). See common/usb_port.h and
 // planning/REV_B_PLAN.md, "USB".
 #pragma once
@@ -28,13 +28,18 @@
 
 //------------- Audio -------------//
 // UAC1, as in usb_device: its full-speed feedback (10.14) is the one every OS takes.
-// Four channels each way at 24-bit: (48 + 1) frames x 12 bytes = 588-byte packets,
-// under full speed's 1023-byte isochronous limit; with the feedback endpoint that
-// is 89 % of the frame's periodic budget (planning/REV_B_PLAN.md, "Bandwidth fits").
+// Four channels each way, (48 + 1) frames a packet. 16-bit by default: 392-byte
+// packets, which fit behind a USB 2.0 hub (a Mac mini's front ports are one).
+// `make AUDIO_BITS=24` makes them 588 bytes, which a direct port takes but macOS
+// gives up on behind a hub: a hub's full-speed budget is tighter than the plan's
+// sum ("Bandwidth fits" in planning/REV_B_PLAN.md, measured 2026-10-31).
+#ifndef AUDIO_BITS
+#define AUDIO_BITS 16
+#endif
 #define AUDIO_SAMPLE_RATE      48000
 #define AUDIO_N_CHANNELS       4
-#define AUDIO_BYTES_PER_SAMPLE 3 // 24-bit, packed
-#define AUDIO_BITS_PER_SAMPLE  24
+#define AUDIO_BITS_PER_SAMPLE  AUDIO_BITS
+#define AUDIO_BYTES_PER_SAMPLE (AUDIO_BITS / 8) // packed
 #define AUDIO_EP_SZ \
     TUD_AUDIO_EP_SIZE(false, AUDIO_SAMPLE_RATE, AUDIO_BYTES_PER_SAMPLE, AUDIO_N_CHANNELS)
 

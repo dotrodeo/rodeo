@@ -88,7 +88,9 @@ brought up.
   Seed's own codec are clean, and with SDIN quiet the ADC side is clean too.
   `CODEC2_SDOUT` runs ~50 mm on the board 0.15 mm from `CODEC2_SDIN` and
   `CODEC2_SCLK` on both sides. Slowing the Seed's SAI2 edges changed the count
-  but didn't cure it. Next time: a ground trace or spacing between SDOUT and its
+  but didn't cure it. Sending the DAC 16-bit words (the low 8 bits zero, as
+  `usb_audio`'s default does) cut it ~100×: 0–10 bad samples per 20 s against
+  500–1,500 with 24-bit words. Next time: a ground trace or spacing between SDOUT and its
   neighbours, and source series resistors (~33 Ω) on MCLK, SCLK, LRCK and SDIN
   at the Seed and on SDOUT at the codec. Check the Seed's codec routing (SAI1)
   hasn't the same pattern.
