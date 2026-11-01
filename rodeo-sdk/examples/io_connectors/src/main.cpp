@@ -19,6 +19,10 @@
 // Move the pot round A1 and A3-A7 to check each analog connector; the listing
 // prints them all (A2 is the digital output here).
 //
+// No pot? After the self-test CV1 keeps stepping through 0.1-0.9, a step per
+// line, so moving the CV1 cable's far end from CV2 to each analog connector in
+// turn shows that input following CV1's column.
+//
 // Status on the Seed's USB serial; 'B' reboots into DFU for the next flash.
 #include <math.h>
 
@@ -105,6 +109,8 @@ int main(void)
     hw.PrintLine("DAC/ADC %s, digital %s", dac ? "PASS" : "FAIL", dig ? "PASS" : "FAIL");
 
     uint32_t last = 0;
+    int      step = 0;
+    io.Write(board::kIoCv1, 0.1f);
     for(;;)
     {
         if(to_bootloader)
@@ -114,10 +120,15 @@ int main(void)
         if(now - last < 250)
             continue;
         last = now;
-        hw.PrintLine("A1 %4d  A3 %4d  A4 %4d  A5 %4d  A6 %4d  A7 %4d  (/1000)  D1 %d  CV2 %4d",
-                     Milli(io.Read(board::kIoA1)), Milli(io.Read(board::kIoA3)),
+        // The reads below see the step before this one: a line's CV1 is what
+        // the inputs were driven to.
+        const float cv1 = 0.1f + 0.2f * static_cast<float>(step);
+        step            = (step + 1) % 5;
+        hw.PrintLine("CV1 %4d  A1 %4d  A3 %4d  A4 %4d  A5 %4d  A6 %4d  A7 %4d  (/1000)  D1 %d  CV2 %4d",
+                     Milli(cv1), Milli(io.Read(board::kIoA1)), Milli(io.Read(board::kIoA3)),
                      Milli(io.Read(board::kIoA4)), Milli(io.Read(board::kIoA5)),
                      Milli(io.Read(board::kIoA6)), Milli(io.Read(board::kIoA7)),
                      io.Get(board::kIoD1), Milli(io.Read(board::kIoCv2)));
+        io.Write(board::kIoCv1, 0.1f + 0.2f * static_cast<float>(step));
     }
 }
