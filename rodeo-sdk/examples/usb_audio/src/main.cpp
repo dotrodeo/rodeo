@@ -13,8 +13,8 @@
 //       l  loopback: what the computer is playing, returned digitally
 //       t  test tones, 250/500/1000/2000 Hz on channels 1-4 at -12 dBFS (the
 //          frequencies audio_4x4 uses, so a swapped channel is obvious)
-//   * Serial: 's' prints stream state and counters; 'B' reboots into the STM32's
-//     DFU bootloader (on the Seed's micro-USB).
+//   * Serial: 's' prints stream state and counters; 'B' reboots into the Daisy
+//     bootloader, for `make program-dfu` over the USB-C.
 //   * MIDI: echoes what it receives.
 //
 //   make                 Rev B's USB-C, through the power board (OTG_HS, pins 36/37)
@@ -397,7 +397,7 @@ static void CdcTask()
         {
             case 's': PrintStats(); break;
             case 'B':
-                CdcPrint("rebooting into the DFU bootloader (on the Seed's micro-USB)\r\n");
+                CdcPrint("rebooting into the bootloader (DFU on the USB-C)\r\n");
                 System::Delay(50);
                 rodeo::StopAudio4x4(hw);
                 ResetToDfu();

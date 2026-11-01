@@ -81,6 +81,22 @@ brought up.
   output capacitor (C17, C19 or C22) or FB1's input side stands in. (Found
   2026-10-19.)
 
+- **CS4272 SDOUT: keep it away from SDIN and SCLK.** Found at bring-up
+  (2026-10-31): the second codec's ADC data takes bursts of corrupted samples,
+  scattered single samples off by up to a quarter of full scale, ~100 to ~1,200
+  per channel in 10 s, whenever its DAC is also playing. Its DAC side and the
+  Seed's own codec are clean, and with SDIN quiet the ADC side is clean too.
+  `CODEC2_SDOUT` runs ~50 mm on the board 0.15 mm from `CODEC2_SDIN` and
+  `CODEC2_SCLK` on both sides. Slowing the Seed's SAI2 edges changed the count
+  but didn't cure it. Next time: a ground trace or spacing between SDOUT and its
+  neighbours, and source series resistors (~33 Ω) on MCLK, SCLK, LRCK and SDIN
+  at the Seed and on SDOUT at the codec. Check the Seed's codec routing (SAI1)
+  hasn't the same pattern.
+- **CS4272 mode straps: check de-emphasis.** R18 pulls M0 high and R20 pulls M1
+  low. If the datasheet's stand-alone table makes that single-speed *with*
+  44.1 kHz de-emphasis (as remembered, not yet checked), pull M0 low too.
+  (2026-10-31.)
+
 ### MIDI, audio, barrel, switch, encoder bank, panels
 
 - Nothing yet beyond the copyright year.
