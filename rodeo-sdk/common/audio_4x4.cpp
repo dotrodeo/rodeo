@@ -10,8 +10,37 @@ namespace rodeo
 namespace
 {
 GPIO codec2_reset;
+AudioHandle::AudioCallback callback;
 
 Pin Seed(board::SeedPin p) { return board::ToDaisy(p); }
+
+// Rounds a sample to 16 bits. libDaisy scales by 2^23 and truncates, so k/32768
+// arrives as exactly k*256 and the low byte goes out as zeros. -32768 is left
+// out because libDaisy clamps -1.0 to just above it.
+float To16(float x)
+{
+    float k = x * 32768.f;
+    k       = k >= 32767.f ? 32767.f : k <= -32767.f ? -32767.f : k;
+    return (float)(int32_t)(k + (k >= 0.f ? 0.5f : -0.5f)) * (1.f / 32768.f);
+}
+
+// On Rev B1 the CS4272's SDIN runs alongside its SDOUT, and the DAC's data
+// corrupts the ADC's: inputs 3/4 took 500-1,500 bad samples per channel every
+// 20 s while outputs 3/4 played 24-bit data, and 0-10 with 16-bit data (see
+// hardware/docs/revisions.md). Sending outputs 3/4 as 16 bits keeps most of
+// SDIN's low byte quiet and costs nothing audible (a -96 dB floor). Drop this
+// once a motherboard with the routing fixed is the only one around.
+void Callback(AudioHandle::InputBuffer  in,
+              AudioHandle::OutputBuffer out,
+              size_t                    size)
+{
+    callback(in, out, size);
+    for(size_t i = 0; i < size; i++)
+    {
+        out[2][i] = To16(out[2][i]);
+        out[3][i] = To16(out[3][i]);
+    }
+}
 } // namespace
 
 void InitAudio4x4(DaisySeed& hw, size_t blocksize)
@@ -78,7 +107,8 @@ void InitAudio4x4(DaisySeed& hw, size_t blocksize)
 
 void StartAudio4x4(DaisySeed& hw, AudioHandle::AudioCallback cb)
 {
-    hw.StartAudio(cb);
+    callback = cb;
+    hw.StartAudio(Callback);
     // The clocks start with the DMA. The CS4272 wants them stable before RST
     // rises; a millisecond is ~48 LRCK periods.
     System::Delay(1);

@@ -25,6 +25,11 @@
 // back. Its first few milliseconds out of reset are silence while it
 // calibrates.
 //
+// Outputs 3/4 (out[2], out[3]) are rounded to 16 bits after the callback
+// returns: on Rev B1 the CS4272's DAC data leaks into its ADC data, much less
+// so with the low byte zero. Swapping the callback with
+// hw.ChangeAudioCallback() skips that, so stop and start again instead.
+//
 #include "daisy_seed.h"
 
 namespace rodeo
