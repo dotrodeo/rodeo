@@ -215,3 +215,99 @@ tr.skipped td { color: var(--red); }
   max-width: 70ch;
 }
 .toast.bad { border-left-color: var(--red); }
+
+/* ---- mode switch ---- */
+.modes { display: flex; }
+.modes button { border-radius: 0; margin-left: -1px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; padding: 4px 11px; }
+.modes button[aria-pressed='true'] { background: var(--legend); color: var(--field); border-color: var(--legend); }
+
+/* ---- live mode ---- */
+.live-head { margin-bottom: 18px; }
+.live h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gray); font-weight: 400; margin: 0 0 10px; }
+.dim { color: var(--gray); }
+.live-controls { margin: 14px 0 22px; }
+.live-controls label { color: var(--gray); font-size: 12px; }
+.live-controls input[type='range'] { width: 110px; padding: 0; }
+.live-controls output { color: var(--yellow); font-size: 12px; min-width: 38px; }
+/* `input, select` is width:100% for the preset form; in a toolbar row it must not be. */
+.live-controls select { width: auto; }
+.live-head select { width: auto; min-width: 260px; flex: 0 1 420px; }
+button.on { background: var(--yellow); color: var(--field); border-color: var(--yellow); }
+
+/* A piano: the white keys lay out in a row, the black ones sit on top at an
+ * offset. --pk-w is one white key, so the black keys follow any width. */
+.pk-wrap { overflow-x: auto; padding-bottom: 4px; }
+.pk-row {
+  --pk-w: 34px;
+  position: relative;
+  display: flex;
+  height: 132px;
+  width: calc(var(--pk-count) * var(--pk-w));
+  min-width: 100%;
+  user-select: none;
+  touch-action: none;
+}
+.pk { position: relative; border: 1px solid var(--rule); padding: 0; cursor: pointer; }
+.pk-white { width: var(--pk-w); flex: 0 0 var(--pk-w); background: #d8d8d8; }
+.pk-black {
+  position: absolute;
+  top: 0;
+  width: calc(var(--pk-w) * 0.6);
+  height: 62%;
+  background: #191919;
+  border-color: #000;
+  z-index: 2;
+}
+.pk-white:hover { background: #eee; }
+.pk-black:hover { background: #2a2a2a; }
+.pk-white.held, .pk-white.ringing { background: var(--yellow); }
+.pk-black.held, .pk-black.ringing { background: #a98200; }
+.pk-white.ringing, .pk-black.ringing { opacity: 0.55; }
+.pk-span {
+  position: absolute;
+  top: -1px;
+  height: 15px;
+  z-index: 3;
+  background: var(--indigo);
+  color: var(--field);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  line-height: 15px;
+  padding-left: 4px;
+  overflow: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.pk-mark, .pk-c {
+  position: absolute;
+  bottom: 4px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: #555;
+  pointer-events: none;
+}
+.pk-mark { bottom: 16px; color: #a07c00; font-weight: 700; }
+.pk-black .pk-mark { color: var(--yellow); bottom: 4px; }
+
+/* ---- voices + patterns ---- */
+.live-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; margin-bottom: 30px; }
+@media (max-width: 860px) { .live-cols { grid-template-columns: 1fr; } }
+.voices { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 12px; }
+.vc { border: 1px solid var(--rule); padding: 6px 7px; font-size: 11px; }
+.vc-n { color: var(--gray); font-size: 9px; display: block; }
+.vc-note { display: block; font-size: 14px; color: var(--gray); }
+.vc-state { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gray); }
+.vc.held { border-color: var(--yellow); }
+.vc.held .vc-note, .vc.held .vc-state { color: var(--yellow); }
+.vc.ringing { border-color: #6b5700; }
+.vc.ringing .vc-note { color: #a98200; }
+.pat { display: flex; gap: 10px; align-items: baseline; margin-bottom: 7px; }
+.pat button { flex: 0 0 110px; text-align: left; }
+
+.understood { border-top: 1px solid var(--rule); padding-top: 18px; max-width: 70ch; }
+.understood table { font-size: 12px; }
+.understood td { border-top: 0; padding: 3px 14px 3px 0; }
+.understood td:nth-child(2) { white-space: nowrap; }

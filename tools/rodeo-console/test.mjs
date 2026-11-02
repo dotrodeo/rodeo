@@ -391,3 +391,223 @@ test('trimSilence keeps a little lead-in and drops the tail', () => {
   const silent = trimSilence([new Float32Array(100)], 48000);
   assert.equal(silent[0].length, 0, 'an entirely silent file trims to nothing');
 });
+
+// --------------------------------------------------------------------- MIDI
+//
+// Read off main.cpp's `Midi()` and synth.cpp's `Allocate()`/`Take()`. The
+// allocator is the interesting one: the console claims on screen what Rodeo
+// should do with the notes it just sent, and a wrong claim is worse than none.
+
+import {
+  BEND_SEMITONES,
+  VOICE_COUNT,
+  Voices,
+  allNotesOff,
+  bendSweep,
+  chromatic,
+  isRodeoPort,
+  kitWalk,
+  noteOff,
+  noteOn,
+  pileUp,
+  pitchBend,
+  sustain,
+  sustainTest,
+} from './js/midi.js';
+
+test('messages are the bytes the firmware switches on', () => {
+  assert.deepEqual(noteOn(60, 100), [0x90, 60, 100]);
+  assert.deepEqual(noteOff(60), [0x80, 60, 0]);
+  assert.deepEqual(sustain(true), [0xb0, 64, 127]);
+  assert.deepEqual(sustain(false), [0xb0, 64, 0]);
+  // CC 120 and 123 both reach AllNotesOff (main.cpp:87); we send 123.
+  assert.deepEqual(allNotesOff(), [0xb0, 123, 0]);
+  // The channel is masked off by `status & 0xF0`, so it may be anything.
+  assert.deepEqual(noteOn(60, 100, 9), [0x99, 60, 100]);
+  assert.deepEqual(noteOn(200, 900), [0x90, 127, 127], 'clamped, never wrapped');
+});
+
+test('pitch bend is the exact inverse of main.cpp:83', () => {
+  const back = ([, lo, hi]) => (2 * ((lo | (hi << 7)) - 8192)) / 8192;
+  assert.deepEqual(pitchBend(0), [0xe0, 0, 64], 'centre is 8192');
+  assert.equal(back(pitchBend(0)), 0);
+  assert.equal(back(pitchBend(-BEND_SEMITONES)), -2, 'the bottom is reachable exactly');
+  for (const s of [-1.5, -0.25, 0.5, 1]) assert.ok(Math.abs(back(pitchBend(s)) - s) < 1e-3, s);
+  // raw 16383 is +1.99975 semitones: +2 cannot be sent, and the console must
+  // not pretend otherwise by wrapping to 0 or overflowing the byte.
+  const top = pitchBend(BEND_SEMITONES);
+  assert.deepEqual(top, [0xe0, 0x7f, 0x7f]);
+  assert.ok(back(top) < 2 && back(top) > 1.999);
+  assert.deepEqual(pitchBend(99), top, 'out of range clamps to the top');
+});
+
+test('a port is a Rodeo by either string the descriptors set', () => {
+  assert.ok(isRodeoPort('Rodeo MIDI'));
+  assert.ok(isRodeoPort('Rodeo Demo'));
+  assert.ok(isRodeoPort('rodeo demo midi 1'));
+  assert.ok(!isRodeoPort('IAC Driver Bus 1'));
+  assert.ok(!isRodeoPort(''));
+  assert.ok(!isRodeoPort(undefined));
+});
+
+test('velocity 0 is a note off, not a silent note', () => {
+  const v = new Voices();
+  v.noteOn(60, 100, 0);
+  assert.equal(v.sounding(0), 1);
+  v.noteOn(60, 0, 1); // synth.cpp:294 routes this to NoteOff
+  assert.equal(v.slots[0].gate, false);
+  assert.equal(v.slots[0].key, false);
+});
+
+test('Allocate takes a free voice, then steals the oldest', () => {
+  const v = new Voices({ release: 100 });
+  for (let i = 0; i < VOICE_COUNT; i++) {
+    const r = v.noteOn(60 + i, 100, i);
+    assert.equal(r.index, i, 'eight notes take eight voices in order');
+    assert.equal(r.how, 'free');
+    assert.equal(r.took, null);
+  }
+  const ninth = v.noteOn(80, 100, 10);
+  assert.equal(ninth.how, 'stole a sounding voice');
+  assert.equal(ninth.index, 0, 'the oldest voice goes');
+  assert.equal(ninth.took, 60, 'and it was holding the first note played');
+  assert.equal(v.sounding(10), VOICE_COUNT, 'still eight, never nine');
+});
+
+test('a released voice is stolen before a held one, whatever the order', () => {
+  const v = new Voices({ release: 10_000 }); // long release: all still sounding
+  for (let i = 0; i < VOICE_COUNT; i++) v.noteOn(60 + i, 100, i);
+  v.noteOff(64, 100); // the fifth note played, now released but still ringing
+  const next = v.noteOn(90, 100, 110);
+  assert.equal(next.how, 'stole a released voice');
+  assert.equal(next.took, 64, 'not note 60, which is older but still held');
+});
+
+test('pressing a key again takes its own voice back, even a quiet one', () => {
+  const v = new Voices({ release: 50 });
+  v.noteOn(60, 100, 0); // slot 0
+  v.noteOn(62, 100, 1); // slot 1
+  v.noteOff(60, 2);
+  v.noteOff(62, 3);
+  // Both are long finished, so both are free, and the free scan runs from slot
+  // 0 upward. `Allocate` checks `v.note == note` FIRST, though (synth.cpp:138),
+  // and `note` is never cleared on release — so 62 goes home to slot 1 rather
+  // than taking slot 0, which is what a plain free-voice search would do.
+  const again = v.noteOn(62, 100, 500);
+  assert.equal(again.how, 'retrigger');
+  assert.equal(again.index, 1);
+  assert.equal(again.took, null, 'nothing audible was taken');
+  // And the corollary, which is why the test above was wrong the first time: a
+  // note that has gone quiet does NOT keep its voice reserved. Any other note
+  // claiming a free voice takes the lowest-numbered idle one, name and all.
+  const fresh = new Voices({ release: 50 });
+  fresh.noteOn(60, 100, 0);
+  fresh.noteOff(60, 2);
+  const stranger = fresh.noteOn(61, 100, 500);
+  assert.equal(stranger.index, 0, '61 takes the idle slot 60 was using');
+  assert.equal(fresh.slots[0].note, 61);
+});
+
+test('sustain holds a key-up and lifting the pedal drops everything at once', () => {
+  const v = new Voices({ release: 1000 });
+  v.setSustain(true, 0);
+  v.noteOn(60, 100, 0);
+  v.noteOn(64, 100, 1);
+  v.noteOff(60, 10);
+  v.noteOff(64, 11);
+  assert.equal(v.slots[0].gate, true, 'the pedal is down, so it keeps sounding');
+  assert.equal(v.slots[0].key, false, 'but the key is up');
+  const r = v.setSustain(false, 20);
+  assert.deepEqual(r.released, [0, 1]);
+  assert.equal(v.slots[0].gate, false);
+});
+
+test('a note off only reaches a voice that still holds its key', () => {
+  const v = new Voices({ release: 10_000 });
+  for (let i = 0; i < VOICE_COUNT; i++) v.noteOn(60 + i, 100, i);
+  v.noteOn(90, 100, 10); // steals slot 0, which was holding 60
+  const r = v.noteOff(60, 20);
+  assert.deepEqual(r.off, [], 'the key-up for a stolen note finds nothing, and is harmless');
+  assert.equal(v.slots[0].note, 90, 'the thief keeps the voice');
+});
+
+test('in sampler layer a key with no sample allocates nothing', () => {
+  const v = new Voices();
+  // `Start` returns before `Allocate` when the sampler alone has nothing on
+  // this key (synth.cpp:161), so such a key cannot steal a voice either.
+  for (let i = 0; i < VOICE_COUNT; i++) v.noteOn(60 + i, 100, i, true);
+  const quiet = v.noteOn(90, 100, 10, false);
+  assert.deepEqual(quiet, { silent: true, note: 90 });
+  assert.equal(v.slots[0].note, 60, 'nothing was stolen');
+});
+
+test('all notes off RELEASES every voice rather than muting it', () => {
+  const v = new Voices({ release: 2000 });
+  for (let i = 0; i < VOICE_COUNT; i++) v.noteOn(60 + i, 100, i);
+  v.allOff(10);
+  assert.ok(v.slots.every((s) => !s.gate && !s.key), 'every key and gate is down');
+  // `Ev::AllOff` calls `Release`, which only drops the gate (synth.cpp:218,191),
+  // so the amp envelopes still run their release stage. Panic on a preset with
+  // a 4 s release is four more seconds of sound, and the page should not claim
+  // the board went quiet.
+  assert.equal(v.sounding(11), VOICE_COUNT, 'still ringing the instant after');
+  assert.equal(v.sounding(2011), 0, 'quiet once the release has run');
+});
+
+test('the patterns stay inside the firmware event queue', () => {
+  // `Push` drops once 64 events are unread, and `Process` drains them every
+  // 1/3 ms (synth.cpp:40-47). So the only way to lose a note is to put more
+  // than 64 messages at the same instant; check no pattern comes close.
+  for (const events of [chromatic(), kitWalk(), pileUp(), bendSweep(), sustainTest()]) {
+    const byTime = new Map();
+    for (const e of events) byTime.set(e.at, (byTime.get(e.at) ?? 0) + 1);
+    const worst = Math.max(...byTime.values());
+    assert.ok(worst < 32, `${worst} messages share a timestamp`);
+    assert.ok(events.every((e) => e.at >= 0 && Number.isFinite(e.at)));
+  }
+});
+
+test('every pattern lifts every note it presses', () => {
+  for (const events of [chromatic(), kitWalk(), pileUp(), bendSweep(), sustainTest()]) {
+    const held = new Map();
+    for (const { at, bytes } of [...events].sort((a, b) => a.at - b.at)) {
+      const status = bytes[0] & 0xf0;
+      if (status === 0x90 && bytes[2] > 0) held.set(bytes[1], at);
+      else if (status === 0x80 || (status === 0x90 && bytes[2] === 0)) held.delete(bytes[1]);
+    }
+    assert.deepEqual([...held.keys()], [], 'a pattern that leaves a note down drones');
+  }
+});
+
+test('the pile-up really does ask for one voice more than there are', () => {
+  const ons = pileUp().filter((e) => (e.bytes[0] & 0xf0) === 0x90);
+  assert.equal(ons.length, VOICE_COUNT + 1);
+  const v = new Voices({ release: 10_000 });
+  let stolen = null;
+  for (const e of ons) {
+    const r = v.noteOn(e.bytes[1], e.bytes[2], e.at);
+    if (r.took !== null) stolen = r.took;
+  }
+  assert.equal(stolen, ons[0].bytes[1], 'and the note that goes is the first one played');
+});
+
+test('a kit walk covers exactly the files it was told about', () => {
+  const ons = kitWalk({ files: 5 }).filter((e) => (e.bytes[0] & 0xf0) === 0x90);
+  assert.deepEqual(
+    ons.map((e) => e.bytes[1]),
+    [36, 37, 38, 39, 40],
+    'from C2 up, one key per file'
+  );
+  assert.equal(kitWalk({ files: 0 }).filter((e) => (e.bytes[0] & 0xf0) === 0x90).length, 1);
+});
+
+test('the bend sweep returns the wheel to centre', () => {
+  const bends = bendSweep().filter((e) => (e.bytes[0] & 0xf0) === 0xe0);
+  assert.deepEqual(bends[bends.length - 1].bytes, pitchBend(0));
+  assert.ok(bends.length > 8, 'a sweep, not a jump');
+  // Nothing in the sweep may exceed the range the firmware maps.
+  for (const b of bends) {
+    const value = (2 * ((b.bytes[1] | (b.bytes[2] << 7)) - 8192)) / 8192;
+    assert.ok(value >= -BEND_SEMITONES && value <= BEND_SEMITONES, value);
+  }
+});

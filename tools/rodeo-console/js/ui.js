@@ -6,6 +6,7 @@ import { buildLibrary, formatBytes, poolStats, validate } from './model.js';
 import { KEYS, SHAPES, formatPreset, parsePreset } from './preset.js';
 import * as fs from './fs.js';
 import { demoCard } from './demo.js';
+import * as live from './live.js';
 import { decodeAudio, encodeWav, firstTwo, peak, scale, toMono, trimSilence } from './wav.js';
 
 const $ = (id) => document.getElementById(id);
@@ -489,6 +490,57 @@ function readOnly() {
   return true;
 }
 
+// --------------------------------------------------------------- the modes
+//
+// Disk mode and the serial port cannot both be open (main.cpp, on the way into
+// disk mode: "the serial port will close"), so the page is two modes with a
+// switch rather than one dashboard that appears to lose its connection. Card
+// mode is the card mounted on the computer; live mode is the Rodeo playing.
+
+let mode = 'card';
+
+/**
+ * Live mode can shade keys a kit has no file for, but only if a card was read
+ * here and a kit is what is selected. Rodeo's own selection is not knowable
+ * from this page, so this is offered as "from the card you read", not as truth.
+ */
+function kitSpan() {
+  if (state.selected?.type !== 'sound') return null;
+  const sound = state.library?.sounds.find((s) => s.name === state.selected.name);
+  if (!sound?.kit) return null;
+  return { name: sound.name, from: KIT_FIRST_NOTE, files: sound.files.filter((f) => f.loaded).length };
+}
+
+function setMode(next) {
+  if (next === mode) return;
+  mode = next;
+  const card = mode === 'card';
+  $('mode-card').ariaPressed = String(card);
+  $('mode-live').ariaPressed = String(!card);
+  $('mode').textContent = card ? (DEMO ? 'demo card' : 'card mode') : 'live mode';
+
+  // Card-mode furniture.
+  $('open').hidden = !card;
+  $('reload').hidden = !card || (!state.root && !DEMO);
+  $('pool').hidden = !card || !state.library;
+  $('intro').hidden = !card || !!state.library;
+  $('cols').hidden = !card || !state.library;
+  $('issues').hidden = !card || !state.library;
+
+  // Live-mode furniture.
+  const ok = live.supported();
+  $('live-intro').hidden = card || ok;
+  $('live-mount').hidden = card || !ok;
+  if (!card && !ok) $('live-unsupported').hidden = false;
+
+  if (card) {
+    live.unmount();
+    $('live-mount').replaceChildren();
+  } else if (ok) {
+    live.mount($('live-mount'), { library: { kitSpan: kitSpan() }, toast });
+  }
+}
+
 // ------------------------------------------------------------------- wiring
 
 $('open').onclick = openCard;
@@ -496,6 +548,8 @@ $('reload').onclick = reread;
 $('add-sample').onclick = () => pickFiles((f) => addAudio(f, null));
 $('add-kit').onclick = newKit;
 $('add-preset').onclick = newPreset;
+$('mode-card').onclick = () => setMode('card');
+$('mode-live').onclick = () => setMode('live');
 
 if (DEMO) {
   $('mode').textContent = 'demo card';

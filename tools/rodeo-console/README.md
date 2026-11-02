@@ -1,11 +1,17 @@
 # rodeo-console
 
-A browser page for building a Rodeo's SD card: drop in audio of any format, lay
-a kit out across the keys, edit presets as a form, and find out what the
-firmware would quietly skip — before you walk back to the bench.
+A browser page for working with a Rodeo on the bench. **Card mode** builds the
+SD card: drop in audio of any format, lay a kit out across the keys, edit
+presets as a form, and find out what the firmware would quietly skip.
+**Live mode** plays the board over USB-MIDI.
 
-Phase 1 of [`planning/RODEO_CONSOLE_PLAN.md`](../../planning/RODEO_CONSOLE_PLAN.md).
+Phase 1 and the first half of phase 2 of
+[`planning/RODEO_CONSOLE_PLAN.md`](../../planning/RODEO_CONSOLE_PLAN.md).
 A bench tool, not a product: Chrome or Edge, no build step, no dependencies.
+
+The two modes are a switch rather than one screen because the hardware makes
+them exclusive: entering disk mode hands the card to the computer and closes
+the serial port, and the USB-MIDI interface goes with it.
 
 ## Running it
 
@@ -51,10 +57,45 @@ than it sounds: the firmware rejects `WAVE_FORMAT_EXTENSIBLE` outright, which is
 what a lot of tools write for 24-bit and multichannel files, and a rejected file
 is skipped in silence at power-up.
 
+## Live mode
+
+Rodeo already enumerates as USB-MIDI, so this needs nothing from the firmware.
+Connect the port — it shows up as "Rodeo MIDI" — and the keyboard plays it.
+Click or drag across the keys, or type on the `a w s e d f …` row; `z` and `x`
+shift an octave, holding Shift is the sustain pedal.
+
+The page sends **only** what `Midi()` acts on, and lists it on screen so the
+absence is visible: notes on any channel, velocity, pitch bend over its fixed
+±2 semitones, CC 64, and CC 120/123. There is no mod wheel and no CC for
+cutoff; the panel's pots are the only way to shape the sound. Nothing comes
+back, either — the firmware never writes MIDI, so the page can send and cannot
+listen.
+
+**The voice panel is a prediction, not a reading.** `js/midi.js` re-implements
+`Allocate()`, so the page can say what Rodeo *should* have done with the notes
+it just sent: the same key again takes its old voice back, then any finished
+voice, then the oldest released one, then the oldest of all. Press nine notes
+and it names the one that has to go. The only guess in it is how long a
+released voice keeps sounding, which is the preset's release time and is an
+input you can set.
+
+Two things the panel will tell you that are easy to get wrong by ear:
+
+- **Panic does not silence the board.** CC 123 calls `Release`, which drops the
+  gate and lets the amp envelope run. On a preset with a 4 s release, that is
+  four more seconds of sound.
+- **In sampler layer, a key with no sample allocates nothing at all** — it
+  cannot even steal a voice. Set the Layer control to match the Rodeo and the
+  page applies that; it cannot read the layer itself.
+
+The test patterns each answer one question: a kit walk from C2 for checking
+which file landed on which key, a chromatic sweep, nine notes for the steal, a
+bend sweep over the full travel, and a sustain test.
+
 ## Tests
 
 ```sh
-node --test tools/rodeo-console/
+node --test tools/rodeo-console/test.mjs
 ```
 
 These check that the console agrees with **the firmware**, not with itself.
@@ -69,6 +110,9 @@ outright rather than derive it from the constant it is checking.
 
 ## Not here yet
 
-Live mode — playing the Rodeo over Web MIDI and watching the satellite chain —
-is phase 2, and the chain view wants a machine-readable state line from the
-firmware first. The plan says what that would look like.
+The chain monitor — four pots and four encoders moving as they are turned —
+is the other half of live mode, and it waits on a machine-readable state line
+from the firmware. `PrintState()` emits prose for a human terminal today, and
+a monitor that screen-scrapes it breaks the first time a sentence is reworded.
+The plan says what the `#S` line would look like. The serial buttons (`s`,
+`d`, `n`, `B`) wait on the same Web Serial plumbing.

@@ -1,7 +1,7 @@
 ---
 title: "rodeo-console — plan"
 tags: [rodeo, tooling, web, usb, midi, serial, samples]
-status: plan — nothing built yet
+status: card mode and the MIDI keyboard built; chain monitor waiting on firmware
 created: 2026-11-02
 updated: 2026-11-02
 ---
@@ -137,7 +137,13 @@ Serial open, card is Rodeo's.
 - **An on-screen keyboard and a test pattern** over Web MIDI. Rodeo already
   enumerates as USB-MIDI (bring-up 08), so this needs no firmware at all: notes,
   velocity, a held chord, a scale sweep for checking voice stealing across the
-  eight voices.
+  eight voices. **Built**, in `js/midi.js` and `js/live.js`.
+
+  Worth recording that the whole MIDI surface is five messages — note on, note
+  off, pitch bend, CC 64, CC 120/123 — and that nothing comes back, because there
+  is no `tud_midi_write` in the firmware. The keyboard lists them so the absences
+  are visible rather than discovered. If a CC map ever lands, that list is the
+  one place it changes.
 - **The chain, drawn.** Four pots and four encoders moving as they are turned, with
   good/bad scan counts. This is the piece that wants the firmware ask below.
 - **Buttons for `s`, `d`, `n`, `B`** — state, disk mode, leave disk mode, reboot to
@@ -165,12 +171,27 @@ running, with CRC and progress. Until then disk mode is genuinely fine.
 
 ## Phases
 
-**Phase 1 — card mode.** The converter, the kit keyboard, the preset form, the
-validator, the pool meter. No firmware change, no serial, no MIDI. This is most of
-the value and all of the reusable code.
+**Phase 1 — card mode. Done.** The converter, the kit keyboard, the preset form,
+the validator, the pool meter. No firmware change, no serial, no MIDI. This is
+most of the value and all of the reusable code.
 
-**Phase 2 — live mode.** Web MIDI keyboard first (no firmware needed), then the
-chain monitor once `#S` exists.
+**Phase 2 — live mode. Half done.** The Web MIDI keyboard is in, and it needed no
+firmware: notes, velocity, bend, CC 64, CC 123, test patterns, and a voice panel
+that re-implements `Allocate()` so the page can say which note the ninth should
+have stolen. The chain monitor is the remaining half and waits on `#S`.
+
+Three things the keyboard turned up, all in the firmware's favour and all now
+said out loud on the page rather than left to surprise someone:
+
+- **CC 120/123 release the voices, they do not mute them** (`Ev::AllOff` calls
+  `Release`, synth.cpp:218). Panic on a 4-second release is four more seconds of
+  sound. A test asserted the opposite until the firmware corrected it.
+- **A voice keeps its note number after it stops sounding**, so `Allocate`'s first
+  branch hands a re-pressed key its old voice back rather than a free one — but
+  only until some other note claims that idle slot, which the free scan does from
+  slot 0 upward.
+- **In sampler layer a key with no sample allocates nothing**, so it cannot steal
+  a voice either. The page has to be told the layer; it cannot read it.
 
 **Phase 3 — if it goes to backers.** Cross-browser fallbacks, a demo mode with no
 hardware attached, hosting under `web/public/console/`, and the honesty rules that
