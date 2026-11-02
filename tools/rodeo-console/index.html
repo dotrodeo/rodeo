@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>rodeo-console</title>
+    <link rel="stylesheet" href="app.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <h1>rodeo-console</h1>
+      <span class="mode" id="mode">card mode</span>
+      <div class="grow"></div>
+      <div class="pool" id="pool" hidden>
+        <div class="pool-bar"><span id="pool-fill"></span></div>
+        <span class="pool-text" id="pool-text"></span>
+      </div>
+      <button id="open">Open a card…</button>
+      <button id="reload" hidden>Re-read</button>
+    </header>
+
+    <main id="main">
+      <section class="intro" id="intro">
+        <h2>Point this at a Rodeo's SD card</h2>
+        <p>
+          Put the Rodeo in disk mode — hold encoders 1 and 4 for a second, or press
+          <code>d</code> on its serial port — and the card mounts like any other drive. Open it
+          here and this page will read the library the way the firmware will, convert whatever
+          you drop in, and tell you what the Rodeo would quietly skip.
+        </p>
+        <p class="warn" id="unsupported" hidden>
+          This browser has no File System Access API, so the card cannot be opened in place.
+          Chrome or Edge can. Everything still works; changes come back as a zip to copy across.
+        </p>
+        <p class="small">
+          Eject the drive when you are done. The Rodeo re-reads the card on the way back.
+        </p>
+      </section>
+
+      <div class="cols" id="cols" hidden>
+        <nav class="sidebar">
+          <div class="side-head">
+            <span>Sounds</span><span id="sound-count" class="count"></span>
+          </div>
+          <ul id="sounds" class="list"></ul>
+          <div class="side-head">
+            <span>Presets</span><span id="preset-count" class="count"></span>
+          </div>
+          <ul id="presets" class="list"></ul>
+          <div class="side-actions">
+            <button id="add-sample">+ sample</button>
+            <button id="add-kit">+ kit</button>
+            <button id="add-preset">+ preset</button>
+          </div>
+        </nav>
+
+        <section class="detail" id="detail">
+          <p class="empty">Pick something on the left.</p>
+        </section>
+      </div>
+
+      <section class="issues" id="issues" hidden>
+        <h3>Before you eject <span class="count" id="issue-count"></span></h3>
+        <ul id="issue-list"></ul>
+      </section>
+    </main>
+
+    <div class="drop" id="drop" hidden><span>Drop audio to add it</span></div>
+    <div class="toast" id="toast" hidden></div>
+
+    <script type="module" src="js/ui.js"></script>
+  </body>
+</html>

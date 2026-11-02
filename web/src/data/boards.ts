@@ -469,16 +469,21 @@ export const boards: Board[] = [
       back: "Render of the back of the Rev-B rodeo-power-usbc: a large RODEO wordmark running off the top edge above the words USB-C POWER SUPPLY, the revision and the licence.",
     }),
     summary: 'The default power input, and the board that carries USB data to the Seed.',
-    body: 'A USB-C jack behind the panel, cabled to the motherboard. It is why there is USB at all: the Seed’s data lines run through this board instead of stopping inside the case. That is what should bring USB-MIDI, USB audio and DFU flashing to the panel port — should, because no Rev B board has been powered on yet.',
+    body: 'A USB-C jack behind the panel, cabled to the motherboard. It is why there is USB at all: the Seed’s data lines run through this board instead of stopping inside the case, which is the single thing Rev A got wrong. USB-MIDI, USB audio, disk mode and DFU flashing all reach the panel port through it, and all of them have now been done on hardware.',
     specs: [
       { label: 'input', value: 'USB-C, 5 V sink, no USB-PD', evidence: 'hardware/rodeo-power-usbc/README.md:22' },
       { label: 'also carries', value: 'USB data for the Seed, and status LEDs', evidence: 'hardware/rodeo-power-usbc/README.md:4-5' },
+      {
+        label: 'proven',
+        value: 'ran an iPhone’s USB-C on the phone’s power alone',
+        evidence: `${PLAN}:324`,
+      },
       { label: 'outline', value: '40 × 20 mm on the rear rail', evidence: 'hardware/rodeo-power-usbc/README.md:8-10' },
     ],
     caveats: [
       {
         status: 'shipped',
-        text: 'Every hour of bring-up since 2026-10-28 has run through this board, and the USB data lines it exists for work: the Rodeo enumerates on the panel USB-C, and MIDI, serial, disk mode and 4×4 audio all go through it.',
+        text: 'Every hour of bring-up since 2026-10-28 has run through this board, and the USB data lines it exists for work: the Rodeo enumerates on the panel USB-C, and MIDI, serial, disk mode and 4×4 audio all go through it. On 2026-11-02 it did all that off an iPhone — no battery fitted, the phone powering the Seed, both codecs, two satellites and the SD card, with GarageBand opening all four channels each way.',
         evidence: `${PLAN}:322-327`,
       },
     ],
