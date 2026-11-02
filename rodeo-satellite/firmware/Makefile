@@ -2,6 +2,9 @@
 #
 #   make          build satellite.bin
 #   make flash    flash it with a WCH-LinkE (ch32v003fun's minichlink)
+#   make flash-pico PICO=/dev/cu.usbmodemXXXX
+#                 flash it with a Pi Pico or Pico 2 running picorvd instead
+#                 (../tools/picorvd_flash.py; see the README)
 #   make clean && make DEBUG=1 flash monitor
 #                 a build that prints its kind and controls over the
 #                 WCH-LinkE, for testing one satellite with no Seed attached
@@ -31,4 +34,8 @@ NEWLIB ?= $(lastword $(sort $(wildcard /Applications/ArmGNUToolchain/*/arm-none-
 include ../ch32v003fun/ch32fun/ch32fun.mk
 
 flash : cv_flash
+
+flash-pico : satellite.bin
+	@test -n "$(PICO)" || { echo "PICO=/dev/cu.usbmodem... (the Pico's port)"; exit 1; }
+	python3 ../tools/picorvd_flash.py --port $(PICO) satellite.bin
 clean : cv_clean

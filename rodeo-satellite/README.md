@@ -63,6 +63,29 @@ Homebrew's RISC-V GCC has no C library; ch32v003fun needs only newlib's headers,
 and the Makefile takes them from the Arm GNU Toolchain the SDK already uses
 (`NEWLIB=` to point elsewhere). Every satellite gets the same image.
 
+### Without a WCH-LinkE: a Pi Pico
+
+A Pi Pico or Pico 2 running [picorvd](https://github.com/aappleby/picorvd) can
+flash a satellite. Wire the satellite's J3 to the Pico: SWIO (pin 1) to GP28,
+3V3 (pin 2) to 3V3 OUT, GND (pin 3) to GND, NRST (pin 4) open, and a 1 kΩ
+pull-up from GP28 to 3V3 (the satellites have none on SWIO). Then:
+
+```sh
+make flash-pico PICO=/dev/cu.usbmodemXXXX
+```
+
+`tools/picorvd_flash.py` speaks picorvd's GDB protocol itself, so no RISC-V GDB is
+needed; it erases, writes, reads the image back to verify, and resets the chip.
+Unplug the Pico while moving the wires to the next satellite: picorvd hangs if
+its target goes away under it.
+picorvd has no prebuilt image. For a Pico 2 (RP2350) build it against Pico SDK
+2.x with `-DPICO_BOARD=pico2`, in a build folder named `bin` (its CMakeLists
+expects that), and with two changes: `set_sys_clock_khz(125000, true)` at the top
+of `main()`, since its SWIO timing assumes the RP2040's 125 MHz, and
+`busy_wait_us_32(8)` for the `busy_wait(100)` reset pulse in `PicoSWIO.cpp`.
+With CMake 4, set `CMAKE_POLICY_VERSION_MINIMUM=3.5`. The debug build's `monitor`
+needs the WCH-LinkE.
+
 ## Bring-up
 
 A satellite can be tested on its own before it joins a ring, with only the
