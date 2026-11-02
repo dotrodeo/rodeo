@@ -309,14 +309,7 @@ bool Mount()
     FatFSInterface::Config fsi_cfg;
     fsi_cfg.media = FatFSInterface::Config::MEDIA_SD;
     fsi.Init(fsi_cfg);
-
-    t_start   = System::GetNow();
-    have_card = f_mount(&fsi.GetSDFileSystem(), fsi.GetSDPath(), 1) == FR_OK;
-    if(have_card)
-        Scan(fsi.GetSDPath());
-    if(n_samples == 0)
-        t_done = t_start;
-    return have_card;
+    return Remount();
 }
 
 bool Step()
@@ -360,6 +353,43 @@ bool Step()
     if(ld.pos >= ld.end)
         Finish(true);
     return true;
+}
+
+void Unmount()
+{
+    if(ld.open)
+        f_close(&file);
+    ld.open   = false;
+    ld.sample = n_samples; // nothing more to load
+    if(!t_done)
+        t_done = System::GetNow();
+    if(have_card)
+        f_mount(nullptr, fsi.GetSDPath(), 0);
+    have_card = false;
+}
+
+bool Remount()
+{
+    // Sounds first, so the audio callback finds none while the tables refill
+    n_sounds  = 0;
+    n_samples = 0;
+    ld        = Loading();
+    pool_used = 0;
+    loaded = skipped = 0;
+    bytes_read       = 0;
+    t_start          = System::GetNow();
+    t_done           = 0;
+    have_card = f_mount(&fsi.GetSDFileSystem(), fsi.GetSDPath(), 1) == FR_OK;
+    if(have_card)
+        Scan(fsi.GetSDPath());
+    if(n_samples == 0)
+        t_done = t_start;
+    return have_card;
+}
+
+uint8_t Drive()
+{
+    return (uint8_t)(fsi.GetSDPath()[0] - '0');
 }
 
 int Sounds()

@@ -3,6 +3,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include "daisy_seed.h"
 #include "samples.h"
 
 namespace panel
@@ -18,6 +19,11 @@ struct Encoder
     bool turned   = false; // while held
 };
 Encoder enc[4];
+
+// E1 + E4 held: disk mode. While both are down neither taps when let go.
+constexpr uint32_t kHoldMs = 1000;
+bool               both_down = false, both_fired = false, disk_requested = false;
+uint32_t           both_since = 0;
 
 constexpr int kAttackSteps = 24;
 int           attack_step  = 4; // 0.001 * 4000^(4/24): about 4 ms
@@ -137,8 +143,9 @@ void Tap(int e, synth::Params& p)
 }
 } // namespace
 
-const char* Update(rodeo::SatChain& chain, synth::Params& p, bool loading)
+const char* Update(rodeo::SatChain& chain, synth::Params& p, Status status)
 {
+    bool loading = status == Status::Loading;
     said[0] = 0;
     if(chain.Changed())
         Find(chain);
@@ -149,12 +156,32 @@ const char* Update(rodeo::SatChain& chain, synth::Params& p, bool loading)
         p.resonance  = chain.Pot(pot_bank, 1);
         p.env_amount = chain.Pot(pot_bank, 2);
         p.release    = 0.005f * powf(800.f, chain.Pot(pot_bank, 3)); // 5 ms .. 4 s
-        uint8_t mode = loading ? SAT_LED_FAST_BLINK : SAT_LED_STEADY;
-        chain.SetLed(pot_bank, synth::Active() > 0 || loading ? 255 : 20, mode);
+        uint8_t mode = status == Status::Disk ? SAT_LED_SLOW_BLINK
+                       : loading              ? SAT_LED_FAST_BLINK
+                                              : SAT_LED_STEADY;
+        chain.SetLed(pot_bank, synth::Active() > 0 || status != Status::Playing ? 255 : 20,
+                     mode);
     }
 
     if(enc_bank >= 0)
     {
+        bool first = chain.Pressed(enc_bank, 0), last = chain.Pressed(enc_bank, 3);
+        if(first && last && !both_down)
+        {
+            both_down  = true;
+            both_fired = false;
+            both_since = daisy::System::GetNow();
+        }
+        if(both_down && !both_fired && daisy::System::GetNow() - both_since >= kHoldMs)
+        {
+            both_fired     = true;
+            disk_requested = true;
+        }
+        if(both_down) // no taps from either, until both are up
+            enc[0].turned = enc[3].turned = true;
+        if(!first && !last)
+            both_down = false;
+
         for(int e = 0; e < 4; e++)
         {
             bool down    = chain.Pressed(enc_bank, e);
@@ -168,7 +195,7 @@ const char* Update(rodeo::SatChain& chain, synth::Params& p, bool loading)
             }
             if(!down && (enc[e].was_down || presses > 0) && !enc[e].turned)
                 Tap(e, p);
-            if(!down)
+            if(!down && !both_down)
                 enc[e].turned = false;
             enc[e].was_down = down;
         }
@@ -178,6 +205,13 @@ const char* Update(rodeo::SatChain& chain, synth::Params& p, bool loading)
         chain.SetLed(enc_bank, 255, mode);
     }
     return said[0] ? said : nullptr;
+}
+
+bool DiskRequested()
+{
+    bool r         = disk_requested;
+    disk_requested = false;
+    return r;
 }
 
 bool Found()

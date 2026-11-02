@@ -108,6 +108,11 @@ void Send(const float* const* to_computer, size_t frames)
         tud_audio_write(usb_tx, want);
 }
 
+void Reset()
+{
+    spk_streaming = mic_streaming = false;
+}
+
 Stats GetStats()
 {
     return {spk_streaming, mic_streaming, underruns, overruns};

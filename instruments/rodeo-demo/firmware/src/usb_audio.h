@@ -20,6 +20,10 @@ void Receive(float* const* from_computer, size_t frames);
  *  isn't recording. */
 void Send(const float* const* to_computer, size_t frames);
 
+/** Forget the streams, as the device leaves the bus (disk mode's re-enumeration
+ *  closes them without telling the audio function). */
+void Reset();
+
 struct Stats
 {
     bool     playing, recording; // the computer is streaming to / from Rodeo

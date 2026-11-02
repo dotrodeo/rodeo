@@ -8,7 +8,9 @@
 //   OUT 3/4       what the computer plays  USB in 3/4   inputs 1/2
 //                 to USB channels 1/2
 //
-// Samples come from the SD card (samples.h). The serial port on the same USB
+// Samples come from the SD card (samples.h), which the computer can have as a
+// USB drive in disk mode (disk.h): hold E1 and E4 for a second, or 'd' on the
+// serial port; eject the drive to come back. The serial port on the same USB
 // cable says what each control just did, 's' prints the state, and 'B' reboots
 // into the bootloader for `make program-dfu`.
 //
@@ -25,6 +27,7 @@
 #include "tusb.h"
 #include "usb_port.h"
 
+#include "disk.h"
 #include "panel.h"
 #include "samples.h"
 #include "synth.h"
@@ -134,12 +137,26 @@ void PrintState()
              (int)(cpu.GetMaxCpuLoad() * 100.f), chain.Satellites(),
              panel::Found() ? "pot bank and encoder bank found" : "panel incomplete",
              (unsigned long)chain.GoodScans(), (unsigned long)chain.BadScans(),
-             s.card ? "mounted" : "none", s.sounds, s.loaded, s.samples, s.skipped,
+             disk::Active() ? "the computer's (disk mode)" : s.card ? "mounted" : "none", s.sounds, s.loaded, s.samples, s.skipped,
              (unsigned long)(s.bytes_used / 1024), (unsigned long)s.load_ms,
              s.loading ? " so far" : "", u.playing ? "playing" : "idle",
              u.recording ? "on" : "off", (unsigned long)u.underruns, (unsigned long)u.overruns);
     Print(buf);
     cpu.Reset();
+}
+
+bool disk_wanted = false; // asked for on the serial port
+
+// Hand the card to the computer, saying so first: the serial port closes as the
+// Rodeo re-enumerates.
+bool EnterDisk()
+{
+    Print("disk mode: the serial port will close; the SD card comes back as a drive\r\n");
+    System::Delay(50);
+    if(disk::Enter())
+        return true;
+    Print("no SD card to hand over\r\n");
+    return false;
 }
 
 void SerialTask()
@@ -148,7 +165,12 @@ void SerialTask()
     bool        connected     = tud_cdc_connected();
     if(connected && !was_connected)
     {
-        Print("\r\nrodeo-demo. s = state, B = reboot into the bootloader\r\n");
+        if(disk::Active())
+            Print("\r\nrodeo-demo, DISK MODE: the SD card is the computer's. Eject the drive\r\n"
+                  "to hand it back. s = state, n = leave now (without the eject)\r\n");
+        else
+            Print("\r\nrodeo-demo. s = state, d = disk mode (the SD card as a USB drive),\r\n"
+                  "B = reboot into the bootloader\r\n");
         PrintState();
     }
     was_connected = connected;
@@ -158,6 +180,10 @@ void SerialTask()
         char c = (char)tud_cdc_read_char();
         if(c == 's')
             PrintState();
+        else if(c == 'd' && !disk::Active())
+            disk_wanted = true;
+        else if(c == 'n' && disk::Active())
+            disk::Leave();
         else if(c == 'B')
         {
             Print("rebooting into the bootloader (DFU on the USB-C)\r\n");
@@ -203,10 +229,25 @@ int main(void)
         SerialTask();
         MidiTask();
         chain_port.Process(chain);
-        if(const char* said = panel::Update(chain, params, loading))
+        panel::Status status = disk::Active() ? panel::Status::Disk
+                               : loading      ? panel::Status::Loading
+                                              : panel::Status::Playing;
+        if(const char* said = panel::Update(chain, params, status))
         {
             Print(said);
             Print("\r\n");
+        }
+        if((panel::DiskRequested() || disk_wanted) && !disk::Active() && EnterDisk())
+            loading = false;
+        disk_wanted = false;
+        if(disk::Task())
+        {
+            // The card is back, maybe with other sounds on it: load them afresh.
+            loading = true;
+            if(params.sound >= samples::Sounds())
+                params.sound = 0;
+            if(samples::Sounds() == 0)
+                params.layer = synth::Layer::Synth;
         }
         if(loading && !(loading = samples::Step()))
             PrintState(); // the card is all in

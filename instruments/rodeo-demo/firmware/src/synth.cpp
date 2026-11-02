@@ -29,6 +29,7 @@ enum class Ev : uint8_t
     Sustain,
     Bend,
     AllOff,
+    DropSamples,
 };
 struct Event
 {
@@ -223,6 +224,15 @@ void Take(const Params& p)
                     Release(v);
                 }
                 break;
+            case Ev::DropSamples:
+                for(auto& v : voices)
+                {
+                    v.use_sample = false;
+                    v.smp        = nullptr;
+                    if(!v.use_osc)
+                        v.gate = false, v.note = -1;
+                }
+                break;
         }
     }
 }
@@ -290,6 +300,14 @@ void NoteOff(int note) { Push({Ev::Off, note, 0, 0.f}); }
 void Sustain(bool down) { Push({Ev::Sustain, 0, 0, down ? 1.f : 0.f}); }
 void PitchBend(float semitones) { Push({Ev::Bend, 0, 0, semitones}); }
 void AllNotesOff() { Push({Ev::AllOff, 0, 0, 0.f}); }
+
+void DropSamples()
+{
+    Push({Ev::DropSamples, 0, 0, 0.f});
+    uint32_t start = daisy::System::GetNow();
+    while(q_tail != q_head && daisy::System::GetNow() - start < 20)
+        ; // Process() takes the queue every block, 1/3 ms
+}
 
 int Active()
 {

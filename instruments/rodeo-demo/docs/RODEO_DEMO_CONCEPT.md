@@ -32,9 +32,9 @@ Decisions so far are in the table below; anything marked **Open** still needs De
 | Sampler | **Both**: each sound is either a pitched sample across the keys or a kit (one sample per note) |
 | USB audio | **Demo to USB in 1/2, computer playback to OUT 3/4** |
 | Code | **Fresh and small**, on plain DaisySP, readable end to end by a builder. rodeo-002 is not touched |
-| Presets | **Saved to the SD card** |
+| Presets | **Read-only on the Rodeo**: written on the computer as a configuration file on the SD card, chosen on the Rodeo, never saved from it (revised 2026-11-02) |
 | Voices | **8, shared** between synth and sampler |
-| Sample rates | **Converted to 48 kHz on load** |
+| Sample rates | **Converted to 48 kHz**, by playback speed as the voice plays (speed = file rate / 48 kHz) |
 | Fixed map | **Section A as written** |
 
 ## What the hardware has already proven
@@ -85,10 +85,16 @@ at 48 kHz, before any seeking), but the Seed has **64 MB of SDRAM**. So samples 
 * At boot, or on a kit change, load a folder of WAVs (16- or 24-bit, mono or stereo, 48 kHz;
   other rates converted to 48 kHz on load). 10 MB loads in about 8 s on the
   card tested; a modern SDHC card should be faster.
-* **Getting files onto the card**: either take the card out, or a **disk mode** at
-  power-up (hold an encoder) that reuses `usb_storage`. Disk mode can't run alongside the
-  synth: the computer and FatFS can't both own the card, and the composite descriptor
-  would grow by MSC. So it is a separate mode, not a fourth USB function.
+* **Getting files onto the card**: either take the card out, or **disk mode** (built
+  2026-11-02, `src/disk.h`), which reuses `usb_storage`'s. Hold E1 and E4 together for a
+  second (or `d` on the serial port): the Rodeo unmounts the card and re-enumerates as
+  "Rodeo Demo (disk mode)", serial + USB storage, and the computer mounts the card.
+  Eject the drive to hand it back; the Rodeo re-enumerates as itself and reloads the
+  library. If the computer goes away instead, it comes back by itself after 3 s. USB
+  audio and MIDI are gone while in disk mode; the synth keeps playing from the TRS jack
+  with the samples it had. The pot bank's LED blinks slowly throughout.
+  Tested on macOS: in about 3 s, out about 1 s after the eject; a 24-bit 44.1 kHz WAV
+  copied from the Mac loaded, and USB audio and MIDI worked again afterwards.
 * Proposed layout: `/samples/<name>.wav` for pitched samples, `/kits/<name>/` for a kit
   (files sorted by name, mapped from MIDI note 36 up).
 
@@ -115,7 +121,7 @@ nothing until it passes the stored value).
 
 ## Open questions
 
-1. How presets are chosen and saved with no screen and the fixed map full. A first
-   proposal: hold E1 and turn it to step through presets (the pot bank LED blinks the
-   number), hold E1 for two seconds to save to the current one. Pots then need pickup
-   after a preset loads, or a preset leaves the pots' sound alone.
+1. Presets are read-only on the Rodeo (decided): a configuration file on the SD card,
+   written on the computer and copied over in disk mode. Still open: the file's format,
+   how a preset is chosen with the fixed map full, and what the pots do after one loads
+   (pickup, or presets leave the pots' parameters alone).

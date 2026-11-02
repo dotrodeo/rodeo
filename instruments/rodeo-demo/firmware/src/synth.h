@@ -70,6 +70,10 @@ void Sustain(bool down);
 void PitchBend(float semitones);
 void AllNotesOff();
 
+/** Silence every voice playing a sample, and return once the audio callback has
+ *  (a few blocks at most): before the sample library is rewritten. */
+void DropSamples();
+
 /** One block of the stereo mix, the parameters as they stand. From the audio callback. */
 void Process(const Params& p, float* left, float* right, size_t frames);
 

@@ -7,13 +7,13 @@
 #                         2-second window at power-up)
 #   make AUDIO_BITS=24    24-bit USB audio: direct ports only, not behind a hub
 TARGET       = rodeo-demo
-CPP_SOURCES  = src/main.cpp src/synth.cpp src/samples.cpp src/panel.cpp src/usb_audio.cpp \
+CPP_SOURCES  = src/main.cpp src/synth.cpp src/samples.cpp src/panel.cpp src/usb_audio.cpp src/disk.cpp \
                $(RODEO_ROOT)/common/audio_4x4.cpp \
                $(RODEO_ROOT)/common/sat_chain.cpp $(RODEO_ROOT)/common/sat_chain_port.cpp
 C_SOURCES    = src/usb_descriptors.c
 RODEO_ROOT   = ../../../rodeo-sdk
 RODEO_USB   ?= hs
-TUSB_CLASSES = audio/audio_device.c cdc/cdc_device.c midi/midi_device.c
+TUSB_CLASSES = audio/audio_device.c cdc/cdc_device.c midi/midi_device.c msc/msc_device.c
 USE_FATFS    = 1
 # The reverb is DaisySP-LGPL's ReverbSc. rodeo-demo is open source, so linking
 # LGPL is fine.

@@ -22,7 +22,9 @@
 #define CFG_TUD_AUDIO  1
 #define CFG_TUD_CDC    1
 #define CFG_TUD_MIDI   1
-#define CFG_TUD_MSC    0
+#define CFG_TUD_MSC    1 // disk mode only
+// Eight sectors a callback: fewer, larger SD transfers
+#define CFG_TUD_MSC_EP_BUFSIZE 4096
 #define CFG_TUD_HID    0
 #define CFG_TUD_VENDOR 0
 

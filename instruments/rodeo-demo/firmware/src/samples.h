@@ -49,6 +49,18 @@ bool Mount();
 /** Load the next piece. True while there is more to load. */
 bool Step();
 
+/** Let go of the card for disk mode: stop loading and unmount it. What has
+ *  loaded stays in the SDRAM and keeps playing. */
+void Unmount();
+
+/** Back from disk mode: forget the library, mount the card again and list what
+ *  is on it now; Step() loads it. Stop the synth's sample voices first
+ *  (synth::DropSamples()): the SDRAM they play from is about to be rewritten. */
+bool Remount();
+
+/** The card's FatFS drive number, for disk mode's raw sector access. */
+uint8_t Drive();
+
 int          Sounds();
 const Sound& GetSound(int i);
 
