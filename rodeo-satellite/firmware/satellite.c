@@ -10,11 +10,22 @@
 //
 // The protocol is RODEO_SATELLITE_CHAIN_CONTRACT.md; its bytes are
 // rodeo-sdk/common/sat_frame.h. Everything here is hardware glue: the logic it
-// calls is host-tested in ../tests. NOT YET RUN ON A CH32V003.
+// calls is host-tested in ../tests.
 //
 // Timing rule: once a frame is passing through, the satellite must send a byte
-// for every byte it receives, so nothing in the main loop may block for more
-// than a few microseconds. The ADC runs one conversion at a time and is polled.
+// for every byte it receives, and a gap of two byte times anywhere in a frame
+// ends it for the next satellite. So frames pass through in USART1's interrupt,
+// a byte in and a byte out at the line's own pace, and the main loop (inputs,
+// ADC, LED) can take as long as it likes. When a frame's last byte arrives the
+// satellite owes up to 17 bytes at once. Sent from the main loop, one per pass,
+// they went out with gaps whenever a pass ran long; worked out all together in
+// the interrupt, the first was late by more than the gap. Either way the second
+// satellite in a Rev B ring dropped every SCAN. So the interrupt sends the first
+// at once and works out each of the rest as the transmitter empties
+// (stream_next()), and the last satellite holds the return wire until the frame
+// has gone, not just until its fifo runs dry. The main loop shares three things with
+// the interrupt, each behind __disable_irq(): the input slots, the finished
+// frame's results, and the idle-gap and routing checks.
 
 #include "ch32fun.h"
 #include <stdio.h>
@@ -131,28 +142,23 @@ static void id_feed(void* ctx, bool high)
 
 // --- The chain UART ------------------------------------------------------------------
 
-#define RX_LEN 256
-static uint8_t           rx_ring[RX_LEN];
-static uint32_t          rx_tail;
 // A power of two, so the free-running counters wrap cleanly at 2^32.
 #define TX_LEN 512
 static uint8_t           tx_fifo[TX_LEN];
 static volatile uint32_t tx_head, tx_tail;
-static bool              routed_last; // USART1 is on map 3: TX on the return tap
-static bool              tap_driven;
+static volatile bool     routed_last; // USART1 is on map 3: TX on the return tap
+static volatile bool     tap_driven;
+static volatile uint32_t last_rx; // SysTick when the last byte arrived
+static sat_stream         st;      // the frame passing through; the interrupt owns it
 
 static void uart_init(void)
 {
     RCC->APB2PCENR |= RCC_APB2Periph_USART1 | RCC_APB2Periph_AFIO;
-    RCC->AHBPCENR |= RCC_DMA1EN;
     USART1->BRR   = FUNCONF_SYSTEM_CORE_CLOCK / SAT_BAUD; // 48: mantissa 3, fraction 0
-    USART1->CTLR1 = USART_CTLR1_TE | USART_CTLR1_RE | USART_CTLR1_UE; // 8N1
-    USART1->CTLR3 = USART_CTLR3_DMAR;
-    // Every received byte lands in rx_ring by DMA; the main loop follows it.
-    DMA1_Channel5->PADDR = (uint32_t)&USART1->DATAR;
-    DMA1_Channel5->MADDR = (uint32_t)rx_ring;
-    DMA1_Channel5->CNTR  = RX_LEN;
-    DMA1_Channel5->CFGR  = DMA_CFGR1_CIRC | DMA_CFGR1_MINC | DMA_CFGR1_EN;
+    USART1->CTLR1 = USART_CTLR1_TE | USART_CTLR1_RE | USART_CTLR1_UE
+                    | USART_CTLR1_RXNEIE; // 8N1; TXEIE while there is something to send
+    NVIC_SetPriority(USART1_IRQn, 0);  // above the WS2812B driver's DMA interrupt
+    NVIC_EnableIRQ(USART1_IRQn);
 }
 
 // Map 0 (TX to the next satellite) or map 3 (TX back along DATA_RET). Only
@@ -178,15 +184,19 @@ static void route(bool last)
     tap_driven  = false;
 }
 
+// From the interrupt.
 static void tx_push(const uint8_t* b, size_t n)
 {
-    if(n && routed_last && !tap_driven)
+    if(!n)
+        return;
+    if(routed_last && !tap_driven)
     {
         mode(kTxRet, GPIO_Speed_50MHz | GPIO_CNF_OUT_PP_AF); // drive the tap
         tap_driven = true;
     }
     for(size_t i = 0; i < n; i++)
         tx_fifo[tx_head++ & (TX_LEN - 1)] = b[i];
+    USART1->CTLR1 |= USART_CTLR1_TXEIE;
 }
 
 static bool tx_idle(void)
@@ -194,22 +204,24 @@ static bool tx_idle(void)
     return tx_head == tx_tail && (USART1->STATR & USART_STATR_TC);
 }
 
-static void tx_pump(void)
+// From the main loop, once the frame has ended and its last byte has gone. Not
+// merely when the fifo runs dry: a satellite sends one byte for each it receives,
+// so the fifo empties between bytes, and a released tap floats mid-frame.
+static void tap_release(void)
 {
-    if(tx_tail != tx_head && (USART1->STATR & USART_STATR_TXE))
-        USART1->DATAR = tx_fifo[tx_tail++ & (TX_LEN - 1)];
-    if(tap_driven && tx_idle())
+    __disable_irq();
+    if(tap_driven && !st.active && tx_idle())
     {
         mode(kTxRet, GPIO_CNF_IN_FLOATING); // release the return wire
         tap_driven = false;
     }
+    __enable_irq();
 }
 
 // --- State -----------------------------------------------------------------------------
 
 static sat_board  board;
-static sat_stream st;
-static sat_slot   inputs[4];
+static sat_slot   inputs[4]; // read by the interrupt as each frame's header completes
 static uint8_t    n_inputs;
 static bool       fault; // the kind couldn't be read, or isn't supported here
 
@@ -227,6 +239,25 @@ static uint32_t       lights_sent_ms;
 uint32_t WS2812BLEDCallback(int ledno)
 {
     return ledno >= 0 && ledno < (int)LIGHTS_N ? grb_sent[ledno] : 0;
+}
+
+// A frame's results, handed from the interrupt to the main loop.
+typedef struct
+{
+    bool     took;
+    sat_slot taken[4];
+    sat_slot cmds[4];
+    uint8_t  n_cmds;
+} frame_result;
+static frame_result  frame_in;
+static volatile bool frame_pending;
+
+// Change an input slot whole, never while the interrupt is copying it.
+static void set_input(int i, sat_slot v)
+{
+    __disable_irq();
+    inputs[i] = v;
+    __enable_irq();
 }
 
 static uint8_t  led_level, led_mode; // from the last LED slot
@@ -346,7 +377,7 @@ static void adc_service(void)
     uint16_t raw = adc_result();
     adc_busy     = false;
     if(st.me.kind == SAT_KIND_POT || st.me.kind == SAT_KIND_POT_BANK_4)
-        inputs[adc_i] = sat_pot(pot_filter(&pot_filt[adc_i], pot_scale10(raw), 2));
+        set_input(adc_i, sat_pot(pot_filter(&pot_filt[adc_i], pot_scale10(raw), 2)));
     else if(st.me.kind == SAT_KIND_ENCODER || st.me.kind == SAT_KIND_ENC_BANK_4)
         ladder_update(&ladder, raw);
     else if(st.me.kind == SAT_KIND_BUTTON_BANK_4)
@@ -370,7 +401,7 @@ static void buttons_service(void)
             raw |= (uint8_t)(1u << i);
     buttons_update(&buttons, raw);
     for(int i = 0; i < 4; i++)
-        inputs[i] = sat_button((buttons.pressed >> i) & 1, buttons.presses[i]);
+        set_input(i, sat_button((buttons.pressed >> i) & 1, buttons.presses[i]));
 
     lights_render(&lights, now_ms, now_ms < identify_until_ms,
                   aux_present ? LIGHTS_CAP_AUX_MA : LIGHTS_CAP_CHAIN_MA, grb_now);
@@ -398,16 +429,18 @@ static void every_ms(void)
     if(st.me.kind == SAT_KIND_BUTTON_BANK_4)
         buttons_service();
     for(int i = 0; i < n_enc; i++)
-        inputs[i] = sat_encoder(enc[i].detents, (ladder.pressed >> i) & 1, ladder.presses[i]);
+        set_input(i, sat_encoder(enc[i].detents, (ladder.pressed >> i) & 1, ladder.presses[i]));
 
     // Re-check PRESENT and re-route, but only between frames.
+    bool last = is_last();
+    __disable_irq();
     if(!st.active && tx_idle())
     {
-        bool last = is_last();
         if(last != routed_last)
             route(last);
         st.me.last = last;
     }
+    __enable_irq();
 }
 
 #ifdef SAT_DEBUG
@@ -475,18 +508,18 @@ static void led_update(uint32_t ticks)
 }
 
 // A frame has gone through: act on what it brought.
-static void frame_done(void)
+static void frame_done(const frame_result* f)
 {
-    if(st.took && st.me.kind == SAT_KIND_BUTTON_BANK_4)
-        lights_take(&lights, st.taken, LIGHTS_N);
-    else if(st.took && st.taken[0].kind == SAT_OUT_LED && sat_slot_ok(st.taken[0]))
+    if(f->took && st.me.kind == SAT_KIND_BUTTON_BANK_4)
+        lights_take(&lights, f->taken, LIGHTS_N);
+    else if(f->took && f->taken[0].kind == SAT_OUT_LED && sat_slot_ok(f->taken[0]))
     {
-        led_level = st.taken[0].d0;
-        led_mode  = st.taken[0].d1;
+        led_level = f->taken[0].d0;
+        led_mode  = f->taken[0].d1;
     }
-    for(uint8_t i = 0; i < st.n_cmds; i++)
+    for(uint8_t i = 0; i < f->n_cmds; i++)
     {
-        sat_slot c = st.cmds[i];
+        sat_slot c = f->cmds[i];
         if(c.kind == SAT_CMD_CLOSE_RING_HERE)
             forced_last = true;
         else if(c.kind == SAT_CMD_RING_AUTO)
@@ -495,6 +528,45 @@ static void frame_done(void)
             reset_pending = true;
         else if(c.kind == SAT_CMD_IDENTIFY)
             identify_until_ms = now_ms + 1000u * c.d1;
+    }
+}
+
+// Each byte received goes straight into the stream, and what the stream owes goes
+// out as fast as the line takes it. Once a frame is in, the bytes still owed are
+// worked out one at a time as the transmitter empties (stream_next()), never all
+// at once: that took longer than the idle gap, and the next satellite gave up.
+void USART1_IRQHandler(void) __attribute__((interrupt));
+void USART1_IRQHandler(void)
+{
+    uint32_t statr = USART1->STATR;
+    if(statr & (USART_STATR_RXNE | USART_STATR_ORE))
+    {
+        uint8_t b = (uint8_t)USART1->DATAR; // after STATR, so an overrun clears too
+        uint8_t out;
+        last_rx = SysTick->CNT;
+        tx_push(&out, stream_rx(&st, b, inputs, &out));
+    }
+    if((USART1->CTLR1 & USART_CTLR1_TXEIE) && (USART1->STATR & USART_STATR_TXE))
+    {
+        uint8_t b;
+        if(tx_tail != tx_head)
+            USART1->DATAR = tx_fifo[tx_tail++ & (TX_LEN - 1)];
+        else if(stream_next(&st, &b))
+            USART1->DATAR = b;
+        else
+            USART1->CTLR1 &= ~USART_CTLR1_TXEIE;
+    }
+    if(stream_done(&st))
+    {
+        frame_in.took   = st.took;
+        frame_in.n_cmds = st.n_cmds;
+        for(int i = 0; i < 4; i++)
+        {
+            frame_in.taken[i] = st.taken[i];
+            frame_in.cmds[i]  = st.cmds[i];
+        }
+        frame_pending = true;
+        stream_reset(&st); // ready for the next frame's SOF
     }
 }
 
@@ -516,36 +588,34 @@ int main(void)
     uint32_t debug_ms = 0;
 #endif
 
-    uart_init();
     route(is_last());
     st.me.last = routed_last;
+    last_rx    = SysTick->CNT;
+    uart_init();
 
-    uint32_t last_rx = SysTick->CNT, ms_tick = SysTick->CNT;
-    uint8_t  out[SAT_MAX_FRAME_LEN + SAT_SLOT_LEN];
+    uint32_t ms_tick = SysTick->CNT;
 
     for(;;)
     {
         uint32_t t = SysTick->CNT;
 
-        // Received bytes, in order, straight into the stream.
-        uint32_t head = (RX_LEN - DMA1_Channel5->CNTR) % RX_LEN;
-        while(rx_tail != head)
-        {
-            uint8_t b = rx_ring[rx_tail];
-            rx_tail   = (rx_tail + 1) % RX_LEN;
-            last_rx   = t;
-            tx_push(out, stream_rx(&st, b, inputs, out));
-            if(stream_done(&st))
-            {
-                frame_done();
-                stream_reset(&st); // ready for the next frame's SOF
-            }
-        }
-        tx_pump();
-
-        // Two idle byte times end a frame, finished or not (contract §2.2).
-        if(st.active && t - last_rx > IDLE_GAP_TICKS)
+        // Two idle byte times end a frame that is still arriving (contract §2.2);
+        // one that has all arrived is still being sent on. A finished frame's
+        // results come over from the interrupt.
+        frame_result f;
+        __disable_irq();
+        if(st.active && st.rx != st.in_len && SysTick->CNT - last_rx > IDLE_GAP_TICKS)
             stream_reset(&st);
+        bool done = frame_pending;
+        if(done)
+        {
+            f             = frame_in;
+            frame_pending = false;
+        }
+        __enable_irq();
+        if(done)
+            frame_done(&f);
+        tap_release();
 
         if(reset_pending && tx_idle())
             NVIC_SystemReset();

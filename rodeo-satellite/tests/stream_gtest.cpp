@@ -2,7 +2,8 @@
 //
 // For every frame shape, a satellite that streams must send exactly what the
 // model says, and must send it without a gap: once it starts, one byte for every
-// byte that arrives, then everything it still owes when the frame ends.
+// byte that arrives, then everything it still owes when the frame ends (the
+// first from stream_rx(), the rest from stream_next() as the UART takes them).
 #include <random>
 #include <vector>
 
@@ -37,6 +38,8 @@ Streamed Stream(const std::vector<uint8_t>& in, sat_descriptor me, const sat_slo
     for(uint8_t b : in)
     {
         size_t n = stream_rx(&r.st, b, inputs, buf.data());
+        while(stream_next(&r.st, &buf[n])) // what the UART pulls between bytes in
+            n++;
         r.out.insert(r.out.end(), buf.begin(), buf.begin() + n);
         r.per_byte.push_back(static_cast<int>(n));
     }
@@ -140,7 +143,11 @@ TEST(Stream, WaitsForAFrameToStartAndForTheIdleGapBetweenFrames)
     stream_reset(&got.st);
     size_t sent = 0;
     for(uint8_t b : in)
+    {
         sent += stream_rx(&got.st, b, inputs, buf.data());
+        while(stream_next(&got.st, buf.data()))
+            sent++;
+    }
     EXPECT_EQ(sent, in.size());
 }
 

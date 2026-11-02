@@ -54,14 +54,21 @@ void stream_init(sat_stream* s, sat_descriptor me);
 /** Forget any frame in progress (an idle gap, or a timeout). */
 void stream_reset(sat_stream* s);
 
-/** One byte received. Writes the bytes to transmit now into out (room for
- *  SAT_MAX_FRAME_LEN + SAT_SLOT_LEN) and returns how many: usually 0 or 1, and
- *  everything still owed when the frame's last byte arrives.
+/** One byte received. Writes the byte to transmit now, if any, into out and
+ *  returns how many: 0 or 1. Once the frame's last byte has arrived, the rest of
+ *  what is owed comes from stream_next(), a byte at a time, so the UART can start
+ *  on the first while the others are still being worked out. Working them all out
+ *  at once took longer than the idle gap on a CH32V003, and the next satellite
+ *  dropped the frame.
  *
  *  `inputs` are this satellite's current input slots (me.slots of them),
  *  captured when the header completes, so a slot changes between frames, never
  *  half-way through one. */
 size_t stream_rx(sat_stream* s, uint8_t byte, const sat_slot* inputs, uint8_t* out);
+
+/** The next byte owed once the whole frame has arrived. False while bytes are
+ *  still coming in (stream_rx() paces those), or when nothing more is owed. */
+bool stream_next(sat_stream* s, uint8_t* b);
 
 /** True once the whole of the current frame has arrived and been sent on. */
 bool stream_done(const sat_stream* s);

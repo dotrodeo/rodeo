@@ -125,15 +125,20 @@ size_t stream_rx(sat_stream* s, uint8_t byte, const sat_slot* inputs, uint8_t* o
             s->cmds[s->n_cmds++] = cmd;
     }
 
-    size_t made = 0;
-    if(s->rx == s->in_len)
+    // One byte out for each byte in, from the lag on; when the input is complete,
+    // the first of what is still owed, and stream_next() has the rest.
+    if((s->rx == s->in_len || s->rx >= s->lag) && s->tx < s->out_len)
     {
-        while(s->tx < s->out_len) // the input is complete: send everything owed
-            out[made++] = out_byte(s, s->tx++);
+        out[0] = out_byte(s, s->tx++);
+        return 1;
     }
-    else if(s->rx >= s->lag && s->tx < s->out_len)
-    {
-        out[made++] = out_byte(s, s->tx++); // one byte out for each byte in
-    }
-    return made;
+    return 0;
+}
+
+bool stream_next(sat_stream* s, uint8_t* b)
+{
+    if(!s->active || s->dropped || !s->in_len || s->rx != s->in_len || s->tx >= s->out_len)
+        return false;
+    *b = out_byte(s, s->tx++);
+    return true;
 }
