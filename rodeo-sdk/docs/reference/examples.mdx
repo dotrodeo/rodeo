@@ -27,11 +27,16 @@ make && make program-dfu
 out of the Seed's outputs; the Seed's codec clock sets the rate and a feedback
 endpoint keeps the computer in step, so there is no resampling and no drift.
 
-## Arrives with the boards
+## The bring-up set, on real boards
 
-The bring-up set — one example per board, proving each subsystem before any
-instrument is built on it — is being written against hardware that has not been
-delivered. It is listed in `planning/REV_B_PLAN.md` under Milestone 1.
+One example per board, each proving its own subsystem and nothing else, listed
+in `planning/REV_B_PLAN.md` under Milestone 1. Nine of the eleven have passed on
+Rev B hardware since 28 October 2026 — power, both codecs, MIDI, the I/O
+connectors, the satellite chain, the SD card, USB-MIDI, disk mode, USB audio
+and the SPI expansion header. The OLED test is written and has not been run.
+
+They are also the reference for how an instrument uses each subsystem, which is
+most of what they are worth now that they pass.
 
 The prototype's bring-up examples (`01_blink` to `10_audio_levels`) target the
 prototype rather than the boards being shipped, and live in the frozen copy at

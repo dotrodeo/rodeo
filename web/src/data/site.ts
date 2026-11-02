@@ -48,10 +48,16 @@ export type Rev = 'A' | 'B' | 'A+B';
  * `shipped`: the line between "we have had this made" and "we have held this
  * and measured it" is the single most important thing a crowdfunding page has
  * to get right.
+ *
+ * `built` is that line. The first run arrived on 2026-10-28 and bring-up found
+ * real faults on the first day, so "it exists" and "it works" had to stop being
+ * the same word. A board is `built` when it is on the bench and `shipped` only
+ * once a bring-up test has passed on it.
  */
 export type Status =
   | 'shipped'
   | 'in-progress'
+  | 'built'
   | 'at-fab'
   | 'designed'
   | 'planned'
@@ -61,6 +67,7 @@ export type Status =
 export const statusLabel: Record<Status, string> = {
   shipped: 'Verified',
   'in-progress': 'In progress',
+  built: 'Built, untested',
   'at-fab': 'At the fab',
   designed: 'Designed',
   planned: 'Planned',

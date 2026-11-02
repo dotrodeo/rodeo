@@ -10,20 +10,29 @@ satellite chain, the second codec, and a pile of logic that is easier to test on
 a laptop than on a bench.
 
 :::caution[Being rewritten, in the open]
-The boards were ordered on 18 October 2026 and none has been powered on. The SDK
-is mid-rewrite to match them, so this documents a library in motion rather than
-a finished one. Each page says what is written and what is not; the plan is
+The first Rev B boards arrived on 28 October 2026 and most of this has now run
+on one. The SDK is still mid-rewrite, so this documents a library in motion
+rather than a finished one. Each page says what is written, what has run on
+hardware and what has not; the plan and its bring-up table are
 `planning/REV_B_PLAN.md`.
 :::
 
 ## What works today
 
-- **USB, on a bare Daisy Seed.** `examples/usb_device` turns a Seed's own
-  micro-USB into a composite device on TinyUSB: stereo audio in and out at
-  48 kHz / 24-bit, MIDI, a serial port and a RAM disk, all at once. Measured
-  full-duplex loopback came back glitch-free over sixty seconds at 31 ms round
-  trip. On a Rodeo board the same device moves to the panel USB-C; that has not
-  been tried yet, because no board has been built.
+- **USB on the panel USB-C,** which is the whole reason Rev B exists. On a Rev B
+  board: UAC1 four in and four out at 16-bit, USB-MIDI, a serial port, and the
+  SD card as a drive in disk mode. Tested on macOS; Windows and Linux have not
+  been tried. 24-bit audio works on a direct port but not behind a USB 2.0 hub,
+  so 16-bit is the default.
+- **Both codecs, in one callback.** `audio_4x4` runs four in and four out across
+  the Seed's codec and the CS4272. The second codec's ADC is noisy while its own
+  DAC plays — a board fault, not a driver one, and written up on
+  [the motherboard's page](/ecosystem/rodeo-motherboard/).
+- **The satellite chain, end to end.** A ring of a pot bank and an encoder bank
+  ran about 24,600 scans in two minutes with none bad, every control read and
+  every LED driven.
+- **The SD card** in 1-bit mode, 388 KB/s write and 1.24 MB/s read on a 2 GB
+  card, and the same card mounted on a Mac in disk mode.
 - **The [pure-logic headers](/sdk/reference/pure-logic/).** Scaling, filtering,
   UI smoothing, the scope — no hardware in them, tested on a laptop, and
   unaffected by the board revision. Every function and type is in the
@@ -41,13 +50,13 @@ a finished one. Each page says what is written and what is not; the plan is
 
 ## What is still being written
 
-The satellite-chain driver (its frame format is done), the second codec on SAI2, the SD card, the battery gauge, USB as a library
-rather than an example, and the bring-up examples that go with them. The
-satellite firmware will be its own top-level tree built with ch32v003fun — one
-image for every satellite kind, with an ID resistor choosing which.
+USB as a library rather than an example, and the guide pages for the drivers
+that landed during bring-up. The battery gauge has a driver and host tests but
+has never answered with a real number: the cell on our board was plugged in
+backwards and took the gauge with it.
 
-Each of these gets its page here when its code lands. Once every board has been
-brought up, rodeo-002 is the first instrument to move onto this SDK.
+Each of these gets its page here when its code lands. `rodeo-demo` is the first
+instrument being written against this SDK; rodeo-002 moves onto it after.
 
 ## How it is put together
 

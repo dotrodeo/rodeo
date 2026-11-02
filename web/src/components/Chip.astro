@@ -20,6 +20,9 @@ const styles: Record<string, string> = {
   solid: 'bg-legend text-field',
   shipped: 'bg-yellow text-field',
   'in-progress': 'border border-legend text-legend',
+  // On the bench, nothing proven on it yet. Outlined gold against `shipped`'s
+  // filled gold: the whole ladder reads outline-then-fill, planned to proven.
+  built: 'border border-yellow text-yellow',
   // Ordered and being made. Filled indigo reads as further along than the
   // outlined `designed`, and is still not the gold of something proven.
   'at-fab': 'bg-indigo text-legend',

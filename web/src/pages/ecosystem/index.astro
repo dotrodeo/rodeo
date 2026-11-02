@@ -9,17 +9,25 @@ import CtaBand from '../../components/CtaBand.astro';
 import { host, satellites, daughterboards } from '../../data/boards';
 import { statusLabel } from '../../data/site';
 
-// No photographs on this page, and that is deliberate: the only photographs
-// in the repo are of Rev-A hardware, and Rev-B is a different board. The Rev-B
-// boards are shown as CAD renders, captioned as such, until they come back from
-// the fab.
-const legend = [
-  { status: 'shipped' as const, label: 'Verified', note: 'proven on real hardware' },
-  { status: 'in-progress' as const, label: 'In progress', note: 'being drawn right now' },
-  { status: 'at-fab' as const, label: 'At the fab', note: 'ordered and being made' },
-  { status: 'designed' as const, label: 'Designed', note: 'drawn and routed, not sent' },
-  { status: 'planned' as const, label: 'Planned', note: 'specified, not yet drawn' },
+// Still no photographs: the Rev-B boards are built now, but nobody has
+// photographed them, so they are shown as CAD renders and captioned as such.
+// Swap a board's `shot` in boards.ts the day there is a picture of it.
+//
+// The key below is built from the statuses actually in use, so it never
+// explains a badge that is not on the page — `at-fab` emptied out the day the
+// first run arrived, and the key emptied with it.
+const ladder = [
+  { status: 'shipped' as const, note: 'a bring-up test passed on it' },
+  { status: 'built' as const, note: 'on the bench, nothing proven yet' },
+  { status: 'at-fab' as const, note: 'ordered and being made' },
+  { status: 'designed' as const, note: 'drawn and routed, never ordered' },
+  { status: 'in-progress' as const, note: 'being drawn right now' },
+  { status: 'planned' as const, note: 'specified, not yet drawn' },
 ];
+const inUse = new Set([host, ...satellites, ...daughterboards].map((b) => b.status));
+const legend = ladder
+  .filter((l) => inUse.has(l.status))
+  .map((l) => ({ ...l, label: statusLabel[l.status] }));
 ---
 
 <BaseLayout
@@ -35,11 +43,11 @@ const legend = [
       </h1>
       <p class="copy-tech m-0 max-w-[620px] text-[16px]">
         Every entry links to its schematic, KiCad project, gerbers, BOM and pinout. These are
-        the Rev-B boards, the ones the campaign ships. <strong class="text-legend">Every one is
-        drawn and routed; eight are at the fab and three were drawn after that order went
-        in. None of them is built or powered on yet.</strong> The status on each says exactly
-        how far it has got, and nothing here claims to have been measured on hardware nobody
-        has held.
+        the Rev-B boards, the ones the campaign ships. <strong class="text-legend">The first
+        run arrived on 28 October and bring-up has been running since: six of these boards
+        have had a test pass on them, two are on the bench untouched, and three were drawn
+        after the order went in.</strong> The badge on each says which, and nothing here
+        claims a measurement that has not been taken.
       </p>
     </div>
     <ul class="m-0 flex list-none flex-col gap-2.5 p-0">

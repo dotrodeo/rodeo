@@ -3,10 +3,14 @@
 // RULES (planning/WEB_CLAIMS_AUDIT.md):
 //   - Every `spec` and `caveat` carries `evidence`: a repo-relative path, or
 //     path:line. If you cannot cite it, it does not go on the site.
-//   - `status: 'shipped'` means proven on real hardware. `designed` means
-//     drawn and routed and nothing more. Nothing here has been fabricated.
-//   - Every board carries `rev`, and every image carries its own, because the
-//     only photographs that exist are of Rev-A hardware.
+//   - `status: 'shipped'` means a bring-up test has passed on that board.
+//     `built` means it is on the bench and nothing has been proven on it yet;
+//     `designed` means drawn and routed and never ordered. The first run
+//     arrived 2026-10-28, so these three are now genuinely different things
+//     and the gap between them is the point of this file.
+//   - Every board carries `rev`, and every image carries its own. The Rev-B
+//     boards exist now but have not been photographed, so they are still
+//     shown as CAD renders — swap a `shot` the day there is a photograph.
 //   - Only boards in the platform are listed. Cut boards and planned ones
 //     that are not drawn yet (the ADC expander) stay off the site.
 //
@@ -21,9 +25,8 @@ import type { ImageMetadata } from 'astro';
 import type { Rev, Status } from './site';
 
 // Photographs of Rev-A hardware. They belong to the prototype, not to the
-// product — see `prototype` at the bottom of this file. No Rev-B board has
-// been fabricated, so the Rev-B boards are shown as CAD renders until there
-// are photographs (see `views` below).
+// product — see `prototype` at the bottom of this file. The Rev-B boards are
+// built but unphotographed, so they are shown as CAD renders (see `views`).
 import motherboardImg from '../assets/hardware/rodeo-motherboard.webp';
 import motherboardBackImg from '../assets/hardware/rodeo-motherboard-back.webp';
 import motherboardDaisyImg from '../assets/hardware/rodeo-motherboard-daisy.webp';
@@ -39,8 +42,15 @@ export interface Spec {
 }
 
 export interface Caveat {
-  /** Shown as the badge. 'not-planned' reads as a hard limit, not an omission. */
-  status: Extract<Status, 'not-planned' | 'in-progress' | 'at-fab' | 'designed' | 'planned'>;
+  /**
+   * Shown as the badge. 'not-planned' reads as a hard limit, not an omission;
+   * 'shipped' is the one that says what a bring-up test actually proved, and
+   * since 2026-10-28 most boards have one.
+   */
+  status: Extract<
+    Status,
+    'shipped' | 'not-planned' | 'in-progress' | 'built' | 'at-fab' | 'designed' | 'planned'
+  >;
   text: string;
   evidence: string;
 }
@@ -119,20 +129,22 @@ const CHAIN = 'hardware/rodeo-motherboard/docs/RODEO_SATELLITE_CHAIN_CONTRACT.md
 // rewritten for Rev B, so its line numbers move — citing it for Rev-A claims
 // drifted by four lines within a day of the freeze.
 const SDK = 'rev-a/rodeo-sdk/README.md';
-// The first order: the motherboard, the seven daughterboards and the five rear panels,
-// ordered from JLC on 2026-10-18, five of each. One record covers all of them.
-const FAB = 'hardware/rodeo-motherboard/docs/rev-b.md:3-6';
 // Which boards have actually been made, and what each one wants next time it is
-// spun. The Built table is the test for `at-fab`: a board that is not in it has
-// not been ordered, whatever its Gerbers look like.
+// spun. The Built table is the test for `built`: a board that is not in it has
+// never been ordered, whatever its Gerbers look like. The Next-revision section
+// is where bring-up's findings land, and two of them are motherboard caveats.
 const REVS = 'hardware/docs/revisions.md';
+// Milestone 1, the bring-up table: one example per board, each row carrying the
+// date it passed on real Rev B hardware and what it measured. This is what
+// moves a board from `built` to `shipped`.
+const PLAN = 'planning/REV_B_PLAN.md';
 
 export const boards: Board[] = [
   {
     slug: 'rodeo-motherboard',
     name: 'rodeo-motherboard',
     kind: 'host',
-    status: 'at-fab',
+    status: 'shipped',
     rev: 'B',
     outline: { w: 90, h: 112 },
     ...views('rodeo-motherboard', {
@@ -144,26 +156,36 @@ export const boards: Board[] = [
       'The host board. A Daisy Seed, two codecs, ten general-purpose I/O connectors and the satellite chain.',
     body: 'The motherboard has one job: carry the Daisy, the audio, and the connectors everything else plugs into. There are no converters on it: those pins drive a second codec instead, and high-resolution analog moved to an optional expander board. Controls no longer compete for motherboard channels, because the satellite chain grows by adding satellites. It also carries the battery, its charger and a fuel gauge, so the instrument charges over USB-C and runs off the desk.',
     specs: [
-      { label: 'audio', value: '4 in / 4 out, two codecs', evidence: `${R}:332` },
-      { label: 'general-purpose I/O', value: '10 connectors, 8 analog-capable', evidence: `${R}:81` },
-      { label: 'control growth', value: 'satellite chain on USART3', evidence: `${R}:131` },
-      { label: 'I²C', value: '4 taps, pull-ups on board', evidence: `${R}:246` },
-      { label: 'storage', value: 'internal SD, 1-bit SDMMC', evidence: `${R}:264` },
-      { label: 'USB', value: 'data via the power board', evidence: `${R}:308` },
-      { label: 'MIDI', value: 'on a daughterboard', evidence: `${R}:434` },
-      { label: 'power', value: '1S Li-ion, charger and fuel gauge', evidence: `${R}:469-478` },
-      { label: 'expansion', value: 'SPI header with chip-select', evidence: `${R}:100` },
+      { label: 'audio', value: '4 in / 4 out, both codecs in one callback', evidence: `${PLAN}:316` },
+      { label: 'general-purpose I/O', value: '10 connectors, 8 analog-capable', evidence: `${R}:90` },
+      { label: 'control growth', value: 'satellite chain on USART3', evidence: `${R}:140` },
+      { label: 'I²C', value: '4 taps, pull-ups on board', evidence: `${R}:255` },
+      { label: 'storage', value: 'internal SD — 1.24 MB/s read, measured', evidence: `${PLAN}:321` },
+      { label: 'USB', value: 'audio, MIDI, serial and disk mode, all on the USB-C', evidence: `${PLAN}:322-324` },
+      { label: 'MIDI', value: 'on a daughterboard', evidence: `${R}:443` },
+      { label: 'power', value: '1S Li-ion, charger and fuel gauge', evidence: `${R}:478-487` },
+      { label: 'expansion', value: 'SPI header, looped byte-exact to 6.2 Mbit/s', evidence: `${PLAN}:325` },
     ],
     caveats: [
       {
-        status: 'at-fab',
-        text: 'Ordered: the schematic, layout and routing are done and the board is DRC-clean. Ordered from JLC on 2026-10-18 in a first run of five; no Rev-B motherboard has been built or bench-tested yet.',
-        evidence: FAB,
+        status: 'shipped',
+        text: 'It boots. The Seed came up on this board on 2026-10-28, and nine of the eleven bring-up tests have passed on it since: both codecs, MIDI, the I/O connectors, the satellite chain, the SD card, USB-MIDI, disk mode, USB audio and the SPI header. Only the OLED test has not been run.',
+        evidence: `${PLAN}:315-325`,
+      },
+      {
+        status: 'planned',
+        text: 'The battery gauge on the board we have is dead, and that is our fault: J1’s pin order is the reverse of every cell in the building, the first one went in backwards and the board got very hot. The MAX17048 has answered on I²C with 0 V ever since. The next revision swaps J1 and adds the reverse protection B1 went without.',
+        evidence: `${REVS}:55-71`,
+      },
+      {
+        status: 'planned',
+        text: 'The second codec’s ADC takes corrupted samples whenever its own DAC is playing — a layout fault, SDOUT running 0.15 mm alongside SDIN and SCLK for about 50 mm. Sending the DAC 16-bit words cuts it roughly a hundredfold, which is why USB audio defaults to 16-bit. The next revision moves the trace and adds series resistors.',
+        evidence: `${REVS}:84-96`,
       },
       {
         status: 'not-planned',
         text: 'No on-board ADCs. The two ADS114S08s, their 24 pot connectors and the pull-downs are removed; that bank becomes an optional expander on the SPI header.',
-        evidence: `${R}:610-614`,
+        evidence: `${R}:619-623`,
       },
     ],
   },
@@ -172,7 +194,7 @@ export const boards: Board[] = [
     slug: 'rodeo-pot-bank-4',
     name: 'rodeo-pot-bank-4',
     kind: 'satellite',
-    status: 'at-fab',
+    status: 'shipped',
     rev: 'B',
     outline: { w: 20, h: 100 },
     ...views('rodeo-pot-bank-4', {
@@ -191,9 +213,9 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'at-fab',
-        text: 'Drawn and routed on 2026-10-14; ordered from JLC on 2026-10-18 in a first run of five. Nothing here has been measured on hardware.',
-        evidence: FAB,
+        status: 'shipped',
+        text: 'It works. Discovered by kind, all four pots read, its LED driven from the Seed, and it recovered from being unplugged mid-scan. In a ring with the encoder bank: about 24,600 scans in two minutes with none bad.',
+        evidence: `${PLAN}:319`,
       },
     ],
   },
@@ -202,7 +224,7 @@ export const boards: Board[] = [
     slug: 'rodeo-encoder-bank-4',
     name: 'rodeo-encoder-bank-4',
     kind: 'satellite',
-    status: 'at-fab',
+    status: 'shipped',
     rev: 'B',
     outline: { w: 20, h: 100 },
     ...views('rodeo-encoder-bank-4', {
@@ -220,9 +242,9 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'at-fab',
-        text: 'Specified and drawn on 2026-10-14; ordered from JLC on 2026-10-18 in a first run of five. Not yet built or tested.',
-        evidence: FAB,
+        status: 'shipped',
+        text: 'It works. All four encoders turned both ways and pressed, the resistor ladder reading every switch, in a two-satellite ring with the pot bank at 250 scans a second.',
+        evidence: `${PLAN}:319`,
       },
     ],
   },
@@ -279,7 +301,7 @@ export const boards: Board[] = [
       {
         status: 'planned',
         text: 'Full brightness needs a 5 V feed, and the Rev B motherboard does not bring one to a connector — the only 5 V it exposes is the codec’s analog supply, which LED current has no business on. An aux output is on the list for the motherboard’s next revision.',
-        evidence: `${REVS}:55-65`,
+        evidence: `${REVS}:72-82`,
       },
       {
         status: 'in-progress',
@@ -382,7 +404,7 @@ export const boards: Board[] = [
     slug: 'rodeo-audio-3.5mm',
     name: 'rodeo-audio-3.5mm',
     kind: 'daughterboard',
-    status: 'at-fab',
+    status: 'shipped',
     rev: 'B',
     outline: { w: 60, h: 30 },
     ...views('rodeo-audio-3.5mm', {
@@ -399,9 +421,9 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'at-fab',
-        text: 'Drawn and laid out on 2026-10-14; ordered from JLC on 2026-10-18 in a first run of five. Not yet built or tested.',
-        evidence: FAB,
+        status: 'shipped',
+        text: 'All eight channels passed through it on 2026-10-31 — a different tone out of each output, each input naming whose tone it heard.',
+        evidence: `${PLAN}:316`,
       },
     ],
   },
@@ -410,7 +432,7 @@ export const boards: Board[] = [
     slug: 'rodeo-midi',
     name: 'rodeo-midi',
     kind: 'daughterboard',
-    status: 'at-fab',
+    status: 'shipped',
     rev: 'B',
     outline: { w: 40, h: 25 },
     ...views('rodeo-midi', {
@@ -427,9 +449,9 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'at-fab',
-        text: 'Drawn and routed on 2026-10-15; ordered from JLC on 2026-10-18 in a first run of five. Not yet built or tested.',
-        evidence: FAB,
+        status: 'shipped',
+        text: 'Notes, control changes and SysEx all came back in order through a TRS loop on 2026-10-29.',
+        evidence: `${PLAN}:317`,
       },
     ],
   },
@@ -438,7 +460,7 @@ export const boards: Board[] = [
     slug: 'rodeo-power-usbc',
     name: 'rodeo-power-usbc',
     kind: 'daughterboard',
-    status: 'at-fab',
+    status: 'shipped',
     rev: 'B',
     outline: { w: 40, h: 20 },
     ...views('rodeo-power-usbc', {
@@ -455,9 +477,9 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'at-fab',
-        text: 'Drawn and routed on 2026-10-12; ordered from JLC on 2026-10-18 in a first run of five. Not yet built or tested.',
-        evidence: FAB,
+        status: 'shipped',
+        text: 'Every hour of bring-up since 2026-10-28 has run through this board, and the USB data lines it exists for work: the Rodeo enumerates on the panel USB-C, and MIDI, serial, disk mode and 4×4 audio all go through it.',
+        evidence: `${PLAN}:322-327`,
       },
     ],
   },
@@ -466,7 +488,7 @@ export const boards: Board[] = [
     slug: 'rodeo-power-barrel',
     name: 'rodeo-power-barrel',
     kind: 'daughterboard',
-    status: 'at-fab',
+    status: 'built',
     rev: 'B',
     outline: { w: 60, h: 40 },
     ...views('rodeo-power-barrel', {
@@ -483,9 +505,9 @@ export const boards: Board[] = [
     ],
     caveats: [
       {
-        status: 'at-fab',
-        text: 'Drawn and routed on 2026-10-12; ordered from JLC on 2026-10-18 in a first run of five. Not yet built or tested.',
-        evidence: FAB,
+        status: 'built',
+        text: 'It came back from JLC with the rest of the run and is on the bench. Bring-up has been done with the USB-C board, so nothing on this one — the barrel jack, the switchover, the auxiliary 5 V — has been powered up or measured yet.',
+        evidence: `${PLAN}:327`,
       },
     ],
   },
@@ -494,7 +516,7 @@ export const boards: Board[] = [
     slug: 'rodeo-power-switch',
     name: 'rodeo-power-switch',
     kind: 'daughterboard',
-    status: 'at-fab',
+    status: 'built',
     rev: 'B',
     outline: { w: 30, h: 20 },
     ...views('rodeo-power-switch', {
@@ -506,14 +528,14 @@ export const boards: Board[] = [
     body: 'One button and one connector, and nothing else — the resistors and the filter live on the motherboard. Pressed in, it enables the buck-boost converter; out, the synth is off and the battery carries on charging. The plunger comes through a slot in the panel and works bare, so the printed cap is optional.',
     specs: [
       { label: 'switch', value: 'latching push button, panel mount', evidence: 'hardware/rodeo-power-switch/README.md:3' },
-      { label: 'to the motherboard', value: 'JST SH 2-pin on J3', evidence: `${R}:519` },
+      { label: 'to the motherboard', value: 'JST SH 2-pin on J3', evidence: `${R}:528` },
       { label: 'outline', value: '30 × 20 mm', evidence: 'hardware/rodeo-power-switch/README.md:10-11' },
     ],
     caveats: [
       {
-        status: 'at-fab',
-        text: 'Drawn, routed and DRC-clean on 2026-10-16; ordered from JLC on 2026-10-18 with the other Rev B boards, a first run of five. Not yet built or tested.',
-        evidence: FAB,
+        status: 'built',
+        text: 'Made in the same run and on the bench. Its test is part of the power bring-up — that switching off cuts everything whether or not something is plugged in — and that has not been run on it yet.',
+        evidence: `${PLAN}:352`,
       },
     ],
   },
@@ -556,8 +578,8 @@ export const prototype = {
       rev: 'A',
     },
     specs: [
-      { label: 'connector', value: '3-pin JST SH: GND, wiper, supply', evidence: `${R}:578-582` },
-      { label: 'Rev B fit', value: 'plugs into any analog-capable I/O connector', evidence: `${R}:578-582` },
+      { label: 'connector', value: '3-pin JST SH: GND, wiper, supply', evidence: `${R}:587-591` },
+      { label: 'Rev B fit', value: 'plugs into any analog-capable I/O connector', evidence: `${R}:587-591` },
       { label: 'electronics', value: 'passive — one RC filter', evidence: `${SDK}:133-134` },
     ],
   },
@@ -609,42 +631,42 @@ export const prototype = {
       revA: '24 channels at 16 bits, from two converters soldered to every board',
       revB: 'the Seed’s own converter across eight I/O connectors; the 16-bit bank becomes an optional board',
       why: 'Every build paid about nineteen dollars for converters whether it needed them or not. Satellites cover ordinary knobs, so the precision bank became opt-in.',
-      evidence: `${R}:222`,
+      evidence: `${R}:231`,
     },
     {
       area: 'Audio',
       revA: 'one codec, in and out',
       revB: 'a second codec on the pins the converters vacated — four in, four out',
       why: 'The freed pins were worth more as audio than as analog inputs that satellites could supply instead.',
-      evidence: `${R}:332`,
+      evidence: `${R}:341`,
     },
     {
       area: 'Growing a panel',
       revA: 'one cable per control, back to a motherboard channel or an I²C hub',
       revB: 'satellites chained together, each reading its own controls',
       why: 'Controls stopped being bounded by the motherboard. Position in the chain is the address, so there is nothing to configure and no respin when a panel grows.',
-      evidence: `${R}:131`,
+      evidence: `${R}:140`,
     },
     {
       area: 'USB',
       revA: 'power only — the data lines went nowhere',
       revB: 'data through the power board: USB-MIDI, USB audio and firmware flashing',
       why: 'The most-checked spec on the Rev-A board, and the one most worth fixing.',
-      evidence: `${R}:308`,
+      evidence: `${R}:317`,
     },
     {
       area: 'Power',
       revA: 'USB-C in, straight to a regulator — tethered to a wall for as long as it runs',
       revB: 'a 1S Li-ion battery with a charger, power path and fuel gauge on the motherboard',
       why: 'Rev A had no battery of any kind. Rev B charges over USB-C and keeps charging with the switch off, which is the difference between a thing on a bench and an instrument you can pick up.',
-      evidence: `${R}:469-478`,
+      evidence: `${R}:478-487`,
     },
     {
       area: 'Jacks and MIDI',
       revA: 'on the motherboard',
       revB: 'daughterboards on a rear rail',
       why: 'A smaller host board, and connectors a build does not need are connectors it does not pay for.',
-      evidence: `${R}:434`,
+      evidence: `${R}:443`,
     },
   ] satisfies Change[],
 

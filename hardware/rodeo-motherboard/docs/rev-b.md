@@ -1,12 +1,21 @@
 # Rodeo Motherboard — Rev B
 
-**Status: ordered, not yet built.** Schematic, layout and routing are done, the
-board is DRC-clean, and its fab outputs and silkscreen are final. It was ordered from
-JLC on 2026-10-18 with the seven Rev B daughterboards and the five rear panels, a
-first run of five of each. Nothing on Rev B has been on a bench yet, so every "decided" item below is
-a design decision, not a measured result; the bench work each one still needs is
-noted where it comes up. The board in hand is still Rev A, described in
-[`hardware-map.md`](../../../rev-a/rodeo-motherboard/docs/hardware-map.md).
+**Status: built, and most of it works.** Ordered from JLC on 2026-10-18 with the
+seven Rev B daughterboards and the five rear panels, a first run of five of each;
+the run arrived 2026-10-28 and bring-up started the same day. Nine of the eleven
+Milestone 1 tests have passed on this board — power, both codecs, MIDI, the I/O
+connectors, the satellite chain, the SD card, USB-MIDI, disk mode, USB audio and
+the SPI header — and the table in
+[`REV_B_PLAN.md`](../../../planning/REV_B_PLAN.md) says what each one measured.
+
+Two faults found so far, both in
+[`revisions.md`](../../docs/revisions.md): J1's battery pins are the
+reverse of the cells we buy, which killed this board's fuel gauge, and
+`CODEC2_SDOUT` runs too close to its neighbours, which corrupts the second
+codec's ADC while its DAC plays.
+
+A "decided" item below is still a design decision unless bring-up reached it;
+where it did, the test says so.
 
 How it got here:
 

@@ -20,7 +20,7 @@ const steps = [
   },
   {
     title: 'Give it a voice',
-    body: 'A Daisy Seed does the DSP with libDaisy and DaisySP, and rodeo-sdk handles the hardware around it. USB already works — audio, MIDI and serial at once. The chain and codec drivers are being written in the open.',
+    body: 'A Daisy Seed does the DSP with libDaisy and DaisySP, and rodeo-sdk handles the hardware around it: both codecs, the chain, the SD card, and one USB-C carrying audio, MIDI, a serial port and disk mode. All of that has now run on a Rev B board.',
   },
 ];
 
@@ -56,8 +56,9 @@ const strip = ['rodeo-pot-bank-4', 'rodeo-encoder-bank-4', 'rodeo-audio-3.5mm'].
         desk.
       </p>
       <p class="copy-tech m-0 max-w-[560px] text-[14.5px] text-hardware">
-        The boards are drawn and routed, most of them ordered from the fab — not built, not
-        powered on yet. This site is careful about which is which — see
+        The first boards arrived on 28 October and they work: audio, MIDI, USB, the SD card
+        and a satellite chain have all passed on real hardware since. Bring-up also found two
+        faults, and they are written down beside the boards they are on — see
         <a href="/ecosystem/" class="text-yellow">the boards</a>.
       </p>
       <div class="flex flex-wrap items-stretch gap-4">

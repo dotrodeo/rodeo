@@ -111,7 +111,7 @@ slots when the Seed discovers it, so the Seed needs nothing new to read it.
 The contract gives `rodeo-button-bank-4` kind 7 and an `RGB` output slot — a
 colour as RGB565, which fits the two data bytes every slot already has. The
 satellite firmware and the Seed's driver implement both, along with the WS2812
-driver; like all the satellite firmware, none of it has run on a board yet.
+driver. None of that has run, because no button bank has been made.
 :::
 
 ## Timing
@@ -125,6 +125,21 @@ returns, or after a timeout.
   the Seed within roughly one period plus one ring time — about 6.5 ms worst
   case across thirty satellites.
 - Scans are paced from a timer, never from the audio callback.
+
+## What has actually run
+
+A ring of a motherboard, a pot bank and an encoder bank, on 2 November 2026:
+**about 24,600 scans in two minutes, none bad**, every reply the full 36 bytes.
+All four pots swept their range, all four encoders turned both ways and
+pressed, and the Seed drove each board's LED. Pulling a satellite mid-scan cost
+seven bad scans, all at the moment of the unplug, and the chain recovered.
+
+It did not work first time. Both boards were discovered, but most scans came
+back short until the satellite firmware moved to passing frames through in its
+UART interrupt rather than in its main loop.
+
+Untried: breaks within the ring, three or more satellites, and every board that
+has not been made — the button bank and the single-control boards.
 
 ## Power
 

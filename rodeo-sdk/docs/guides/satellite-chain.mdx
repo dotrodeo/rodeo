@@ -1,17 +1,17 @@
 ---
 title: The satellite chain
 description: Pots, encoders and buttons on a self-closing UART ring — discovery, scans, faults, and reading a control from an app.
-draft: true
 sidebar:
   order: 3
 ---
 
-:::caution[Run on a bare Seed, not yet with satellites]
-The driver is host-tested against a simulated ring (discovery, scanning, a live
-break found and repaired, a satellite added while running), and has run on a
-Daisy Seed 2 as a loop-back with no satellites (`examples/sat_chain`): 250 scans
-a second with none bad, and a pulled wire found and recovered from. It stays
-unpublished until it has run with real satellites on a Rev B board. API:
+:::note[Running on real satellites since 2 November 2026]
+A ring of a Rev B motherboard, a pot bank and an encoder bank ran about 24,600
+scans in two minutes with none bad, every control read and both LEDs driven
+from the Seed. The driver is also host-tested against a simulated ring —
+discovery, a live break found and repaired, a satellite added while running —
+and those paths have not all been reproduced on hardware: breaks within a ring
+and chains of three or more are still untried. API:
 [`sat_chain.h`](/sdk/reference/api/sat-chain/),
 [`sat_chain_port.h`](/sdk/reference/api/sat-chain-port/),
 [`sat_frame.h`](/sdk/reference/api/sat-frame/).
