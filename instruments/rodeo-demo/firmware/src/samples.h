@@ -61,6 +61,9 @@ bool Remount();
 /** The card's FatFS drive number, for disk mode's raw sector access. */
 uint8_t Drive();
 
+/** The card's root in FatFS's terms ("0:/"), for the presets beside the samples. */
+const char* Root();
+
 int          Sounds();
 const Sound& GetSound(int i);
 

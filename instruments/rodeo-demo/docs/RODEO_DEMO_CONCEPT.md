@@ -32,7 +32,7 @@ Decisions so far are in the table below; anything marked **Open** still needs De
 | Sampler | **Both**: each sound is either a pitched sample across the keys or a kit (one sample per note) |
 | USB audio | **Demo to USB in 1/2, computer playback to OUT 3/4** |
 | Code | **Fresh and small**, on plain DaisySP, readable end to end by a builder. rodeo-002 is not touched |
-| Presets | **Read-only on the Rodeo**: written on the computer as a configuration file on the SD card, chosen on the Rodeo, never saved from it (revised 2026-11-02) |
+| Presets | **Read-only on the Rodeo**: one text file per preset in `/presets/`, written on the computer; hold E1 and turn to choose; a pot jumps in when moved (revised 2026-11-02) |
 | Voices | **8, shared** between synth and sampler |
 | Sample rates | **Converted to 48 kHz**, by playback speed as the voice plays (speed = file rate / 48 kHz) |
 | Fixed map | **Section A as written** |
@@ -121,7 +121,9 @@ nothing until it passes the stored value).
 
 ## Open questions
 
-1. Presets are read-only on the Rodeo (decided): a configuration file on the SD card,
-   written on the computer and copied over in disk mode. Still open: the file's format,
-   how a preset is chosen with the fixed map full, and what the pots do after one loads
-   (pickup, or presets leave the pots' parameters alone).
+1. ~~Presets~~ decided and built 2026-11-02 (`src/presets.h`): read-only on the
+   Rodeo, one text file each in `/presets/` (`key = value`, sorted by name; examples
+   in `../sd-card/presets/`). Hold E1 and turn to step through them; the first loads
+   at power-up. A preset's pot values hold until that pot moves, then the pot jumps in
+   from where it is; pots a preset leaves out stay live. Sounds are named, not
+   numbered. Lines that can't be read are listed by `s` on the serial port.

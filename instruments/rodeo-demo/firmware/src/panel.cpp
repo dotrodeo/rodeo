@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdio.h>
 #include "daisy_seed.h"
+#include "presets.h"
 #include "samples.h"
 
 namespace panel
@@ -11,7 +12,7 @@ namespace panel
 namespace
 {
 int  pot_bank = -1, enc_bank = -1; // where on the chain, or -1
-char said[96];
+char said[128];
 
 struct Encoder
 {
@@ -32,6 +33,16 @@ float AttackFor(int step)
 {
     return 0.001f * powf(4000.f, step / (float)kAttackSteps);
 }
+
+// After a preset: which pots' parameters it holds, and where each pot was when it
+// did (-1 until the pot bank is read). A pot moved further than kTakeover from
+// there takes its parameter back. The anchors come from a scan made after the
+// preset loaded: at power-up the preset is in before the first real readings.
+constexpr float kTakeover   = 0.02f;
+unsigned        pot_held    = 0;
+float           anchor[4]   = {-1.f, -1.f, -1.f, -1.f};
+uint32_t        anchor_scan = 0; // the good scan to take them from, or 0: not chosen yet
+int             preset    = -1;
 
 int Wrap(int x, int n)
 {
@@ -71,7 +82,14 @@ void Turn(int e, int steps, bool held, synth::Params& p)
     switch(e)
     {
         case 0:
-            if(p.layer == synth::Layer::Synth)
+            if(held)
+            {
+                if(presets::Count() > 0)
+                    LoadPreset(Wrap(preset + steps, presets::Count()), p);
+                else
+                    snprintf(said, sizeof said, "no presets on the card");
+            }
+            else if(p.layer == synth::Layer::Synth)
             {
                 p.shape = Wrap(p.shape + steps, synth::kShapes);
                 snprintf(said, sizeof said, "shape: %s", synth::ShapeName(p.shape));
@@ -152,10 +170,28 @@ const char* Update(rodeo::SatChain& chain, synth::Params& p, Status status)
 
     if(pot_bank >= 0)
     {
-        p.cutoff     = chain.Pot(pot_bank, 0);
-        p.resonance  = chain.Pot(pot_bank, 1);
-        p.env_amount = chain.Pot(pot_bank, 2);
-        p.release    = 0.005f * powf(800.f, chain.Pot(pot_bank, 3)); // 5 ms .. 4 s
+        if(pot_held && anchor_scan == 0)
+            anchor_scan = chain.GoodScans() + 2;
+        bool  read = chain.GoodScans() >= anchor_scan;
+        float pot[4];
+        for(int i = 0; i < 4; i++)
+        {
+            pot[i] = chain.Pot(pot_bank, i);
+            if(!(pot_held & (1u << i)) || !read)
+                continue;
+            if(anchor[i] < 0.f)
+                anchor[i] = pot[i];
+            else if(fabsf(pot[i] - anchor[i]) > kTakeover)
+                pot_held &= ~(1u << i); // moved: the pot has it again
+        }
+        if(!(pot_held & presets::kCutoff))
+            p.cutoff = pot[0];
+        if(!(pot_held & presets::kResonance))
+            p.resonance = pot[1];
+        if(!(pot_held & presets::kEnv))
+            p.env_amount = pot[2];
+        if(!(pot_held & presets::kRelease))
+            p.release = 0.005f * powf(800.f, pot[3]); // 5 ms .. 4 s
         uint8_t mode = status == Status::Disk ? SAT_LED_SLOW_BLINK
                        : loading              ? SAT_LED_FAST_BLINK
                                               : SAT_LED_STEADY;
@@ -205,6 +241,31 @@ const char* Update(rodeo::SatChain& chain, synth::Params& p, Status status)
         chain.SetLed(enc_bank, 255, mode);
     }
     return said[0] ? said : nullptr;
+}
+
+const char* LoadPreset(int i, synth::Params& p)
+{
+    if(i < 0 || i >= presets::Count())
+        return nullptr;
+    preset   = i;
+    pot_held = presets::Apply(i, p);
+    for(auto& a : anchor)
+        a = -1.f;
+    anchor_scan = 0;
+    // E3 steps through attack times: start from the nearest to the preset's
+    attack_step = (int)lroundf(kAttackSteps * logf(p.attack / 0.001f) / logf(4000.f));
+    attack_step = (int)Clamp(attack_step, 0, kAttackSteps);
+    if(const char* m = presets::MissingSound())
+        snprintf(said, sizeof said, "preset %d: %s (no sound \"%.24s\" on the card)", i + 1,
+                 presets::Name(i), m);
+    else
+        snprintf(said, sizeof said, "preset %d: %s", i + 1, presets::Name(i));
+    return said;
+}
+
+int Preset()
+{
+    return preset;
 }
 
 bool DiskRequested()

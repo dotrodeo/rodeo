@@ -6,9 +6,13 @@
 //   Pot 2  resonance           Pot 4  release
 //
 //   E1 turn  the synth's shape, or (sampler) which sound;  tap  synth / sampler / both
+//      held, turn  the next or previous preset (presets.h)
 //   E2 turn  detune; held, octave                          tap  detune and octave back
 //   E3 turn  attack                                        tap  LFO on / off
 //   E4 turn  effects mix                                   tap  chorus / reverb / both
+//
+// A preset puts its own values on the pots' parameters; each pot takes over
+// again, from where it is, once it is moved.
 //
 // A tap is a press let go without turning. Holding E1 and E4 together for a
 // second asks for disk mode (and taps neither).
@@ -33,6 +37,13 @@ enum class Status
 /** Read the controls into p, and set the LEDs. From the main loop. Returns a
  *  description of what changed, for the serial port, or null. */
 const char* Update(rodeo::SatChain& chain, synth::Params& p, Status status);
+
+/** Load preset i into p, and hold the pots' parameters it sets until each pot
+ *  moves. Returns a description for the serial port. */
+const char* LoadPreset(int i, synth::Params& p);
+
+/** The preset loaded last, or -1. */
+int Preset();
 
 /** E1 and E4 held together for a second, since the last call. */
 bool DiskRequested();

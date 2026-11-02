@@ -29,6 +29,7 @@
 
 #include "disk.h"
 #include "panel.h"
+#include "presets.h"
 #include "samples.h"
 #include "synth.h"
 #include "usb_audio.h"
@@ -123,17 +124,23 @@ void Print(const char* s)
 
 void PrintState()
 {
-    char                  buf[600];
+    char                  buf[800];
     samples::Stats        s = samples::GetStats();
     usb_audio::Stats      u = usb_audio::GetStats();
     const char* const     layers[] = {"synth", "sampler", "both"};
     snprintf(buf, sizeof buf,
-             "\r\nlayer %s, shape %s, sound %d of %d; attack %d ms, release %d ms; %d voices sounding; CPU %d %% (peak %d %%)\r\n"
+             "\r\npreset %d of %d%s%s; layer %s, shape %s, sound %d of %d\r\n"
+             "cutoff %d %%, resonance %d %%, envelope %d %%, attack %d ms, release %d ms\r\n"
+             "%d voices sounding; CPU %d %% (peak %d %%)\r\n"
              "chain: %d satellites, %s; %lu good scans, %lu bad\r\n"
              "card: %s; %d sounds, %d of %d samples loaded (%d skipped), %lu KB in %lu ms%s\r\n"
              "USB audio: computer %s, recording %s; %lu underruns, %lu overruns\r\n",
-             layers[(int)params.layer], synth::ShapeName(params.shape), params.sound + 1,
-             s.sounds, (int)(params.attack * 1000.f), (int)(params.release * 1000.f), synth::Active(), (int)(cpu.GetAvgCpuLoad() * 100.f),
+             panel::Preset() + 1, presets::Count(), panel::Preset() >= 0 ? ": " : "",
+             presets::Name(panel::Preset()), layers[(int)params.layer],
+             synth::ShapeName(params.shape), params.sound + 1, s.sounds,
+             (int)lroundf(params.cutoff * 100.f), (int)lroundf(params.resonance * 100.f),
+             (int)lroundf(params.env_amount * 100.f), (int)(params.attack * 1000.f),
+             (int)(params.release * 1000.f), synth::Active(), (int)(cpu.GetAvgCpuLoad() * 100.f),
              (int)(cpu.GetMaxCpuLoad() * 100.f), chain.Satellites(),
              panel::Found() ? "pot bank and encoder bank found" : "panel incomplete",
              (unsigned long)chain.GoodScans(), (unsigned long)chain.BadScans(),
@@ -142,6 +149,11 @@ void PrintState()
              s.loading ? " so far" : "", u.playing ? "playing" : "idle",
              u.recording ? "on" : "off", (unsigned long)u.underruns, (unsigned long)u.overruns);
     Print(buf);
+    if(presets::Problems()[0])
+    {
+        Print("preset lines skipped:\r\n");
+        Print(presets::Problems());
+    }
     cpu.Reset();
 }
 
@@ -204,6 +216,8 @@ int main(void)
     cpu.Init(rate, kBlock);
 
     samples::Mount(); // lists the sounds; Step() loads them
+    if(presets::Load() > 0)
+        panel::LoadPreset(0, params);
 
     MidiUartHandler::Config midi_cfg;
     midi_cfg.transport_config.periph = UartHandler::Config::Peripheral::USART_1;
@@ -244,6 +258,7 @@ int main(void)
         {
             // The card is back, maybe with other sounds on it: load them afresh.
             loading = true;
+            presets::Load(); // maybe changed too; the sound playing stays
             if(params.sound >= samples::Sounds())
                 params.sound = 0;
             if(samples::Sounds() == 0)

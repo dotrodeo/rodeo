@@ -387,6 +387,11 @@ bool Remount()
     return have_card;
 }
 
+const char* Root()
+{
+    return fsi.GetSDPath();
+}
+
 uint8_t Drive()
 {
     return (uint8_t)(fsi.GetSDPath()[0] - '0');

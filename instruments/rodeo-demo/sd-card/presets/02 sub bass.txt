@@ -1,0 +1,13 @@
+# A short, plucky bass an octave down: square and sub, the filter snapping
+# shut, a touch of chorus.
+layer     = synth
+shape     = square + sub
+octave    = -1
+detune    = 4
+attack    = 2
+release   = 120
+cutoff    = 25
+resonance = 45
+env       = 60
+fx        = chorus
+mix       = 10

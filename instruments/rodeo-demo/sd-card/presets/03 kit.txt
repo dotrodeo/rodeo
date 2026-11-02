@@ -1,0 +1,6 @@
+# The sampler alone, playing a kit: change "sound" to the name of a folder
+# in /kits (or a WAV in /samples, without .wav). Pots left out stay live.
+layer = sampler
+sound = test
+fx    = reverb
+mix   = 15
