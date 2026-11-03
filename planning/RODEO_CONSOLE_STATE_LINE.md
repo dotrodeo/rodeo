@@ -159,3 +159,51 @@ for, and the preset and sound names the voice panel has to guess at today.
 
 Buttons for `s`, `d`, `n` and `B` come with the same Web Serial plumbing, so the
 serial commands become discoverable rather than remembered.
+
+## Addendum: five fields the line still does not carry (2026-11-03)
+
+Building the console's paired panel view — each knob beside the number it
+drives — left three rows reading *not in the state line*, because the panel
+has controls whose values `#S` does not report:
+
+| Encoder | What it drives | In the line? |
+|---|---|---|
+| E2 turn | detune | no |
+| E2 held | octave | no |
+| E3 tap | LFO on/off | no |
+| E4 turn | effects mix | no |
+| E4 tap | chorus / reverb / both | no |
+
+The console shows the parameter's name and says the value is not reported,
+rather than printing a blank that reads as zero. That is honest but it is the
+only gap left in the panel view.
+
+**Every one of these is already in `synth::Params`** (synth.h:30-48), which
+`StateLine()` has in scope — so this is five more conversions in the existing
+`snprintf`, not new plumbing:
+
+```c
+"det":%d    (int)lroundf(params.detune * 100.f)   cents, 0-50 (presets.cpp:126)
+"oct":%d    params.octave                          -2..2
+"lfo":%d    params.lfo ? 1 : 0
+"fx":%d     (int)params.fx                         0 chorus, 1 reverb, 2 both
+"mix":%d    (int)lroundf(params.fx_mix * 100.f)    percent (presets.cpp:140)
+```
+
+`fx` can go as the enum's own index: the console already mirrors that order in
+`js/preset.js`'s `FX`, which came from `presets.cpp`. No `FxName()` needed,
+though one would be no worse.
+
+Notes:
+
+- **Put them in the first `snprintf`**, before the FNV hash is taken, so a
+  change to any of them wakes the `J` stream. That happens by itself if they
+  go in the existing format string; it would not if they were appended beside
+  `cpu` and `peak`.
+- **No buffer change.** About 40 bytes on a line that is ~440 with two banks,
+  against a 4 KB buffer.
+- **The console needs nothing new to use them** beyond pointing four rows at
+  the new keys — the parse and the layout already handle a key being present.
+
+Worth doing when something else takes you into that function; not worth a trip
+on its own. The panel view is useful as it stands.
