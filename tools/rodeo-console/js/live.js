@@ -15,6 +15,8 @@ import { noteName } from './card.js';
 import { LAYERS } from './preset.js';
 import * as midi from './midi.js';
 import * as seq from './seq.js';
+import * as chain from './chain.js';
+import * as serial from './serial.js';
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, props = {}, kids = []) => {
@@ -55,6 +57,7 @@ const state = {
   pattern: seq.emptyPattern(),
   root: midi.KIT_FIRST_NOTE,
   testRunning: null, // a test pattern, not the sequencer
+  wire: { port: null, state: null, streaming: false, lines: 0, skipped: 0 },
 
 };
 
@@ -377,6 +380,27 @@ function paintTransport() {
   b.classList.toggle('on', state.t.running);
 }
 
+/**
+ * The Rodeo reports `voices` in the state line; the model only predicts it.
+ * Where both exist the Rodeo wins, and the chips stay a prediction of *which*
+ * notes are where — the part nothing reports. Separate from paint() because a
+ * state line arrives 20 times a second and only this depends on it.
+ */
+function paintCount() {
+  const next = $('live-next');
+  if (!next) return;
+  const now = performance.now();
+  const real = state.wire.state?.voices;
+  const predicted = state.voices.sounding(now);
+  const steal =
+    predicted >= midi.VOICE_COUNT
+      ? ` — next steals ${noteName(state.voices.slots[state.voices.allocate(NO_NOTE, now).index].note)}`
+      : '';
+  next.textContent = Number.isFinite(real)
+    ? `${real}/${midi.VOICE_COUNT}${steal}`
+    : `${predicted}/${midi.VOICE_COUNT} predicted${steal}`;
+}
+
 function paint() {
   const now = performance.now();
   for (const k of document.querySelectorAll('.pk')) {
@@ -406,16 +430,7 @@ function paint() {
       })
     );
   }
-  const next = $('live-next');
-  if (next) {
-    const sounding = state.voices.sounding(now);
-    next.textContent =
-      sounding < midi.VOICE_COUNT
-        ? `${sounding}/${midi.VOICE_COUNT}`
-        : `${midi.VOICE_COUNT}/${midi.VOICE_COUNT} — next steals ${noteName(
-            state.voices.slots[state.voices.allocate(NO_NOTE, now).index].note
-          )}`;
-  }
+  paintCount();
   for (const b of document.querySelectorAll('[data-pattern]'))
     b.classList.toggle('on', b.dataset.pattern === state.testRunning);
   paintGrid();
@@ -484,6 +499,23 @@ function markup() {
         <label for="live-rel" class="small dim" title="how long a released voice keeps sounding; the only guess in the voice panel">rel</label>
         <input type="number" id="live-rel" min="5" max="4000" value="300" />
       </div>
+    </div>
+
+    <div class="chain">
+      <div class="row">
+        <button id="live-serial">Connect serial</button>
+        <span class="small dim" id="live-serial-hint">the chain, live — Chrome only</span>
+        <span class="grow"></span>
+        <span class="small dim">send</span>
+        <button class="cmd" data-cmd="s" title="state, as prose for a terminal">s</button>
+        <button class="cmd" data-cmd="j" title="one state line">j</button>
+        <button class="cmd" data-cmd="J" id="live-stream" title="stream state lines, ~20/s">J</button>
+        <button class="cmd" data-cmd="d" title="disk mode — this closes the serial port">d</button>
+        <button class="cmd" data-cmd="n" title="leave disk mode without ejecting">n</button>
+        <button class="cmd" data-cmd="B" title="reboot into the DFU bootloader">B</button>
+      </div>
+      <div class="readout" id="live-readout"></div>
+      <div class="sats" id="live-sats"></div>
     </div>
 
     <div class="row live-pats" id="live-patterns">
@@ -593,6 +625,11 @@ function wire() {
   });
   addEventListener('pointerup', () => (painting = null));
 
+  $('live-serial').onclick = connectSerial;
+  $('live-serial').disabled = !serial.supported();
+  for (const b of document.querySelectorAll('.cmd')) b.onclick = () => cmd(b.dataset.cmd);
+  renderSerial();
+
   const pats = $('live-patterns');
   for (const p of midi.PATTERNS) {
     pats.append(
@@ -643,6 +680,221 @@ function shift(by) {
   state.base = next;
   renderKeyboard();
   paint();
+}
+
+// --------------------------------------------------------------- the chain
+//
+// Web Serial, reading the `#S` line the firmware emits (main.cpp's
+// StateLine()). The line also carries two things the page was previously
+// guessing at — the layer and the release time — so once the port is open
+// those controls stop being inputs and start being readouts.
+
+async function connectSerial() {
+  if (state.wire.port) return state.wire.port.close();
+  const port = new serial.Port({ onLine, onClose: onSerialClose });
+  try {
+    await port.connect();
+  } catch (e) {
+    if (e.name !== 'AbortError') state.toast(`could not open the port: ${e.message}`, true);
+    return;
+  }
+  state.wire.port = port;
+  state.wire.lines = 0;
+  state.wire.skipped = 0;
+  // `J` toggles, and the firmware clears it when the port closes, so a freshly
+  // opened port is never streaming.
+  state.wire.streaming = false;
+  cmd('J');
+  renderSerial();
+}
+
+function cmd(c) {
+  if (!state.wire.port) return;
+  if (c === 'J') state.wire.streaming = !state.wire.streaming;
+  if (c === 'd') state.toast('disk mode — the serial port will close as the Rodeo re-enumerates');
+  state.wire.port.write(c);
+  renderSerial();
+}
+
+function onLine(line) {
+  const next = chain.parseStateLine(line);
+  if (!next) {
+    // Prose, the greeting, or a line the firmware gave up on halfway. All
+    // three are normal; none of them is state.
+    if (line.startsWith(chain.PREFIX)) state.wire.skipped++;
+    return;
+  }
+  state.wire.lines++;
+  state.wire.state = next;
+  adoptFromRodeo(next);
+  renderSerial(); // the line count, and the controls the Rodeo has taken over
+  renderReadout();
+  renderSats();
+  paintCount();
+}
+
+/** What the Rodeo tells us beats what the page was told to assume. */
+function adoptFromRodeo(st) {
+  if (typeof st.layer === 'string' && LAYERS.includes(st.layer) && st.layer !== state.layer) {
+    state.layer = st.layer;
+    const sel = $('live-layer');
+    if (sel) sel.value = st.layer;
+    renderKeyboard();
+  }
+  if (Number.isFinite(st.rel) && st.rel !== state.voices.release) {
+    state.voices.release = st.rel;
+    const rel = $('live-rel');
+    if (rel) rel.value = String(st.rel);
+  }
+}
+
+function onSerialClose(why) {
+  state.wire.port = null;
+  state.wire.streaming = false;
+  state.wire.state = null;
+  if (why) state.toast(why);
+  renderSerial();
+  renderReadout();
+  renderSats();
+}
+
+function renderSerial() {
+  const b = $('live-serial');
+  if (!b) return;
+  const on = !!state.wire.port;
+  b.textContent = on ? 'Disconnect' : 'Connect serial';
+  b.classList.toggle('on', false);
+  $('live-stream')?.classList.toggle('on', state.wire.streaming);
+  for (const c of document.querySelectorAll('.cmd')) c.disabled = !on;
+  // The Rodeo is the authority on these two once it is talking.
+  const owned = on && !!state.wire.state;
+  for (const [id, own] of [
+    ['live-layer', 'what the Rodeo is set to — the page cannot read it'],
+    ['live-rel', 'how long a released voice keeps sounding; the only guess in the voice panel'],
+  ]) {
+    const e = $(id);
+    if (!e) continue;
+    e.disabled = owned;
+    e.title = owned ? 'read from the Rodeo' : own;
+  }
+  const hint = $('live-serial-hint');
+  if (!hint) return;
+  if (!serial.supported()) hint.textContent = 'this browser has no Web Serial — Chrome or Edge';
+  else if (!on) hint.textContent = 'the chain, live';
+  else if (!state.wire.lines) hint.textContent = 'open — press j or J';
+  else
+    hint.textContent =
+      `${state.wire.streaming ? 'streaming' : 'open'} · ${state.wire.lines} ` +
+      `line${state.wire.lines === 1 ? '' : 's'}` +
+      (state.wire.skipped ? `, ${state.wire.skipped} truncated` : '');
+}
+
+function renderReadout() {
+  const box = $('live-readout');
+  if (!box) return;
+  const st = state.wire.state;
+  if (!st) return box.replaceChildren();
+  const card = { 0: 'no card', 1: 'card mounted', 2: 'card is the computer\u2019s' }[st.card] ?? '?';
+  const c = st.chain ?? {};
+  const health = chain.scanHealth(c);
+  const chips = [
+    [st.preset >= 0 ? `preset ${st.preset + 1}` : 'no preset', st.name || ''],
+    ['layer', st.layer],
+    ['shape', st.shape],
+    ['sound', `${st.sound + 1} of ${st.nsounds}`],
+    ['cutoff', `${st.cut}%`],
+    ['res', `${st.res}%`],
+    ['env', `${st.env}%`],
+    ['attack', `${st.atk} ms`],
+    ['release', `${st.rel} ms`],
+    ['cpu', `${st.cpu}% (peak ${st.peak}%)`],
+    ['card', card],
+    ['loaded', `${st.loaded} of ${st.samples}${st.skipped ? `, ${st.skipped} skipped` : ''}`],
+    ['chain', chain.CHAIN_STATES[c.state] ?? c.state],
+    ['scans', health === null ? 'none yet' : `${health.toFixed(health > 99.9 ? 2 : 1)}% good`],
+  ];
+  box.replaceChildren(
+    ...chips.map(([k, v]) =>
+      el('span', { className: 'chip' }, [
+        el('b', { textContent: k }),
+        el('span', { textContent: String(v) }),
+      ])
+    )
+  );
+}
+
+function renderSats() {
+  const box = $('live-sats');
+  if (!box) return;
+  const c = state.wire.state?.chain;
+  if (!c) return box.replaceChildren();
+  if (c.error) return box.replaceChildren(el('p', { className: 'bad', textContent: c.error }));
+  const list = Array.isArray(c.s) ? c.s : [];
+  const kids = list.map((sat, i) => satCard(sat, i));
+  const broken = chain.breakAfter(c);
+  if (broken !== null)
+    kids.push(
+      el('div', { className: 'sat broken' }, [
+        el('div', { className: 'sat-head', textContent: 'break' }),
+        el('div', {
+          className: 'small',
+          textContent: `the ring does not close after ${broken} satellite${broken === 1 ? '' : 's'}`,
+        }),
+      ])
+    );
+  if (!kids.length)
+    kids.push(el('p', { className: 'small dim', textContent: 'no satellites on the chain' }));
+  box.replaceChildren(...kids);
+}
+
+function satCard(sat, i) {
+  const head = el('div', { className: 'sat-head' }, [
+    el('span', { textContent: `${i + 1}. ${chain.kindName(sat.kind)}` }),
+    el('span', { className: 'small dim', textContent: `fw ${sat.fw}` }),
+  ]);
+  const card = el('div', { className: 'sat' }, [head]);
+  if (!chain.kindSupported(sat.kind))
+    card.append(
+      el('div', { className: 'small bad', textContent: 'the stock satellite firmware does not run this kind' })
+    );
+  for (const slot of chain.slots(sat)) card.append(slotRow(slot));
+  return card;
+}
+
+function slotRow(slot) {
+  const label = el('span', { className: 'slot-n', textContent: String(slot.index + 1) });
+  if (slot.type === 'fault')
+    return el('div', { className: 'slot bad' }, [
+      label,
+      el('span', { textContent: chain.faultText(slot.fault) }),
+    ]);
+  if (slot.type === 'pot') {
+    const pct = chain.potPercent(slot.value);
+    return el('div', { className: 'slot' }, [
+      label,
+      el('div', { className: 'meter' }, [el('span', { style: `width:${pct}%` })]),
+      el('span', { className: 'slot-v', textContent: `${pct.toFixed(1)}%` }),
+    ]);
+  }
+  if (slot.type === 'encoder')
+    return el('div', { className: `slot${slot.pressed ? ' pressed' : ''}` }, [
+      label,
+      el('span', { className: 'slot-v wide', textContent: `${slot.value > 0 ? '+' : ''}${slot.value}` }),
+      el('span', { className: 'dot' }),
+    ]);
+  if (slot.type === 'button')
+    return el('div', { className: `slot${slot.value ? ' pressed' : ''}` }, [
+      label,
+      el('span', { className: 'dot big' }),
+    ]);
+  if (slot.type === 'switch')
+    return el('div', { className: 'slot' }, [
+      label,
+      el('span', { className: 'slot-v', textContent: `position ${slot.value}` }),
+    ]);
+  // An unknown or custom board: the line cannot say what its slots are, so
+  // show the number rather than draw it as something it might not be.
+  return el('div', { className: 'slot' }, [label, el('span', { className: 'slot-v', textContent: String(slot.value) })]);
 }
 
 // ------------------------------------------------------------- test patterns
@@ -736,6 +988,7 @@ export function mount(container, { library = null, toast = () => {} } = {}) {
 
 export function unmount() {
   panic();
+  state.wire.port?.close();
   clearInterval(state.tick);
   state.tick = null;
   removeEventListener('keydown', onKeyDown);

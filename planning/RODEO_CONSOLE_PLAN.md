@@ -1,7 +1,7 @@
 ---
 title: "rodeo-console — plan"
 tags: [rodeo, tooling, web, usb, midi, serial, samples]
-status: card mode and the MIDI keyboard built; chain monitor waiting on firmware
+status: phases 1 and 2 built; phase 3 open
 created: 2026-11-02
 updated: 2026-11-02
 ---
@@ -188,10 +188,18 @@ running, with CRC and progress. Until then disk mode is genuinely fine.
 the validator, the pool meter. No firmware change, no serial, no MIDI. This is
 most of the value and all of the reusable code.
 
-**Phase 2 — live mode. Half done.** The Web MIDI keyboard is in, and it needed no
-firmware: notes, velocity, bend, CC 64, CC 123, test patterns, and a voice panel
-that re-implements `Allocate()` so the page can say which note the ninth should
-have stolen. The chain monitor is the remaining half and waits on `#S`.
+**Phase 2 — live mode. Done**, after the firmware landed `j` and `J` on
+2026-11-02 (`627d631`).
+
+The chain view reads the `#S` line over Web Serial: satellites in ring order,
+every slot live, breaks drawn where they are. The line also retired two of the
+page's own guesses — it was asking which layer the Rodeo was in, and assuming a
+release time for the voice model, and now reads both.
+
+The keyboard before it needed no firmware either: notes, velocity, bend, CC 64,
+CC 123, test patterns, a sequencer and an arp, and a voice panel that
+re-implements `Allocate()` so the page can say which note the ninth should have
+stolen.
 
 Three things the keyboard turned up, all in the firmware's favour and all now
 said out loud on the page rather than left to surprise someone:
@@ -204,7 +212,8 @@ said out loud on the page rather than left to surprise someone:
   only until some other note claims that idle slot, which the free scan does from
   slot 0 upward.
 - **In sampler layer a key with no sample allocates nothing**, so it cannot steal
-  a voice either. The page has to be told the layer; it cannot read it.
+  a voice either. The page had to be told the layer; the `#S` line has since
+  made that one moot.
 
 **Phase 3 — if it goes to backers.** Cross-browser fallbacks, a demo mode with no
 hardware attached, hosting under `web/public/console/`, and the honesty rules that

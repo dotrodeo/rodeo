@@ -745,3 +745,146 @@ test('a gate is never longer than its step, nor too short to sound', () => {
   assert.equal(gateMs(20, 0.05), 15, 'and never so short the envelope cannot open');
   assert.equal(gateMs(1000, 0.001), 50, 'the floor is a fraction, then a minimum');
 });
+
+// --------------------------------------------------- the `#S` line, read
+//
+// Built from instruments/rodeo-demo/firmware/src/state_line.cpp and main.cpp's
+// StateLine(). The lines below are the shape that code emits; when the firmware
+// changes the line, these are what should fail.
+
+import {
+  CHAIN_STATES,
+  FAULTS,
+  breakAfter,
+  faultText,
+  kindInput,
+  kindName,
+  kindSlots,
+  kindSupported,
+  parseStateLine,
+  potPercent,
+  scanHealth,
+  slots,
+  takeLines,
+} from './js/chain.js';
+
+const LINE =
+  '#S {"preset":2,"name":"bass","layer":"both","shape":"saw","sound":1,"nsounds":18,' +
+  '"cut":41,"res":12,"env":60,"atk":8,"rel":220,"voices":3,"card":1,"loaded":18,' +
+  '"samples":18,"skipped":0,"kb":31204,"loadms":25140,' +
+  '"chain":{"state":"scan","sats":2,"broken":-1,"panel":1,"s":[' +
+  '{"kind":5,"fw":"1.0","in":[412,900,77,512]},' +
+  '{"kind":6,"fw":"1.0","in":[3,-1,0,0],"btn":[0,1,0,0]}],' +
+  '"good":24581,"bad":0},"cpu":34,"peak":51}';
+
+test('a whole state line parses to the firmware’s own numbers', () => {
+  const st = parseStateLine(LINE);
+  assert.equal(st.preset, 2, '0-based, unlike the prose which prints preset + 1');
+  assert.equal(st.name, 'bass');
+  assert.equal(st.rel, 220);
+  assert.equal(st.chain.sats, 2);
+  assert.equal(st.chain.s.length, 2);
+  assert.equal(st.cpu, 34, 'cpu and peak come last, after the chain closes');
+});
+
+test('anything that is not a whole state line is skipped, not guessed at', () => {
+  // The firmware gives up on a line if the computer stops reading for 50 ms
+  // (main.cpp:165). Half a line must never become half a screen of numbers.
+  assert.equal(parseStateLine(LINE.slice(0, 180)), null, 'a truncated line');
+  assert.equal(parseStateLine('rodeo-demo. s = state, d = disk mode'), null, 'the greeting');
+  assert.equal(parseStateLine('chain: 2 satellites, pot bank and encoder bank found'), null);
+  assert.equal(parseStateLine('#S not json at all'), null);
+  assert.equal(parseStateLine('#S [1,2,3]'), null, 'valid JSON, wrong shape');
+  assert.equal(parseStateLine('#S null'), null);
+  assert.equal(parseStateLine(''), null);
+  assert.equal(parseStateLine(undefined), null);
+  assert.equal(parseStateLine(` ${LINE}`), null, 'the prefix is at the start or it is not state');
+});
+
+test('a read can split a line anywhere, and does', () => {
+  // USB CDC hands over whatever happened to be in the buffer.
+  let buffer = '';
+  const got = [];
+  for (const chunk of ['#S {"a":1}\r\n#S {"b', '":2}\r\nrodeo-demo\r\n#S {"c":3}']) {
+    buffer += chunk;
+    const { lines, rest } = takeLines(buffer);
+    buffer = rest;
+    got.push(...lines);
+  }
+  assert.deepEqual(got, ['#S {"a":1}', '#S {"b":2}', 'rodeo-demo']);
+  assert.equal(buffer, '#S {"c":3}', 'the unfinished line is kept for the next read');
+  assert.deepEqual(parseStateLine(got[1]), { b: 2 });
+});
+
+test('board kinds match sat_frame.h', () => {
+  assert.equal(kindName(5), 'pot bank');
+  assert.equal(kindName(6), 'encoder bank');
+  assert.equal(kindName(7), 'button bank');
+  assert.equal(kindName(15), 'no ID fitted');
+  assert.equal(kindName(9), 'kind 9', 'a kind kept for later is named, not invented');
+  // Only the three banks have four slots.
+  for (const k of [5, 6, 7]) assert.equal(kindSlots(k), 4, `kind ${k}`);
+  for (const k of [0, 1, 2, 3, 4, 14, 15]) assert.equal(kindSlots(k), 1, `kind ${k}`);
+  assert.equal(kindInput(1), 'pot');
+  assert.equal(kindInput(5), 'pot');
+  assert.equal(kindInput(6), 'encoder');
+  assert.equal(kindInput(7), 'button');
+  assert.equal(kindInput(4), 'switch');
+  assert.equal(kindInput(14), null, 'a custom board declares its own slots; the line cannot say');
+  assert.equal(kindSupported(7), true);
+  assert.equal(kindSupported(14), false, 'custom boards bring their own firmware');
+  assert.equal(kindSupported(15), true);
+});
+
+test('slots are drawn by what the board actually is', () => {
+  const st = parseStateLine(LINE);
+  const pots = slots(st.chain.s[0]);
+  assert.equal(pots.length, 4);
+  assert.ok(pots.every((s) => s.type === 'pot'));
+  assert.equal(potPercent(pots[1].value), 90);
+  assert.equal(potPercent(0), 0);
+  assert.equal(potPercent(1000), 100);
+
+  const encs = slots(st.chain.s[1]);
+  assert.ok(encs.every((s) => s.type === 'encoder'));
+  assert.equal(encs[0].value, 3, 'a running detent total, which can go either way');
+  assert.equal(encs[1].value, -1);
+  assert.equal(encs[1].pressed, true, 'btn[] is how an encoder reports its push switch');
+  assert.equal(encs[0].pressed, false);
+
+  // A button bank has no btn[]: its presses are already in in[].
+  const buttons = slots({ kind: 7, in: [0, 1, 0, 0] });
+  assert.ok(buttons.every((s) => s.type === 'button'));
+  assert.equal(buttons[1].pressed, true);
+  // A custom board's numbers are shown as numbers.
+  assert.equal(slots({ kind: 14, in: [7] })[0].type, null);
+  assert.deepEqual(slots({}), [], 'a satellite with no in[] draws nothing, and does not throw');
+});
+
+test('a faulted slot outranks whatever its board kind would draw', () => {
+  const sat = { kind: 5, in: [500, 0, 0, 0], fault: [null, [1, 47], null, [2, 9]] };
+  const got = slots(sat);
+  assert.equal(got[0].type, 'pot', 'the slots that are fine still draw as pots');
+  assert.equal(got[1].type, 'fault');
+  assert.equal(got[3].type, 'fault');
+  assert.match(faultText([1, 47]), /between two kinds/);
+  assert.match(faultText([1, 47]), /4\.7/, 'code 1 carries the reading as kind x 10');
+  assert.match(faultText([2, 9]), /kind 9/, 'code 2 carries the kind');
+  assert.equal(faultText([3]), FAULTS[3]);
+  assert.match(faultText([99]), /fault 99/, 'an unknown code is reported, not swallowed');
+});
+
+test('a broken ring is reported as a place, not a boolean', () => {
+  assert.equal(breakAfter({ broken: -1 }), null);
+  assert.equal(breakAfter({ broken: 0 }), 0, 'broken before the first satellite is still a break');
+  assert.equal(breakAfter({ broken: 2 }), 2);
+  assert.equal(breakAfter(undefined), null);
+  assert.ok(CHAIN_STATES.partial && CHAIN_STATES.scan && CHAIN_STATES.version);
+});
+
+test('scan health says nothing before any scans have run', () => {
+  assert.equal(scanHealth({ good: 0, bad: 0 }), null, 'not 0%, which would read as broken');
+  assert.equal(scanHealth({}), null);
+  assert.equal(scanHealth({ good: 24581, bad: 0 }), 100);
+  assert.equal(scanHealth({ good: 3, bad: 1 }), 75);
+});

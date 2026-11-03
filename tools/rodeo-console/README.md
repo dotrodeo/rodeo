@@ -5,7 +5,7 @@ SD card: drop in audio of any format, lay a kit out across the keys, edit
 presets as a form, and find out what the firmware would quietly skip.
 **Live mode** plays the board over USB-MIDI.
 
-Phase 1 and the first half of phase 2 of
+Phases 1 and 2 of
 [`planning/RODEO_CONSOLE_PLAN.md`](../../planning/RODEO_CONSOLE_PLAN.md).
 A bench tool, not a product: Chrome or Edge, no build step, no dependencies.
 
@@ -138,11 +138,35 @@ deliberately planted bug: the sort test needs a non-ASCII name to tell
 `strcasecmp` from `localeCompare`, and the pool test has to state 25,165,824
 outright rather than derive it from the constant it is checking.
 
+### The chain
+
+**Connect serial** opens the Rodeo's CDC port and sends `J`, and the firmware
+streams its `#S` state line about twenty times a second while anything is
+moving. The page draws the satellites in ring order with every slot live —
+pots as meters, encoders as running detent totals, buttons and switches as
+they are — plus the preset, the sound, the filter, the card and the scan
+counts. A broken ring is drawn as a break, after the satellite it follows.
+
+The buttons beside it are the serial commands: `s` for prose, `j` for one
+line, `J` to toggle the stream, `d` for disk mode (which closes the port —
+that is the firmware re-enumerating, not a fault), `n` to leave it, and `B`
+to reboot into the bootloader.
+
+`js/chain.js` parses the line and is a copy of two things, both authoritative:
+the line's shape from the firmware's `state_line.cpp`, and the board kinds
+from `rodeo-sdk/common/sat_frame.h`. **A line that does not parse is skipped,
+never guessed at** — the firmware abandons a line if the computer stops
+reading for 50 ms, so truncated lines are normal, and half a line of JSON must
+not become half a screen of wrong numbers.
+
+Two things change once the port is open. The **layer** and **release**
+controls stop being inputs and become readouts, because the line carries both
+and the page was previously asking you to tell it. And the voice count becomes
+the Rodeo's own, rather than the model's prediction — the chips keep
+predicting *which* notes are on which voice, since nothing reports that.
+
 ## Not here yet
 
-The chain monitor — four pots and four encoders moving as they are turned —
-is the other half of live mode, and it waits on a machine-readable state line
-from the firmware. `PrintState()` emits prose for a human terminal today, and
-a monitor that screen-scrapes it breaks the first time a sentence is reworded.
-The plan says what the `#S` line would look like. The serial buttons (`s`,
-`d`, `n`, `B`) wait on the same Web Serial plumbing.
+Nothing in the plan. Phase 3 is the question of whether this goes to backers,
+which is cross-browser fallbacks, hosting under `web/public/console/`, and the
+honesty rules that apply to the rest of that domain.
