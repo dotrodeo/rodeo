@@ -192,18 +192,53 @@ export const PANEL_POTS = [
   { name: 'release', key: 'rel', unit: 'ms', toPot: potForRelease },
 ];
 
+/** `enum class Fx` order (synth.h:28), which `fx` in the line is an index into. */
+export const FX_NAMES = ['chorus', 'reverb', 'both'];
+
 /**
  * Encoders 1-4 (panel.h:8-12). They send detents, not positions, so there is
- * nothing to compare — only the parameter each one is turning. `key: null`
- * means the `#S` line does not carry that value, which the page says rather
- * than leaving a blank that looks like zero.
+ * nothing to compare — only the parameter each one turns, what its tap does,
+ * and what it does held. All three are in the line since 807d9b8 added
+ * `det`, `oct`, `lfo`, `fx` and `mix`.
  */
 export const PANEL_ENCODERS = [
-  { name: 'shape', key: 'shape', sampler: 'sound', tap: 'layer', held: 'preset' },
-  { name: 'detune', key: null, tap: 'detune and octave back', held: 'octave' },
-  { name: 'attack', key: 'atk', unit: 'ms', tap: 'LFO on/off' },
-  { name: 'effects mix', key: null, tap: 'chorus / reverb / both' },
+  { name: 'shape', key: 'shape', sampler: 'sound', tap: 'layer', tapKey: 'layer' },
+  { name: 'detune', key: 'det', unit: ' cents', tap: 'detune and octave back', held: 'octave', heldKey: 'oct' },
+  { name: 'attack', key: 'atk', unit: ' ms', tap: 'LFO on/off', tapKey: 'lfo' },
+  { name: 'effects mix', key: 'mix', unit: '%', tap: 'chorus / reverb / both', tapKey: 'fx' },
 ];
+
+/**
+ * One encoder row's text: what it is turning, and what its tap or hold last
+ * set. A key the line does not carry reads as "not reported" rather than a
+ * blank, which would look like zero.
+ */
+export function encoderReadout(spec, st, sampler = false) {
+  const name = sampler && spec.sampler ? spec.sampler : spec.name;
+  const key = sampler && spec.sampler ? spec.sampler : spec.key;
+  const of = (k) => (st && st[k] !== undefined && st[k] !== null ? st[k] : null);
+
+  let value;
+  if (key === 'sound') {
+    const n = of('sound');
+    value = n === null ? 'not reported' : `${n + 1} of ${of('nsounds') ?? '?'}`;
+  } else if (!key || of(key) === null) {
+    value = 'not reported';
+  } else {
+    value = `${of(key)}${spec.unit ?? ''}`;
+  }
+
+  const parts = [];
+  if (spec.heldKey && of(spec.heldKey) !== null) {
+    const oct = of(spec.heldKey);
+    parts.push(`octave ${oct > 0 ? `+${oct}` : oct}`);
+  }
+  if (spec.tapKey === 'lfo' && of('lfo') !== null) parts.push(`LFO ${of('lfo') ? 'on' : 'off'}`);
+  else if (spec.tapKey === 'fx' && of('fx') !== null) parts.push(FX_NAMES[of('fx')] ?? `fx ${of('fx')}`);
+  else if (spec.tapKey === 'layer' && of('layer') !== null) parts.push(String(of('layer')));
+
+  return { name, value, extra: parts.join(' · '), reported: value !== 'not reported' };
+}
 
 /** How far a pot must move to take its parameter back (panel.cpp:40). */
 export const TAKEOVER = 0.02;

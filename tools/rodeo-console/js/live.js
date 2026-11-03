@@ -932,20 +932,14 @@ function encBankCard(sat, i, st) {
     const spec = chain.PANEL_ENCODERS[n];
     if (slot.type === 'fault' || !spec) return card.append(faultRow(slot, `E${n + 1}`));
     // E1 turns the shape in synth layer and picks the sound in sampler.
-    const sampler = st?.layer === 'sampler';
-    const key = sampler && spec.sampler ? spec.sampler : spec.key;
-    const name = sampler && spec.sampler ? spec.sampler : spec.name;
-    let value = '—';
-    if (key === 'sound') value = `${(st?.sound ?? 0) + 1} of ${st?.nsounds ?? 0}`;
-    else if (key && st?.[key] !== undefined) value = `${st[key]}${spec.unit ? ` ${spec.unit}` : ''}`;
+    const read = chain.encoderReadout(spec, st, st?.layer === 'sampler');
     const turn = state.wire.turn[n] ?? 0;
     card.append(
-      el('span', { className: 'cell-name', textContent: `E${n + 1} ${name}` }),
-      el('span', {
-        className: key ? 'cell-value' : 'cell-value absent',
-        textContent: key ? value : 'not in the state line',
-        title: key ? '' : 'A real control, but the #S line does not carry its value',
-      }),
+      el('span', { className: 'cell-name', textContent: `E${n + 1} ${read.name}` }),
+      el('span', { className: read.reported ? 'cell-value' : 'cell-value absent' }, [
+        el('span', { textContent: read.value }),
+        read.extra ? el('span', { className: 'cell-extra', textContent: read.extra }) : '',
+      ]),
       el('span', {
         className: `cell-turn${turn ? ' on' : ''}`,
         textContent: turn ? `${turn > 0 ? '▲' : '▼'} ${Math.abs(turn)}` : '',

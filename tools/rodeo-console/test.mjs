@@ -711,9 +711,11 @@ import {
   kindSlots,
   kindSupported,
   parseStateLine,
+  FX_NAMES,
   PANEL_ENCODERS,
   PANEL_POTS,
   TAKEOVER,
+  encoderReadout,
   panelBanks,
   potForRelease,
   potHeld,
@@ -888,11 +890,46 @@ test('every panel control names the parameter it drives', () => {
   assert.equal(PANEL_ENCODERS.length, 4);
   assert.deepEqual(PANEL_POTS.map((p) => p.key), ['cut', 'res', 'env', 'rel']);
   assert.equal(PANEL_ENCODERS[0].sampler, 'sound', 'E1 picks the sound in sampler layer');
-  assert.equal(PANEL_ENCODERS[2].key, 'atk');
-  // E2 (detune/octave) and E4 (effects mix) are real controls whose values the
-  // `#S` line does not carry. Null says so, so the page can print that rather
-  // than a blank that reads as zero.
-  assert.equal(PANEL_ENCODERS[1].key, null);
-  assert.equal(PANEL_ENCODERS[3].key, null);
+  // E2's detune and E4's effects mix used to be missing from the line; the
+  // firmware added det/oct/lfo/fx/mix in 807d9b8, so every control now
+  // reports. This test asserted the opposite until then.
+  assert.deepEqual(PANEL_ENCODERS.map((e) => e.key), ['shape', 'det', 'atk', 'mix']);
   assert.ok(PANEL_ENCODERS.every((e) => e.tap), 'and each says what a tap does');
+  // The index in `fx` is the enum's own order (synth.h:28), the same order
+  // presets.cpp parses the words in — which is where preset.js's FX came from.
+  assert.deepEqual(FX_NAMES, ['chorus', 'reverb', 'both']);
+});
+
+test('an encoder row reads out what it turns and what its tap set', () => {
+  const st = { shape: 'saw', layer: 'both', det: 8, oct: -1, atk: 5, lfo: 1, mix: 25, fx: 2,
+               sound: 1, nsounds: 4 };
+  const [e1, e2, e3, e4] = PANEL_ENCODERS.map((spec) => encoderReadout(spec, st));
+  assert.deepEqual([e1.name, e1.value, e1.extra], ['shape', 'saw', 'both']);
+  assert.deepEqual([e2.name, e2.value, e2.extra], ['detune', '8 cents', 'octave -1']);
+  assert.deepEqual([e3.name, e3.value, e3.extra], ['attack', '5 ms', 'LFO on']);
+  assert.deepEqual([e4.name, e4.value, e4.extra], ['effects mix', '25%', 'both']);
+  assert.equal(encoderReadout(PANEL_ENCODERS[2], { ...st, lfo: 0 }).extra, 'LFO off');
+  assert.equal(encoderReadout(PANEL_ENCODERS[3], { ...st, fx: 0 }).extra, 'chorus');
+  assert.equal(encoderReadout(PANEL_ENCODERS[1], { ...st, oct: 2 }).extra, 'octave +2');
+  // In sampler layer E1 picks the sound instead of the shape.
+  const sampled = encoderReadout(PANEL_ENCODERS[0], st, true);
+  assert.deepEqual([sampled.name, sampled.value], ['sound', '2 of 4']);
+});
+
+test('a value the line does not carry reads as absent, never as zero', () => {
+  // An older firmware, or a field dropped from the line later: the row must
+  // not print a blank, which looks exactly like a parameter set to nothing.
+  const old = { shape: 'saw', layer: 'both', atk: 5 };
+  const [, e2, e3, e4] = PANEL_ENCODERS.map((spec) => encoderReadout(spec, old));
+  assert.equal(e2.value, 'not reported');
+  assert.equal(e2.reported, false);
+  assert.equal(e2.extra, '', 'and no octave either');
+  assert.equal(e3.value, '5 ms', 'what it does have still reads');
+  assert.equal(e3.extra, '', 'but its LFO does not');
+  assert.equal(e4.value, 'not reported');
+  assert.equal(encoderReadout(PANEL_ENCODERS[1], {}).value, 'not reported');
+  assert.equal(encoderReadout(PANEL_ENCODERS[1], undefined).value, 'not reported');
+  // Zero is a value, not an absence.
+  assert.equal(encoderReadout(PANEL_ENCODERS[1], { det: 0, oct: 0 }).value, '0 cents');
+  assert.equal(encoderReadout(PANEL_ENCODERS[1], { det: 0, oct: 0 }).extra, 'octave 0');
 });

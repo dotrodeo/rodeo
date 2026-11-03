@@ -167,10 +167,11 @@ state — so the totals are differenced between lines. It clears itself: the
 firmware keeps streaming for a second after everything stops, and those last
 lines carry a delta of zero.
 
-Two encoders drive values the state line does not carry — E2's detune and
-octave, E4's effects mix — so those rows say *not in the state line* rather
-than showing a blank that reads as zero. Adding them to `#S` is a small
-firmware change if it is ever worth it.
+Each encoder row also shows what its tap or hold last set: E1's layer, E2's
+octave, E3's LFO, E4's chorus/reverb/both. Those were missing from `#S` until
+the firmware added `det`, `oct`, `lfo`, `fx` and `mix`; a value the line does
+not carry still reads *not reported* rather than a blank, which would look
+exactly like a parameter set to zero.
 
 The buttons say what they do rather than which letter they send (the letter is
 in the tooltip): stream readings, read once, log full state, hand the card to

@@ -389,6 +389,8 @@ button.cmd { font-size: 11px; padding: 4px 9px; }
 .cell-name { color: var(--gray); }
 .cell-value { color: var(--legend); font-variant-numeric: tabular-nums; }
 .cell-value.absent { color: var(--gray); font-size: 10px; }
+/* What the encoder's tap or hold last set, beside what it turns. */
+.cell-extra { color: var(--gray); font-size: 10px; margin-left: 8px; }
 .cell-knob { color: var(--gray); font-variant-numeric: tabular-nums; text-align: right; }
 .cell-note { font-size: 10px; color: var(--red); white-space: nowrap; }
 

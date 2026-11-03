@@ -211,3 +211,9 @@ Notes:
 
 Worth doing when something else takes you into that function; not worth a trip
 on its own. The panel view is useful as it stands.
+
+### Done (2026-11-03)
+
+In as `det`, `oct`, `lfo`, `fx`, `mix`, in the first `snprintf` so the stream
+wakes on them. The console reads all five; no panel row says *not reported* any
+more. `fx` goes as the enum index and `js/chain.js`'s `FX_NAMES` mirrors it.
