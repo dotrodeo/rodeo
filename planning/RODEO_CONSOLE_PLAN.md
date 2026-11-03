@@ -134,6 +134,11 @@ up. It can also estimate the load wait, since the card reads at about 1.24 MB/s
 
 Serial open, card is Rodeo's.
 
+- **A sequencer and an arpeggiator**, both on one transport, in `js/seq.js`.
+  Not a copy of anything in the firmware — Rodeo has neither — so the only
+  firmware fact they respect is that the ninth note steals. Added because a
+  bench tool you have to play by hand is a bench tool you stop using.
+
 - **An on-screen keyboard and a test pattern** over Web MIDI. Rodeo already
   enumerates as USB-MIDI (bring-up 08), so this needs no firmware at all: notes,
   velocity, a held chord, a scale sweep for checking voice stealing across the

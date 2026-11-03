@@ -611,3 +611,137 @@ test('the bend sweep returns the wheel to centre', () => {
     assert.ok(value >= -BEND_SEMITONES && value <= BEND_SEMITONES, value);
   }
 });
+
+// ---------------------------------------------------- the clock and the arp
+//
+// Unlike everything above, js/seq.js is a copy of nothing: Rodeo has no
+// sequencer and no arpeggiator. So these check the arithmetic against music,
+// not against the firmware — the one firmware fact that reaches here is that
+// the ninth note steals, which is tested above.
+
+import {
+  ARP_MODES,
+  BPM_MAX,
+  BPM_MIN,
+  DIVISIONS,
+  ROWS,
+  STEPS,
+  SWING_MAX,
+  arpSequence,
+  emptyPattern,
+  gateMs,
+  hasSteps,
+  pickStep,
+  rowNote,
+  stepMs,
+  stepNotes,
+  stepTime,
+  swingOffset,
+} from './js/seq.js';
+
+test('a step is as long as the tempo says', () => {
+  const by = (id) => DIVISIONS.find((d) => d.id === id).beats;
+  assert.equal(stepMs(120, by('1/4')), 500);
+  assert.equal(stepMs(120, by('1/8')), 250);
+  assert.equal(stepMs(120, by('1/16')), 125);
+  assert.equal(stepMs(60, by('1/16')), 250);
+  // Triplets: three in the space of the next division up. Three eighth-note
+  // triplets fill one quarter, not two — which is what the first version of
+  // this test asserted, and the reason it is spelled out both ways here.
+  assert.ok(Math.abs(stepMs(120, by('1/8T')) * 3 - stepMs(120, by('1/4'))) < 1e-9);
+  assert.ok(Math.abs(stepMs(120, by('1/16T')) * 3 - stepMs(120, by('1/8'))) < 1e-9);
+  assert.ok(stepMs(120, by('1/8T')) < stepMs(120, by('1/8')), 'a triplet is the shorter step');
+  assert.equal(stepMs(10, by('1/4')), stepMs(BPM_MIN, by('1/4')), 'clamped, not divided by nonsense');
+  assert.equal(stepMs(10_000, by('1/4')), stepMs(BPM_MAX, by('1/4')));
+});
+
+test('swing delays the off-beats and nothing else', () => {
+  assert.equal(swingOffset(0, 100, 0.5), 0);
+  assert.equal(swingOffset(2, 100, 0.5), 0);
+  assert.equal(swingOffset(1, 100, 0.5), 50);
+  assert.equal(swingOffset(3, 100, 0.5), 50);
+  assert.equal(swingOffset(1, 100, 0), 0, 'no swing is an even grid');
+  // However hard it is pushed, a swung step must still land before the next.
+  assert.ok(swingOffset(1, 100, 99) < 100);
+  assert.equal(swingOffset(1, 100, 99), 100 * SWING_MAX);
+});
+
+test('swing shifts a step without the grid drifting', () => {
+  const ms = 125;
+  const at = (i) => stepTime(1000, i, ms, 0.5);
+  assert.equal(at(0), 1000);
+  assert.equal(at(1), 1000 + 125 + 62.5);
+  assert.equal(at(2), 1250, 'back on the grid, not 1312.5');
+  assert.equal(at(16), 1000 + 16 * ms, 'sixteen steps later is exactly a bar');
+  for (let i = 1; i < 32; i++) assert.ok(at(i) > at(i - 1), `step ${i} must come after ${i - 1}`);
+});
+
+test('the arp climbs, falls, and does not stutter at the top', () => {
+  const triad = [60, 64, 67];
+  assert.deepEqual(arpSequence(triad, 'up'), [60, 64, 67]);
+  assert.deepEqual(arpSequence(triad, 'down'), [67, 64, 60]);
+  // Classic up-down: four steps from three notes, endpoints played once.
+  assert.deepEqual(arpSequence(triad, 'up-down'), [60, 64, 67, 64]);
+  assert.deepEqual(arpSequence([60, 64], 'up-down'), [60, 64], 'two notes cannot turn around');
+  assert.deepEqual(arpSequence([60], 'up-down'), [60]);
+  assert.deepEqual(arpSequence([], 'up'), []);
+  assert.deepEqual(arpSequence(triad, 'off'), [], 'off is off, whatever is held');
+});
+
+test('the arp sorts by pitch except where it should not', () => {
+  const played = [67, 60, 64]; // held in that order
+  assert.deepEqual(arpSequence(played, 'up'), [60, 64, 67]);
+  assert.deepEqual(arpSequence(played, 'as played'), [67, 60, 64]);
+  assert.deepEqual(arpSequence([60, 60, 64], 'up'), [60, 64], 'a doubled note is one note');
+});
+
+test('arp octaves stack the whole figure, in order', () => {
+  assert.deepEqual(arpSequence([60, 64], 'up', 2), [60, 64, 72, 76]);
+  assert.deepEqual(arpSequence([60, 64], 'down', 2), [76, 72, 64, 60]);
+  assert.deepEqual(arpSequence([60], 'up', 4), [60, 72, 84, 96]);
+  assert.deepEqual(arpSequence([60], 'up', 9), arpSequence([60], 'up', 4), 'clamped at four');
+  assert.deepEqual(arpSequence([60], 'up', 0), [60]);
+});
+
+test('the cycle wraps forever and random stays inside it', () => {
+  const cycle = arpSequence([60, 64, 67], 'up');
+  assert.equal(pickStep(cycle, 0, 'up'), 60);
+  assert.equal(pickStep(cycle, 3, 'up'), 60, 'step 3 wraps to the start');
+  assert.equal(pickStep(cycle, 100, 'up'), cycle[100 % 3]);
+  assert.equal(pickStep([], 0, 'up'), null, 'nothing held is silence, not a crash');
+  // Random picks from the held notes; it must never invent one.
+  for (const r of [0, 0.4, 0.99, 0.999999]) {
+    const n = pickStep(cycle, 0, 'random', () => r);
+    assert.ok(cycle.includes(n), `${r} gave ${n}`);
+  }
+  assert.ok(ARP_MODES.includes('random') && ARP_MODES[0] === 'off');
+});
+
+test('the grid reads as a piano roll, top row highest', () => {
+  assert.equal(rowNote(36, 0), 43, 'the top row is the highest note');
+  assert.equal(rowNote(36, ROWS - 1), 36, 'the bottom row is the root');
+  for (let r = 1; r < ROWS; r++) assert.ok(rowNote(36, r) < rowNote(36, r - 1));
+});
+
+test('a step sounds exactly the cells switched on in its column', () => {
+  const p = emptyPattern();
+  assert.equal(hasSteps(p), false);
+  assert.deepEqual(stepNotes(p, 0, 36), []);
+  p[ROWS - 1][0] = 1; // bottom row, first step
+  p[0][0] = 1; // top row, same step
+  p[3][5] = 1;
+  assert.equal(hasSteps(p), true);
+  assert.deepEqual(stepNotes(p, 0, 36), [43, 36], 'both notes in the column, top row first');
+  assert.deepEqual(stepNotes(p, 1, 36), []);
+  assert.deepEqual(stepNotes(p, 5, 36), [rowNote(36, 3)]);
+  assert.deepEqual(stepNotes(p, STEPS, 36), stepNotes(p, 0, 36), 'the pattern loops');
+  assert.deepEqual(stepNotes(p, 0, 48), [55, 48], 'the root transposes the lot');
+});
+
+test('a gate is never longer than its step, nor too short to sound', () => {
+  assert.equal(gateMs(100, 0.5), 50);
+  assert.equal(gateMs(100, 1), 100);
+  assert.equal(gateMs(100, 2), 100, 'a gate cannot overrun its own step');
+  assert.equal(gateMs(20, 0.05), 15, 'and never so short the envelope cannot open');
+  assert.equal(gateMs(1000, 0.001), 50, 'the floor is a fraction, then a minimum');
+});

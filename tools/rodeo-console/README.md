@@ -92,6 +92,36 @@ The test patterns each answer one question: a kit walk from C2 for checking
 which file landed on which key, a chromatic sweep, nine notes for the steal, a
 bend sweep over the full travel, and a sustain test.
 
+The page itself is kept bare — the explanations live here, not on screen, and
+most controls carry a tooltip instead of a caption.
+
+### The sequencer and the arp
+
+Both run off one transport: play (or the space bar), a tempo, a step length
+down to 1/32 and up to triplets, swing, and a gate length. `js/seq.js` holds the
+arithmetic and is tested; unlike `card.js` and `midi.js` it is a copy of
+nothing, because Rodeo has no sequencer and no arpeggiator and is not getting
+one. This is the page playing the instrument.
+
+**The sequencer** is 8 rows × 16 steps, chromatic from C2 so the rows are a
+kit's first eight keys in order. Click a cell, or drag across to draw a line.
+`−`/`+` move the whole pattern an octave.
+
+**The arp** takes whatever is held on the keyboard: up, down, up-down, as
+played, or random, over one to four octaves. Up-down plays its endpoints once,
+so a triad gives four steps rather than six. **Latch** keeps it going after the
+keys are let go, and the latched notes stay marked on the keyboard so it is
+clear what it is chewing on; pressing a fresh key then starts a new chord. With
+the arp running the keyboard feeds it instead of sounding directly.
+
+Notes go out with Web MIDI timestamps from a lookahead scheduler rather than
+straight off a `setTimeout`, which would jitter audibly. Swing shifts a step
+without the grid drifting: sixteen steps later is still exactly a bar.
+
+Stopping, switching to card mode, or hiding the tab lifts every note and sends
+CC 123 — the page holds notes down on real hardware, and a dropped note-off
+means the Rodeo drones until it is power-cycled.
+
 ## Tests
 
 ```sh
