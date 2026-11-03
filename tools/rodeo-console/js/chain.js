@@ -157,3 +157,65 @@ export function scanHealth(chain) {
   if (!good && !bad) return null;
   return (good / (good + bad)) * 100;
 }
+
+// ------------------------------------------------------- the panel's controls
+//
+// What each control on the panel does, from `instruments/rodeo-demo/firmware/
+// src/panel.h`'s table and `panel.cpp`'s `Update()`. This is what lets the page
+// put a knob's position next to the number it is driving — which is the only
+// way to see the one thing about this panel that surprises people, below.
+
+/** `Find()` takes the FIRST bank of each kind on the chain (panel.cpp:73-76). */
+export function panelBanks(c) {
+  const list = Array.isArray(c?.s) ? c.s : [];
+  const first = (kind) => {
+    const i = list.findIndex((sat) => sat?.kind === kind);
+    return i < 0 ? null : i;
+  };
+  return { pot: first(5), enc: first(6) };
+}
+
+/** `p.release = 0.005 * 800^pot` seconds (panel.cpp:187). */
+export function releaseFromPot(pot) {
+  return 5 * Math.pow(800, Math.max(0, Math.min(1, pot)));
+}
+
+export function potForRelease(ms) {
+  return Math.log(Math.max(5, ms) / 5) / Math.log(800);
+}
+
+/** Pots 1-4, in slot order (panel.h:5-6). */
+export const PANEL_POTS = [
+  { name: 'cutoff', key: 'cut', unit: '%', toPot: (v) => v / 100 },
+  { name: 'resonance', key: 'res', unit: '%', toPot: (v) => v / 100 },
+  { name: 'filter envelope', key: 'env', unit: '%', toPot: (v) => v / 100 },
+  { name: 'release', key: 'rel', unit: 'ms', toPot: potForRelease },
+];
+
+/**
+ * Encoders 1-4 (panel.h:8-12). They send detents, not positions, so there is
+ * nothing to compare — only the parameter each one is turning. `key: null`
+ * means the `#S` line does not carry that value, which the page says rather
+ * than leaving a blank that looks like zero.
+ */
+export const PANEL_ENCODERS = [
+  { name: 'shape', key: 'shape', sampler: 'sound', tap: 'layer', held: 'preset' },
+  { name: 'detune', key: null, tap: 'detune and octave back', held: 'octave' },
+  { name: 'attack', key: 'atk', unit: 'ms', tap: 'LFO on/off' },
+  { name: 'effects mix', key: null, tap: 'chorus / reverb / both' },
+];
+
+/** How far a pot must move to take its parameter back (panel.cpp:40). */
+export const TAKEOVER = 0.02;
+
+/**
+ * Whether a pot's position and its parameter disagree, which is normal and
+ * worth showing: loading a preset sets the parameters, and each pot keeps its
+ * hands off until it is moved more than `TAKEOVER` from where it was when the
+ * preset landed (panel.cpp:178-186). Until then the knob lies about the sound,
+ * and this is the only view that can say so.
+ */
+export function potHeld(potValue, paramValue, toPot) {
+  if (!Number.isFinite(potValue) || !Number.isFinite(paramValue)) return false;
+  return Math.abs(potValue / 1000 - toPot(paramValue)) > TAKEOVER;
+}

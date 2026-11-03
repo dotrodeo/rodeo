@@ -58,7 +58,6 @@ const state = {
   arp: { mode: 'off', octaves: 1, latch: false, held: [] },
   pattern: seq.emptyPattern(),
   root: midi.KIT_FIRST_NOTE,
-  testRunning: null, // a test pattern, not the sequencer
   wire: { port: null, state: null, streaming: false, lines: 0, skipped: 0 },
 
 };
@@ -449,8 +448,6 @@ function paint() {
     );
   }
   paintCount();
-  for (const b of document.querySelectorAll('[data-pattern]'))
-    b.classList.toggle('on', b.dataset.pattern === state.testRunning);
   paintGrid();
 }
 
@@ -467,10 +464,13 @@ function clock() {
 function markup() {
   const panel = el('section', { className: 'live', id: 'live' });
   panel.innerHTML = `
-    <div class="row">
-      <select id="live-port" disabled></select>
+    <div class="row bar2">
       <button id="live-connect" class="primary">Connect MIDI</button>
+      <select id="live-port" disabled></select>
       <span class="small dim" id="live-port-hint"></span>
+      <span class="sep"></span>
+      <button id="live-serial">Connect serial</button>
+      <span class="small dim" id="live-serial-hint">the chain, live</span>
     </div>
 
     <div class="pk-wrap" id="live-keys"></div>
@@ -521,23 +521,17 @@ function markup() {
 
     <div class="chain">
       <div class="row">
-        <button id="live-serial">Connect serial</button>
-        <span class="small dim" id="live-serial-hint">the chain, live — Chrome only</span>
-        <span class="grow"></span>
-        <span class="small dim">send</span>
-        <button class="cmd" data-cmd="s" title="state, as prose for a terminal">s</button>
-        <button class="cmd" data-cmd="j" title="one state line">j</button>
-        <button class="cmd" data-cmd="J" id="live-stream" title="stream state lines, ~20/s">J</button>
-        <button class="cmd" data-cmd="d" title="disk mode — this closes the serial port">d</button>
-        <button class="cmd" data-cmd="n" title="leave disk mode without ejecting">n</button>
-        <button class="cmd" data-cmd="B" title="reboot into the DFU bootloader">B</button>
+        <button class="cmd" data-cmd="J" id="live-stream" title="sends J">Stream readings</button>
+        <button class="cmd" data-cmd="j" title="sends j">Read once</button>
+        <button class="cmd" data-cmd="s" title="sends s">Log full state</button>
+        <span class="sep"></span>
+        <button class="cmd" data-cmd="d" title="sends d">Hand the card to this computer</button>
+        <button class="cmd" data-cmd="n" title="sends n">Take the card back</button>
+        <button class="cmd" data-cmd="B" title="sends B">Reboot for flashing</button>
       </div>
+      <p class="small dim said" id="live-said"></p>
       <div class="readout" id="live-readout"></div>
       <div class="sats" id="live-sats"></div>
-    </div>
-
-    <div class="row live-pats" id="live-patterns">
-      <span class="small dim">test</span>
     </div>
   `;
   return panel;
@@ -644,19 +638,6 @@ function wire() {
   for (const b of document.querySelectorAll('.cmd')) b.onclick = () => cmd(b.dataset.cmd);
   renderSerial();
 
-  const pats = $('live-patterns');
-  for (const p of midi.PATTERNS) {
-    pats.append(
-      el('button', {
-        data: { pattern: p.id },
-        textContent: p.name,
-        title: p.says,
-        onclick: () => runPattern(p),
-      })
-    );
-  }
-  pats.append(el('button', { id: 'live-stop', textContent: 'stop', onclick: stopPattern }));
-
   // Pointer: press, and glide across the keys with the button down.
   const keys = $('live-keys');
   keys.addEventListener('pointerdown', (e) => {
@@ -734,8 +715,14 @@ function onLine(line) {
   const next = chain.parseStateLine(line);
   if (!next) {
     // Prose, the greeting, or a line the firmware gave up on halfway. All
-    // three are normal; none of them is state.
+    // three are normal; none of them is state. The prose is worth showing
+    // though — "no SD card to hand over" and the skipped preset lines used to
+    // go nowhere, because this page was the only thing reading the port.
     if (line.startsWith(chain.PREFIX)) state.wire.skipped++;
+    else if (line.trim()) {
+      const said = $('live-said');
+      if (said) said.textContent = line.trim();
+    }
     return;
   }
   state.wire.lines++;
@@ -814,13 +801,6 @@ function renderReadout() {
   const chips = [
     [st.preset >= 0 ? `preset ${st.preset + 1}` : 'no preset', st.name || ''],
     ['layer', st.layer],
-    ['shape', st.shape],
-    ['sound', `${st.sound + 1} of ${st.nsounds}`],
-    ['cutoff', `${st.cut}%`],
-    ['res', `${st.res}%`],
-    ['env', `${st.env}%`],
-    ['attack', `${st.atk} ms`],
-    ['release', `${st.rel} ms`],
     ['cpu', `${st.cpu}% (peak ${st.peak}%)`],
     ['card', card],
     ['loaded', `${st.loaded} of ${st.samples}${st.skipped ? `, ${st.skipped} skipped` : ''}`],
@@ -840,11 +820,18 @@ function renderReadout() {
 function renderSats() {
   const box = $('live-sats');
   if (!box) return;
-  const c = state.wire.state?.chain;
+  const st = state.wire.state;
+  const c = st?.chain;
   if (!c) return box.replaceChildren();
   if (c.error) return box.replaceChildren(el('p', { className: 'bad', textContent: c.error }));
   const list = Array.isArray(c.s) ? c.s : [];
-  const kids = list.map((sat, i) => satCard(sat, i));
+  // The two banks the panel is actually listening to get the paired view; any
+  // other satellite is drawn as plain slots, because nothing on the Rodeo is
+  // wired to it.
+  const banks = chain.panelBanks(c);
+  const kids = list.map((sat, i) =>
+    i === banks.pot ? potBankCard(sat, i, st) : i === banks.enc ? encBankCard(sat, i, st) : satCard(sat, i)
+  );
   const broken = chain.breakAfter(c);
   if (broken !== null)
     kids.push(
@@ -859,6 +846,93 @@ function renderSats() {
   if (!kids.length)
     kids.push(el('p', { className: 'small dim', textContent: 'no satellites on the chain' }));
   box.replaceChildren(...kids);
+}
+
+/**
+ * Pot bank: each knob beside the number it is driving.
+ *
+ * The pair is the point. Loading a preset sets the parameters and the pots
+ * keep their hands off until moved (panel.cpp:178-186), so a knob can sit at
+ * 70% while cutoff is 41% — the panel is not broken, the preset still has it.
+ * Nothing on the Rodeo itself can tell you that; this is the only place it
+ * shows.
+ */
+function potBankCard(sat, i, st) {
+  const card = el('div', { className: 'sat panel' }, [
+    el('div', { className: 'sat-head' }, [
+      el('span', { textContent: `${i + 1}. pot bank` }),
+      el('span', { className: 'small dim', textContent: `fw ${sat.fw}` }),
+    ]),
+  ]);
+  chain.slots(sat).forEach((slot, n) => {
+    const spec = chain.PANEL_POTS[n];
+    if (slot.type === 'fault' || !spec) return card.append(slotRow(slot));
+    const pct = chain.potPercent(slot.value);
+    const value = st?.[spec.key];
+    const held = chain.potHeld(slot.value, value, spec.toPot);
+    card.append(
+      el('div', { className: `pair${held ? ' held' : ''}` }, [
+        el('span', { className: 'pair-name', textContent: spec.name }),
+        el('span', {
+          className: 'pair-value',
+          textContent: Number.isFinite(value) ? `${value}${spec.unit === '%' ? '%' : ' ms'}` : '—',
+        }),
+        el('div', { className: 'meter' }, [el('span', { style: `width:${pct}%` })]),
+        el('span', { className: 'pair-pot', textContent: `knob ${pct.toFixed(0)}%` }),
+        held
+          ? el('span', {
+              className: 'pair-flag',
+              textContent: 'preset holds this',
+              title:
+                'The preset set this parameter and the knob has not been moved since, so the ' +
+                'knob is not what you are hearing. Turn it ~2% to take it back.',
+            })
+          : el('span', { className: 'pair-flag' }),
+      ])
+    );
+  });
+  return card;
+}
+
+/**
+ * Encoder bank: no absolute position to compare, so the pairing is the
+ * parameter each one turns and where that parameter now is. Two of them drive
+ * values the `#S` line does not carry, which is said rather than left blank.
+ */
+function encBankCard(sat, i, st) {
+  const card = el('div', { className: 'sat panel' }, [
+    el('div', { className: 'sat-head' }, [
+      el('span', { textContent: `${i + 1}. encoder bank` }),
+      el('span', { className: 'small dim', textContent: `fw ${sat.fw}` }),
+    ]),
+  ]);
+  chain.slots(sat).forEach((slot, n) => {
+    const spec = chain.PANEL_ENCODERS[n];
+    if (slot.type === 'fault' || !spec) return card.append(slotRow(slot));
+    // E1 turns the shape in synth layer and picks the sound in sampler.
+    const sampler = st?.layer === 'sampler';
+    const key = sampler && spec.sampler ? spec.sampler : spec.key;
+    const name = sampler && spec.sampler ? spec.sampler : spec.name;
+    let value = '—';
+    if (key === 'sound') value = `${(st?.sound ?? 0) + 1} of ${st?.nsounds ?? 0}`;
+    else if (key && st?.[key] !== undefined) value = `${st[key]}${spec.unit ? ` ${spec.unit}` : ''}`;
+    card.append(
+      el('div', { className: `pair${key ? '' : ' unknown'}` }, [
+        el('span', { className: 'pair-name', textContent: name }),
+        el('span', { className: 'pair-value', textContent: value }),
+        el('span', {
+          className: 'pair-pot',
+          textContent: `${slot.value > 0 ? '+' : ''}${slot.value}`,
+          title: 'detents since power-up',
+        }),
+        el('span', { className: `dot${slot.pressed ? ' on' : ''}`, title: `tap: ${spec.tap}` }),
+        key
+          ? el('span', { className: 'pair-flag' })
+          : el('span', { className: 'pair-flag dim', textContent: 'not in the state line' }),
+      ])
+    );
+  });
+  return card;
 }
 
 function satCard(sat, i) {
@@ -909,44 +983,6 @@ function slotRow(slot) {
   // An unknown or custom board: the line cannot say what its slots are, so
   // show the number rather than draw it as something it might not be.
   return el('div', { className: 'slot' }, [label, el('span', { className: 'slot-v', textContent: String(slot.value) })]);
-}
-
-// ------------------------------------------------------------- test patterns
-
-function runPattern(p) {
-  if (!state.out) return;
-  stopPattern();
-  const events = p.build(
-    p.id === 'kit' && state.library?.kitSpan ? { files: state.library.kitSpan.files } : {}
-  );
-  const t0 = performance.now();
-  state.testRunning = p.id;
-  for (const e of events) {
-    send(e.bytes, t0 + e.at);
-    later(() => {
-      const status = e.bytes[0] & 0xf0;
-      const now = performance.now();
-      if (status === 0x90) state.voices.noteOn(e.bytes[1], e.bytes[2], now, sampleOn(e.bytes[1]));
-      else if (status === 0x80) state.voices.noteOff(e.bytes[1], now);
-      else if (status === 0xb0 && e.bytes[1] === 64) state.voices.setSustain(e.bytes[2] >= 64, now);
-      paint();
-    }, e.at);
-  }
-  const last = events.reduce((m, e) => Math.max(m, e.at), 0);
-  later(() => {
-    state.testRunning = null;
-    paint();
-  }, last + 50);
-  paint();
-}
-
-function stopPattern() {
-  if (!state.testRunning) return;
-  clearTimers();
-  send(midi.allNotesOff());
-  state.voices.allOff(performance.now());
-  state.testRunning = null;
-  paint();
 }
 
 // ---------------------------------------------------------------- the window

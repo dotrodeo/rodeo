@@ -88,10 +88,6 @@ Two things the panel will tell you that are easy to get wrong by ear:
   cannot even steal a voice. Set the Layer control to match the Rodeo and the
   page applies that; it cannot read the layer itself.
 
-The test patterns each answer one question: a kit walk from C2 for checking
-which file landed on which key, a chromatic sweep, nine notes for the steal, a
-bend sweep over the full travel, and a sustain test.
-
 The page itself is kept bare — the explanations live here, not on screen, and
 most controls carry a tooltip instead of a caption.
 
@@ -142,15 +138,32 @@ outright rather than derive it from the constant it is checking.
 
 **Connect serial** opens the Rodeo's CDC port and sends `J`, and the firmware
 streams its `#S` state line about twenty times a second while anything is
-moving. The page draws the satellites in ring order with every slot live —
-pots as meters, encoders as running detent totals, buttons and switches as
-they are — plus the preset, the sound, the filter, the card and the scan
-counts. A broken ring is drawn as a break, after the satellite it follows.
+moving. System figures sit at the top; below them the satellites in ring
+order, with a break drawn after the satellite it follows.
 
-The buttons beside it are the serial commands: `s` for prose, `j` for one
-line, `J` to toggle the stream, `d` for disk mode (which closes the port —
-that is the firmware re-enumerating, not a fault), `n` to leave it, and `B`
-to reboot into the bootloader.
+**The panel's two banks get a paired view**, which is the useful part: each
+knob and encoder sits beside the number it is driving — pot 1 next to cutoff,
+pot 4 next to release, E3 next to attack — from the table in `panel.h`.
+
+That pairing exists to show one thing. Loading a preset sets the parameters,
+and each pot keeps its hands off until it is moved about 2% from where it was
+(`panel.cpp`'s takeover). So a knob can sit at 70% while cutoff is 41%: the
+panel is not broken, the preset still has it. The row goes red and says
+**preset holds this**, and nothing on the Rodeo itself can tell you that.
+
+Two encoders drive values the state line does not carry — E2's detune and
+octave, E4's effects mix — so those rows say *not in the state line* rather
+than showing a blank that reads as zero. Adding them to `#S` is a small
+firmware change if it is ever worth it.
+
+The buttons say what they do rather than which letter they send (the letter is
+in the tooltip): stream readings, read once, log full state, hand the card to
+this computer, take the card back, reboot for flashing. Handing over the card
+closes the port — that is the firmware re-enumerating, not a fault.
+
+Anything the Rodeo says in prose — *no SD card to hand over*, the preset lines
+it skipped — appears on the line under those buttons. Before, this page was
+the only thing reading the port, so those messages went nowhere.
 
 `js/chain.js` parses the line and is a copy of two things, both authoritative:
 the line's shape from the firmware's `state_line.cpp`, and the board kinds

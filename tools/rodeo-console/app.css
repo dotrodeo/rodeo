@@ -230,7 +230,7 @@ tr.skipped td { color: var(--red); }
 .live-controls input[type='number'] { width: 62px; }
 .live-controls output { color: var(--yellow); font-size: 12px; min-width: 28px; }
 .live-controls select { width: auto; }
-.live .row > select:first-child { width: auto; min-width: 240px; flex: 0 1 380px; }
+.bar2 select { width: auto; min-width: 200px; flex: 0 1 320px; }
 button.on { background: var(--yellow); color: var(--field); border-color: var(--yellow); }
 .play { width: 34px; font-size: 15px; line-height: 1; }
 
@@ -329,13 +329,14 @@ button.on { background: var(--yellow); color: var(--field); border-color: var(--
 .vc.held { border-color: var(--yellow); color: var(--yellow); }
 .vc.ringing { border-color: #6b5700; color: #a98200; }
 
-.live-pats { gap: 6px; align-items: center; }
-.live-pats button { font-size: 11px; padding: 4px 8px; }
 
 /* ---- the chain ---- */
 .chain { border-top: 1px solid var(--rule); padding-top: 14px; margin-bottom: 18px; }
 .chain .row { max-width: 980px; }
-button.cmd { font-family: var(--mono); min-width: 26px; padding: 4px 7px; }
+button.cmd { font-size: 11px; padding: 4px 9px; }
+.bar2 { flex-wrap: wrap; }
+.sep { width: 1px; align-self: stretch; background: var(--rule); margin: 0 4px; }
+.said { min-height: 1.4em; margin: 0 0 10px; color: var(--cyan); }
 .readout { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-bottom: 14px; max-width: 980px; }
 .chip { border: 1px solid var(--rule); padding: 2px 7px; font-size: 11px; display: flex; gap: 6px; }
 .chip b { color: var(--gray); font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; }
@@ -355,3 +356,23 @@ button.cmd { font-family: var(--mono); min-width: 26px; padding: 4px 7px; }
 .dot { width: 9px; height: 9px; border: 1px solid var(--rule); border-radius: 50%; }
 .dot.big { width: 13px; height: 13px; border-radius: 2px; }
 .slot.pressed .dot { background: var(--yellow); border-color: var(--yellow); }
+
+/* A control beside the number it is driving. */
+.sat.panel { min-width: 420px; flex: 1 1 420px; }
+.pair {
+  display: grid;
+  grid-template-columns: 96px 70px 1fr 64px auto;
+  gap: 9px;
+  align-items: center;
+  font-size: 11px;
+  min-height: 21px;
+}
+.pair-name { color: var(--gray); }
+.pair-value { color: var(--legend); font-variant-numeric: tabular-nums; }
+.pair-pot { color: var(--gray); font-variant-numeric: tabular-nums; text-align: right; }
+.pair-flag { color: var(--red); font-size: 10px; white-space: nowrap; }
+.pair-flag.dim { color: var(--gray); }
+.pair.held .pair-value { color: var(--red); }
+.pair.held .meter span { background: var(--red); }
+.pair.unknown .pair-value { color: var(--gray); }
+.pair .dot.on { background: var(--yellow); border-color: var(--yellow); }

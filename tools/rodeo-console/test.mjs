@@ -403,16 +403,11 @@ import {
   VOICE_COUNT,
   Voices,
   allNotesOff,
-  bendSweep,
-  chromatic,
   isRodeoPort,
-  kitWalk,
   noteOff,
   noteOn,
-  pileUp,
   pitchBend,
   sustain,
-  sustainTest,
 } from './js/midi.js';
 
 test('messages are the bytes the firmware switches on', () => {
@@ -554,62 +549,16 @@ test('all notes off RELEASES every voice rather than muting it', () => {
   assert.equal(v.sounding(2011), 0, 'quiet once the release has run');
 });
 
-test('the patterns stay inside the firmware event queue', () => {
+test('a sequencer step cannot overrun the firmware event queue', () => {
   // `Push` drops once 64 events are unread, and `Process` drains them every
-  // 1/3 ms (synth.cpp:40-47). So the only way to lose a note is to put more
-  // than 64 messages at the same instant; check no pattern comes close.
-  for (const events of [chromatic(), kitWalk(), pileUp(), bendSweep(), sustainTest()]) {
-    const byTime = new Map();
-    for (const e of events) byTime.set(e.at, (byTime.get(e.at) ?? 0) + 1);
-    const worst = Math.max(...byTime.values());
-    assert.ok(worst < 32, `${worst} messages share a timestamp`);
-    assert.ok(events.every((e) => e.at >= 0 && Number.isFinite(e.at)));
-  }
-});
-
-test('every pattern lifts every note it presses', () => {
-  for (const events of [chromatic(), kitWalk(), pileUp(), bendSweep(), sustainTest()]) {
-    const held = new Map();
-    for (const { at, bytes } of [...events].sort((a, b) => a.at - b.at)) {
-      const status = bytes[0] & 0xf0;
-      if (status === 0x90 && bytes[2] > 0) held.set(bytes[1], at);
-      else if (status === 0x80 || (status === 0x90 && bytes[2] === 0)) held.delete(bytes[1]);
-    }
-    assert.deepEqual([...held.keys()], [], 'a pattern that leaves a note down drones');
-  }
-});
-
-test('the pile-up really does ask for one voice more than there are', () => {
-  const ons = pileUp().filter((e) => (e.bytes[0] & 0xf0) === 0x90);
-  assert.equal(ons.length, VOICE_COUNT + 1);
-  const v = new Voices({ release: 10_000 });
-  let stolen = null;
-  for (const e of ons) {
-    const r = v.noteOn(e.bytes[1], e.bytes[2], e.at);
-    if (r.took !== null) stolen = r.took;
-  }
-  assert.equal(stolen, ons[0].bytes[1], 'and the note that goes is the first one played');
-});
-
-test('a kit walk covers exactly the files it was told about', () => {
-  const ons = kitWalk({ files: 5 }).filter((e) => (e.bytes[0] & 0xf0) === 0x90);
-  assert.deepEqual(
-    ons.map((e) => e.bytes[1]),
-    [36, 37, 38, 39, 40],
-    'from C2 up, one key per file'
-  );
-  assert.equal(kitWalk({ files: 0 }).filter((e) => (e.bytes[0] & 0xf0) === 0x90).length, 1);
-});
-
-test('the bend sweep returns the wheel to centre', () => {
-  const bends = bendSweep().filter((e) => (e.bytes[0] & 0xf0) === 0xe0);
-  assert.deepEqual(bends[bends.length - 1].bytes, pitchBend(0));
-  assert.ok(bends.length > 8, 'a sweep, not a jump');
-  // Nothing in the sweep may exceed the range the firmware maps.
-  for (const b of bends) {
-    const value = (2 * ((b.bytes[1] | (b.bytes[2] << 7)) - 8192)) / 8192;
-    assert.ok(value >= -BEND_SEMITONES && value <= BEND_SEMITONES, value);
-  }
+  // 1/3 ms (synth.cpp:40-47). Everything the page can send at one instant is
+  // one column of the grid plus one arp note, so the ceiling is the grid's
+  // own height — worth asserting, because widening the grid would raise it.
+  const full = emptyPattern();
+  for (const row of full) row.fill(1);
+  const worst = stepNotes(full, 0, 36).length + 1;
+  assert.equal(worst, ROWS + 1);
+  assert.ok(worst < 64, `${worst} notes could land in the same millisecond`);
 });
 
 // ---------------------------------------------------- the clock and the arp
@@ -762,7 +711,14 @@ import {
   kindSlots,
   kindSupported,
   parseStateLine,
+  PANEL_ENCODERS,
+  PANEL_POTS,
+  TAKEOVER,
+  panelBanks,
+  potForRelease,
+  potHeld,
   potPercent,
+  releaseFromPot,
   scanHealth,
   slots,
   takeLines,
@@ -887,4 +843,56 @@ test('scan health says nothing before any scans have run', () => {
   assert.equal(scanHealth({}), null);
   assert.equal(scanHealth({ good: 24581, bad: 0 }), 100);
   assert.equal(scanHealth({ good: 3, bad: 1 }), 75);
+});
+
+test('the panel takes the first bank of each kind, as Find() does', () => {
+  // panel.cpp:73-76 keeps the first pot bank and the first encoder bank it
+  // meets; a second of either is on the chain but drives nothing.
+  const two = { s: [{ kind: 7 }, { kind: 5 }, { kind: 6 }, { kind: 5 }] };
+  assert.deepEqual(panelBanks(two), { pot: 1, enc: 2 });
+  assert.deepEqual(panelBanks({ s: [{ kind: 7 }] }), { pot: null, enc: null });
+  assert.deepEqual(panelBanks({}), { pot: null, enc: null });
+});
+
+test('release is the pot curve from panel.cpp, both ways', () => {
+  // p.release = 0.005 * 800^pot seconds (panel.cpp:187).
+  assert.equal(Math.round(releaseFromPot(0)), 5);
+  assert.equal(Math.round(releaseFromPot(1)), 4000);
+  assert.ok(Math.abs(releaseFromPot(0.5) - 5 * Math.sqrt(800)) < 1e-6);
+  for (const ms of [5, 50, 420, 4000])
+    assert.ok(Math.abs(releaseFromPot(potForRelease(ms)) - ms) < 0.01, `${ms} ms`);
+  assert.equal(potForRelease(1), potForRelease(5), 'below the floor clamps, not NaN');
+  assert.equal(releaseFromPot(2), releaseFromPot(1), 'and above the ceiling too');
+});
+
+test('a knob that disagrees with its parameter is the preset still holding it', () => {
+  const [cutoff, , , release] = PANEL_POTS;
+  // Agreeing: the knob is what you hear.
+  assert.equal(potHeld(410, 41, cutoff.toPot), false);
+  assert.equal(potHeld(410, 42, cutoff.toPot), false, 'within the 2% takeover band');
+  // Disagreeing by more than kTakeover: the preset set it and the knob has
+  // not been moved since (panel.cpp:178-186).
+  assert.equal(potHeld(700, 41, cutoff.toPot), true);
+  assert.equal(TAKEOVER, 0.02);
+  // Release compares on its own curve, not linearly: 420 ms is knob 66%, so a
+  // knob at 66% agrees even though 420 and 66 look nothing alike.
+  assert.equal(potHeld(663, 420, release.toPot), false);
+  assert.equal(potHeld(200, 420, release.toPot), true);
+  // Nothing to compare is not a disagreement.
+  assert.equal(potHeld(500, undefined, cutoff.toPot), false);
+  assert.equal(potHeld(undefined, 41, cutoff.toPot), false);
+});
+
+test('every panel control names the parameter it drives', () => {
+  assert.equal(PANEL_POTS.length, 4);
+  assert.equal(PANEL_ENCODERS.length, 4);
+  assert.deepEqual(PANEL_POTS.map((p) => p.key), ['cut', 'res', 'env', 'rel']);
+  assert.equal(PANEL_ENCODERS[0].sampler, 'sound', 'E1 picks the sound in sampler layer');
+  assert.equal(PANEL_ENCODERS[2].key, 'atk');
+  // E2 (detune/octave) and E4 (effects mix) are real controls whose values the
+  // `#S` line does not carry. Null says so, so the page can print that rather
+  // than a blank that reads as zero.
+  assert.equal(PANEL_ENCODERS[1].key, null);
+  assert.equal(PANEL_ENCODERS[3].key, null);
+  assert.ok(PANEL_ENCODERS.every((e) => e.tap), 'and each says what a tap does');
 });
