@@ -1,7 +1,7 @@
 ---
 title: "The `#S` state line — what rodeo-console needs from the firmware"
 tags: [rodeo, firmware, serial, tooling, console]
-status: ask — not implemented
+status: implemented in rodeo-demo (j and J), 2026-11-02
 created: 2026-11-02
 updated: 2026-11-02
 ---
@@ -120,6 +120,33 @@ If it is not easy, say so and the console will poll on a timer.
   is already how the console is built; nothing needed here.
 - No floats in the JSON. Everything above is an integer or a short string, which
   keeps `snprintf` simple and the line short.
+
+## As built (rodeo-demo, 2026-11-02)
+
+`j` and `J` are both in, in `instruments/rodeo-demo/firmware/src/state_line.cpp`
+(the chain object) and `main.cpp` (the rest). Tested on the bring-up Rodeo with
+the pot bank and encoder bank: every encoder turn and press, pot move, shape and
+layer change showed in the line while the panel kept working. Where it differs
+from the ask above:
+
+- **Key order.** `good` and `bad` come last in `chain`, and `cpu` and `peak` last
+  in the line. They change constantly, so the stream leaves them out when it
+  checks whether anything has moved. JSON consumers should not care.
+- **Pots have 3/1000 of hysteresis.** A pot resting on a rounding boundary
+  flickered 493/494 and the stream never went quiet. A pot's value in the line
+  moves once it is 3 away from the last one sent; 0 and 1000 always come through.
+- **Encoders** are running detent totals kept from the raw counters, starting at
+  0 at power-up and whenever the chain's layout changes. `EncoderSteps()` is not
+  touched.
+- **Buttons** go in `in[]` only; `btn[]` is sent for encoder satellites.
+- **`J`** sends every 50 ms while anything has changed in the last second, and
+  stops when the serial port closes. It starts with one second of lines so the
+  console gets the state at once.
+- **Long lines** go out in pieces (the CDC buffer is 512 bytes; this line is
+  about 440 with two banks). The buffer is 4 KB. If the computer stops reading
+  for 50 ms the rest of the line is dropped, so a line that fails to parse
+  should simply be skipped.
+- The preset name has `"` and `\` stripped rather than escaped.
 
 ## What the console does with it
 
