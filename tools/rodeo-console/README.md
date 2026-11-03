@@ -139,7 +139,8 @@ outright rather than derive it from the constant it is checking.
 **Connect serial** opens the Rodeo's CDC port and sends `J`, and the firmware
 streams its `#S` state line about twenty times a second while anything is
 moving. System figures sit at the top; below them the satellites in ring
-order, with a break drawn after the satellite it follows.
+order, with a break drawn after the satellite it follows. Each card is one
+grid, so its columns line up down the card.
 
 **The panel's two banks get a paired view**, which is the useful part: each
 knob and encoder sits beside the number it is driving — pot 1 next to cutoff,
@@ -150,6 +151,13 @@ and each pot keeps its hands off until it is moved about 2% from where it was
 (`panel.cpp`'s takeover). So a knob can sit at 70% while cutoff is 41%: the
 panel is not broken, the preset still has it. The row goes red and says
 **preset holds this**, and nothing on the Rodeo itself can tell you that.
+
+An encoder has no position to compare, so its row pairs the parameter with its
+value and shows **the turn that just happened**. The line carries a detent
+total counted from power-up, which on its own says nothing — "+14" is not a
+state — so the totals are differenced between lines. It clears itself: the
+firmware keeps streaming for a second after everything stops, and those last
+lines carry a delta of zero.
 
 Two encoders drive values the state line does not carry — E2's detune and
 octave, E4's effects mix — so those rows say *not in the state line* rather

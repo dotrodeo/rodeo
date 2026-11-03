@@ -58,7 +58,7 @@ const state = {
   arp: { mode: 'off', octaves: 1, latch: false, held: [] },
   pattern: seq.emptyPattern(),
   root: midi.KIT_FIRST_NOTE,
-  wire: { port: null, state: null, streaming: false, lines: 0, skipped: 0 },
+  wire: { port: null, state: null, streaming: false, lines: 0, skipped: 0, turn: [], enc: [] },
 
 };
 
@@ -696,6 +696,8 @@ async function connectSerial() {
   state.wire.port = port;
   state.wire.lines = 0;
   state.wire.skipped = 0;
+  state.wire.enc = [];
+  state.wire.turn = [];
   // `J` toggles, and the firmware clears it when the port closes, so a freshly
   // opened port is never streaming.
   state.wire.streaming = false;
@@ -726,12 +728,28 @@ function onLine(line) {
     return;
   }
   state.wire.lines++;
+  trackEncoders(next);
   state.wire.state = next;
   adoptFromRodeo(next);
   renderSerial(); // the line count, and the controls the Rodeo has taken over
   renderReadout();
   renderSats();
   paintCount();
+}
+
+/**
+ * The detent totals are cumulative from power-up, so the difference between
+ * two lines is the only part that means anything on screen.
+ */
+function trackEncoders(st) {
+  const banks = chain.panelBanks(st?.chain);
+  const sat = banks.enc === null ? null : st.chain.s[banks.enc];
+  const now = Array.isArray(sat?.in) ? sat.in : [];
+  state.wire.turn = now.map((v, i) => {
+    const was = state.wire.enc[i];
+    return Number.isFinite(was) ? v - was : 0;
+  });
+  state.wire.enc = now;
 }
 
 /** What the Rodeo tells us beats what the page was told to assume. */
@@ -856,59 +874,56 @@ function renderSats() {
  * 70% while cutoff is 41% — the panel is not broken, the preset still has it.
  * Nothing on the Rodeo itself can tell you that; this is the only place it
  * shows.
+ *
+ * The card is the grid, not each row, so the columns line up down the card.
  */
 function potBankCard(sat, i, st) {
-  const card = el('div', { className: 'sat panel' }, [
-    el('div', { className: 'sat-head' }, [
-      el('span', { textContent: `${i + 1}. pot bank` }),
-      el('span', { className: 'small dim', textContent: `fw ${sat.fw}` }),
-    ]),
-  ]);
+  const card = el('div', { className: 'sat panel pots' }, [bankHead(i, 'pot bank', sat)]);
   chain.slots(sat).forEach((slot, n) => {
     const spec = chain.PANEL_POTS[n];
-    if (slot.type === 'fault' || !spec) return card.append(slotRow(slot));
+    if (slot.type === 'fault' || !spec) return card.append(faultRow(slot, `pot ${n + 1}`));
     const pct = chain.potPercent(slot.value);
     const value = st?.[spec.key];
     const held = chain.potHeld(slot.value, value, spec.toPot);
     card.append(
-      el('div', { className: `pair${held ? ' held' : ''}` }, [
-        el('span', { className: 'pair-name', textContent: spec.name }),
-        el('span', {
-          className: 'pair-value',
-          textContent: Number.isFinite(value) ? `${value}${spec.unit === '%' ? '%' : ' ms'}` : '—',
-        }),
-        el('div', { className: 'meter' }, [el('span', { style: `width:${pct}%` })]),
-        el('span', { className: 'pair-pot', textContent: `knob ${pct.toFixed(0)}%` }),
-        held
-          ? el('span', {
-              className: 'pair-flag',
-              textContent: 'preset holds this',
-              title:
-                'The preset set this parameter and the knob has not been moved since, so the ' +
-                'knob is not what you are hearing. Turn it ~2% to take it back.',
-            })
-          : el('span', { className: 'pair-flag' }),
-      ])
+      el('span', { className: 'cell-name', textContent: spec.name }),
+      el('span', {
+        className: `cell-value${held ? ' stale' : ''}`,
+        textContent: Number.isFinite(value) ? `${value}${spec.unit === '%' ? '%' : ' ms'}` : '—',
+      }),
+      el('div', { className: `meter${held ? ' stale' : ''}` }, [
+        el('span', { style: `width:${pct}%` }),
+      ]),
+      el('span', { className: 'cell-knob', textContent: `${pct.toFixed(0)}%` }),
+      el('span', {
+        className: held ? 'cell-note stale' : 'cell-note',
+        textContent: held ? 'preset holds this' : '',
+        title: held
+          ? 'The preset set this parameter and the knob has not moved since, so the knob is ' +
+            'not what you are hearing. Turn it about 2% to take it back.'
+          : '',
+      })
     );
   });
   return card;
 }
 
 /**
- * Encoder bank: no absolute position to compare, so the pairing is the
- * parameter each one turns and where that parameter now is. Two of them drive
- * values the `#S` line does not carry, which is said rather than left blank.
+ * Encoder bank: no position to compare, so the pairing is the parameter each
+ * one turns and where that parameter now is.
+ *
+ * The line carries a detent total counted from power-up, which on its own
+ * says nothing — "+14" is not a state. What is worth seeing is whether the
+ * encoder is moving right now, so the total is differenced between lines and
+ * shown as the turn that just happened. It clears itself: the firmware keeps
+ * streaming for a second after everything stops, and those last lines carry a
+ * delta of zero.
  */
 function encBankCard(sat, i, st) {
-  const card = el('div', { className: 'sat panel' }, [
-    el('div', { className: 'sat-head' }, [
-      el('span', { textContent: `${i + 1}. encoder bank` }),
-      el('span', { className: 'small dim', textContent: `fw ${sat.fw}` }),
-    ]),
-  ]);
+  const card = el('div', { className: 'sat panel encs' }, [bankHead(i, 'encoder bank', sat)]);
   chain.slots(sat).forEach((slot, n) => {
     const spec = chain.PANEL_ENCODERS[n];
-    if (slot.type === 'fault' || !spec) return card.append(slotRow(slot));
+    if (slot.type === 'fault' || !spec) return card.append(faultRow(slot, `E${n + 1}`));
     // E1 turns the shape in synth layer and picks the sound in sampler.
     const sampler = st?.layer === 'sampler';
     const key = sampler && spec.sampler ? spec.sampler : spec.key;
@@ -916,23 +931,40 @@ function encBankCard(sat, i, st) {
     let value = '—';
     if (key === 'sound') value = `${(st?.sound ?? 0) + 1} of ${st?.nsounds ?? 0}`;
     else if (key && st?.[key] !== undefined) value = `${st[key]}${spec.unit ? ` ${spec.unit}` : ''}`;
+    const turn = state.wire.turn[n] ?? 0;
     card.append(
-      el('div', { className: `pair${key ? '' : ' unknown'}` }, [
-        el('span', { className: 'pair-name', textContent: name }),
-        el('span', { className: 'pair-value', textContent: value }),
-        el('span', {
-          className: 'pair-pot',
-          textContent: `${slot.value > 0 ? '+' : ''}${slot.value}`,
-          title: 'detents since power-up',
-        }),
-        el('span', { className: `dot${slot.pressed ? ' on' : ''}`, title: `tap: ${spec.tap}` }),
-        key
-          ? el('span', { className: 'pair-flag' })
-          : el('span', { className: 'pair-flag dim', textContent: 'not in the state line' }),
-      ])
+      el('span', { className: 'cell-name', textContent: `E${n + 1} ${name}` }),
+      el('span', {
+        className: key ? 'cell-value' : 'cell-value absent',
+        textContent: key ? value : 'not in the state line',
+        title: key ? '' : 'A real control, but the #S line does not carry its value',
+      }),
+      el('span', {
+        className: `cell-turn${turn ? ' on' : ''}`,
+        textContent: turn ? `${turn > 0 ? '▲' : '▼'} ${Math.abs(turn)}` : '',
+        title: 'detents in the last reading',
+      }),
+      el('span', {
+        className: `cell-press${slot.pressed ? ' on' : ''}`,
+        textContent: 'press',
+        title: `tap: ${spec.tap}${spec.held ? ` · held: ${spec.held}` : ''}`,
+      })
     );
   });
   return card;
+}
+
+function bankHead(i, what, sat) {
+  return el('div', { className: 'sat-head' }, [
+    el('span', { textContent: `${i + 1}. ${what}` }),
+    el('span', { className: 'small dim', textContent: `fw ${sat.fw}` }),
+  ]);
+}
+
+function faultRow(slot, label) {
+  return el('div', { className: 'cell-fault bad' }, [
+    el('span', { textContent: `${label}: ${chain.faultText(slot.fault)}` }),
+  ]);
 }
 
 function satCard(sat, i) {

@@ -357,22 +357,37 @@ button.cmd { font-size: 11px; padding: 4px 9px; }
 .dot.big { width: 13px; height: 13px; border-radius: 2px; }
 .slot.pressed .dot { background: var(--yellow); border-color: var(--yellow); }
 
-/* A control beside the number it is driving. */
-.sat.panel { min-width: 420px; flex: 1 1 420px; }
-.pair {
-  display: grid;
-  grid-template-columns: 96px 70px 1fr 64px auto;
-  gap: 9px;
-  align-items: center;
-  font-size: 11px;
-  min-height: 21px;
+/* A control beside the number it is driving.
+ * The CARD is the grid, so the columns line up down it; a row that is its own
+ * grid lines up with nothing, which is what the first version of this did. */
+.sat.panel { flex: 1 1 430px; display: grid; gap: 7px 10px; align-items: center; font-size: 11px; }
+.sat.panel.pots { grid-template-columns: 104px 64px 1fr 40px 104px; }
+.sat.panel.encs { grid-template-columns: 124px 1fr 54px 48px; }
+.sat.panel .sat-head { grid-column: 1 / -1; margin-bottom: 2px; }
+.cell-fault { grid-column: 1 / -1; }
+
+.cell-name { color: var(--gray); }
+.cell-value { color: var(--legend); font-variant-numeric: tabular-nums; }
+.cell-value.absent { color: var(--gray); font-size: 10px; }
+.cell-knob { color: var(--gray); font-variant-numeric: tabular-nums; text-align: right; }
+.cell-note { font-size: 10px; color: var(--red); white-space: nowrap; }
+
+/* A knob whose parameter the preset is still holding: the knob is not what
+ * you are hearing, so the value and the bar say so rather than the knob. */
+.cell-value.stale { color: var(--red); }
+.meter.stale span { background: var(--red); }
+
+/* Detents in the last reading, not since power-up: blank when it is still. */
+.cell-turn { color: var(--gray); font-variant-numeric: tabular-nums; text-align: right; font-size: 10px; }
+.cell-turn.on { color: var(--yellow); }
+
+.cell-press {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: center;
+  border: 1px solid var(--rule);
+  color: #5a5a5a;
+  padding: 2px 0;
 }
-.pair-name { color: var(--gray); }
-.pair-value { color: var(--legend); font-variant-numeric: tabular-nums; }
-.pair-pot { color: var(--gray); font-variant-numeric: tabular-nums; text-align: right; }
-.pair-flag { color: var(--red); font-size: 10px; white-space: nowrap; }
-.pair-flag.dim { color: var(--gray); }
-.pair.held .pair-value { color: var(--red); }
-.pair.held .meter span { background: var(--red); }
-.pair.unknown .pair-value { color: var(--gray); }
-.pair .dot.on { background: var(--yellow); border-color: var(--yellow); }
+.cell-press.on { border-color: var(--yellow); background: var(--yellow); color: var(--field); }
