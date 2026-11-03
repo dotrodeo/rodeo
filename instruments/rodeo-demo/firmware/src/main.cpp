@@ -198,12 +198,15 @@ uint32_t StateLine(bool send)
     int len = snprintf(buf, sizeof buf,
                        "#S {\"preset\":%d,\"name\":\"%s\",\"layer\":\"%s\",\"shape\":\"%s\","
                        "\"sound\":%d,\"nsounds\":%d,\"cut\":%d,\"res\":%d,\"env\":%d,\"atk\":%d,"
+                       "\"det\":%d,\"oct\":%d,\"lfo\":%d,\"fx\":%d,\"mix\":%d,"
                        "\"rel\":%d,\"voices\":%d,\"card\":%d,\"loaded\":%d,\"samples\":%d,"
                        "\"skipped\":%d,\"kb\":%lu,\"loadms\":%lu,",
                        panel::Preset(), name, layers[(int)params.layer],
                        synth::ShapeName(params.shape), params.sound, s.sounds,
                        (int)lroundf(params.cutoff * 100.f), (int)lroundf(params.resonance * 100.f),
                        (int)lroundf(params.env_amount * 100.f), (int)(params.attack * 1000.f),
+                       (int)lroundf(params.detune * 100.f), params.octave, params.lfo ? 1 : 0,
+                       (int)params.fx, (int)lroundf(params.fx_mix * 100.f),
                        (int)(params.release * 1000.f), synth::Active(), card, s.loaded,
                        s.samples, s.skipped, (unsigned long)(s.bytes_used / 1024),
                        (unsigned long)s.load_ms);

@@ -3,7 +3,7 @@ title: "The `#S` state line — what rodeo-console needs from the firmware"
 tags: [rodeo, firmware, serial, tooling, console]
 status: implemented in rodeo-demo (j and J), 2026-11-02
 created: 2026-11-02
-updated: 2026-11-02
+updated: 2026-11-03
 ---
 
 # The `#S` state line
@@ -161,6 +161,10 @@ Buttons for `s`, `d`, `n` and `B` come with the same Web Serial plumbing, so the
 serial commands become discoverable rather than remembered.
 
 ## Addendum: five fields the line still does not carry (2026-11-03)
+
+**Done, 2026-11-03:** `det`, `oct`, `lfo`, `fx` and `mix` are in the line, after
+`atk` and before the hash, as below. Checked on the board against
+"01 warm pad" (12, 0, 1, 1, 40); the line is 458 bytes with two banks.
 
 Building the console's paired panel view — each knob beside the number it
 drives — left three rows reading *not in the state line*, because the panel
