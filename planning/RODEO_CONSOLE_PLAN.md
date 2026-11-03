@@ -22,9 +22,14 @@ to write to yet.
 **1. Disk mode and the serial port cannot both be open.** Entering disk mode hands
 the card to the computer and closes CDC — `main.cpp` says so on the way out ("the
 serial port will close"), and you get it back by ejecting the drive. So the console
-cannot be one live dashboard. It is **two modes with a visible switch between
-them**, and the UI should state which one the hardware is in rather than appear to
-lose its connection.
+cannot be one live dashboard.
+
+The plan called for **two modes with a visible switch**. That is not what got
+built in the end: one screen carries all three connections — MIDI, serial, card
+— each with a status dot, and the card work happens in a dialog over the top.
+The constraint is real but it belongs to the hardware, so the page shows the
+dots going dark rather than making the user navigate around a USB limitation.
+The sketch below is the thinking that got there, not the shipped layout.
 
 ```
    ┌─ CARD MODE ──────────────┐        ┌─ LIVE MODE ──────────────┐

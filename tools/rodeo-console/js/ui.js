@@ -86,6 +86,9 @@ function render() {
   renderSidebar();
   renderDetail();
   renderIssues();
+  paintCardStatus();
+  // The keyboard marks the selected kit's range, so it follows the selection.
+  live.setLibrary({ kitSpan: kitSpan() });
 }
 
 function renderPool() {
@@ -94,9 +97,14 @@ function renderPool() {
   const bar = $('pool').querySelector('.pool-bar');
   bar.classList.toggle('over', s.fraction > 1);
   $('pool-fill').style.width = `${Math.min(100, s.fraction * 100).toFixed(1)}%`;
+  // This sits in the one toolbar now, so it has to earn its width.
   $('pool-text').textContent =
-    `${formatBytes(s.bytes)} / ${formatBytes(s.capacity)} · ${s.files} files · ` +
-    `${s.loadSeconds < 1 ? '<1' : s.loadSeconds.toFixed(0)} s to load`;
+    `${formatBytes(s.bytes)}/${formatBytes(s.capacity)} · ${s.files} files · ` +
+    `${s.loadSeconds < 1 ? '<1' : s.loadSeconds.toFixed(0)}s`;
+  $('pool').title =
+    `${formatBytes(s.bytes)} of the Rodeo's ${formatBytes(s.capacity)} sample pool, in ` +
+    `${s.files} files, about ${s.loadSeconds < 1 ? 'under a' : s.loadSeconds.toFixed(0)} ` +
+    'second(s) to load off the card at power-up';
 }
 
 function renderSidebar() {
@@ -490,19 +498,17 @@ function readOnly() {
   return true;
 }
 
-// --------------------------------------------------------------- the modes
+// ------------------------------------------------------------- the card job
 //
-// Disk mode and the serial port cannot both be open (main.cpp, on the way into
-// disk mode: "the serial port will close"), so the page is two modes with a
-// switch rather than one dashboard that appears to lose its connection. Card
-// mode is the card mounted on the computer; live mode is the Rodeo playing.
-
-let mode = 'card';
+// One screen. The Rodeo still cannot have the card and the serial port open at
+// once — entering disk mode closes CDC and takes USB-MIDI with it — but that
+// is a fact about the hardware, not a reason to make the page two places. The
+// card work happens in a dialog; the status dots say which connections are up.
 
 /**
- * Live mode can shade keys a kit has no file for, but only if a card was read
- * here and a kit is what is selected. Rodeo's own selection is not knowable
- * from this page, so this is offered as "from the card you read", not as truth.
+ * The keyboard can mark a kit's range, but only from a card read here and only
+ * when a kit is what is selected. Rodeo's own selection is not knowable from
+ * this page, so this is offered as "from the card you read", not as truth.
  */
 function kitSpan() {
   if (state.selected?.type !== 'sound') return null;
@@ -511,53 +517,67 @@ function kitSpan() {
   return { name: sound.name, from: KIT_FIRST_NOTE, files: sound.files.filter((f) => f.loaded).length };
 }
 
-function setMode(next) {
-  if (next === mode) return;
-  mode = next;
-  const card = mode === 'card';
-  $('mode-card').ariaPressed = String(card);
-  $('mode-live').ariaPressed = String(!card);
-  $('mode').textContent = card ? (DEMO ? 'demo card' : 'card mode') : 'live mode';
+/**
+ * Grey: nothing open. Yellow: open, or open with only warnings. Red: open with
+ * something the Rodeo will actually skip.
+ *
+ * The counts have to agree with "Before you eject", which lists warnings too —
+ * a dot claiming 6 beside a list of 9 just looks broken.
+ */
+function cardStatus() {
+  if (!state.library)
+    return ['off', DEMO ? 'demo card — open a real one to change anything' : 'no card open'];
+  const issues = validate(state.library, state.presets);
+  const errors = issues.filter((i) => i.level === 'error').length;
+  const what = `${state.library.sounds.length} sounds, ${state.presets.length} presets`;
+  if (errors)
+    return ['bad', `${what} — ${errors} the Rodeo would skip, ${issues.length} to look at`];
+  if (issues.length) return ['on', `${what} — ${issues.length} to look at, none fatal`];
+  return ['on', `${what}, nothing the Rodeo would skip`];
+}
 
-  // Card-mode furniture.
-  $('open').hidden = !card;
-  $('reload').hidden = !card || (!state.root && !DEMO);
-  $('pool').hidden = !card || !state.library;
-  $('intro').hidden = !card || !!state.library;
-  $('cols').hidden = !card || !state.library;
-  $('issues').hidden = !card || !state.library;
+function paintCardStatus() {
+  const [level, why] = cardStatus();
+  const dot = $('st-card');
+  dot.className = `st ${level}`;
+  dot.title = why;
+  $('reload').hidden = !state.root && !DEMO;
+}
 
-  // Live-mode furniture.
-  const ok = live.supported();
-  $('live-intro').hidden = card || ok;
-  $('live-mount').hidden = card || !ok;
-  if (!card && !ok) $('live-unsupported').hidden = false;
-
-  if (card) {
-    live.unmount();
-    $('live-mount').replaceChildren();
-  } else if (ok) {
-    live.mount($('live-mount'), { library: { kitSpan: kitSpan() }, toast });
-  }
+function openModal() {
+  $('card-modal').showModal();
 }
 
 // ------------------------------------------------------------------- wiring
 
-$('open').onclick = openCard;
+// The toolbar button opens the dialog; picking a volume happens inside it,
+// since the browser's directory picker needs a gesture either way.
+$('open').onclick = () => (state.library ? openModal() : openCard().then(openModal));
+$('modal-open').onclick = openCard;
 $('reload').onclick = reread;
+$('modal-reload').onclick = reread;
+$('modal-close').onclick = () => $('card-modal').close();
 $('add-sample').onclick = () => pickFiles((f) => addAudio(f, null));
 $('add-kit').onclick = newKit;
 $('add-preset').onclick = newPreset;
-$('mode-card').onclick = () => setMode('card');
-$('mode-live').onclick = () => setMode('live');
 
 if (DEMO) {
-  $('mode').textContent = 'demo card';
-  $('open').textContent = 'Open a real card…';
+  $('mode').hidden = false;
+  $('modal-mode').textContent = 'demo card';
+  $('open').textContent = 'Demo card…';
+  $('modal-open').textContent = 'Open a real card…';
   reread();
 } else if (!fs.supported()) {
   $('unsupported').hidden = false;
-  $('open').disabled = true;
+  $('modal-open').disabled = true;
+}
+paintCardStatus();
+
+// Live mode is the screen now, so it mounts once and stays.
+if (live.supported()) {
+  live.mount($('live-mount'), { library: { kitSpan: kitSpan() }, toast });
+} else {
+  $('live-intro').hidden = false;
 }
 
 // Drag audio anywhere on the page.

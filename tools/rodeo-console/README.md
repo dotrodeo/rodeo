@@ -1,17 +1,26 @@
 # rodeo-console
 
-A browser page for working with a Rodeo on the bench. **Card mode** builds the
-SD card: drop in audio of any format, lay a kit out across the keys, edit
-presets as a form, and find out what the firmware would quietly skip.
-**Live mode** plays the board over USB-MIDI.
+A browser page for working with a Rodeo on the bench: play it over USB-MIDI,
+watch the satellite chain, and build its SD card — drop in audio of any
+format, lay a kit out across the keys, edit presets as a form, and find out
+what the firmware would quietly skip.
 
 Phases 1 and 2 of
 [`planning/RODEO_CONSOLE_PLAN.md`](../../planning/RODEO_CONSOLE_PLAN.md).
 A bench tool, not a product: Chrome or Edge, no build step, no dependencies.
 
-The two modes are a switch rather than one screen because the hardware makes
-them exclusive: entering disk mode hands the card to the computer and closes
-the serial port, and the USB-MIDI interface goes with it.
+**One screen, three connections.** The toolbar carries MIDI, serial and the
+card, each with a status dot: grey not connected, yellow connected, cyan
+carrying traffic, red open but wrong. The dot's tooltip says which — a colour
+can report that something is off, not what.
+
+The Rodeo still cannot have the card and the serial port open at once:
+entering disk mode hands the card to the computer and closes CDC, and
+USB-MIDI goes with it. That is a fact about the hardware, so the dots show it
+going dark rather than the page pretending to be two places.
+
+The card is a job you go and do rather than something to watch, so it opens in
+a dialog over the keyboard instead of competing with it for the screen.
 
 ## Running it
 
@@ -29,7 +38,7 @@ the page does without a Rodeo attached. Nothing in demo mode can be written.
 
 1. Put the Rodeo in disk mode — hold encoders 1 and 4 for a second, or press
    `d` on its serial port. The card mounts as an ordinary drive.
-2. **Open a card…** and pick that drive. The page reads it the way the firmware
+2. **Open card…** and pick that drive. The page reads it the way the firmware
    will.
 3. Add, arrange, edit. Everything is written straight onto the card.
 4. Fix anything under **Before you eject**, then eject. The Rodeo re-reads the
@@ -57,7 +66,7 @@ than it sounds: the firmware rejects `WAVE_FORMAT_EXTENSIBLE` outright, which is
 what a lot of tools write for 24-bit and multichannel files, and a rejected file
 is skipped in silence at power-up.
 
-## Live mode
+## Playing it
 
 Rodeo already enumerates as USB-MIDI, so this needs nothing from the firmware.
 Connect the port — it shows up as "Rodeo MIDI" — and the keyboard plays it.
@@ -114,8 +123,7 @@ Notes go out with Web MIDI timestamps from a lookahead scheduler rather than
 straight off a `setTimeout`, which would jitter audibly. Swing shifts a step
 without the grid drifting: sixteen steps later is still exactly a bar.
 
-Stopping, switching to card mode, or hiding the tab lifts every note and sends
-CC 123 — the page holds notes down on real hardware, and a dropped note-off
+Stopping or hiding the tab lifts every note and sends CC 123 — the page holds notes down on real hardware, and a dropped note-off
 means the Rodeo drones until it is power-cycled.
 
 ## Tests

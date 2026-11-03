@@ -262,6 +262,20 @@ function ports() {
 
 // ----------------------------------------------------------------- rendering
 
+/**
+ * A dot instead of a sentence. The sentence still exists as the dot's title,
+ * because a colour can say "something is wrong" but not which thing.
+ *
+ * off: nothing open. on: open. live: open and carrying traffic. bad: open and
+ * not what you wanted.
+ */
+function setDot(id, level, why) {
+  const dot = $(id);
+  if (!dot) return;
+  dot.className = `st ${level}`;
+  dot.title = why;
+}
+
 function renderPorts() {
   const sel = $('live-port');
   if (!sel) return;
@@ -274,13 +288,14 @@ function renderPorts() {
       : [el('option', { value: '', textContent: 'no MIDI outputs' })])
   );
   sel.disabled = !list.length;
-  const hint = $('live-port-hint');
-  if (!hint) return;
-  if (!state.access) hint.textContent = '';
-  else if (!list.length) hint.textContent = 'nothing plugged in — Rodeo is “Rodeo MIDI”';
-  else if (state.out && midi.isRodeoPort(state.out.name)) hint.textContent = 'looks like a Rodeo';
-  else if (state.out) hint.textContent = 'not a Rodeo by name — sending anyway';
-  else hint.textContent = 'pick a port';
+  if (!supported()) return setDot('st-midi', 'bad', 'this browser has no Web MIDI — Chrome or Edge');
+  if (!state.access) return setDot('st-midi', 'off', 'not connected');
+  if (!list.length)
+    return setDot('st-midi', 'bad', 'nothing plugged in — the Rodeo shows up as “Rodeo MIDI”');
+  if (!state.out) return setDot('st-midi', 'off', 'pick a port');
+  if (midi.isRodeoPort(state.out.name))
+    return setDot('st-midi', 'on', `${state.out.name} — looks like a Rodeo`);
+  setDot('st-midi', 'bad', `${state.out.name} — not a Rodeo by name, sending anyway`);
 }
 
 function renderKeyboard() {
@@ -464,15 +479,6 @@ function clock() {
 function markup() {
   const panel = el('section', { className: 'live', id: 'live' });
   panel.innerHTML = `
-    <div class="row bar2">
-      <button id="live-connect" class="primary">Connect MIDI</button>
-      <select id="live-port" disabled></select>
-      <span class="small dim" id="live-port-hint"></span>
-      <span class="sep"></span>
-      <button id="live-serial">Connect serial</button>
-      <span class="small dim" id="live-serial-hint">the chain, live</span>
-    </div>
-
     <div class="pk-wrap" id="live-keys"></div>
 
     <div class="row live-controls">
@@ -796,16 +802,17 @@ function renderSerial() {
     e.disabled = owned;
     e.title = owned ? 'read from the Rodeo' : own;
   }
-  const hint = $('live-serial-hint');
-  if (!hint) return;
-  if (!serial.supported()) hint.textContent = 'this browser has no Web Serial — Chrome or Edge';
-  else if (!on) hint.textContent = 'the chain, live';
-  else if (!state.wire.lines) hint.textContent = 'open — press j or J';
-  else
-    hint.textContent =
-      `${state.wire.streaming ? 'streaming' : 'open'} · ${state.wire.lines} ` +
-      `line${state.wire.lines === 1 ? '' : 's'}` +
-      (state.wire.skipped ? `, ${state.wire.skipped} truncated` : '');
+  if (!serial.supported())
+    return setDot('st-serial', 'bad', 'this browser has no Web Serial — Chrome or Edge');
+  if (!on) return setDot('st-serial', 'off', 'not connected — the chain, live');
+  const lines = `${state.wire.lines} line${state.wire.lines === 1 ? '' : 's'}`;
+  const cut = state.wire.skipped ? `, ${state.wire.skipped} truncated` : '';
+  if (!state.wire.lines) return setDot('st-serial', 'on', 'open — press Read once or Stream');
+  setDot(
+    'st-serial',
+    state.wire.streaming ? 'live' : 'on',
+    `${state.wire.streaming ? 'streaming' : 'open'} · ${lines}${cut}`
+  );
 }
 
 function renderReadout() {
@@ -1050,6 +1057,14 @@ function onKeyUp(e) {
  */
 function onHide() {
   if (document.visibilityState === 'hidden') panic();
+}
+
+/** The card dialog can change the selection at any time now. */
+export function setLibrary(library) {
+  state.library = library;
+  if (!$('live-keys')) return;
+  renderKeyboard();
+  paint();
 }
 
 export function mount(container, { library = null, toast = () => {} } = {}) {

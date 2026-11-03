@@ -125,7 +125,7 @@ main { padding: 20px 16px 60px; max-width: 1200px; margin: 0 auto; }
 .list .kind { font-size: 10px; color: var(--gray); text-transform: uppercase; letter-spacing: 0.08em; }
 .list .bad { color: var(--red); }
 .side-actions { display: flex; gap: 6px; padding: 10px 12px; flex-wrap: wrap; }
-.side-actions button { flex: 1; font-size: 12px; padding: 5px 8px; }
+.side-actions button { flex: 1 1 auto; font-size: 12px; padding: 5px 7px; white-space: nowrap; }
 
 .detail { min-height: 300px; }
 .detail h2 { font-size: 19px; margin: 0 0 4px; color: var(--legend); }
@@ -216,10 +216,30 @@ tr.skipped td { color: var(--red); }
 }
 .toast.bad { border-left-color: var(--red); }
 
-/* ---- mode switch ---- */
-.modes { display: flex; }
-.modes button { border-radius: 0; margin-left: -1px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; padding: 4px 11px; }
-.modes button[aria-pressed='true'] { background: var(--legend); color: var(--field); border-color: var(--legend); }
+/* ---- the one toolbar ---- */
+.bar { flex-wrap: wrap; row-gap: 8px; }
+.bar .pool { margin-left: auto; }
+.bar .pool-bar { width: 96px; }
+.bar .pool-text { font-size: 11px; }
+.conn { display: flex; align-items: center; gap: 7px; }
+.conn select { width: auto; min-width: 150px; max-width: 260px; }
+
+/* A dot instead of a sentence. The sentence is the dot's title: colour can say
+ * that something is wrong, but not which thing. */
+.st {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #4a4a4a;
+  border: 1px solid #5e5e5e;
+  flex: 0 0 auto;
+  cursor: help;
+}
+.st.on { background: var(--yellow); border-color: var(--yellow); }
+.st.bad { background: var(--red); border-color: var(--red); }
+.st.live { background: var(--cyan); border-color: var(--cyan); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .st.live { animation: none; } }
 
 /* ---- live mode ---- */
 .live h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gray); font-weight: 400; margin: 0 0 10px; }
@@ -391,3 +411,32 @@ button.cmd { font-size: 11px; padding: 4px 9px; }
   padding: 2px 0;
 }
 .cell-press.on { border-color: var(--yellow); background: var(--yellow); color: var(--field); }
+
+/* ---- the card, in a dialog ---- */
+.card-modal {
+  width: min(1100px, 94vw);
+  max-height: 88vh;
+  padding: 0;
+  border: 1px solid var(--rule);
+  background: var(--field);
+  color: var(--paper);
+  font: 14px/1.5 var(--mono);
+}
+.card-modal::backdrop { background: rgba(0, 0, 0, 0.72); }
+.modal-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--rule);
+  position: sticky;
+  top: 0;
+  background: var(--field);
+  z-index: 2;
+}
+.modal-bar h2 { font-size: 14px; margin: 0; text-transform: uppercase; letter-spacing: 0.06em; }
+.modal-body { padding: 18px 16px 24px; overflow-y: auto; max-height: calc(88vh - 48px); }
+.card-modal .sidebar { top: 0; }
+.card-modal .intro { max-width: 64ch; }
+.card-modal .intro p { color: var(--gray); }
+.card-modal .intro button { margin-top: 6px; }
