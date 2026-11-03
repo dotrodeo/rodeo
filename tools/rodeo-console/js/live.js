@@ -37,6 +37,8 @@ const TYPING = ['a', 'w', 's', 'e', 'd', 'f', 't', 'g', 'y', 'h', 'u', 'j', 'k',
 const LOOKAHEAD = 140;
 const TICK = 25;
 
+let sizer = null; // keeps the keyboard filling the width it is given
+
 const state = {
   access: null,
   out: null,
@@ -332,6 +334,22 @@ function renderKeyboard() {
     }
   }
   wrap.append(row);
+  fitKeyboard();
+}
+
+/**
+ * The black keys are positioned in --pk-w units, so sizing the whole keyboard
+ * is a matter of setting that one value: no key is laid out independently.
+ * Clamped at both ends — big enough to hit on a narrow window (the wrapper
+ * scrolls), small enough not to look silly on a wide one (the row centres).
+ */
+function fitKeyboard() {
+  const wrap = $('live-keys');
+  const row = wrap?.querySelector('.pk-row');
+  if (!row || !wrap.clientWidth) return;
+  const count = Number(row.style.getPropertyValue('--pk-count')) || 1;
+  const w = Math.max(22, Math.min(54, Math.floor(wrap.clientWidth / count)));
+  row.style.setProperty('--pk-w', `${w}px`);
 }
 
 function key(note, className) {
@@ -521,10 +539,6 @@ function markup() {
     <div class="row live-pats" id="live-patterns">
       <span class="small dim">test</span>
     </div>
-    <p class="small dim">
-      Rodeo takes notes, velocity, bend over its fixed ±2, CC 64 and CC 120/123. Nothing else,
-      and it sends nothing back.
-    </p>
   `;
   return panel;
 }
@@ -980,6 +994,8 @@ export function mount(container, { library = null, toast = () => {} } = {}) {
   renderGrid();
   paint();
   clock();
+  sizer = new ResizeObserver(fitKeyboard);
+  sizer.observe($('live-keys'));
   addEventListener('keydown', onKeyDown);
   addEventListener('keyup', onKeyUp);
   addEventListener('pagehide', panic);
@@ -988,6 +1004,8 @@ export function mount(container, { library = null, toast = () => {} } = {}) {
 
 export function unmount() {
   panic();
+  sizer?.disconnect();
+  sizer = null;
   state.wire.port?.close();
   clearInterval(state.tick);
   state.tick = null;

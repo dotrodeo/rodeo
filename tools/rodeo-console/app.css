@@ -238,12 +238,12 @@ button.on { background: var(--yellow); color: var(--field); border-color: var(--
  * offset. --pk-w is one white key, so the black keys follow any width. */
 .pk-wrap { overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; }
 .pk-row {
-  --pk-w: 30px;
+  --pk-w: 30px; /* fitKeyboard() sets the real one from the wrapper's width */
   position: relative;
   display: flex;
   height: 104px;
   width: calc(var(--pk-count) * var(--pk-w));
-  min-width: 100%;
+  margin: 0 auto; /* centred when the key-width cap stops it filling */
   user-select: none;
   touch-action: none;
 }
@@ -297,13 +297,12 @@ button.on { background: var(--yellow); color: var(--field); border-color: var(--
   display: grid;
   grid-template-columns: 34px repeat(16, 1fr);
   gap: 3px;
-  max-width: 760px;
   user-select: none;
   touch-action: none;
 }
 .sq-label { font-size: 10px; color: var(--gray); line-height: 22px; }
 .sq {
-  height: 22px;
+  height: 26px;
   border: 1px solid var(--rule);
   background: var(--raised);
   padding: 0;
@@ -314,7 +313,7 @@ button.on { background: var(--yellow); color: var(--field); border-color: var(--
 .sq.on { background: var(--yellow); border-color: var(--yellow); }
 .sq.now { box-shadow: inset 0 0 0 1px var(--cyan); }
 .sq.on.now { background: var(--legend); border-color: var(--legend); }
-.sq-foot { margin-top: 10px; max-width: 760px; align-items: center; }
+.sq-foot { margin-top: 10px; align-items: center; }
 .sq-foot input[type='number'] { width: 58px; }
 
 /* ---- voices ---- */
