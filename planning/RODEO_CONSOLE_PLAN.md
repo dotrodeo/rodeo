@@ -153,8 +153,11 @@ Serial open, card is Rodeo's.
 
 Yours, not mine, and both are small. Phase 1 needs neither.
 
-**1. A machine-readable state line.** A `j` command (or `s` gaining a second line)
-emitting one line of compact state, so the monitor parses instead of scrapes:
+**1. A machine-readable state line.** Written up in full, with every field's
+source call and the one way to implement it that would break the instrument, in
+[`RODEO_CONSOLE_STATE_LINE.md`](RODEO_CONSOLE_STATE_LINE.md). A `j` command (or
+`s` gaining a second line) emitting one line of compact state, so the monitor
+parses instead of scrapes:
 
 ```
 #S {"preset":3,"layer":"both","shape":"saw","sound":2,"cut":41,"res":12,
@@ -164,6 +167,11 @@ emitting one line of compact state, so the monitor parses instead of scrapes:
 
 Prefixed so a human terminal can ignore it. Emitting it on change, or ~10 Hz while
 anything moves, makes the chain view live without polling.
+
+That sketch is short one thing the chain view needs and no current output carries:
+**where each control is**. "2 satellites, 24581 good scans" cannot draw a pot
+moving. `SatChain` knows (`Pot`, `Pressed`, `SwitchPosition`); nothing prints it.
+The spec adds a per-satellite array for it.
 
 **2. Later, for phase 2: a file-transfer command.** Only worth it once the card
 workflow is in use and the eject dance is the annoying part. Write the SD card while
