@@ -1,0 +1,25 @@
+# The classic 1970s three-oscillator mono lead: saws stacked with one an
+# octave down, a 24 dB ladder pushed a little by the mixer, a filter that
+# opens on each note and settles, glide between legato notes, and the cutoff
+# following the keyboard so the high notes stay bright.
+layer     = synth
+mono      = on
+glide     = 60      # ms
+shape     = saw + sub
+detune    = 8       # cents
+filter    = ladder
+drive     = 30      # %
+cutoff    = 46      # % of pot 1's travel
+resonance = 35      # %
+env       = 50      # %
+keytrack  = 66      # %
+fattack   = 1       # ms
+fdecay    = 600     # ms
+fsustain  = 55      # %
+attack    = 4       # ms
+decay     = 3000    # ms
+sustain   = 100     # %
+release   = 120     # ms
+lfo       = off
+fx        = reverb
+mix       = 15      # %

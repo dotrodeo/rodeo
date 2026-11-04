@@ -1,0 +1,21 @@
+# The early-80s analogue poly brass: two detuned saws per voice through a
+# 24 dB low-pass whose envelope swells a little behind the note, so each
+# chord blares and then sits down.
+layer     = synth
+shape     = saw
+detune    = 12      # cents
+filter    = ladder
+cutoff    = 39      # %
+resonance = 10      # %
+env       = 60      # %
+keytrack  = 50      # %
+fattack   = 70      # ms
+fdecay    = 700     # ms
+fsustain  = 45      # %
+attack    = 25      # ms
+decay     = 1200    # ms
+sustain   = 90      # %
+release   = 350     # ms
+lfo       = off
+fx        = reverb
+mix       = 20      # %

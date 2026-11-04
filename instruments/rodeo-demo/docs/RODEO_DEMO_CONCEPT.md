@@ -67,6 +67,11 @@ pot bank, encoder bank ─► chain (250 Hz) ─► params; LEDs ◄─ state
 * **Synth voice**: two oscillators (saw / pulse with width / triangle, PolyBLEP from
   DaisySP), detune, a sub-oscillator, a state-variable low-pass, an amp ADSR and a filter
   ADSR, one LFO. Eight voices, which rodeo-002 showed is comfortable on the H750.
+  Added 2026-11-03 for the presets, all reached from preset files only: an FM shape (two
+  sine pairs, an electric-piano body and tine), a zero-delay-feedback ladder low-pass at
+  24 or 12 dB with drive, a high-pass, key tracking, the envelopes' decay and sustain and
+  the filter envelope's own attack, and mono with glide. Eight voices cost about 70 % of
+  the CPU with any of them.
 * **Sample voice**: plays a WAV from SDRAM, pitched by the note (one sample across the
   keys) or one sample per note (a kit). Same amp envelope and filter as the synth, so the
   panel means the same thing for both.

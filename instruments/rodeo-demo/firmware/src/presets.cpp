@@ -122,6 +122,43 @@ bool Set(Preset& pr, const char* key, const char* value)
             return false;
         return true;
     }
+    if(!strcmp(k, "mono"))
+    {
+        if(strcmp(v, "on") && strcmp(v, "off"))
+            return false;
+        p.mono = !strcmp(v, "on");
+        return true;
+    }
+    if(!strcmp(k, "filter"))
+    {
+        if(!strcmp(v, "svf"))
+            p.filter = synth::Filter::Svf;
+        else if(!strcmp(v, "ladder"))
+            p.filter = synth::Filter::Ladder;
+        else if(!strcmp(v, "ladder12"))
+            p.filter = synth::Filter::Ladder12;
+        else
+            return false;
+        return true;
+    }
+    if(!strcmp(k, "decay") && Number(v, 1.f, 10000.f, &x))
+        return p.decay = x / 1000.f, true;
+    if(!strcmp(k, "sustain") && Number(v, 0.f, 100.f, &x))
+        return p.sustain = x / 100.f, true;
+    if(!strcmp(k, "fattack") && Number(v, 1.f, 4000.f, &x))
+        return p.fattack = x / 1000.f, true;
+    if(!strcmp(k, "fdecay") && Number(v, 1.f, 10000.f, &x))
+        return p.fdecay = x / 1000.f, true;
+    if(!strcmp(k, "fsustain") && Number(v, 0.f, 100.f, &x))
+        return p.fsustain = x / 100.f, true;
+    if(!strcmp(k, "drive") && Number(v, 0.f, 100.f, &x))
+        return p.drive = x / 100.f, true;
+    if(!strcmp(k, "hpf") && Number(v, 0.f, 2000.f, &x))
+        return p.hpf = x, true;
+    if(!strcmp(k, "keytrack") && Number(v, 0.f, 100.f, &x))
+        return p.keytrack = x / 100.f, true;
+    if(!strcmp(k, "glide") && Number(v, 0.f, 2000.f, &x))
+        return p.glide = x / 1000.f, true;
     if(!strcmp(k, "detune") && Number(v, 0.f, 50.f, &x))
         return p.detune = x / 100.f, true;
     if(!strcmp(k, "octave") && Number(v, -2.f, 2.f, &x))

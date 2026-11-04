@@ -1,0 +1,20 @@
+# The mid-80s FM electric piano: a sine body that is bright at the strike and
+# mellows as it rings (pot 3 sets how bright), a bell-like tine on the attack,
+# the two slightly apart for the shimmer, all of it on velocity. Held notes
+# die away like a piano's.
+layer     = synth
+shape     = fm
+detune    = 6       # cents, between the body and the tine
+cutoff    = 95      # % (left open: the brightness is the FM)
+resonance = 0       # %
+env       = 55      # % (the body's FM depth)
+fattack   = 1       # ms
+fdecay    = 1200    # ms (how fast the brightness fades)
+fsustain  = 15      # %
+attack    = 1       # ms
+decay     = 3500    # ms
+sustain   = 0       # %
+release   = 400     # ms
+lfo       = off
+fx        = both
+mix       = 25      # %

@@ -1,0 +1,25 @@
+# The late-70s semi-modular mono: a raw 12 dB filter driven hard with the
+# resonance high enough to scream, a high-pass taking the mud out below it,
+# and a snappy envelope for squelch.
+layer     = synth
+mono      = on
+glide     = 20      # ms
+shape     = saw
+detune    = 4       # cents
+filter    = ladder 12
+drive     = 60      # %
+hpf       = 120     # Hz
+cutoff    = 35      # %
+resonance = 70      # %
+env       = 70      # %
+keytrack  = 50      # %
+fattack   = 1       # ms
+fdecay    = 300     # ms
+fsustain  = 20      # %
+attack    = 2       # ms
+decay     = 600     # ms
+sustain   = 80      # %
+release   = 120     # ms
+lfo       = off
+fx        = reverb
+mix       = 10      # %

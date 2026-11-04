@@ -274,7 +274,7 @@ void SerialTask()
                   "to hand it back. s = state, n = leave now (without the eject)\r\n");
         else
             Print("\r\nrodeo-demo. s = state, d = disk mode (the SD card as a USB drive),\r\n"
-                  "j = state as JSON, J = stream it, B = reboot into the bootloader\r\n");
+                  "p = next preset, j = state as JSON, J = stream it, B = reboot into the bootloader\r\n");
         PrintState();
     }
     if(!connected)
@@ -286,6 +286,11 @@ void SerialTask()
         char c = (char)tud_cdc_read_char();
         if(c == 's')
             PrintState();
+        else if(c == 'p' && presets::Count() > 0)
+        {
+            Print(panel::LoadPreset((panel::Preset() + 1) % presets::Count(), params));
+            Print("\r\n");
+        }
         else if(c == 'j')
             StateLine(true);
         else if(c == 'J')

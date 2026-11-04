@@ -8,7 +8,7 @@
 // optional:
 //
 //   layer     = synth | sampler | both
-//   shape     = saw | square | pulse | triangle | saw + sub | square + sub
+//   shape     = saw | square | pulse | triangle | saw + sub | square + sub | fm
 //   sound     = <name>   a sound on the card by name (a WAV's name without .wav,
 //                        or a kit's folder), not by number, so adding files
 //                        doesn't change what a preset plays
@@ -22,6 +22,21 @@
 //   lfo       = on | off
 //   fx        = chorus | reverb | both
 //   mix       = 0..100   %
+//
+// and these, which no control on the panel reaches:
+//
+//   decay     = ms       amp envelope (200)
+//   sustain   = 0..100   % (85)
+//   fattack   = ms       filter envelope; without it, the same as attack
+//   fdecay    = ms       (400)
+//   fsustain  = 0..100   % (25)
+//   filter    = svf | ladder | ladder 12   12 dB state-variable (the default), a
+//                        24 dB ladder, or the ladder's 12 dB tap
+//   drive     = 0..100   % into the filter
+//   hpf       = Hz       a high-pass before the filter; 0 for none
+//   keytrack  = 0..100   % the cutoff follows the key, from middle C
+//   mono      = on | off one voice, last key wins, legato (synth layer only)
+//   glide     = ms       in mono
 //
 // What a preset leaves out takes the power-up default, except the four pots'
 // parameters: a preset without cutoff leaves cutoff to pot 1. What it does set

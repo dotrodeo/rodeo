@@ -2,8 +2,10 @@
 // sampler, a chorus and a reverb.
 //
 // A voice is two oscillators (and a sub an octave down, for the shapes that have
-// one) or a sample, through a resonant low-pass with its own envelope, then an
-// amp envelope. The panel's parameters (Params) mean the same thing whichever is
+// one), an FM pair, or a sample, through a resonant low-pass with its own
+// envelope, then an amp envelope. The low-pass is a 12 dB state-variable filter,
+// or a ladder at 24 or 12 dB with drive for the heavier sounds; an optional
+// high-pass goes before it. A preset can make the synth monophonic, with glide. The panel's parameters (Params) mean the same thing whichever is
 // playing: a sample is filtered and enveloped just like an oscillator.
 //
 // Threading: notes arrive in the main loop (MIDI) and sound in the audio
@@ -25,6 +27,13 @@ enum class Layer : uint8_t
     Both,
 };
 
+enum class Filter : uint8_t
+{
+    Svf,      // 12 dB state-variable
+    Ladder,   // 24 dB ladder
+    Ladder12, // the ladder's 12 dB tap: rawer, and it screams at the top
+};
+
 enum class Fx : uint8_t
 {
     Chorus,
@@ -41,6 +50,8 @@ enum Shape : uint8_t
     kTriangle,
     kSawSub,
     kSquareSub,
+    kFm,       // two sine pairs, FM: a body whose brightness is the filter
+               // envelope (pot 3) and a short bright tine; velocity drives both
     kShapes,
 };
 const char* ShapeName(int shape);
@@ -58,6 +69,19 @@ struct Params
     float resonance = 0.2f;   // 0..1
     float env_amount = 0.3f;  // 0..1: up to 5 octaves of filter envelope
     bool  lfo       = false;  // a slow filter sweep and a touch of vibrato
+
+    // Set by presets only; no control on the panel
+    float decay      = 0.2f;  // amp envelope, seconds
+    float sustain    = 0.85f; // 0..1
+    float fattack    = -1.f;  // filter envelope, seconds; below 0 it follows attack
+    float fdecay     = 0.4f;
+    float fsustain   = 0.25f;
+    Filter filter    = Filter::Svf;
+    float drive      = 0.f;   // 0..1, into the low-pass
+    float hpf        = 0.f;   // high-pass corner, Hz; 0 for none
+    float keytrack   = 0.f;   // 0..1: how far the cutoff follows the key, from middle C
+    bool  mono       = false; // one voice, last key wins, legato (synth layer only)
+    float glide      = 0.f;   // seconds, in mono
     Fx    fx        = Fx::Both;
     float fx_mix    = 0.25f;  // 0..1
 };
