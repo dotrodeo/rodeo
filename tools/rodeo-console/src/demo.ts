@@ -8,7 +8,9 @@
 //
 // Nothing here can be written to. `?demo` leaves the card read-only.
 
-const wav = (name, over = {}) => ({
+import type { Card, CardFile } from './card.ts';
+
+const wav = (name: string, over: Partial<CardFile> = {}): CardFile => ({
   name,
   frames: 48000,
   channels: 1,
@@ -20,7 +22,7 @@ const wav = (name, over = {}) => ({
   ...over,
 });
 
-export function demoCard() {
+export function demoCard(): Card {
   return {
     samples: [
       wav('bass.wav', { frames: 96_000, channels: 2, bytes: 384_044 }),

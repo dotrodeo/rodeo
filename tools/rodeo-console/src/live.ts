@@ -3,27 +3,40 @@
 // Phase 2 of planning/RODEO_CONSOLE_PLAN.md, first half. Needs no firmware
 // change — Rodeo already enumerates as USB-MIDI (bring-up test 08).
 //
-// What the firmware acts on is in js/midi.js, which is a copy of `Midi()` and
-// `Allocate()`; the clock, the sequencer and the arp are in js/seq.js, which is
+// What the firmware acts on is in src/midi.ts, which is a copy of `Midi()` and
+// `Allocate()`; the clock, the sequencer and the arp are in src/seq.ts, which is
 // a copy of nothing, because Rodeo has neither. The README says what the page
 // can and cannot do and why; this file does not repeat it on screen.
 //
 // The chain monitor is the other half, and it waits on the `#S` state line
 // (planning/RODEO_CONSOLE_STATE_LINE.md).
 
-import { noteName } from './card.js';
-import { LAYERS } from './preset.js';
-import * as midi from './midi.js';
-import * as seq from './seq.js';
-import * as chain from './chain.js';
-import * as serial from './serial.js';
+import { noteName } from './card.ts';
+import { LAYERS } from './preset.ts';
+import * as midi from './midi.ts';
+import * as seq from './seq.ts';
+import * as chain from './chain.ts';
+import * as serial from './serial.ts';
 
-const $ = (id) => document.getElementById(id);
-const el = (tag, props = {}, kids = []) => {
+// Typed as present: every id is this file's own markup or index.html's, and
+// the few that can be missing before mount() are checked where they are used.
+const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+
+type Kid = Node | string;
+/** An element's own properties, plus `style` as text and `data` for dataset. */
+type ElProps<K extends keyof HTMLElementTagNameMap> = Partial<
+  Omit<HTMLElementTagNameMap[K], 'style'>
+> & { style?: string; data?: Record<string, string> };
+
+const el = <K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  props: ElProps<K> = {} as ElProps<K>,
+  kids: Kid | Kid[] = []
+): HTMLElementTagNameMap[K] => {
   const { data, ...rest } = props;
   const n = Object.assign(document.createElement(tag), rest);
   for (const [k, v] of Object.entries(data ?? {})) n.dataset[k] = v;
-  for (const k of [].concat(kids)) n.append(k);
+  for (const k of ([] as Kid[]).concat(kids)) n.append(k);
   return n;
 };
 
@@ -37,9 +50,84 @@ const TYPING = ['a', 'w', 's', 'e', 'd', 'f', 't', 'g', 'y', 'h', 'u', 'j', 'k',
 const LOOKAHEAD = 140;
 const TICK = 25;
 
-let sizer = null; // keeps the keyboard filling the width it is given
+let sizer: ResizeObserver | null = null; // keeps the keyboard filling the width it is given
 
-const state = {
+/** The selected kit's keys, from the card read in the dialog. */
+export interface KitSpan {
+  name: string;
+  from: number;
+  files: number;
+}
+
+/** What the card dialog tells the keyboard. */
+export interface LiveLibrary {
+  kitSpan: KitSpan | null;
+}
+
+export type Toast = (message: string, bad?: boolean) => void;
+
+type TimerId = ReturnType<typeof setTimeout>;
+type IntervalId = ReturnType<typeof setInterval>;
+
+interface Transport {
+  running: boolean;
+  bpm: number;
+  /** Index into seq.DIVISIONS. */
+  div: number;
+  swing: number;
+  gate: number;
+  step: number;
+  next: number;
+  clock: IntervalId | null;
+  /** The step on screen, or -1. */
+  cursor: number;
+}
+
+interface Arp {
+  mode: seq.ArpMode;
+  octaves: number;
+  latch: boolean;
+  /** Held notes in the order played. */
+  held: number[];
+  /** Set once every key is up, so a latched arp starts a new chord. */
+  newChord?: boolean;
+}
+
+/** The serial side: the port, and the last `#S` line it gave us. */
+interface Wire {
+  port: serial.Port | null;
+  state: chain.StateLine | null;
+  streaming: boolean;
+  lines: number;
+  skipped: number;
+  /** Detents per encoder since the last line. */
+  turn: number[];
+  /** Detent totals per encoder, as of the last line. */
+  enc: number[];
+}
+
+interface LiveState {
+  access: MIDIAccess | null;
+  out: MIDIOutput | null;
+  base: number;
+  octaves: number;
+  velocity: number;
+  sustain: boolean;
+  layer: string;
+  voices: midi.Voices;
+  down: Set<number>;
+  timers: Set<TimerId>;
+  tick: IntervalId | null;
+  library: LiveLibrary | null;
+  toast: Toast;
+  t: Transport;
+  arp: Arp;
+  pattern: seq.Pattern;
+  root: number;
+  wire: Wire;
+}
+
+const state: LiveState = {
   access: null,
   out: null,
   base: midi.KIT_FIRST_NOTE, // leftmost key, C2 so a kit's range is on screen
@@ -62,23 +150,23 @@ const state = {
 
 };
 
-export function supported() {
+export function supported(): boolean {
   return typeof navigator !== 'undefined' && !!navigator.requestMIDIAccess;
 }
 
 // ------------------------------------------------------------------- sending
 
-function send(bytes, at) {
+function send(bytes: number[], at?: number) {
   if (!state.out) return;
   try {
     state.out.send(bytes, at);
   } catch (e) {
-    state.toast(`the MIDI port refused that: ${e.message}`, true);
+    state.toast(`the MIDI port refused that: ${(e as Error).message}`, true);
   }
 }
 
 /** A timeout that forgets itself, so a running transport does not leak them. */
-function later(fn, delay) {
+function later(fn: () => void, delay: number) {
   const id = setTimeout(() => {
     state.timers.delete(id);
     fn();
@@ -92,7 +180,7 @@ function clearTimers() {
   state.timers.clear();
 }
 
-function play(note, velocity = state.velocity) {
+function play(note: number, velocity = state.velocity) {
   if (!state.out) return;
   noteHeld(note);
   // With the arp running the keyboard feeds it instead of sounding directly.
@@ -102,7 +190,7 @@ function play(note, velocity = state.velocity) {
   paint();
 }
 
-function lift(note) {
+function lift(note: number) {
   if (!state.down.has(note)) return;
   state.down.delete(note);
   if (!state.arp.latch) state.arp.held = state.arp.held.filter((n) => n !== note);
@@ -114,7 +202,7 @@ function lift(note) {
 }
 
 /** Held notes in the order played, which is what `as played` arpeggiates. */
-function noteHeld(note) {
+function noteHeld(note: number) {
   state.down.add(note);
   // Latched: a key pressed with nothing else down starts a new chord.
   if (state.arp.latch && state.down.size === 1 && state.arp.newChord) state.arp.held = [];
@@ -141,7 +229,7 @@ function panic() {
   paint();
 }
 
-function setSustain(down) {
+function setSustain(down: boolean) {
   if (state.sustain === down) return;
   state.sustain = down;
   send(midi.sustain(down));
@@ -157,7 +245,7 @@ function setSustain(down) {
  * Null means "do not claim", which is the answer whenever the layer or the
  * selected sound is unknown — and the sound always is.
  */
-function sampleOn(note) {
+function sampleOn(note: number): boolean | null {
   if (state.layer !== 'sampler') return null;
   const kit = state.library?.kitSpan;
   if (!kit) return null;
@@ -182,7 +270,7 @@ function start() {
 function stop() {
   if (!state.t.running) return;
   state.t.running = false;
-  clearInterval(state.t.clock);
+  clearInterval(state.t.clock ?? undefined);
   state.t.clock = null;
   state.t.cursor = -1;
   clearTimers();
@@ -204,7 +292,7 @@ function schedule() {
   }
 }
 
-function fire(index, at, ms) {
+function fire(index: number, at: number, ms: number) {
   const notes = seq.stepNotes(state.pattern, index, state.root);
   if (arpLive()) {
     const cycle = seq.arpSequence(state.arp.held, state.arp.mode, state.arp.octaves);
@@ -237,13 +325,14 @@ async function connect() {
   try {
     state.access = await navigator.requestMIDIAccess({ sysex: false });
   } catch (e) {
-    state.toast(`no MIDI access: ${e.message}`, true);
+    state.toast(`no MIDI access: ${(e as Error).message}`, true);
     return;
   }
-  state.access.onstatechange = () => {
+  // Set just above; the try is what hides that from TypeScript.
+  state.access!.onstatechange = () => {
     // Disk mode takes the MIDI interface with it (disk.h:7), so a port
     // vanishing here is usually that rather than a fault. Say which.
-    if (state.out && !ports().some((p) => p.id === state.out.id)) {
+    if (state.out && !ports().some((p) => p.id === state.out!.id)) {
       state.out = null;
       stop();
       state.toast('the Rodeo MIDI port went away — disk mode, or unplugged');
@@ -256,7 +345,7 @@ async function connect() {
   paint();
 }
 
-function ports() {
+function ports(): MIDIOutput[] {
   return state.access ? [...state.access.outputs.values()] : [];
 }
 
@@ -269,7 +358,7 @@ function ports() {
  * off: nothing open. on: open. live: open and carrying traffic. bad: open and
  * not what you wanted.
  */
-function setDot(id, level, why) {
+function setDot(id: string, level: string, why: string) {
   const dot = $(id);
   if (!dot) return;
   dot.className = `st ${level}`;
@@ -277,13 +366,13 @@ function setDot(id, level, why) {
 }
 
 function renderPorts() {
-  const sel = $('live-port');
+  const sel = $<HTMLSelectElement>('live-port');
   if (!sel) return;
   const list = ports();
   sel.replaceChildren(
     ...(list.length
       ? list.map((p) =>
-          el('option', { value: p.id, textContent: p.name, selected: p.id === state.out?.id })
+          el('option', { value: p.id, textContent: p.name ?? '', selected: p.id === state.out?.id })
         )
       : [el('option', { value: '', textContent: 'no MIDI outputs' })])
   );
@@ -321,15 +410,15 @@ function renderKeyboard() {
     k.style.left = `calc(${left + 1} * var(--pk-w) - var(--pk-w) * 0.3)`;
     row.append(k);
   }
-  row.style.setProperty('--pk-count', whites.length);
+  row.style.setProperty('--pk-count', String(whites.length));
 
   // A kit's range is always contiguous from C2, so it draws as a bar rather
   // than by recolouring two thirds of the keys.
   const kit = state.library?.kitSpan;
   if (kit?.files) {
     const last = kit.from + kit.files - 1;
-    const at = (n) => {
-      for (let m = n; m >= from; m--) if (index.has(m)) return index.get(m);
+    const at = (n: number): number | null => {
+      for (let m = n; m >= from; m--) if (index.has(m)) return index.get(m)!; // has() said so
       return null;
     };
     const a = at(Math.max(kit.from, from));
@@ -359,14 +448,14 @@ function renderKeyboard() {
  */
 function fitKeyboard() {
   const wrap = $('live-keys');
-  const row = wrap?.querySelector('.pk-row');
+  const row = wrap?.querySelector<HTMLElement>('.pk-row');
   if (!row || !wrap.clientWidth) return;
   const count = Number(row.style.getPropertyValue('--pk-count')) || 1;
   const w = Math.max(22, Math.min(54, Math.floor(wrap.clientWidth / count)));
   row.style.setProperty('--pk-w', `${w}px`);
 }
 
-function key(note, className) {
+function key(note: number, className: string) {
   const quiet = sampleOn(note) === false;
   const k = el('button', {
     className: `pk ${className}`,
@@ -399,9 +488,10 @@ function renderGrid() {
 }
 
 function paintGrid() {
-  for (const c of document.querySelectorAll('.sq')) {
-    c.classList.toggle('on', !!state.pattern[+c.dataset.r][+c.dataset.s]);
-    c.classList.toggle('now', +c.dataset.s === state.t.cursor);
+  for (const c of document.querySelectorAll<HTMLElement>('.sq')) {
+    // Every .sq cell is drawn by renderGrid() with data-r and data-s.
+    c.classList.toggle('on', !!state.pattern[+(c.dataset.r as string)][+(c.dataset.s as string)]);
+    c.classList.toggle('now', +(c.dataset.s as string) === state.t.cursor);
   }
 }
 
@@ -435,7 +525,7 @@ function paintCount() {
 
 function paint() {
   const now = performance.now();
-  for (const k of document.querySelectorAll('.pk')) {
+  for (const k of document.querySelectorAll<HTMLElement>('.pk')) {
     const n = Number(k.dataset.note);
     k.classList.toggle('held', state.down.has(n));
     k.classList.toggle(
@@ -546,18 +636,18 @@ function markup() {
 function wire() {
   $('live-connect').onclick = connect;
   $('live-port').onchange = (e) => {
-    state.out = ports().find((p) => p.id === e.target.value) ?? null;
+    state.out = ports().find((p) => p.id === (e.target as HTMLSelectElement).value) ?? null;
     renderPorts();
   };
   $('live-oct-down').onclick = () => shift(-12);
   $('live-oct-up').onclick = () => shift(12);
   $('live-vel').oninput = (e) => {
-    state.velocity = Number(e.target.value);
+    state.velocity = Number((e.target as HTMLInputElement).value);
     $('live-vel-out').textContent = String(state.velocity);
   };
 
-  const bend = $('live-bend');
-  bend.oninput = (e) => send(midi.pitchBend(Number(e.target.value) / 100));
+  const bend = $<HTMLInputElement>('live-bend');
+  bend.oninput = (e) => send(midi.pitchBend(Number((e.target as HTMLInputElement).value) / 100));
   const centre = () => {
     bend.value = '0';
     send(midi.pitchBend(0));
@@ -570,7 +660,7 @@ function wire() {
     ...LAYERS.map((l) => el('option', { value: l, textContent: l, selected: l === state.layer }))
   );
   layer.onchange = (e) => {
-    state.layer = e.target.value;
+    state.layer = (e.target as HTMLSelectElement).value;
     renderKeyboard();
     paint();
   };
@@ -580,7 +670,7 @@ function wire() {
   // --- transport ---
   $('live-play').onclick = () => (state.t.running ? stop() : start());
   $('live-bpm').oninput = (e) => {
-    state.t.bpm = Math.max(seq.BPM_MIN, Math.min(seq.BPM_MAX, Number(e.target.value) || 120));
+    state.t.bpm = Math.max(seq.BPM_MIN, Math.min(seq.BPM_MAX, Number((e.target as HTMLInputElement).value) || 120));
   };
   const div = $('live-div');
   div.replaceChildren(
@@ -588,21 +678,22 @@ function wire() {
       el('option', { value: String(i), textContent: d.id, selected: i === state.t.div })
     )
   );
-  div.onchange = (e) => (state.t.div = Number(e.target.value));
-  $('live-swing').oninput = (e) => (state.t.swing = Number(e.target.value) / 100);
-  $('live-gate').oninput = (e) => (state.t.gate = Number(e.target.value) / 100);
+  div.onchange = (e) => (state.t.div = Number((e.target as HTMLSelectElement).value));
+  $('live-swing').oninput = (e) => (state.t.swing = Number((e.target as HTMLInputElement).value) / 100);
+  $('live-gate').oninput = (e) => (state.t.gate = Number((e.target as HTMLInputElement).value) / 100);
   const arp = $('live-arp');
   arp.replaceChildren(
     ...seq.ARP_MODES.map((m) => el('option', { value: m, textContent: m, selected: m === state.arp.mode }))
   );
   arp.onchange = (e) => {
-    state.arp.mode = e.target.value;
+    // The options are ARP_MODES, so the value is one of them.
+    state.arp.mode = (e.target as HTMLSelectElement).value as seq.ArpMode;
     if (state.arp.mode === 'off') state.arp.held = [...state.down];
   };
-  $('live-arp-oct').oninput = (e) => (state.arp.octaves = Number(e.target.value) || 1);
+  $('live-arp-oct').oninput = (e) => (state.arp.octaves = Number((e.target as HTMLInputElement).value) || 1);
   $('live-latch').onclick = (e) => {
     state.arp.latch = !state.arp.latch;
-    e.target.classList.toggle('on', state.arp.latch);
+    (e.target as HTMLElement).classList.toggle('on', state.arp.latch);
     if (!state.arp.latch) state.arp.held = [...state.down];
   };
 
@@ -614,40 +705,42 @@ function wire() {
     paintGrid();
   };
   $('live-rel').oninput = (e) => {
-    state.voices.release = Math.max(5, Math.min(4000, Number(e.target.value) || 300));
+    state.voices.release = Math.max(5, Math.min(4000, Number((e.target as HTMLInputElement).value) || 300));
     paint();
   };
 
   const grid = $('live-grid');
-  let painting = null; // drag across the grid to draw a line of steps
-  const toggle = (cell, to) => {
-    const r = +cell.dataset.r;
-    const s = +cell.dataset.s;
+  let painting: number | null = null; // drag across the grid to draw a line of steps
+  const toggle = (cell: HTMLElement, to?: number) => {
+    const r = +(cell.dataset.r as string);
+    const s = +(cell.dataset.s as string);
     state.pattern[r][s] = to ?? (state.pattern[r][s] ? 0 : 1);
     cell.classList.toggle('on', !!state.pattern[r][s]);
     return state.pattern[r][s];
   };
   grid.addEventListener('pointerdown', (e) => {
-    const cell = e.target.closest('.sq');
+    const cell = (e.target as Element).closest<HTMLElement>('.sq');
     if (!cell) return;
     e.preventDefault();
     painting = toggle(cell);
   });
   grid.addEventListener('pointerover', (e) => {
-    const cell = e.target.closest('.sq');
+    const cell = (e.target as Element).closest<HTMLElement>('.sq');
     if (cell && painting !== null && e.buttons) toggle(cell, painting);
   });
   addEventListener('pointerup', () => (painting = null));
 
   $('live-serial').onclick = connectSerial;
-  $('live-serial').disabled = !serial.supported();
-  for (const b of document.querySelectorAll('.cmd')) b.onclick = () => cmd(b.dataset.cmd);
+  $<HTMLButtonElement>('live-serial').disabled = !serial.supported();
+  // Every .cmd button in markup() carries a data-cmd.
+  for (const b of document.querySelectorAll<HTMLButtonElement>('.cmd'))
+    b.onclick = () => cmd(b.dataset.cmd as string);
   renderSerial();
 
   // Pointer: press, and glide across the keys with the button down.
   const keys = $('live-keys');
   keys.addEventListener('pointerdown', (e) => {
-    const k = e.target.closest('.pk');
+    const k = (e.target as Element).closest<HTMLElement>('.pk');
     if (!k) return;
     e.preventDefault();
     keys.setPointerCapture(e.pointerId);
@@ -655,7 +748,7 @@ function wire() {
   });
   keys.addEventListener('pointermove', (e) => {
     if (!e.buttons) return;
-    const k = document.elementFromPoint(e.clientX, e.clientY)?.closest('.pk');
+    const k = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('.pk');
     const note = k ? Number(k.dataset.note) : null;
     for (const n of [...state.down]) if (n !== note) lift(n);
     if (note !== null && !state.down.has(note)) play(note);
@@ -668,13 +761,13 @@ function wire() {
   keys.addEventListener('pointercancel', release);
 }
 
-function setRoot(next) {
+function setRoot(next: number) {
   if (next < 0 || seq.rowNote(next, 0) > 127) return;
   state.root = next;
   renderGrid();
 }
 
-function shift(by) {
+function shift(by: number) {
   const next = state.base + by;
   if (next < 0 || next + state.octaves * 12 > 127) return;
   for (const n of [...state.down]) lift(n);
@@ -696,7 +789,8 @@ async function connectSerial() {
   try {
     await port.connect();
   } catch (e) {
-    if (e.name !== 'AbortError') state.toast(`could not open the port: ${e.message}`, true);
+    const err = e as DOMException;
+    if (err.name !== 'AbortError') state.toast(`could not open the port: ${err.message}`, true);
     return;
   }
   state.wire.port = port;
@@ -711,7 +805,7 @@ async function connectSerial() {
   renderSerial();
 }
 
-function cmd(c) {
+function cmd(c: string) {
   if (!state.wire.port) return;
   if (c === 'J') state.wire.streaming = !state.wire.streaming;
   if (c === 'd') state.toast('disk mode — the serial port will close as the Rodeo re-enumerates');
@@ -719,7 +813,7 @@ function cmd(c) {
   renderSerial();
 }
 
-function onLine(line) {
+function onLine(line: string) {
   const next = chain.parseStateLine(line);
   if (!next) {
     // Prose, the greeting, or a line the firmware gave up on halfway. All
@@ -747,12 +841,13 @@ function onLine(line) {
  * The detent totals are cumulative from power-up, so the difference between
  * two lines is the only part that means anything on screen.
  */
-function trackEncoders(st) {
+function trackEncoders(st: chain.StateLine) {
   const banks = chain.panelBanks(st?.chain);
   // Encoder 4b + n is bank b's slot n, as the panel numbers them
-  const now = [];
+  const now: number[] = [];
   banks.encs.forEach((at, b) => {
-    const totals = st.chain.s[at]?.in;
+    // panelBanks found an encoder bank at `at`, so chain.s is there.
+    const totals = st.chain!.s![at]?.in;
     if (Array.isArray(totals)) totals.forEach((v, n) => (now[4 * b + n] = v));
   });
   state.wire.turn = now.map((v, i) => {
@@ -763,21 +858,21 @@ function trackEncoders(st) {
 }
 
 /** What the Rodeo tells us beats what the page was told to assume. */
-function adoptFromRodeo(st) {
+function adoptFromRodeo(st: chain.StateLine) {
   if (typeof st.layer === 'string' && LAYERS.includes(st.layer) && st.layer !== state.layer) {
     state.layer = st.layer;
-    const sel = $('live-layer');
+    const sel = $<HTMLSelectElement>('live-layer');
     if (sel) sel.value = st.layer;
     renderKeyboard();
   }
   if (Number.isFinite(st.rel) && st.rel !== state.voices.release) {
-    state.voices.release = st.rel;
-    const rel = $('live-rel');
+    state.voices.release = st.rel as number; // finite, just checked
+    const rel = $<HTMLInputElement>('live-rel');
     if (rel) rel.value = String(st.rel);
   }
 }
 
-function onSerialClose(why) {
+function onSerialClose(why: string | null | undefined) {
   state.wire.port = null;
   state.wire.streaming = false;
   state.wire.state = null;
@@ -788,20 +883,20 @@ function onSerialClose(why) {
 }
 
 function renderSerial() {
-  const b = $('live-serial');
+  const b = $<HTMLButtonElement>('live-serial');
   if (!b) return;
   const on = !!state.wire.port;
   b.textContent = on ? 'Disconnect' : 'Connect serial';
   b.classList.toggle('on', false);
   $('live-stream')?.classList.toggle('on', state.wire.streaming);
-  for (const c of document.querySelectorAll('.cmd')) c.disabled = !on;
+  for (const c of document.querySelectorAll<HTMLButtonElement>('.cmd')) c.disabled = !on;
   // The Rodeo is the authority on these two once it is talking.
   const owned = on && !!state.wire.state;
   for (const [id, own] of [
     ['live-layer', 'what the Rodeo is set to — the page cannot read it'],
     ['live-rel', 'how long a released voice keeps sounding; the only guess in the voice panel'],
   ]) {
-    const e = $(id);
+    const e = $<HTMLInputElement | HTMLSelectElement>(id);
     if (!e) continue;
     e.disabled = owned;
     e.title = owned ? 'read from the Rodeo' : own;
@@ -824,16 +919,22 @@ function renderReadout() {
   if (!box) return;
   const st = state.wire.state;
   if (!st) return box.replaceChildren();
-  const card = { 0: 'no card', 1: 'card mounted', 2: 'card is the computer\u2019s' }[st.card] ?? '?';
-  const c = st.chain ?? {};
+  // The line's numbers are read as they come: a missing one indexes as
+  // undefined and compares false, as it always has, so these casts only
+  // tell TypeScript what is already happening.
+  const card =
+    ({ 0: 'no card', 1: 'card mounted', 2: 'card is the computer\u2019s' } as Record<number, string>)[
+      st.card as number
+    ] ?? '?';
+  const c: chain.ChainState = st.chain ?? {};
   const health = chain.scanHealth(c);
-  const chips = [
-    [st.preset >= 0 ? `preset ${st.preset + 1}` : 'no preset', st.name || ''],
+  const chips: [string, unknown][] = [
+    [(st.preset as number) >= 0 ? `preset ${(st.preset as number) + 1}` : 'no preset', st.name || ''],
     ['layer', st.layer],
     ['cpu', `${st.cpu}% (peak ${st.peak}%)`],
     ['card', card],
     ['loaded', `${st.loaded} of ${st.samples}${st.skipped ? `, ${st.skipped} skipped` : ''}`],
-    ['chain', chain.CHAIN_STATES[c.state] ?? c.state],
+    ['chain', chain.CHAIN_STATES[c.state as string] ?? c.state],
     ['scans', health === null ? 'none yet' : `${health.toFixed(health > 99.9 ? 2 : 1)}% good`],
   ];
   box.replaceChildren(
@@ -890,7 +991,7 @@ function renderSats() {
  *
  * The card is the grid, not each row, so the columns line up down the card.
  */
-function potBankCard(sat, i, bank, st) {
+function potBankCard(sat: chain.Satellite, i: number, bank: number, st: chain.StateLine) {
   const card = el('div', { className: 'sat panel pots' }, [bankHead(i, `pot bank ${bank + 1}`, sat)]);
   chain.slots(sat).forEach((slot, n) => {
     const k = 4 * bank + n;
@@ -933,7 +1034,7 @@ function potBankCard(sat, i, bank, st) {
  * streaming for a second after everything stops, and those last lines carry a
  * delta of zero.
  */
-function encBankCard(sat, i, bank, st) {
+function encBankCard(sat: chain.Satellite, i: number, bank: number, st: chain.StateLine) {
   const card = el('div', { className: 'sat panel encs' }, [bankHead(i, `encoder bank ${bank + 1}`, sat)]);
   chain.slots(sat).forEach((slot, n) => {
     const k = 4 * bank + n;
@@ -963,20 +1064,23 @@ function encBankCard(sat, i, bank, st) {
   return card;
 }
 
-function bankHead(i, what, sat) {
+function bankHead(i: number, what: string, sat: chain.Satellite) {
   return el('div', { className: 'sat-head' }, [
     el('span', { textContent: `${i + 1}. ${what}` }),
     el('span', { className: 'small dim', textContent: `fw ${sat.fw}` }),
   ]);
 }
 
-function faultRow(slot, label) {
+function faultRow(slot: chain.Slot, label: string) {
+  // TODO(ts): potBankCard and encBankCard also come here for a slot past the
+  // eighth control (a bank reporting more than four slots), whose `fault` is
+  // null, and destructuring null in faultText throws. Left as it was.
   return el('div', { className: 'cell-fault bad' }, [
-    el('span', { textContent: `${label}: ${chain.faultText(slot.fault)}` }),
+    el('span', { textContent: `${label}: ${chain.faultText(slot.fault as chain.Fault)}` }),
   ]);
 }
 
-function satCard(sat, i) {
+function satCard(sat: chain.Satellite, i: number) {
   const head = el('div', { className: 'sat-head' }, [
     el('span', { textContent: `${i + 1}. ${chain.kindName(sat.kind)}` }),
     el('span', { className: 'small dim', textContent: `fw ${sat.fw}` }),
@@ -990,12 +1094,13 @@ function satCard(sat, i) {
   return card;
 }
 
-function slotRow(slot) {
+function slotRow(slot: chain.Slot) {
   const label = el('span', { className: 'slot-n', textContent: String(slot.index + 1) });
   if (slot.type === 'fault')
     return el('div', { className: 'slot bad' }, [
       label,
-      el('span', { textContent: chain.faultText(slot.fault) }),
+      // A 'fault' slot is one whose fault is set (chain.slots).
+      el('span', { textContent: chain.faultText(slot.fault as chain.Fault) }),
     ]);
   if (slot.type === 'pot') {
     const pct = chain.potPercent(slot.value);
@@ -1028,8 +1133,8 @@ function slotRow(slot) {
 
 // ---------------------------------------------------------------- the window
 
-function onKeyDown(e) {
-  if (e.target.matches('input, select, textarea')) return;
+function onKeyDown(e: KeyboardEvent) {
+  if ((e.target as Element).matches('input, select, textarea')) return;
   if (e.key === 'Shift' && !e.repeat) return setSustain(true);
   if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
   if (e.key === ' ') {
@@ -1044,7 +1149,7 @@ function onKeyDown(e) {
   play(state.base + i);
 }
 
-function onKeyUp(e) {
+function onKeyUp(e: KeyboardEvent) {
   if (e.key === 'Shift') return setSustain(false);
   const i = TYPING.indexOf(e.key.toLowerCase());
   if (i < 0) return;
@@ -1062,14 +1167,17 @@ function onHide() {
 }
 
 /** The card dialog can change the selection at any time now. */
-export function setLibrary(library) {
+export function setLibrary(library: LiveLibrary | null): void {
   state.library = library;
   if (!$('live-keys')) return;
   renderKeyboard();
   paint();
 }
 
-export function mount(container, { library = null, toast = () => {} } = {}) {
+export function mount(
+  container: HTMLElement,
+  { library = null, toast = () => {} }: { library?: LiveLibrary | null; toast?: Toast } = {}
+): void {
   state.library = library;
   state.toast = toast;
   container.replaceChildren(markup());
@@ -1087,12 +1195,12 @@ export function mount(container, { library = null, toast = () => {} } = {}) {
   document.addEventListener('visibilitychange', onHide);
 }
 
-export function unmount() {
+export function unmount(): void {
   panic();
   sizer?.disconnect();
   sizer = null;
   state.wire.port?.close();
-  clearInterval(state.tick);
+  clearInterval(state.tick ?? undefined);
   state.tick = null;
   removeEventListener('keydown', onKeyDown);
   removeEventListener('keyup', onKeyUp);

@@ -1,25 +1,59 @@
-// The page. Everything decided lives in card.js / model.js / preset.js; this
+// The page. Everything decided lives in card.ts / model.ts / preset.ts; this
 // file only renders it and wires the events.
 
-import { KIT_FIRST_NOTE, MAX_NAME, noteName, playbackSpeed, soundName } from './card.js';
-import { buildLibrary, formatBytes, poolStats, validate } from './model.js';
-import { KEYS, SHAPES, formatPreset, parsePreset } from './preset.js';
-import * as fs from './fs.js';
-import { demoCard } from './demo.js';
-import * as live from './live.js';
-import { decodeAudio, encodeWav, firstTwo, peak, scale, toMono, trimSilence } from './wav.js';
+import { KIT_FIRST_NOTE, MAX_NAME, noteName, playbackSpeed, soundName } from './card.ts';
+import { buildLibrary, formatBytes, poolStats, validate } from './model.ts';
+import { KEYS, SHAPES, formatPreset, parsePreset } from './preset.ts';
+import * as fs from './fs.ts';
+import { demoCard } from './demo.ts';
+import * as live from './live.ts';
+import { decodeAudio, encodeWav, firstTwo, peak, scale, toMono, trimSilence } from './wav.ts';
+import type { Card } from './card.ts';
+import type { Library, Sound } from './model.ts';
+import type { NumberSpec, Preset, PresetValues } from './preset.ts';
+import type { KitSpan } from './live.ts';
 
-const $ = (id) => document.getElementById(id);
-const el = (tag, props = {}, kids = []) => {
+// Typed as present: every id here is one index.html declares.
+const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+
+type Kid = Node | string;
+/** An element's own properties, plus `style` as text. */
+type ElProps<K extends keyof HTMLElementTagNameMap> = Partial<
+  Omit<HTMLElementTagNameMap[K], 'style'>
+> & { style?: string };
+
+const el = <K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  props: ElProps<K> = {} as ElProps<K>,
+  kids: Kid | Kid[] = []
+): HTMLElementTagNameMap[K] => {
   const n = Object.assign(document.createElement(tag), props);
-  for (const k of [].concat(kids)) n.append(k);
+  for (const k of ([] as Kid[]).concat(kids)) n.append(k);
   return n;
 };
 
 /** `?demo` loads a made-up card: no hardware, and nothing can be written. */
 const DEMO = new URLSearchParams(location.search).has('demo');
 
-const state = {
+/** What is selected in the dialog's sidebar. */
+interface Selection {
+  type: 'sound' | 'preset';
+  name: string;
+}
+
+interface UiState {
+  root: FileSystemDirectoryHandle | null;
+  card: Card | null;
+  /**
+   * Null until a card is read. Everything that renders it runs after that,
+   * which is why those places say `state.library!`.
+   */
+  library: Library | null;
+  presets: Preset[];
+  selected: Selection | null;
+}
+
+const state: UiState = {
   root: null, // the card's directory handle
   card: null, // what readCard gave us
   library: null,
@@ -29,8 +63,8 @@ const state = {
 
 // ------------------------------------------------------------------ toast
 
-let toastTimer;
-function toast(message, bad = false) {
+let toastTimer: ReturnType<typeof setTimeout> | undefined;
+function toast(message: string, bad = false) {
   const t = $('toast');
   t.textContent = message;
   t.classList.toggle('bad', bad);
@@ -45,7 +79,8 @@ async function openCard() {
   try {
     state.root = await fs.pickCard();
   } catch (e) {
-    if (e.name !== 'AbortError') toast(e.message, true);
+    const err = e as DOMException;
+    if (err.name !== 'AbortError') toast(err.message, true);
     return;
   }
   await reread();
@@ -68,7 +103,7 @@ async function reread() {
       if (total > 20 && done % 10 === 0) toast(`reading ${done} of ${total}…`);
     });
   } catch (e) {
-    toast(`could not read the card: ${e.message}`, true);
+    toast(`could not read the card: ${(e as Error).message}`, true);
     return;
   }
   state.library = buildLibrary(state.card);
@@ -92,9 +127,9 @@ function render() {
 }
 
 function renderPool() {
-  const s = poolStats(state.library);
+  const s = poolStats(state.library!);
   $('pool').hidden = false;
-  const bar = $('pool').querySelector('.pool-bar');
+  const bar = $('pool').querySelector('.pool-bar')!; // index.html has it
   bar.classList.toggle('over', s.fraction > 1);
   $('pool-fill').style.width = `${Math.min(100, s.fraction * 100).toFixed(1)}%`;
   // This sits in the one toolbar now, so it has to earn its width.
@@ -110,8 +145,8 @@ function renderPool() {
 function renderSidebar() {
   const sounds = $('sounds');
   sounds.replaceChildren();
-  $('sound-count').textContent = state.library.sounds.length;
-  for (const sound of state.library.sounds) {
+  $('sound-count').textContent = String(state.library!.sounds.length);
+  for (const sound of state.library!.sounds) {
     const broken = sound.files.every((f) => !f.loaded);
     sounds.append(
       el('li', {}, [
@@ -132,7 +167,7 @@ function renderSidebar() {
 
   const presets = $('presets');
   presets.replaceChildren();
-  $('preset-count').textContent = state.presets.length;
+  $('preset-count').textContent = String(state.presets.length);
   for (const preset of state.presets) {
     presets.append(
       el('li', {}, [
@@ -149,7 +184,7 @@ function renderSidebar() {
   }
 }
 
-function select(type, name) {
+function select(type: Selection['type'], name: string) {
   state.selected = { type, name };
   renderSidebar();
   renderDetail();
@@ -168,8 +203,8 @@ function renderDetail() {
 
 // ------------------------------------------------------------------- sound
 
-function renderSound(box) {
-  const sound = state.library.sounds.find((s) => s.name === state.selected.name);
+function renderSound(box: HTMLElement) {
+  const sound = state.library!.sounds.find((s) => s.name === state.selected!.name);
   if (!sound) return;
 
   box.append(el('h2', { textContent: sound.name }));
@@ -218,7 +253,7 @@ function renderSound(box) {
             (f.rate !== 48000 ? ` (×${playbackSpeed(f.rate).toFixed(3)})` : '')
           : '—',
       }),
-      el('td', { className: 'dim', textContent: f.frames ? `${(f.frames / f.rate).toFixed(2)} s` : '' }),
+      el('td', { className: 'dim', textContent: f.frames ? `${(f.frames / f.rate!).toFixed(2)} s` : '' }), // frames only with a rate
       el('td', { className: 'dim', textContent: f.loaded ? formatBytes((f.cost ?? 0) * 2) : (f.why ?? '') }),
     ])
   );
@@ -239,15 +274,16 @@ function renderSound(box) {
 }
 
 /** The keyboard. Drag a key onto another to reorder; the order is the mapping. */
-function renderKeys(sound) {
+function renderKeys(sound: Sound) {
   const wrap = el('div', { className: 'keys' });
   sound.files.forEach((f, i) => {
     const key = el('button', { className: 'key', draggable: true, title: f.name }, [
-      el('span', { className: 'n', textContent: noteName(f.note) }),
+      el('span', { className: 'n', textContent: noteName(f.note as number) }), // a kit file has a key
       el('span', { className: 'f', textContent: f.name }),
     ]);
     key.dataset.index = String(i);
-    key.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', String(i)));
+    // A drag event always carries a dataTransfer.
+    key.addEventListener('dragstart', (e) => e.dataTransfer!.setData('text/plain', String(i)));
     key.addEventListener('dragover', (e) => {
       e.preventDefault();
       key.classList.add('dragover');
@@ -256,7 +292,7 @@ function renderKeys(sound) {
     key.addEventListener('drop', (e) => {
       e.preventDefault();
       key.classList.remove('dragover');
-      const from = Number(e.dataTransfer.getData('text/plain'));
+      const from = Number(e.dataTransfer!.getData('text/plain'));
       if (Number.isNaN(from) || from === i) return;
       const order = sound.files.map((x) => x.name);
       const [moved] = order.splice(from, 1);
@@ -268,46 +304,48 @@ function renderKeys(sound) {
   return wrap;
 }
 
-async function renumber(sound, order) {
+// `state.root!` below: a card is open (writing in demo mode stops at readOnly()).
+
+async function renumber(sound: Sound, order?: string[]) {
   if (readOnly()) return;
   const names = order ?? sound.files.map((f) => f.name);
   try {
-    const done = await fs.renumberKit(state.root, sound.name, names);
+    const done = await fs.renumberKit(state.root!, sound.name, names);
     const changed = done.filter((d) => d.from !== d.to).length;
     toast(changed ? `renamed ${changed} file(s) so the keys follow this order` : 'already in order');
     await reread();
     select('sound', sound.name);
   } catch (e) {
-    toast(`could not renumber: ${e.message}`, true);
+    toast(`could not renumber: ${(e as Error).message}`, true);
   }
 }
 
-async function remove(sound) {
+async function remove(sound: Sound) {
   if (readOnly()) return;
   if (!confirm(`Delete "${sound.name}" from the card? This cannot be undone.`)) return;
   try {
-    if (sound.kit) await fs.removeKit(state.root, sound.name);
-    else await fs.removeSample(state.root, sound.files[0].name);
+    if (sound.kit) await fs.removeKit(state.root!, sound.name);
+    else await fs.removeSample(state.root!, sound.files[0].name);
     state.selected = null;
     await reread();
     toast(`deleted "${sound.name}"`);
   } catch (e) {
-    toast(`could not delete: ${e.message}`, true);
+    toast(`could not delete: ${(e as Error).message}`, true);
   }
 }
 
 // ------------------------------------------------------------------ preset
 
-function renderPreset(box) {
-  const preset = state.presets.find((p) => p.name === state.selected.name);
+function renderPreset(box: HTMLElement) {
+  const preset = state.presets.find((p) => p.name === state.selected!.name);
   if (!preset) return;
-  const values = { ...preset.values };
+  const values: PresetValues = { ...preset.values };
 
   box.append(el('h2', { textContent: preset.name }));
   box.append(el('p', { className: 'sub', textContent: `presets/${preset.name}.txt` }));
 
   const form = el('div', { className: 'form' });
-  const soundNames = state.library.sounds.map((s) => s.name);
+  const soundNames = state.library!.sounds.map((s) => s.name);
 
   for (const [key, spec] of Object.entries(KEYS)) {
     const where = spec.pot ? `pot ${spec.pot}` : spec.enc ?? 'preset only';
@@ -317,43 +355,47 @@ function renderPreset(box) {
         el('span', { className: 'small dim', textContent: ` · ${where}` }),
       ])
     );
-    let input;
+    let input: HTMLSelectElement;
     if (key === 'sound') {
+      // `sound` is the one key whose value is always a string.
+      const sound = values[key] as string | undefined;
       input = el('select', { id: `f-${key}` });
       input.append(el('option', { value: '', textContent: '— pot/encoder chooses —' }));
       for (const n of soundNames) input.append(el('option', { value: n, textContent: n }));
       // A name on the card but not in the list would silently vanish from the
       // form, so keep it and let the validator shout.
-      if (values[key] && !soundNames.includes(values[key])) {
-        input.append(el('option', { value: values[key], textContent: `${values[key]} (missing)` }));
+      if (values[key] && !soundNames.includes(sound as string)) {
+        input.append(el('option', { value: sound, textContent: `${values[key]} (missing)` }));
       }
-      input.value = values[key] ?? '';
+      input.value = sound ?? '';
       input.onchange = () => setValue(preset, key, input.value || undefined);
       form.append(input);
     } else if (spec.kind === 'enum') {
       input = el('select', { id: `f-${key}` });
       input.append(el('option', { value: '', textContent: '— default —' }));
       for (const v of spec.values) input.append(el('option', { value: v, textContent: v }));
-      input.value = values[key] ?? '';
+      input.value = (values[key] ?? '') as string; // an enum's value is one of its words
       input.onchange = () => setValue(preset, key, input.value || undefined);
       form.append(input);
     } else {
+      // Every key but `sound` that is not an enum is a number.
+      const num = spec as NumberSpec;
       const pair = el('div', { className: 'pair' });
       const range = el('input', {
         id: `f-${key}`,
         type: 'range',
-        min: String(spec.lo),
-        max: String(spec.hi),
-        step: spec.round ? '1' : String((spec.hi - spec.lo) / 200),
-        value: String(values[key] ?? spec.lo),
+        min: String(num.lo),
+        max: String(num.hi),
+        step: num.round ? '1' : String((num.hi - num.lo) / 200),
+        value: String(values[key] ?? num.lo),
       });
-      const out = el('output', { textContent: values[key] === undefined ? '—' : `${values[key]} ${spec.unit}` });
+      const out = el('output', { textContent: values[key] === undefined ? '—' : `${values[key]} ${num.unit}` });
       range.oninput = () => {
-        const v = spec.round ? Math.round(+range.value) : +(+range.value).toFixed(2);
-        out.textContent = `${v} ${spec.unit}`;
+        const v = num.round ? Math.round(+range.value) : +(+range.value).toFixed(2);
+        out.textContent = `${v} ${num.unit}`;
       };
       range.onchange = () => {
-        const v = spec.round ? Math.round(+range.value) : +(+range.value).toFixed(2);
+        const v = num.round ? Math.round(+range.value) : +(+range.value).toFixed(2);
         setValue(preset, key, v);
       };
       const clear = el('button', {
@@ -381,24 +423,24 @@ function renderPreset(box) {
   );
 }
 
-async function setValue(preset, key, value) {
+async function setValue(preset: Preset, key: string, value: string | number | undefined) {
   if (readOnly()) return;
   const values = { ...preset.values };
   if (value === undefined) delete values[key];
   else values[key] = value;
   try {
-    await fs.writePreset(state.root, preset.name, formatPreset(values));
+    await fs.writePreset(state.root!, preset.name, formatPreset(values));
     await reread();
     select('preset', preset.name);
   } catch (e) {
-    toast(`could not save: ${e.message}`, true);
+    toast(`could not save: ${(e as Error).message}`, true);
   }
 }
 
-async function removePreset(preset) {
+async function removePreset(preset: Preset) {
   if (readOnly()) return;
   if (!confirm(`Delete preset "${preset.name}"?`)) return;
-  await fs.removePreset(state.root, preset.name);
+  await fs.removePreset(state.root!, preset.name);
   state.selected = null;
   await reread();
 }
@@ -406,9 +448,9 @@ async function removePreset(preset) {
 // ------------------------------------------------------------------ issues
 
 function renderIssues() {
-  const issues = validate(state.library, state.presets);
+  const issues = validate(state.library!, state.presets);
   $('issues').hidden = false;
-  $('issue-count').textContent = issues.length || '';
+  $('issue-count').textContent = String(issues.length || '');
   const list = $('issue-list');
   list.replaceChildren();
   if (!issues.length) {
@@ -431,14 +473,14 @@ function renderIssues() {
 
 // ------------------------------------------------------------- adding audio
 
-function pickFiles(then) {
+function pickFiles(then: (files: File[]) => void) {
   const input = el('input', { type: 'file', multiple: true, accept: 'audio/*,.wav,.aif,.aiff,.flac' });
-  input.onchange = () => then([...input.files]);
+  input.onchange = () => then([...(input.files as FileList)]); // set by the time it changes
   input.click();
 }
 
 /** Decode, convert and write. `kit` null means a pitched sample in /samples. */
-async function addAudio(files, kit) {
+async function addAudio(files: File[], kit: string | null) {
   if (readOnly()) return;
   if (!files.length) return;
   let added = 0;
@@ -459,11 +501,11 @@ async function addAudio(files, kit) {
       const buffer = encodeWav(out, rate);
       const base = file.name.replace(/\.[^.]+$/, '');
       const name = `${base.slice(0, MAX_NAME)}.wav`;
-      if (kit) await fs.writeKitFile(state.root, kit, name, buffer);
-      else await fs.writeSample(state.root, name, buffer);
+      if (kit) await fs.writeKitFile(state.root!, kit, name, buffer);
+      else await fs.writeSample(state.root!, name, buffer);
       added++;
     } catch (e) {
-      toast(`${file.name}: ${e.message}`, true);
+      toast(`${file.name}: ${(e as Error).message}`, true);
     }
   }
   if (added) {
@@ -492,7 +534,7 @@ async function newPreset() {
     toast('a preset with that name is already on the card', true);
     return;
   }
-  await fs.writePreset(state.root, name, formatPreset({ layer: 'synth', shape: SHAPES[0] }));
+  await fs.writePreset(state.root!, name, formatPreset({ layer: 'synth', shape: SHAPES[0] }));
   await reread();
   select('preset', name);
 }
@@ -516,9 +558,9 @@ function readOnly() {
  * when a kit is what is selected. Rodeo's own selection is not knowable from
  * this page, so this is offered as "from the card you read", not as truth.
  */
-function kitSpan() {
+function kitSpan(): KitSpan | null {
   if (state.selected?.type !== 'sound') return null;
-  const sound = state.library?.sounds.find((s) => s.name === state.selected.name);
+  const sound = state.library?.sounds.find((s) => s.name === state.selected!.name);
   if (!sound?.kit) return null;
   return { name: sound.name, from: KIT_FIRST_NOTE, files: sound.files.filter((f) => f.loaded).length };
 }
@@ -530,7 +572,7 @@ function kitSpan() {
  * The counts have to agree with "Before you eject", which lists warnings too —
  * a dot claiming 6 beside a list of 9 just looks broken.
  */
-function cardStatus() {
+function cardStatus(): [level: string, why: string] {
   if (!state.library)
     return ['off', DEMO ? 'demo card — open a real one to change anything' : 'no card open'];
   const issues = validate(state.library, state.presets);
@@ -551,7 +593,7 @@ function paintCardStatus() {
 }
 
 function openModal() {
-  $('card-modal').showModal();
+  $<HTMLDialogElement>('card-modal').showModal();
 }
 
 // ------------------------------------------------------------------- wiring
@@ -562,7 +604,7 @@ $('open').onclick = () => (state.library ? openModal() : openCard().then(openMod
 $('modal-open').onclick = openCard;
 $('reload').onclick = reread;
 $('modal-reload').onclick = reread;
-$('modal-close').onclick = () => $('card-modal').close();
+$('modal-close').onclick = () => $<HTMLDialogElement>('card-modal').close();
 $('add-sample').onclick = () => pickFiles((f) => addAudio(f, null));
 $('add-kit').onclick = newKit;
 $('add-preset').onclick = newPreset;
@@ -575,7 +617,7 @@ if (DEMO) {
   reread();
 } else if (!fs.supported()) {
   $('unsupported').hidden = false;
-  $('modal-open').disabled = true;
+  $<HTMLButtonElement>('modal-open').disabled = true;
 }
 paintCardStatus();
 
@@ -608,7 +650,7 @@ document.addEventListener('drop', async (e) => {
   const files = [...(e.dataTransfer?.files ?? [])];
   const kit =
     state.selected?.type === 'sound' &&
-    state.library.sounds.find((s) => s.name === state.selected.name)?.kit
+    state.library!.sounds.find((s) => s.name === state.selected!.name)?.kit
       ? state.selected.name
       : null;
   await addAudio(files, kit);

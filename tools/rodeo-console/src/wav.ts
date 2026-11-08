@@ -11,22 +11,50 @@
 // a lot of tools emit for 24-bit and multichannel files. Writing the plainest
 // possible WAV is the whole point of passing audio through this console.
 
-import { acceptsWavFormat } from './card.js';
+import { acceptsWavFormat } from './card.ts';
+import type { WavFormat } from './card.ts';
 
-const str = (view, off) => String.fromCharCode(...new Uint8Array(view.buffer, view.byteOffset + off, 4));
+/** What `readWavHeader` found in a file the firmware will read. */
+export interface AcceptedWav extends WavFormat {
+  accepted: true;
+  bytes: number;
+  frames: number;
+}
+
+/**
+ * A file it will not. A header that never got as far as `fmt ` carries only
+ * `why`; one with a format the Rodeo refuses carries the numbers too.
+ */
+export interface RejectedWav extends Partial<WavFormat> {
+  accepted: false;
+  why: string;
+  bytes?: number;
+  frames?: number;
+}
+
+export type WavHeader = AcceptedWav | RejectedWav;
+
+/** What `decodeAudio` gives back: one Float32Array per channel. */
+export interface DecodedAudio {
+  channels: Float32Array[];
+  rate: number;
+  frames: number;
+}
+
+const str = (view: DataView, off: number) => String.fromCharCode(...new Uint8Array(view.buffer, view.byteOffset + off, 4));
 
 /**
  * Walk a WAV's chunks. Returns what the firmware would conclude about it.
  * Pure — give it an ArrayBuffer, it touches nothing else.
  */
-export function readWavHeader(buffer) {
-  const bad = (why) => ({ accepted: false, why });
+export function readWavHeader(buffer: ArrayBuffer): WavHeader {
+  const bad = (why: string): RejectedWav => ({ accepted: false, why });
   if (buffer.byteLength < 12) return bad('too short to be a WAV');
   const view = new DataView(buffer);
   if (str(view, 0) !== 'RIFF' || str(view, 8) !== 'WAVE') return bad('not a RIFF/WAVE file');
 
-  let fmt = null;
-  let dataBytes = null;
+  let fmt: WavFormat | null = null;
+  let dataBytes: number | null = null;
   let off = 12;
   while (off + 8 <= buffer.byteLength) {
     const id = str(view, off);
@@ -78,13 +106,13 @@ export function readWavHeader(buffer) {
  * same length; samples outside [-1, 1] are clipped, as the Rodeo's own
  * conversion would.
  */
-export function encodeWav(channels, rate) {
+export function encodeWav(channels: Float32Array[], rate: number): ArrayBuffer {
   const n = channels[0]?.length ?? 0;
   const ch = channels.length;
   const dataBytes = n * ch * 2;
   const buffer = new ArrayBuffer(44 + dataBytes);
   const view = new DataView(buffer);
-  const ascii = (off, s) => {
+  const ascii = (off: number, s: string) => {
     for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i));
   };
 
@@ -116,14 +144,14 @@ export function encodeWav(channels, rate) {
 }
 
 /** Peak of every channel, for the normalise option. */
-export function peak(channels) {
+export function peak(channels: Float32Array[]): number {
   let p = 0;
   for (const c of channels) for (let i = 0; i < c.length; i++) p = Math.max(p, Math.abs(c[i]));
   return p;
 }
 
 /** Mix to mono by averaging; the Rodeo would keep only the first two anyway. */
-export function toMono(channels) {
+export function toMono(channels: Float32Array[]): Float32Array[] {
   if (channels.length === 1) return channels;
   const n = channels[0].length;
   const out = new Float32Array(n);
@@ -136,7 +164,7 @@ export function toMono(channels) {
 }
 
 /** Drop everything past the first two channels, as the firmware does. */
-export function firstTwo(channels) {
+export function firstTwo(channels: Float32Array[]): Float32Array[] {
   return channels.length > 2 ? channels.slice(0, 2) : channels;
 }
 
@@ -144,9 +172,9 @@ export function firstTwo(channels) {
  * Trim leading and trailing silence below `threshold` (linear), keeping a few
  * milliseconds of lead-in so a transient is not clipped off its own attack.
  */
-export function trimSilence(channels, rate, threshold = 0.001) {
+export function trimSilence(channels: Float32Array[], rate: number, threshold = 0.001): Float32Array[] {
   const n = channels[0].length;
-  const loud = (i) => channels.some((c) => Math.abs(c[i]) > threshold);
+  const loud = (i: number) => channels.some((c) => Math.abs(c[i]) > threshold);
   let start = 0;
   while (start < n && !loud(start)) start++;
   let end = n;
@@ -157,7 +185,7 @@ export function trimSilence(channels, rate, threshold = 0.001) {
   return channels.map((c) => c.slice(start - pad, end));
 }
 
-export function scale(channels, gain) {
+export function scale(channels: Float32Array[], gain: number): Float32Array[] {
   if (gain === 1) return channels;
   return channels.map((c) => {
     const out = new Float32Array(c.length);
@@ -171,12 +199,16 @@ export function scale(channels, gain) {
  * the Rodeo would refuse — into float channels. Browser only; WebAudio does the
  * work and there is no point reimplementing it.
  */
-export async function decodeAudio(arrayBuffer) {
+export async function decodeAudio(arrayBuffer: ArrayBuffer): Promise<DecodedAudio> {
   // 48 kHz so no resampling happens twice: the context decodes to its own rate.
-  const Ctx = window.OfflineAudioContext ?? window.webkitOfflineAudioContext;
+  // `webkitOfflineAudioContext` is old Safari's name, which the DOM types do not carry.
+  const Ctx =
+    window.OfflineAudioContext ??
+    (window as Window & { webkitOfflineAudioContext?: typeof OfflineAudioContext })
+      .webkitOfflineAudioContext;
   const probe = new Ctx(1, 1, 48000);
   const audio = await probe.decodeAudioData(arrayBuffer);
-  const channels = [];
+  const channels: Float32Array[] = [];
   for (let c = 0; c < audio.numberOfChannels; c++) channels.push(audio.getChannelData(c));
   return { channels, rate: audio.sampleRate, frames: audio.length };
 }

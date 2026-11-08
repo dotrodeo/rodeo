@@ -24,7 +24,7 @@ Rodeo can do with a phone attached. iPhone/iPad first, Android later.
 * **A native feel matters more than sharing code.** The UI starts from scratch:
   nothing carries over from rodeo-console's UI.
 * **The sequencer clock runs on the phone.** Rodeo stays a sound module, as
-  `tools/rodeo-console/js/seq.js` already says: the phone sends notes. If the phone
+  `tools/rodeo-console/src/seq.ts` already says: the phone sends notes. If the phone
   locks or the app goes to the background, the sequence stops; acceptable for a demo.
 
 ## The finding that shapes everything: MIDI is the only pipe
@@ -54,7 +54,7 @@ line. Phase 1 adds that, and it serves rodeo-console and outside controllers too
   * `react-native-gesture-handler` and `react-native-reanimated` for the
     multi-touch keyboard and the knob drags, so they run on the UI thread;
   * `react-native-skia` if the knobs or visuals need custom drawing.
-* **Logic:** `seq.js`'s timing arithmetic (step lengths, swing, arpeggiator order)
+* **Logic:** `seq.ts`'s timing arithmetic (step lengths, swing, arpeggiator order)
   is plain JS with tests, and can be copied over or rewritten in TypeScript as
   needed. Nothing else from the console is assumed.
 * **Testing without a device:** unverified whether the iOS Simulator sees a USB
@@ -109,6 +109,6 @@ line. Phase 1 adds that, and it serves rodeo-console and outside controllers too
 2. **App skeleton:** the Expo project, the `rodeo-midi` module (iOS), connect,
    the keyboard.
 3. **Panel mirror:** live two-way knobs, presets.
-4. **Sequencer and arpeggiator:** the UI over `seq.js`.
+4. **Sequencer and arpeggiator:** the UI over `seq.ts`.
 5. **Demo polish:** visuals, audio recording, a short demo script.
 6. **Android:** the module's Kotlin side, then test on a phone.

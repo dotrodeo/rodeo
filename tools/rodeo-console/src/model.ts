@@ -21,7 +21,60 @@ import {
   noteName,
   poolCost,
   soundName,
-} from './card.js';
+} from './card.ts';
+import type { Card, CardFile } from './card.ts';
+import type { Preset } from './preset.ts';
+
+/** What the loader did with one file: in the pool, or skipped and why. */
+export interface Placed {
+  loaded: boolean;
+  why?: string;
+  /** int16 slots it takes in the pool. */
+  cost?: number;
+}
+
+/** A file in the library: the card's view of it, what the loader did, its key. */
+export type LibraryFile = CardFile &
+  Placed & {
+    /** The key a kit file plays on; null for a pitched sample. */
+    note: number | null;
+  };
+
+/** One entry in the Rodeo's sound list. */
+export interface Sound {
+  name: string;
+  kit: boolean;
+  files: LibraryFile[];
+}
+
+export interface Library {
+  sounds: Sound[];
+  /** WAVs counted against `kMaxSamples`. */
+  files: number;
+  /** int16 slots used in the pool. */
+  pool: number;
+  /** Why the scan stopped early, if it did. */
+  notes: string[];
+}
+
+export type IssueLevel = 'error' | 'warn' | 'info';
+
+export interface Issue {
+  level: IssueLevel;
+  text: string;
+  /** The sound or preset it is about, or null for the card as a whole. */
+  where: string | null;
+}
+
+export interface PoolStats {
+  samples: number;
+  bytes: number;
+  capacity: number;
+  fraction: number;
+  files: number;
+  sounds: number;
+  loadSeconds: number;
+}
 
 /**
  * Build the sound list exactly as `Scan()` does (samples.cpp): every WAV in
@@ -31,18 +84,19 @@ import {
  * @param card {{ samples: File[], kits: Map<string, File[]> }} where a File is
  *        { name, frames, channels, rate, bytes, accepted, why }
  */
-export function buildLibrary(card) {
-  const sounds = [];
+export function buildLibrary(card: Pick<Card, 'samples' | 'kits'>): Library {
+  const sounds: Sound[] = [];
   let files = 0;
   let pool = 0;
-  const notes = [];
+  const notes: string[] = [];
 
-  const stop = (reason) => notes.push(reason);
+  const stop = (reason: string) => notes.push(reason);
 
   // --- /samples: one pitched sound per WAV ---
   const pitched = cardOrder(card.samples.map((f) => f.name));
   for (const name of pitched) {
-    const file = card.samples.find((f) => f.name === name);
+    // Every name came from this list, so the find cannot miss.
+    const file = card.samples.find((f) => f.name === name) as CardFile;
     if (sounds.length >= MAX_SOUNDS) {
       stop(`${pitched.length - sounds.length} more sounds than the Rodeo lists; it stops at ${MAX_SOUNDS}`);
       break;
@@ -71,13 +125,13 @@ export function buildLibrary(card) {
     const inKit = card.kits.get(kitName) ?? [];
     const ordered = cardOrder(inKit.map((f) => f.name));
     if (ordered.length === 0) continue; // `files == 0` -> the kit is skipped
-    const entries = [];
+    const entries: LibraryFile[] = [];
     for (let i = 0; i < ordered.length; i++) {
       if (files >= MAX_FILES) {
         stop(`more than ${MAX_FILES} WAVs on the card; "${kitName}" is cut short`);
         break;
       }
-      const file = inKit.find((f) => f.name === ordered[i]);
+      const file = inKit.find((f) => f.name === ordered[i]) as CardFile; // as above
       const placed = place(file, pool);
       pool = placed.pool;
       files++;
@@ -90,7 +144,7 @@ export function buildLibrary(card) {
 }
 
 /** One file against the pool, the way `AddSample`/the loader do. */
-function place(file, pool) {
+function place(file: CardFile, pool: number): { pool: number; result: Placed } {
   if (!file.accepted) {
     return { pool, result: { loaded: false, why: file.why ?? 'the Rodeo cannot read this WAV' } };
   }
@@ -105,11 +159,12 @@ function place(file, pool) {
 }
 
 /** Everything wrong with a card, worst first. */
-export function validate(library, presets) {
-  const issues = [];
-  const add = (level, text, where) => issues.push({ level, text, where });
+export function validate(library: Library, presets: Preset[]): Issue[] {
+  const issues: Issue[] = [];
+  const add = (level: IssueLevel, text: string, where: string | null) =>
+    issues.push({ level, text, where });
 
-  const names = new Map();
+  const names = new Map<string, 'kit' | 'sample'>();
   for (const sound of library.sounds) {
     // A sound the Rodeo will not play at all.
     const dead = sound.files.filter((f) => !f.loaded);
@@ -117,7 +172,7 @@ export function validate(library, presets) {
       add('error', `"${sound.name}" will not play: ${dead[0].why}`, sound.name);
     } else if (dead.length) {
       const which = sound.kit
-        ? dead.map((f) => noteName(f.note)).join(', ')
+        ? dead.map((f) => noteName(f.note as number)).join(', ') // a kit file always has a key
         : dead.map((f) => f.name).join(', ');
       add('warn', `"${sound.name}" is missing ${dead.length} of ${sound.files.length} samples (${which})`, sound.name);
     }
@@ -138,7 +193,7 @@ export function validate(library, presets) {
     // so the insertion sort leaves them in whatever order f_readdir gave —
     // the directory's, which we cannot predict. For a kit that decides which
     // key each one lands on, so it is worth more than a shrug.
-    const byLower = new Map();
+    const byLower = new Map<string, string>();
     for (const f of sound.files) {
       const k = f.name.toLowerCase();
       if (byLower.has(k)) {
@@ -210,9 +265,9 @@ export function validate(library, presets) {
 }
 
 /** Cheap nearest name, for "did you mean". Null unless it is clearly close. */
-function closest(want, haves) {
+function closest(want: string, haves: string[]): string | null {
   const w = want.toLowerCase();
-  let best = null;
+  let best: string | null = null;
   let bestD = Infinity;
   for (const h of haves) {
     const d = distance(w, h);
@@ -224,7 +279,7 @@ function closest(want, haves) {
   return best !== null && bestD <= Math.max(2, Math.floor(w.length / 3)) ? best : null;
 }
 
-function distance(a, b) {
+function distance(a: string, b: string): number {
   const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
   for (let i = 1; i <= a.length; i++) {
     let last = prev[0];
@@ -239,7 +294,7 @@ function distance(a, b) {
 }
 
 /** What the pool meter shows. */
-export function poolStats(library) {
+export function poolStats(library: Library): PoolStats {
   const bytes = library.pool * 2;
   const capacity = POOL_SAMPLES * 2;
   // The card is read at about 1.24 MB/s (bring-up 07), and that read is the
@@ -259,7 +314,7 @@ export function poolStats(library) {
   };
 }
 
-export function formatBytes(n) {
+export function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;

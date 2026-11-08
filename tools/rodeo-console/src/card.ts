@@ -38,12 +38,12 @@ export const RATE = 48000;
 export const CARD_READ_BYTES_PER_S = 1.24e6;
 
 /** `IsWav`: ends .wav, case-insensitively, and is not a dotfile (samples.cpp:58). */
-export function isWav(name) {
+export function isWav(name: string): boolean {
   return name.length > 4 && name.slice(-4).toLowerCase() === '.wav' && !name.startsWith('.');
 }
 
 /** `IsTxt`, the same shape for presets (presets.cpp:181). */
-export function isTxt(name) {
+export function isTxt(name: string): boolean {
   return name.length > 4 && name.slice(-4).toLowerCase() === '.txt' && !name.startsWith('.');
 }
 
@@ -53,7 +53,7 @@ export function isTxt(name) {
  * would put "a" before "B" by locale rules and also ignore punctuation. Kit
  * files map to keys in this order, so getting it wrong moves someone's snare.
  */
-export function strcasecmp(a, b) {
+export function strcasecmp(a: string, b: string): number {
   const x = a.toLowerCase();
   const y = b.toLowerCase();
   const n = Math.min(x.length, y.length);
@@ -65,16 +65,66 @@ export function strcasecmp(a, b) {
 }
 
 /** Sort a copy the way the firmware will. */
-export function cardOrder(names) {
+export function cardOrder(names: readonly string[]): string[] {
   return [...names].sort(strcasecmp);
 }
 
 /** `CopyName`: drop a trailing .wav, then keep 31 characters (samples.cpp:66). */
-export function soundName(filename) {
+export function soundName(filename: string): string {
   const dot = filename.lastIndexOf('.');
   const stem =
     dot > 0 && filename.slice(dot).toLowerCase() === '.wav' ? filename.slice(0, dot) : filename;
   return stem.slice(0, MAX_NAME);
+}
+
+/** The fields of a WAV's `fmt ` chunk that decide whether the firmware reads it. */
+export interface WavFormat {
+  format: number;
+  bits: number;
+  channels: number;
+  rate: number;
+  blockAlign: number;
+}
+
+/**
+ * One WAV on the card, as `readCard` (or `demoCard`) describes it: the header,
+ * not the audio. `accepted` says whether the firmware's reader will take it, and
+ * when it will not, `why` says why and the numbers may be missing.
+ */
+export interface AcceptedCardFile {
+  name: string;
+  accepted: true;
+  frames: number;
+  channels: number;
+  rate: number;
+  bytes?: number;
+  format?: number;
+  bits?: number;
+  blockAlign?: number;
+  why?: string;
+}
+
+export interface RejectedCardFile {
+  name: string;
+  accepted: false;
+  why?: string;
+  frames?: number;
+  channels?: number;
+  rate?: number;
+  bytes?: number;
+  format?: number;
+  bits?: number;
+  blockAlign?: number;
+}
+
+export type CardFile = AcceptedCardFile | RejectedCardFile;
+
+/** A card's contents, before the firmware's rules are applied to them. */
+export interface Card {
+  samples: CardFile[];
+  kits: Map<string, CardFile[]>;
+  presets: { name: string; text: string }[];
+  unreadable: { name: string; why: string }[];
 }
 
 /**
@@ -84,7 +134,7 @@ export function soundName(filename) {
  * (0xFFFE), which plenty of encoders emit for 24-bit or multichannel files and
  * which the fmt check rejects outright. The console always writes format 1.
  */
-export function acceptsWavFormat({ format, bits, channels, rate, blockAlign }) {
+export function acceptsWavFormat({ format, bits, channels, rate, blockAlign }: WavFormat): boolean {
   const pcm = format === 1 && (bits === 8 || bits === 16 || bits === 24);
   const flt = format === 3 && bits === 32;
   if (!(pcm || flt)) return false;
@@ -93,23 +143,23 @@ export function acceptsWavFormat({ format, bits, channels, rate, blockAlign }) {
 }
 
 /** Channels as loaded: anything wider than stereo keeps its first two (samples.cpp:239). */
-export function loadedChannels(channels) {
+export function loadedChannels(channels: number): 1 | 2 {
   return channels >= 2 ? 2 : 1;
 }
 
 /** int16 slots a WAV will occupy in the pool. */
-export function poolCost(frames, channels) {
+export function poolCost(frames: number, channels: number): number {
   return frames * loadedChannels(channels);
 }
 
 /** Playback speed the firmware uses for a file at `rate` (samples.h:31). */
-export function playbackSpeed(rate) {
+export function playbackSpeed(rate: number): number {
   return rate / RATE;
 }
 
 /** MIDI note number to a name, for the kit keyboard. C4 = 60. */
 const PITCHES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-export function noteName(note) {
+export function noteName(note: number): string {
   return `${PITCHES[note % 12]}${Math.floor(note / 12) - 1}`;
 }
 
@@ -118,7 +168,7 @@ export function noteName(note) {
  * sanitises, it just drops what it cannot use, so the console does the renaming
  * and says it did.
  */
-export function safeFilename(name) {
+export function safeFilename(name: string): string {
   const cleaned = name
     .replace(/[\\/:*?"<>|\x00-\x1f]/g, '-') // illegal on FAT
     .replace(/^\.+/, '') // a dotfile is skipped

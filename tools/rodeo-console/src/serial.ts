@@ -7,14 +7,28 @@
 // Disk mode closes this port — the Rodeo re-enumerates without CDC — so losing
 // the port is a normal thing that happens, not an error to shout about.
 
-import { takeLines } from './chain.js';
+import { takeLines } from './chain.ts';
 
-export function supported() {
+export function supported(): boolean {
   return typeof navigator !== 'undefined' && 'serial' in navigator;
 }
 
+export interface PortEvents {
+  /** Every whole line, `#S` or not. */
+  onLine?: (line: string) => void;
+  /** The port closed: `why` is null for a close we asked for. */
+  onClose?: (why: string | null | undefined) => void;
+}
+
 export class Port {
-  constructor({ onLine = () => {}, onClose = () => {} } = {}) {
+  onLine: (line: string) => void;
+  onClose: (why: string | null | undefined) => void;
+  port: SerialPort | null;
+  reader: ReadableStreamDefaultReader<Uint8Array> | null;
+  writer: WritableStreamDefaultWriter<Uint8Array> | null;
+  buffer: string;
+
+  constructor({ onLine = () => {}, onClose = () => {} }: PortEvents = {}) {
     this.onLine = onLine;
     this.onClose = onClose;
     this.port = null;
@@ -23,12 +37,12 @@ export class Port {
     this.buffer = '';
   }
 
-  get open() {
+  get open(): boolean {
     return !!this.port;
   }
 
   /** Shows the browser's port picker; throws AbortError if it is dismissed. */
-  async connect() {
+  async connect(): Promise<void> {
     this.port = await navigator.serial.requestPort();
     // A CDC port's baud rate is a fiction — the device ignores it — but the
     // API demands one.
@@ -36,10 +50,11 @@ export class Port {
     this.read();
   }
 
-  async read() {
+  async read(): Promise<void> {
     const decoder = new TextDecoder();
     try {
-      this.reader = this.port.readable.getReader();
+      // connect() opened the port just before calling this, so both are set.
+      this.reader = (this.port as SerialPort).readable!.getReader();
       for (;;) {
         const { value, done } = await this.reader.read();
         if (done) break;
@@ -59,7 +74,7 @@ export class Port {
     }
   }
 
-  async write(text) {
+  async write(text: string): Promise<void> {
     if (!this.port?.writable) return;
     try {
       this.writer ??= this.port.writable.getWriter();
@@ -69,14 +84,16 @@ export class Port {
     }
   }
 
-  fail(e) {
+  fail(e: unknown): void {
     if (!this.port) return; // already closing on purpose
-    const why = e?.name === 'NetworkError' ? 'the port went away — disk mode, or unplugged' : e?.message;
+    // Whatever was thrown; a DOMException in practice, so read it as an Error.
+    const err = e as Error | undefined;
+    const why = err?.name === 'NetworkError' ? 'the port went away — disk mode, or unplugged' : err?.message;
     this.port = null;
     this.onClose(why);
   }
 
-  release() {
+  release(): void {
     try {
       this.reader?.releaseLock();
     } catch {
@@ -85,7 +102,7 @@ export class Port {
     this.reader = null;
   }
 
-  async close() {
+  async close(): Promise<void> {
     const port = this.port;
     this.port = null; // so fail() stays quiet about a close we asked for
     try {

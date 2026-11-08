@@ -1,4 +1,4 @@
-// node --test tools/rodeo-console/
+// npm test, in tools/rodeo-console (node --test test.ts; Node strips the types)
 //
 // These test that the console agrees with the firmware, not that the console
 // agrees with itself. Every case below was read off
@@ -8,6 +8,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
+import type { AcceptedCardFile, CardFile } from './src/card.ts';
+import type { RejectedWav } from './src/wav.ts';
+import type { Satellite } from './src/chain.ts';
 
 import {
   KIT_FIRST_NOTE,
@@ -28,11 +31,11 @@ import {
   safeFilename,
   soundName,
   strcasecmp,
-} from './js/card.js';
-import { KEYS, formatPreset, parsePreset, squash } from './js/preset.js';
-import { buildLibrary, poolStats, validate } from './js/model.js';
+} from './src/card.ts';
+import { KEYS, formatPreset, parsePreset, squash } from './src/preset.ts';
+import { buildLibrary, poolStats, validate } from './src/model.ts';
 
-const wav = (name, over = {}) => ({
+const wav = (name: string, over: Partial<AcceptedCardFile> = {}): CardFile => ({
   name,
   frames: 48000,
   channels: 1,
@@ -85,7 +88,7 @@ test('two files differing only in case have no defined order', () => {
 test('kit keys follow that order from C2', () => {
   const kits = new Map([['909', [wav('03_hat.wav'), wav('01_kick.wav'), wav('02_snare.wav')]]]);
   const lib = buildLibrary({ samples: [], kits });
-  const notes = lib.sounds[0].files.map((f) => [f.name, noteName(f.note)]);
+  const notes = lib.sounds[0].files.map((f) => [f.name, noteName(f.note as number)]);
   assert.deepEqual(notes, [
     ['01_kick.wav', 'C2'],
     ['02_snare.wav', 'C#2'],
@@ -216,7 +219,7 @@ test('every key in KEYS round-trips through the parser', () => {
 test('the pots in KEYS are the panel\'s, one key each', () => {
   // panel.h: pot bank 1 is the filter, pot bank 2 the amp envelope. A key with
   // a pot is one a preset can leave to the knob.
-  const pots = Object.entries(KEYS).filter(([, s]) => s.pot).sort((a, b) => a[1].pot - b[1].pot);
+  const pots = Object.entries(KEYS).filter(([, s]) => s.pot).sort((a, b) => a[1].pot! - b[1].pot!);
   assert.deepEqual(pots.map(([k]) => k),
                    ['cutoff', 'resonance', 'env', 'drive', 'attack', 'decay', 'sustain', 'release']);
   assert.deepEqual(pots.map(([, s]) => s.pot), [1, 2, 3, 4, 5, 6, 7, 8]);
@@ -272,7 +275,7 @@ test('the pool fills and the overflowing sample is dropped, not the card', () =>
   assert.equal(b.files[0].loaded, true, 'exactly full still fits');
   assert.equal(lib.pool, 25_165_824);
   assert.equal(s.files[0].loaded, false);
-  assert.match(s.files[0].why, /pool is full/);
+  assert.match(s.files[0].why as string, /pool is full/);
   const issues = validate(lib, []);
   assert.ok(issues.some((i) => i.level === 'error' && /small/.test(i.text)));
 });
@@ -319,7 +322,7 @@ test('poolStats reports the load wait from the card rate', () => {
 
 // ---------------------------------------------------------------------- wav
 
-import { encodeWav, firstTwo, peak, readWavHeader, scale, toMono, trimSilence } from './js/wav.js';
+import { encodeWav, firstTwo, peak, readWavHeader, scale, toMono, trimSilence } from './src/wav.ts';
 
 test('what we encode, the firmware accepts and we can read back', () => {
   const left = Float32Array.from([0, 0.5, -0.5, 1, -1]);
@@ -364,7 +367,7 @@ test('readWavHeader rejects what the firmware rejects, and says why', () => {
   assert.equal(readWavHeader(new ArrayBuffer(4)).accepted, false);
   const notRiff = encodeWav([Float32Array.from([0])], 48000);
   new DataView(notRiff).setUint8(0, 0x58);
-  assert.match(readWavHeader(notRiff).why, /not a RIFF/);
+  assert.match((readWavHeader(notRiff) as RejectedWav).why, /not a RIFF/);
 });
 
 test('a data chunk claiming more than the file holds reports what is there', () => {
@@ -429,7 +432,7 @@ import {
   noteOn,
   pitchBend,
   sustain,
-} from './js/midi.js';
+} from './src/midi.ts';
 
 test('messages are the bytes the firmware switches on', () => {
   assert.deepEqual(noteOn(60, 100), [0x90, 60, 100]);
@@ -444,11 +447,11 @@ test('messages are the bytes the firmware switches on', () => {
 });
 
 test('pitch bend is the exact inverse of main.cpp:83', () => {
-  const back = ([, lo, hi]) => (2 * ((lo | (hi << 7)) - 8192)) / 8192;
+  const back = ([, lo, hi]: number[]) => (2 * ((lo | (hi << 7)) - 8192)) / 8192;
   assert.deepEqual(pitchBend(0), [0xe0, 0, 64], 'centre is 8192');
   assert.equal(back(pitchBend(0)), 0);
   assert.equal(back(pitchBend(-BEND_SEMITONES)), -2, 'the bottom is reachable exactly');
-  for (const s of [-1.5, -0.25, 0.5, 1]) assert.ok(Math.abs(back(pitchBend(s)) - s) < 1e-3, s);
+  for (const s of [-1.5, -0.25, 0.5, 1]) assert.ok(Math.abs(back(pitchBend(s)) - s) < 1e-3, String(s));
   // raw 16383 is +1.99975 semitones: +2 cannot be sent, and the console must
   // not pretend otherwise by wrapping to 0 or overflowing the byte.
   const top = pitchBend(BEND_SEMITONES);
@@ -584,7 +587,7 @@ test('a sequencer step cannot overrun the firmware event queue', () => {
 
 // ---------------------------------------------------- the clock and the arp
 //
-// Unlike everything above, js/seq.js is a copy of nothing: Rodeo has no
+// Unlike everything above, src/seq.ts is a copy of nothing: Rodeo has no
 // sequencer and no arpeggiator. So these check the arithmetic against music,
 // not against the firmware — the one firmware fact that reaches here is that
 // the ninth note steals, which is tested above.
@@ -607,10 +610,10 @@ import {
   stepNotes,
   stepTime,
   swingOffset,
-} from './js/seq.js';
+} from './src/seq.ts';
 
 test('a step is as long as the tempo says', () => {
-  const by = (id) => DIVISIONS.find((d) => d.id === id).beats;
+  const by = (id: string) => DIVISIONS.find((d) => d.id === id)!.beats;
   assert.equal(stepMs(120, by('1/4')), 500);
   assert.equal(stepMs(120, by('1/8')), 250);
   assert.equal(stepMs(120, by('1/16')), 125);
@@ -638,7 +641,7 @@ test('swing delays the off-beats and nothing else', () => {
 
 test('swing shifts a step without the grid drifting', () => {
   const ms = 125;
-  const at = (i) => stepTime(1000, i, ms, 0.5);
+  const at = (i: number) => stepTime(1000, i, ms, 0.5);
   assert.equal(at(0), 1000);
   assert.equal(at(1), 1000 + 125 + 62.5);
   assert.equal(at(2), 1250, 'back on the grid, not 1312.5');
@@ -682,7 +685,7 @@ test('the cycle wraps forever and random stays inside it', () => {
   // Random picks from the held notes; it must never invent one.
   for (const r of [0, 0.4, 0.99, 0.999999]) {
     const n = pickStep(cycle, 0, 'random', () => r);
-    assert.ok(cycle.includes(n), `${r} gave ${n}`);
+    assert.ok(cycle.includes(n as number), `${r} gave ${n}`);
   }
   assert.ok(ARP_MODES.includes('random') && ARP_MODES[0] === 'off');
 });
@@ -745,7 +748,7 @@ import {
   scanHealth,
   slots,
   takeLines,
-} from './js/chain.js';
+} from './src/chain.ts';
 
 const LINE =
   '#S {"preset":2,"name":"bass","layer":"both","shape":"saw","sound":1,"nsounds":18,' +
@@ -757,12 +760,12 @@ const LINE =
   '"good":24581,"bad":0},"cpu":34,"peak":51}';
 
 test('a whole state line parses to the firmware’s own numbers', () => {
-  const st = parseStateLine(LINE);
+  const st = parseStateLine(LINE)!;
   assert.equal(st.preset, 2, '0-based, unlike the prose which prints preset + 1');
   assert.equal(st.name, 'bass');
   assert.equal(st.rel, 220);
-  assert.equal(st.chain.sats, 2);
-  assert.equal(st.chain.s.length, 2);
+  assert.equal(st.chain!.sats, 2);
+  assert.equal(st.chain!.s!.length, 2);
   assert.equal(st.cpu, 34, 'cpu and peak come last, after the chain closes');
 });
 
@@ -816,15 +819,15 @@ test('board kinds match sat_frame.h', () => {
 });
 
 test('slots are drawn by what the board actually is', () => {
-  const st = parseStateLine(LINE);
-  const pots = slots(st.chain.s[0]);
+  const st = parseStateLine(LINE)!;
+  const pots = slots(st.chain!.s![0]);
   assert.equal(pots.length, 4);
   assert.ok(pots.every((s) => s.type === 'pot'));
   assert.equal(potPercent(pots[1].value), 90);
   assert.equal(potPercent(0), 0);
   assert.equal(potPercent(1000), 100);
 
-  const encs = slots(st.chain.s[1]);
+  const encs = slots(st.chain!.s![1]);
   assert.ok(encs.every((s) => s.type === 'encoder'));
   assert.equal(encs[0].value, 3, 'a running detent total, which can go either way');
   assert.equal(encs[1].value, -1);
@@ -841,7 +844,7 @@ test('slots are drawn by what the board actually is', () => {
 });
 
 test('a faulted slot outranks whatever its board kind would draw', () => {
-  const sat = { kind: 5, in: [500, 0, 0, 0], fault: [null, [1, 47], null, [2, 9]] };
+  const sat: Satellite = { kind: 5, in: [500, 0, 0, 0], fault: [null, [1, 47], null, [2, 9]] };
   const got = slots(sat);
   assert.equal(got[0].type, 'pot', 'the slots that are fine still draw as pots');
   assert.equal(got[1].type, 'fault');
@@ -925,7 +928,7 @@ test('every panel control names the parameter it drives', () => {
                    ['shape', 'det', 'hpf', 'mix', 'fatk', 'fdec', 'fsus', 'glide']);
   assert.ok(PANEL_ENCODERS.every((e) => e.tap), 'and each says what a tap does');
   // The index in `fx` is the enum's own order (synth.h:28), the same order
-  // presets.cpp parses the words in — which is where preset.js's FX came from.
+  // presets.cpp parses the words in — which is where preset.ts's FX came from.
   assert.deepEqual(FX_NAMES, ['chorus', 'reverb', 'both']);
 });
 

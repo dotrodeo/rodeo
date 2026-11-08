@@ -154,7 +154,7 @@ from the ask above:
 
 ## What the console does with it
 
-`tools/rodeo-console/js/live.js` gains a chain panel over Web Serial: the
+`tools/rodeo-console/src/live.ts` gains a chain panel over Web Serial: the
 satellites drawn in ring order with their kind, four pots and four encoders moving
 as they are turned, the good/bad scan counts, and the break marked when there is
 one. The parser is a dozen lines — `JSON.parse` on anything after `#S ` — and the
@@ -199,7 +199,7 @@ only gap left in the panel view.
 ```
 
 `fx` can go as the enum's own index: the console already mirrors that order in
-`js/preset.js`'s `FX`, which came from `presets.cpp`. No `FxName()` needed,
+`src/preset.ts`'s `FX`, which came from `presets.cpp`. No `FxName()` needed,
 though one would be no worse.
 
 Notes:
@@ -220,4 +220,4 @@ on its own. The panel view is useful as it stands.
 
 In as `det`, `oct`, `lfo`, `fx`, `mix`, in the first `snprintf` so the stream
 wakes on them. The console reads all five; no panel row says *not reported* any
-more. `fx` goes as the enum index and `js/chain.js`'s `FX_NAMES` mirrors it.
+more. `fx` goes as the enum index and `src/chain.ts`'s `FX_NAMES` mirrors it.

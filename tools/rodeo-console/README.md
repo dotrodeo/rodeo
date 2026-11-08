@@ -7,7 +7,9 @@ what the firmware would quietly skip.
 
 Phases 1 and 2 of
 [`planning/RODEO_CONSOLE_PLAN.md`](../../planning/RODEO_CONSOLE_PLAN.md).
-A bench tool, not a product: Chrome or Edge, no build step, no dependencies.
+A bench tool, not a product: Chrome or Edge. It is TypeScript built with Vite,
+and everything it installs is a dev dependency — the page itself ships with
+none.
 
 **One screen, three connections.** The toolbar carries MIDI, serial and the
 card, each with a status dot: grey not connected, yellow connected, cyan
@@ -25,11 +27,17 @@ a dialog over the keyboard instead of competing with it for the screen.
 ## Running it
 
 ```sh
-npx serve tools/rodeo-console
+cd tools/rodeo-console
+npm install
+npm run dev
 ```
 
-Then open `http://localhost:3000`. It must be `localhost` — the File System
-Access API needs a secure context, and `file://` is not one.
+Then open the `http://localhost:…` address Vite prints. It must be
+`localhost` — the File System Access API needs a secure context, and `file://`
+is not one.
+
+`npm run build` type-checks and writes a static copy to `dist/`, and
+`npm run preview` serves that.
 
 `?demo` loads a made-up card with every failure mode on it, so you can see what
 the page does without a Rodeo attached. Nothing in demo mode can be written.
@@ -49,7 +57,7 @@ That is the firmware's behaviour, not a limitation of this page.
 
 ## What it knows
 
-The card's rules live in [`js/card.js`](js/card.js), and every one cites the
+The card's rules live in [`src/card.ts`](src/card.ts), and every one cites the
 line of firmware that enforces it:
 
 | | |
@@ -80,7 +88,7 @@ cutoff; the panel's pots are the only way to shape the sound. Nothing comes
 back, either — the firmware never writes MIDI, so the page can send and cannot
 listen.
 
-**The voice panel is a prediction, not a reading.** `js/midi.js` re-implements
+**The voice panel is a prediction, not a reading.** `src/midi.ts` re-implements
 `Allocate()`, so the page can say what Rodeo *should* have done with the notes
 it just sent: the same key again takes its old voice back, then any finished
 voice, then the oldest released one, then the oldest of all. Press nine notes
@@ -103,8 +111,8 @@ most controls carry a tooltip instead of a caption.
 ### The sequencer and the arp
 
 Both run off one transport: play (or the space bar), a tempo, a step length
-down to 1/32 and up to triplets, swing, and a gate length. `js/seq.js` holds the
-arithmetic and is tested; unlike `card.js` and `midi.js` it is a copy of
+down to 1/32 and up to triplets, swing, and a gate length. `src/seq.ts` holds the
+arithmetic and is tested; unlike `card.ts` and `midi.ts` it is a copy of
 nothing, because Rodeo has no sequencer and no arpeggiator and is not getting
 one. This is the page playing the instrument.
 
@@ -129,11 +137,14 @@ means the Rodeo drones until it is power-cycled.
 ## Tests
 
 ```sh
-node --test tools/rodeo-console/test.mjs
+cd tools/rodeo-console
+npm test
 ```
 
+`npm run typecheck` checks the types without building.
+
 These check that the console agrees with **the firmware**, not with itself.
-`js/card.js`, `js/preset.js` and `js/model.js` are a second copy of what
+`src/card.ts`, `src/preset.ts` and `src/model.ts` are a second copy of what
 `instruments/rodeo-demo/firmware/src/{samples,presets}.cpp` do, and a copy
 drifts. When a test fails after a firmware change, the firmware is right.
 
@@ -184,7 +195,7 @@ Anything the Rodeo says in prose — *no SD card to hand over*, the preset lines
 it skipped — appears on the line under those buttons. Before, this page was
 the only thing reading the port, so those messages went nowhere.
 
-`js/chain.js` parses the line and is a copy of two things, both authoritative:
+`src/chain.ts` parses the line and is a copy of two things, both authoritative:
 the line's shape from the firmware's `state_line.cpp`, and the board kinds
 from `rodeo-sdk/common/sat_frame.h`. **A line that does not parse is skipped,
 never guessed at** — the firmware abandons a line if the computer stops

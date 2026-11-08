@@ -7,21 +7,43 @@
 // Chrome and Edge only. `supported()` is what the UI checks before offering any
 // of it.
 
-import { isTxt, isWav, safeFilename } from './card.js';
-import { readWavHeader } from './wav.js';
+import { isTxt, isWav, safeFilename } from './card.ts';
+import { readWavHeader } from './wav.ts';
+import type { Card, CardFile } from './card.ts';
 
-export const supported = () => typeof window !== 'undefined' && 'showDirectoryPicker' in window;
+/** One file for `downloadZip`: a path inside the zip and its contents. */
+export interface ZipEntry {
+  path: string;
+  data: ArrayBuffer | string;
+}
+
+/** A file `renumberKit` renamed, or would have. */
+export interface Rename {
+  from: string;
+  to: string;
+}
+
+type Job =
+  | { kind: 'sample'; name: string; handle: FileSystemFileHandle }
+  | { kind: 'kit'; kit: string; name: string; handle: FileSystemFileHandle }
+  | { kind: 'preset'; name: string; handle: FileSystemFileHandle };
+
+export const supported = (): boolean => typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 
 /** Ask for the card. Throws AbortError if the user cancels — let it through. */
-export async function pickCard() {
+export async function pickCard(): Promise<FileSystemDirectoryHandle> {
   return window.showDirectoryPicker({ id: 'rodeo-card', mode: 'readwrite' });
 }
 
-async function dirHandle(root, name, { create = false } = {}) {
+async function dirHandle(
+  root: FileSystemDirectoryHandle,
+  name: string,
+  { create = false } = {}
+): Promise<FileSystemDirectoryHandle | null> {
   try {
     return await root.getDirectoryHandle(name, { create });
   } catch (e) {
-    if (e.name === 'NotFoundError') return null;
+    if ((e as DOMException).name === 'NotFoundError') return null;
     throw e;
   }
 }
@@ -32,18 +54,21 @@ async function dirHandle(root, name, { create = false } = {}) {
  *
  * `onProgress(done, total)` so the UI can show something during a slow card.
  */
-export async function readCard(root, onProgress = () => {}) {
-  const samples = [];
-  const kits = new Map();
-  const presets = [];
-  const unreadable = [];
+export async function readCard(
+  root: FileSystemDirectoryHandle,
+  onProgress: (done: number, total: number) => void = () => {}
+): Promise<Card> {
+  const samples: CardFile[] = [];
+  const kits = new Map<string, CardFile[]>();
+  const presets: Card['presets'] = [];
+  const unreadable: Card['unreadable'] = [];
 
   const samplesDir = await dirHandle(root, 'samples');
   const kitsDir = await dirHandle(root, 'kits');
   const presetsDir = await dirHandle(root, 'presets');
 
   // Count first so progress means something.
-  const jobs = [];
+  const jobs: Job[] = [];
   if (samplesDir) {
     for await (const [name, h] of samplesDir.entries()) {
       if (h.kind === 'file' && isWav(name)) jobs.push({ kind: 'sample', name, handle: h });
@@ -72,12 +97,12 @@ export async function readCard(root, onProgress = () => {}) {
         presets.push({ name: job.name.replace(/\.txt$/i, ''), text: await file.text() });
       } else {
         const header = readWavHeader(await file.arrayBuffer());
-        const entry = { name: job.name, bytes: file.size, ...header };
+        const entry: CardFile = { name: job.name, bytes: file.size, ...header };
         if (job.kind === 'sample') samples.push(entry);
-        else kits.get(job.kit).push(entry);
+        else kits.get(job.kit)!.push(entry); // every kit was set above
       }
     } catch (e) {
-      unreadable.push({ name: job.name, why: e.message });
+      unreadable.push({ name: job.name, why: (e as Error).message });
     }
     onProgress(++done, jobs.length);
   }
@@ -85,7 +110,11 @@ export async function readCard(root, onProgress = () => {}) {
   return { samples, kits, presets, unreadable };
 }
 
-async function write(dir, name, data) {
+async function write(
+  dir: FileSystemDirectoryHandle,
+  name: string,
+  data: ArrayBuffer | string
+): Promise<void> {
   const handle = await dir.getFileHandle(name, { create: true });
   const w = await handle.createWritable();
   await w.write(data);
@@ -93,47 +122,66 @@ async function write(dir, name, data) {
 }
 
 /** Write a WAV into /samples, returning the name actually used. */
-export async function writeSample(root, name, buffer) {
-  const dir = await dirHandle(root, 'samples', { create: true });
+// With `create: true` the folder exists afterwards, so `dirHandle` returns it.
+
+export async function writeSample(
+  root: FileSystemDirectoryHandle,
+  name: string,
+  buffer: ArrayBuffer
+): Promise<string> {
+  const dir = (await dirHandle(root, 'samples', { create: true })) as FileSystemDirectoryHandle;
   const safe = ensureWav(safeFilename(name));
   await write(dir, safe, buffer);
   return safe;
 }
 
 /** Write a WAV into /kits/<kit>/. */
-export async function writeKitFile(root, kit, name, buffer) {
-  const kitsDir = await dirHandle(root, 'kits', { create: true });
+export async function writeKitFile(
+  root: FileSystemDirectoryHandle,
+  kit: string,
+  name: string,
+  buffer: ArrayBuffer
+): Promise<string> {
+  const kitsDir = (await dirHandle(root, 'kits', { create: true })) as FileSystemDirectoryHandle;
   const dir = await kitsDir.getDirectoryHandle(safeFilename(kit), { create: true });
   const safe = ensureWav(safeFilename(name));
   await write(dir, safe, buffer);
   return safe;
 }
 
-export async function writePreset(root, name, text) {
-  const dir = await dirHandle(root, 'presets', { create: true });
+export async function writePreset(
+  root: FileSystemDirectoryHandle,
+  name: string,
+  text: string
+): Promise<string> {
+  const dir = (await dirHandle(root, 'presets', { create: true })) as FileSystemDirectoryHandle;
   const safe = safeFilename(name).replace(/\.txt$/i, '') + '.txt';
   await write(dir, safe, text);
   return safe;
 }
 
-export async function removeSample(root, name) {
+export async function removeSample(root: FileSystemDirectoryHandle, name: string): Promise<void> {
   const dir = await dirHandle(root, 'samples');
   if (dir) await dir.removeEntry(name);
 }
 
-export async function removeKit(root, kit) {
+export async function removeKit(root: FileSystemDirectoryHandle, kit: string): Promise<void> {
   const dir = await dirHandle(root, 'kits');
   if (dir) await dir.removeEntry(kit, { recursive: true });
 }
 
-export async function removeKitFile(root, kit, name) {
+export async function removeKitFile(
+  root: FileSystemDirectoryHandle,
+  kit: string,
+  name: string
+): Promise<void> {
   const kitsDir = await dirHandle(root, 'kits');
   if (!kitsDir) return;
   const dir = await kitsDir.getDirectoryHandle(kit);
   await dir.removeEntry(name);
 }
 
-export async function removePreset(root, name) {
+export async function removePreset(root: FileSystemDirectoryHandle, name: string): Promise<void> {
   const dir = await dirHandle(root, 'presets');
   if (dir) await dir.removeEntry(`${name}.txt`);
 }
@@ -146,35 +194,39 @@ export async function removePreset(root, name) {
  * Two passes through temporary names, because renaming `02` to `01` while an
  * `01` still exists would clobber it.
  */
-export async function renumberKit(root, kit, orderedNames) {
+export async function renumberKit(
+  root: FileSystemDirectoryHandle,
+  kit: string,
+  orderedNames: string[]
+): Promise<Rename[]> {
   const kitsDir = await dirHandle(root, 'kits');
   if (!kitsDir) return [];
   const dir = await kitsDir.getDirectoryHandle(kit);
 
   const width = String(orderedNames.length).length;
-  const stripPrefix = (n) => n.replace(/^\d+[_-]/, '');
-  const final = orderedNames.map((name, i) => ({
+  const stripPrefix = (n: string) => n.replace(/^\d+[_-]/, '');
+  const final: Rename[] = orderedNames.map((name, i) => ({
     from: name,
     to: `${String(i + 1).padStart(width, '0')}_${stripPrefix(name)}`,
   }));
   if (final.every(({ from, to }) => from === to)) return final;
 
-  const buffers = new Map();
+  const buffers = new Map<string, ArrayBuffer>();
   for (const { from } of final) {
     const h = await dir.getFileHandle(from);
     buffers.set(from, await (await h.getFile()).arrayBuffer());
   }
   for (const { from } of final) await dir.removeEntry(from);
-  for (const { from, to } of final) await write(dir, to, buffers.get(from));
+  for (const { from, to } of final) await write(dir, to, buffers.get(from)!); // read just above
   return final;
 }
 
-function ensureWav(name) {
+function ensureWav(name: string): string {
   return /\.wav$/i.test(name) ? name : `${name}.wav`;
 }
 
 /** Fallback for browsers without the API: hand back a zip the user copies. */
-export async function downloadZip(files, filename = 'rodeo-card.zip') {
+export async function downloadZip(files: ZipEntry[], filename = 'rodeo-card.zip'): Promise<void> {
   const blob = new Blob([buildZip(files)], { type: 'application/zip' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -188,10 +240,10 @@ export async function downloadZip(files, filename = 'rodeo-card.zip') {
  * dependency that needs updating in a year; samples are already compressed
  * audio or raw PCM that would not shrink much in deflate anyway.
  */
-function buildZip(files) {
+function buildZip(files: ZipEntry[]): Blob {
   const enc = new TextEncoder();
-  const chunks = [];
-  const central = [];
+  const chunks: Uint8Array<ArrayBuffer>[] = [];
+  const central: Uint8Array<ArrayBuffer>[] = [];
   let offset = 0;
 
   const crcTable = (() => {
@@ -203,7 +255,7 @@ function buildZip(files) {
     }
     return t;
   })();
-  const crc32 = (bytes) => {
+  const crc32 = (bytes: Uint8Array) => {
     let c = 0xffffffff;
     for (let i = 0; i < bytes.length; i++) c = crcTable[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
     return (c ^ 0xffffffff) >>> 0;

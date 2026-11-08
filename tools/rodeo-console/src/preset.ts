@@ -17,7 +17,7 @@
 //   - A line with no `=`, or an unknown key, or a value out of vocabulary, is
 //     skipped and listed by `Problems()` on a serial port nobody is reading.
 
-import { MAX_NAME, MAX_PRESET_BYTES } from './card.js';
+import { MAX_NAME, MAX_PRESET_BYTES } from './card.ts';
 
 /** synth.cpp's ShapeName — the order is the enum's, and E1 steps through it. */
 export const SHAPES = ['saw', 'square', 'pulse', 'triangle', 'saw + sub', 'square + sub', 'fm'];
@@ -25,12 +25,61 @@ export const FILTERS = ['svf', 'ladder', 'ladder12'];
 export const LAYERS = ['synth', 'sampler', 'both'];
 export const FX = ['chorus', 'reverb', 'both'];
 
+interface SpecBase {
+  /** The pot that drives it: what a key left out means is that the pot keeps it. */
+  pot?: number;
+  /** The encoder that turns it. */
+  enc?: string;
+}
+
+/** One of a fixed list of words, matched after `Squash`. */
+export interface EnumSpec extends SpecBase {
+  kind: 'enum';
+  values: string[];
+}
+
+/** `sound`: a name, kept as written. */
+export interface NameSpec extends SpecBase {
+  kind: 'name';
+}
+
+/** A number, clamped to `lo..hi`. */
+export interface NumberSpec extends SpecBase {
+  kind: 'number';
+  lo: number;
+  hi: number;
+  unit: string;
+  round?: boolean;
+}
+
+export type KeySpec = EnumSpec | NameSpec | NumberSpec;
+
+/** A preset's values by key; `sound` is the one that is always a string. */
+export interface PresetValues {
+  [key: string]: string | number | undefined;
+  sound?: string;
+}
+
+/** A line the Rodeo will skip. */
+export interface PresetProblem {
+  line: number;
+  text: string;
+  why: string;
+}
+
+export interface Preset {
+  name: string;
+  values: PresetValues;
+  problems: PresetProblem[];
+  warnings: string[];
+}
+
 /**
  * Every key, with what presets.cpp will do with it, in panel order: pots 1-8,
  * then the encoders (panel.h). `pot` is the pot that drives it, which is what
  * a key left out means: the pot keeps it. `enc` is the encoder that turns it.
  */
-export const KEYS = {
+export const KEYS: Record<string, KeySpec> = {
   layer: { kind: 'enum', values: LAYERS, enc: 'E1 tap' },
   shape: { kind: 'enum', values: SHAPES, enc: 'E1' },
   sound: { kind: 'name', enc: 'E1' },
@@ -58,7 +107,7 @@ export const KEYS = {
 };
 
 /** `Squash`: drop whitespace, lowercase (presets.cpp:46). */
-export function squash(s, max = Infinity) {
+export function squash(s: string, max = Infinity): string {
   let out = '';
   for (const ch of s) {
     if (out.length >= max) break;
@@ -68,7 +117,11 @@ export function squash(s, max = Infinity) {
 }
 
 /** `strtof` + the clamp in `Number` (presets.cpp:54). Null if not a number. */
-function asNumber(v, lo, hi) {
+function asNumber(
+  v: string,
+  lo: number,
+  hi: number
+): { value: number; clamped: boolean; raw: number } | null {
   // strtof takes leading digits then demands the rest be empty; "12abc" fails,
   // "12" and "1e3" and ".5" pass.
   if (!/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(v)) return null;
@@ -82,10 +135,10 @@ function asNumber(v, lo, hi) {
  * Returns { values, problems, warnings } — `problems` are lines the Rodeo will
  * skip, `warnings` are things it will accept but not as written.
  */
-export function parsePreset(text, name = '') {
-  const values = {};
-  const problems = [];
-  const warnings = [];
+export function parsePreset(text: string, name = ''): Preset {
+  const values: PresetValues = {};
+  const problems: PresetProblem[] = [];
+  const warnings: string[] = [];
 
   const bytes = new TextEncoder().encode(text).length;
   if (bytes > MAX_PRESET_BYTES) {
@@ -164,7 +217,7 @@ export function parsePreset(text, name = '') {
 }
 
 /** Write a preset back out: stable key order, a comment header, no surprises. */
-export function formatPreset(values) {
+export function formatPreset(values: PresetValues): string {
   const order = Object.keys(KEYS);
   const lines = ['# written by rodeo-console', ''];
   for (const key of order) {
