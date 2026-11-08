@@ -6,7 +6,8 @@ import { test } from 'node:test';
 import { RodeoClient, type Timers } from './client.ts';
 import { MidiParser } from './parser.ts';
 import { Cmd, type Param, message, parseReply, pitchBend, setMessage } from './protocol.ts';
-import { describe, paramsToPreset, presetToParams, toParam } from './audition.ts';
+import { DEFAULTS, describe, paramsToPreset, presetDefaults, presetToParams, toParam } from './audition.ts';
+import { KEYS } from '../preset.ts';
 
 test('parser: messages split across packets, running status, real time inside SysEx', () => {
   const got: number[][] = [];
@@ -231,4 +232,14 @@ test('audition: what the Rodeo plays comes back as a preset, and round-trips', (
   assert.deepEqual(Object.fromEntries(sets), { ...p, cutoff: 410 }, 'cutoff to the nearest %');
   const fa = { ...params, fattack: P('fattack', 0, 4000, 'ms') };
   assert.equal(paramsToPreset({ fattack: 0 }, fa, sounds).fattack, undefined, 'following attack is left out');
+});
+
+test('audition: what a preset leaves out goes back to the default, but not a pot or the sound', () => {
+  const got = Object.fromEntries(presetDefaults({ shape: 'fm', mix: '' }, params));
+  assert.equal(got.shape, undefined, 'the preset sets it');
+  assert.equal(got.cutoff, undefined, 'a pot parameter stays on its pot');
+  assert.equal(got.sound, undefined, 'the sound stays');
+  for (const key of Object.keys(got)) assert.ok(params[key], `${key} is one the Rodeo has`);
+  if (params.mix) assert.equal(got.mix, DEFAULTS.mix, 'blank counts as left out');
+  for (const key of Object.keys(DEFAULTS)) assert.ok(!KEYS[key]?.pot, `${key} is not a pot's`);
 });

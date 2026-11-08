@@ -105,7 +105,9 @@ preset holds it, as the chain view does. Moving a control sets the parameter
 The **preset editor** uses the same connection two ways:
 
 - **As you edit**, each change is played on the Rodeo, and **Send to Rodeo**
-  plays the whole preset, before anything is saved. Disk mode takes the Rodeo's
+  plays the whole preset, before anything is saved, as loading it would: what
+  it leaves out goes back to its default, except a pot's parameter, which stays
+  on its pot. Disk mode takes the Rodeo's
   MIDI away (the card and MIDI cannot both be the computer's), so to hear edits
   live, edit the card in a reader rather than in disk mode.
 - **Take the Rodeo's sound** fills the preset with what the Rodeo was last

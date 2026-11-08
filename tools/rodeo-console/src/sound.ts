@@ -96,7 +96,9 @@ function build(s: Snapshot) {
       if (!p) continue;
       const c = control(p, s);
       const value = el('output');
-      const row = el('div', { className: 'sound-row' }, [
+      // A menu says its own value, so it takes the value's column too
+      const menu = c instanceof HTMLSelectElement;
+      const row = el('div', { className: menu ? 'sound-row menu' : 'sound-row' }, [
         el('span', { className: 'sound-name' }, [key, el('span', { className: 'small dim', textContent: ` ${where(key)}` })]),
         c,
         value,
