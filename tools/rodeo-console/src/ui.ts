@@ -7,6 +7,8 @@ import { KEYS, SHAPES, formatPreset, parsePreset } from './preset.ts';
 import * as fs from './fs.ts';
 import { demoCard } from './demo.ts';
 import * as live from './live.ts';
+import { lastHeard, rodeo } from './rodeo/link.ts';
+import { paramsToPreset, presetToParams, toParam } from './rodeo/audition.ts';
 import { decodeAudio, encodeWav, firstTwo, peak, scale, toMono, trimSilence } from './wav.ts';
 import type { Card } from './card.ts';
 import type { Library, Sound } from './model.ts';
@@ -398,6 +400,7 @@ function renderPreset(box: HTMLElement) {
         const v = num.round ? Math.round(+range.value) : +(+range.value).toFixed(2);
         setValue(preset, key, v);
       };
+      range.addEventListener('input', () => audition(key, +range.value));
       const clear = el('button', {
         textContent: '×',
         title: 'leave this to the pot / the default',
@@ -410,20 +413,72 @@ function renderPreset(box: HTMLElement) {
   box.append(form);
 
   const actions = el('div', { className: 'row' });
-  actions.append(el('button', { textContent: 'Delete', onclick: () => removePreset(preset) }));
+  actions.append(
+    el('button', {
+      textContent: 'Send to Rodeo',
+      title: 'play this preset on the Rodeo now, without saving it to the card first',
+      onclick: () => sendPreset(preset),
+    }),
+    el('button', {
+      textContent: 'Take the Rodeo\u2019s sound',
+      title: 'replace every field with what the Rodeo was last playing',
+      onclick: () => takeSound(preset),
+    }),
+    el('button', { textContent: 'Delete', onclick: () => removePreset(preset) })
+  );
   box.append(el('div', { style: 'height:16px' }), actions);
 
   box.append(
     el('p', {
       className: 'sub',
       textContent:
-        'Saved as you change it. A pot parameter left blank stays on its pot; ' +
-        'one that is set holds until that pot is moved.',
+        'Saved as you change it, and played on the Rodeo as you change it while MIDI is ' +
+        'connected (not in disk mode, which takes MIDI away: use a card reader to hear edits). ' +
+        'A pot parameter left blank stays on its pot; one that is set holds until that pot is moved.',
     })
   );
 }
 
+/** One field, heard on the Rodeo as it changes, when there is one to hear it. */
+function audition(key: string, value: string | number | undefined) {
+  const s = rodeo.snapshot;
+  if (s.status !== 'ready' || value === undefined) return;
+  const r = toParam(key, value, s.params, s.sounds);
+  if ('value' in r) rodeo.set(key, r.value);
+}
+
+function sendPreset(preset: Preset) {
+  const s = rodeo.snapshot;
+  if (s.status !== 'ready')
+    return toast('no Rodeo on MIDI — connect it (not in disk mode), and allow SysEx', true);
+  const { sets, skipped } = presetToParams(preset.values, s.params, s.sounds);
+  for (const [key, v] of sets) rodeo.set(key, v);
+  toast(
+    `sent ${sets.length} parameter${sets.length === 1 ? '' : 's'}` +
+      (skipped.length ? `; not sent: ${skipped.join(', ')}` : '') +
+      '. Keys the preset leaves out stay as the Rodeo has them.'
+  );
+}
+
+async function takeSound(preset: Preset) {
+  const heard = lastHeard();
+  if (!heard) return toast('nothing heard from a Rodeo yet: connect MIDI first', true);
+  if (readOnly()) return;
+  const ago = Math.round((Date.now() - heard.at) / 1000);
+  const when = ago < 5 ? 'now' : `${ago} s ago`;
+  if (!confirm(`Replace every field of "${preset.name}" with what the Rodeo was playing (${when})?`)) return;
+  const values = paramsToPreset(heard.state.p, heard.params, heard.sounds);
+  try {
+    await fs.writePreset(state.root!, preset.name, formatPreset(values));
+    await reread();
+    select('preset', preset.name);
+  } catch (e) {
+    toast(`could not save: ${(e as Error).message}`, true);
+  }
+}
+
 async function setValue(preset: Preset, key: string, value: string | number | undefined) {
+  audition(key, value);
   if (readOnly()) return;
   const values = { ...preset.values };
   if (value === undefined) delete values[key];

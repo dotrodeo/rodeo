@@ -77,16 +77,44 @@ is skipped in silence at power-up.
 ## Playing it
 
 Rodeo already enumerates as USB-MIDI, so this needs nothing from the firmware.
-Connect the port — it shows up as "Rodeo MIDI" — and the keyboard plays it.
+Connect the port — it shows up as "Rodeo Demo" — and the keyboard plays it.
 Click or drag across the keys, or type on the `a w s e d f …` row; `z` and `x`
 shift an octave, holding Shift is the sustain pedal.
 
-The page sends **only** what `Midi()` acts on, and lists it on screen so the
-absence is visible: notes on any channel, velocity, pitch bend over its fixed
-±2 semitones, CC 64, and CC 120/123. There is no mod wheel and no CC for
-cutoff; the panel's pots are the only way to shape the sound. Nothing comes
-back, either — the firmware never writes MIDI, so the page can send and cannot
-listen.
+The keyboard sends notes on any channel, velocity, pitch bend over the Rodeo's
+fixed ±2 semitones, CC 64, and CC 120/123.
+
+### The sound, over MIDI
+
+Since c1af6c0 rodeo-demo also talks back over MIDI: the protocol in
+[`planning/RODEO_DEMO_MIDI_PROTOCOL.md`](../../planning/RODEO_DEMO_MIDI_PROTOCOL.md),
+SysEx with JSON replies, which the phone app uses too. **Connect MIDI** asks
+Chrome for SysEx ("control and reprogram MIDI devices"); allow it and the page
+says hello on the Rodeo's input as well as its output. Refuse it and the
+keyboard still plays, and the rest of this section stays away.
+
+Once the Rodeo answers, the MIDI dot turns cyan and a **sound panel** appears
+under the sequencer: every parameter the Rodeo has, built from the table it
+sends, grouped by the bank that drives it (pot bank 1 the filter, pot bank 2
+the amp envelope, the encoder banks, and the two parameters only a preset
+reaches), with a preset picker that loads on the Rodeo. It follows the panel
+live through the protocol's state stream, and a pot's row turns red while a
+preset holds it, as the chain view does. Moving a control sets the parameter
+— which holds it from its pot, exactly as a preset does.
+
+The **preset editor** uses the same connection two ways:
+
+- **As you edit**, each change is played on the Rodeo, and **Send to Rodeo**
+  plays the whole preset, before anything is saved. Disk mode takes the Rodeo's
+  MIDI away (the card and MIDI cannot both be the computer's), so to hear edits
+  live, edit the card in a reader rather than in disk mode.
+- **Take the Rodeo's sound** fills the preset with what the Rodeo was last
+  playing. The page keeps the last state it heard after the port goes, so the
+  way round disk mode is: dial the sound in on the panel or the sound panel,
+  enter disk mode, open the card, take the sound.
+
+The protocol's client (`src/rodeo/`) is the phone app's, copied from the
+`rodeo-mobile-app` branch until that branch is merged and the two can share it.
 
 **The voice panel is a prediction, not a reading.** `src/midi.ts` re-implements
 `Allocate()`, so the page can say what Rodeo *should* have done with the notes
@@ -202,7 +230,8 @@ never guessed at** — the firmware abandons a line if the computer stops
 reading for 50 ms, so truncated lines are normal, and half a line of JSON must
 not become half a screen of wrong numbers.
 
-Two things change once the port is open. The **layer** and **release**
+Two things change once the port is open (or the sound panel's MIDI
+connection is). The **layer** and **release**
 controls stop being inputs and become readouts, because the line carries both
 and the page was previously asking you to tell it. And the voice count becomes
 the Rodeo's own, rather than the model's prediction — the chips keep

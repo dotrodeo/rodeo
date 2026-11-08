@@ -17,6 +17,8 @@ import * as midi from './midi.ts';
 import * as seq from './seq.ts';
 import * as chain from './chain.ts';
 import * as serial from './serial.ts';
+import * as link from './rodeo/link.ts';
+import { mountSound } from './sound.ts';
 
 // Typed as present: every id is this file's own markup or index.html's, and
 // the few that can be missing before mount() are checked where they are used.
@@ -322,11 +324,17 @@ function fire(index: number, at: number, ms: number) {
 // -------------------------------------------------------------------- ports
 
 async function connect() {
+  // SysEx for the protocol (rodeo/link.ts); if it is refused, notes still play
   try {
-    state.access = await navigator.requestMIDIAccess({ sysex: false });
-  } catch (e) {
-    state.toast(`no MIDI access: ${(e as Error).message}`, true);
-    return;
+    state.access = await navigator.requestMIDIAccess({ sysex: true });
+  } catch {
+    try {
+      state.access = await navigator.requestMIDIAccess({ sysex: false });
+      state.toast('MIDI without SysEx: the keyboard plays, but the sound panel needs it');
+    } catch (e) {
+      state.toast(`no MIDI access: ${(e as Error).message}`, true);
+      return;
+    }
   }
   // Set just above; the try is what hides that from TypeScript.
   state.access!.onstatechange = () => {
@@ -335,14 +343,24 @@ async function connect() {
     if (state.out && !ports().some((p) => p.id === state.out!.id)) {
       state.out = null;
       stop();
+      link.attach(null, null);
       state.toast('the Rodeo MIDI port went away — disk mode, or unplugged');
     }
+    // and back again, after disk mode: pick it up without being asked
+    if (!state.out) pickRodeo();
     renderPorts();
   };
-  const rodeo = ports().find((p) => midi.isRodeoPort(p.name));
-  if (rodeo) state.out = rodeo;
+  pickRodeo();
   renderPorts();
   paint();
+}
+
+/** The first port named like a Rodeo, if any, and talk to it. */
+function pickRodeo() {
+  const rodeo = ports().find((p) => midi.isRodeoPort(p.name));
+  if (!rodeo || rodeo === state.out) return;
+  state.out = rodeo;
+  link.attach(state.access, rodeo);
 }
 
 function ports(): MIDIOutput[] {
@@ -380,10 +398,19 @@ function renderPorts() {
   if (!supported()) return setDot('st-midi', 'bad', 'this browser has no Web MIDI — Chrome or Edge');
   if (!state.access) return setDot('st-midi', 'off', 'not connected');
   if (!list.length)
-    return setDot('st-midi', 'bad', 'nothing plugged in — the Rodeo shows up as “Rodeo MIDI”');
+    return setDot('st-midi', 'bad', 'nothing plugged in — the Rodeo shows up as “Rodeo Demo”');
   if (!state.out) return setDot('st-midi', 'off', 'pick a port');
-  if (midi.isRodeoPort(state.out.name))
+  if (midi.isRodeoPort(state.out.name)) {
+    const s = link.rodeo.snapshot;
+    if (s.status === 'ready')
+      return setDot('st-midi', 'live', `${state.out.name} — ${s.hello?.fw ?? 'a Rodeo'}, talking both ways`);
+    if (!link.sysexAllowed())
+      return setDot('st-midi', 'on', `${state.out.name} — notes only: SysEx was not allowed, so no sound panel`);
+    if (s.status === 'connecting') return setDot('st-midi', 'on', `${state.out.name} — saying hello…`);
+    if (s.status === 'not-rodeo')
+      return setDot('st-midi', 'on', `${state.out.name} — plays notes, but did not answer hello: older firmware?`);
     return setDot('st-midi', 'on', `${state.out.name} — looks like a Rodeo`);
+  }
   setDot('st-midi', 'bad', `${state.out.name} — not a Rodeo by name, sending anyway`);
 }
 
@@ -615,6 +642,8 @@ function markup() {
       </div>
     </div>
 
+    <div class="sound" id="live-sound"></div>
+
     <div class="chain">
       <div class="row">
         <button class="cmd" data-cmd="J" id="live-stream" title="sends J">Stream readings</button>
@@ -637,6 +666,7 @@ function wire() {
   $('live-connect').onclick = connect;
   $('live-port').onchange = (e) => {
     state.out = ports().find((p) => p.id === (e.target as HTMLSelectElement).value) ?? null;
+    link.attach(state.access, state.out);
     renderPorts();
   };
   $('live-oct-down').onclick = () => shift(-12);
@@ -890,8 +920,8 @@ function renderSerial() {
   b.classList.toggle('on', false);
   $('live-stream')?.classList.toggle('on', state.wire.streaming);
   for (const c of document.querySelectorAll<HTMLButtonElement>('.cmd')) c.disabled = !on;
-  // The Rodeo is the authority on these two once it is talking.
-  const owned = on && !!state.wire.state;
+  // The Rodeo is the authority on these two once it is talking, either way.
+  const owned = (on && !!state.wire.state) || !!link.rodeo.snapshot.state;
   for (const [id, own] of [
     ['live-layer', 'what the Rodeo is set to — the page cannot read it'],
     ['live-rel', 'how long a released voice keeps sounding; the only guess in the voice panel'],
@@ -996,7 +1026,8 @@ function potBankCard(sat: chain.Satellite, i: number, bank: number, st: chain.St
   chain.slots(sat).forEach((slot, n) => {
     const k = 4 * bank + n;
     const spec = chain.PANEL_POTS[k];
-    if (slot.type === 'fault' || !spec) return card.append(faultRow(slot, `pot ${k + 1}`));
+    if (slot.type === 'fault') return card.append(faultRow(slot, `pot ${k + 1}`));
+    if (!spec) return card.append(slotRow(slot)); // a fifth slot: nothing on the panel reads it
     const pct = chain.potPercent(slot.value);
     const value = st?.[spec.key];
     const held = chain.potHeld(slot.value, value, spec.toPot);
@@ -1039,7 +1070,8 @@ function encBankCard(sat: chain.Satellite, i: number, bank: number, st: chain.St
   chain.slots(sat).forEach((slot, n) => {
     const k = 4 * bank + n;
     const spec = chain.PANEL_ENCODERS[k];
-    if (slot.type === 'fault' || !spec) return card.append(faultRow(slot, `E${k + 1}`));
+    if (slot.type === 'fault') return card.append(faultRow(slot, `E${k + 1}`));
+    if (!spec) return card.append(slotRow(slot)); // a fifth slot: nothing on the panel reads it
     // E1 turns the shape in synth layer and picks the sound in sampler.
     const read = chain.encoderReadout(spec, st, st?.layer === 'sampler');
     const turn = state.wire.turn[k] ?? 0;
@@ -1072,9 +1104,8 @@ function bankHead(i: number, what: string, sat: chain.Satellite) {
 }
 
 function faultRow(slot: chain.Slot, label: string) {
-  // TODO(ts): potBankCard and encBankCard also come here for a slot past the
-  // eighth control (a bank reporting more than four slots), whose `fault` is
-  // null, and destructuring null in faultText throws. Left as it was.
+  // Only for a slot whose fault is set (chain.slots); a slot past the panel's
+  // controls is drawn by slotRow instead.
   return el('div', { className: 'cell-fault bad' }, [
     el('span', { textContent: `${label}: ${chain.faultText(slot.fault as chain.Fault)}` }),
   ]);
@@ -1174,6 +1205,24 @@ export function setLibrary(library: LiveLibrary | null): void {
   paint();
 }
 
+let unsound: (() => void) | null = null;
+let unrodeo: (() => void) | null = null;
+
+let rodeoWas: string | null = null;
+
+/** The MIDI side's state, for the parts the serial line also feeds. It comes
+ *  many times a second, so the port list is redrawn only when that changes. */
+function onRodeo(s: link.RodeoSnapshot) {
+  const now = `${s.status}:${!!s.state}`;
+  if (now !== rodeoWas) {
+    rodeoWas = now;
+    renderPorts();
+    renderSerial();
+  }
+  const p = s.state?.p;
+  if (p) adoptFromRodeo({ layer: LAYERS[p.layer ?? -1], rel: p.release });
+}
+
 export function mount(
   container: HTMLElement,
   { library = null, toast = () => {} }: { library?: LiveLibrary | null; toast?: Toast } = {}
@@ -1189,6 +1238,8 @@ export function mount(
   clock();
   sizer = new ResizeObserver(fitKeyboard);
   sizer.observe($('live-keys'));
+  unsound = mountSound($('live-sound'));
+  unrodeo = link.rodeo.subscribe(onRodeo);
   addEventListener('keydown', onKeyDown);
   addEventListener('keyup', onKeyUp);
   addEventListener('pagehide', panic);
@@ -1200,6 +1251,10 @@ export function unmount(): void {
   sizer?.disconnect();
   sizer = null;
   state.wire.port?.close();
+  unsound?.();
+  unrodeo?.();
+  unsound = unrodeo = null;
+  link.attach(null, null);
   clearInterval(state.tick ?? undefined);
   state.tick = null;
   removeEventListener('keydown', onKeyDown);
