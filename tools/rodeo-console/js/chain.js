@@ -165,15 +165,22 @@ export function scanHealth(chain) {
 // put a knob's position next to the number it is driving — which is the only
 // way to see the one thing about this panel that surprises people, below.
 
-/** `Find()` takes the FIRST bank of each kind on the chain (panel.cpp:73-76). */
+/**
+ * `Find()` takes the first TWO banks of each kind on the chain, in ring order:
+ * the first is bank 1, the next bank 2 (panel.cpp). `pots` and `encs` hold
+ * their places on the chain, bank 1 first; `pot` and `enc` are bank 1's.
+ */
 export function panelBanks(c) {
   const list = Array.isArray(c?.s) ? c.s : [];
-  const first = (kind) => {
-    const i = list.findIndex((sat) => sat?.kind === kind);
-    return i < 0 ? null : i;
-  };
-  return { pot: first(5), enc: first(6) };
+  const of = (kind) =>
+    list.flatMap((sat, i) => (sat?.kind === kind ? [i] : [])).slice(0, PANEL_BANKS);
+  const pots = of(5);
+  const encs = of(6);
+  return { pots, encs, pot: pots[0] ?? null, enc: encs[0] ?? null };
 }
+
+/** Two of each kind of bank: a third on the chain drives nothing. */
+export const PANEL_BANKS = 2;
 
 /** `p.release = 0.005 * 800^pot` seconds (panel.cpp:187). */
 export function releaseFromPot(pot) {
@@ -184,11 +191,22 @@ export function potForRelease(ms) {
   return Math.log(Math.max(5, ms) / 5) / Math.log(800);
 }
 
-/** Pots 1-4, in slot order (panel.h:5-6). */
+/** Where on an `lo * (hi / lo)^pot` curve, from 0 to 1, a value sits. */
+const potOnCurve = (lo, hi) => (v) =>
+  Math.log(Math.max(lo, Math.min(hi, v)) / lo) / Math.log(hi / lo);
+
+/**
+ * Pots 1-8, in slot order: bank 1's four, then bank 2's (panel.h). Attack is
+ * `0.001 * 4000^pot` s and decay `0.001 * 10000^pot` s (panel.cpp's `Pot()`).
+ */
 export const PANEL_POTS = [
   { name: 'cutoff', key: 'cut', unit: '%', toPot: (v) => v / 100 },
   { name: 'resonance', key: 'res', unit: '%', toPot: (v) => v / 100 },
   { name: 'filter envelope', key: 'env', unit: '%', toPot: (v) => v / 100 },
+  { name: 'drive', key: 'drv', unit: '%', toPot: (v) => v / 100 },
+  { name: 'attack', key: 'atk', unit: 'ms', toPot: potOnCurve(1, 4000) },
+  { name: 'decay', key: 'dec', unit: 'ms', toPot: potOnCurve(1, 10000) },
+  { name: 'sustain', key: 'sus', unit: '%', toPot: (v) => v / 100 },
   { name: 'release', key: 'rel', unit: 'ms', toPot: potForRelease },
 ];
 
@@ -196,16 +214,20 @@ export const PANEL_POTS = [
 export const FX_NAMES = ['chorus', 'reverb', 'both'];
 
 /**
- * Encoders 1-4 (panel.h:8-12). They send detents, not positions, so there is
- * nothing to compare — only the parameter each one turns, what its tap does,
- * and what it does held. All three are in the line since 807d9b8 added
- * `det`, `oct`, `lfo`, `fx` and `mix`.
+ * Encoders 1-8: bank 1's four, then bank 2's (panel.h). They send detents, not
+ * positions, so there is nothing to compare — only the parameter each one
+ * turns, what its tap does, and what it does held. `zero` is what a 0 means
+ * for the parameters that have an off.
  */
 export const PANEL_ENCODERS = [
   { name: 'shape', key: 'shape', sampler: 'sound', tap: 'layer', tapKey: 'layer' },
   { name: 'detune', key: 'det', unit: ' cents', tap: 'detune and octave back', held: 'octave', heldKey: 'oct' },
-  { name: 'attack', key: 'atk', unit: ' ms', tap: 'LFO on/off', tapKey: 'lfo' },
+  { name: 'high-pass', key: 'hpf', unit: ' Hz', zero: 'off', tap: 'LFO on/off', tapKey: 'lfo' },
   { name: 'effects mix', key: 'mix', unit: '%', tap: 'chorus / reverb / both', tapKey: 'fx' },
+  { name: 'filter attack', key: 'fatk', unit: ' ms', zero: 'follows attack', tap: 'back to following attack' },
+  { name: 'filter decay', key: 'fdec', unit: ' ms', tap: 'back to 400 ms' },
+  { name: 'filter sustain', key: 'fsus', unit: '%', tap: 'back to 25%' },
+  { name: 'glide', key: 'glide', unit: ' ms', zero: 'off', tap: 'mono on/off', tapKey: 'mono' },
 ];
 
 /**
@@ -224,6 +246,8 @@ export function encoderReadout(spec, st, sampler = false) {
     value = n === null ? 'not reported' : `${n + 1} of ${of('nsounds') ?? '?'}`;
   } else if (!key || of(key) === null) {
     value = 'not reported';
+  } else if (spec.zero && of(key) === 0) {
+    value = spec.zero;
   } else {
     value = `${of(key)}${spec.unit ?? ''}`;
   }
@@ -236,6 +260,7 @@ export function encoderReadout(spec, st, sampler = false) {
   if (spec.tapKey === 'lfo' && of('lfo') !== null) parts.push(`LFO ${of('lfo') ? 'on' : 'off'}`);
   else if (spec.tapKey === 'fx' && of('fx') !== null) parts.push(FX_NAMES[of('fx')] ?? `fx ${of('fx')}`);
   else if (spec.tapKey === 'layer' && of('layer') !== null) parts.push(String(of('layer')));
+  else if (spec.tapKey === 'mono' && of('mono') !== null) parts.push(of('mono') ? 'mono' : 'poly');
 
   return { name, value, extra: parts.join(' · '), reported: value !== 'not reported' };
 }

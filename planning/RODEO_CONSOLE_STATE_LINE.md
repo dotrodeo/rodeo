@@ -57,6 +57,10 @@ console splits on newlines and takes the ones starting `#S `.
 | `nsounds` | `samples::GetStats().sounds` | |
 | `cut` `res` `env` | `params.cutoff` etc | 0..100, rounded, as the prose does |
 | `atk` `rel` | `params.attack * 1000` | ms |
+| `drv` `sus` `fsus` | `params.drive` etc | 0..100 (added 2026-11-08, with the second banks) |
+| `dec` `fatk` `fdec` `glide` | `params.decay * 1000` etc | ms; `fatk` 0 when it follows attack |
+| `hpf` | `params.hpf` | Hz; 0 off |
+| `mono` | `params.mono` | 0 or 1 |
 | `voices` | `synth::Active()` | 0..8 |
 | `cpu` `peak` | `cpu.GetAvgCpuLoad()`, `GetMaxCpuLoad()` | percent |
 | `card` | `s.card`, `disk::Active()` | `1` mounted, `0` none, `2` the computer's |

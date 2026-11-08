@@ -310,7 +310,13 @@ function renderPreset(box) {
   const soundNames = state.library.sounds.map((s) => s.name);
 
   for (const [key, spec] of Object.entries(KEYS)) {
-    form.append(el('label', { textContent: key, htmlFor: `f-${key}` }));
+    const where = spec.pot ? `pot ${spec.pot}` : spec.enc ?? 'preset only';
+    form.append(
+      el('label', { htmlFor: `f-${key}` }, [
+        key,
+        el('span', { className: 'small dim', textContent: ` · ${where}` }),
+      ])
+    );
     let input;
     if (key === 'sound') {
       input = el('select', { id: `f-${key}` });

@@ -152,7 +152,7 @@ void PrintState()
              "\r\npreset %d of %d%s%s; layer %s, shape %s, sound %d of %d\r\n"
              "cutoff %d %%, resonance %d %%, envelope %d %%, attack %d ms, release %d ms\r\n"
              "%d voices sounding; CPU %d %% (peak %d %%)\r\n"
-             "chain: %d satellites, %s; %lu good scans, %lu bad\r\n"
+             "chain: %d satellites, %d pot banks and %d encoder banks%s; %lu good scans, %lu bad\r\n"
              "card: %s; %d sounds, %d of %d samples loaded (%d skipped), %lu KB in %lu ms%s\r\n"
              "USB audio: computer %s, recording %s; %lu underruns, %lu overruns\r\n",
              panel::Preset() + 1, presets::Count(), panel::Preset() >= 0 ? ": " : "",
@@ -161,8 +161,8 @@ void PrintState()
              (int)lroundf(params.cutoff * 100.f), (int)lroundf(params.resonance * 100.f),
              (int)lroundf(params.env_amount * 100.f), (int)(params.attack * 1000.f),
              (int)(params.release * 1000.f), synth::Active(), (int)(cpu.GetAvgCpuLoad() * 100.f),
-             (int)(cpu.GetMaxCpuLoad() * 100.f), chain.Satellites(),
-             panel::Found() ? "pot bank and encoder bank found" : "panel incomplete",
+             (int)(cpu.GetMaxCpuLoad() * 100.f), chain.Satellites(), panel::PotBanks(),
+             panel::EncoderBanks(), panel::Found() ? "" : " (panel incomplete)",
              (unsigned long)chain.GoodScans(), (unsigned long)chain.BadScans(),
              disk::Active() ? "the computer's (disk mode)" : s.card ? "mounted" : "none", s.sounds, s.loaded, s.samples, s.skipped,
              (unsigned long)(s.bytes_used / 1024), (unsigned long)s.load_ms,
@@ -218,7 +218,9 @@ uint32_t StateLine(bool send)
                        "#S {\"preset\":%d,\"name\":\"%s\",\"layer\":\"%s\",\"shape\":\"%s\","
                        "\"sound\":%d,\"nsounds\":%d,\"cut\":%d,\"res\":%d,\"env\":%d,\"atk\":%d,"
                        "\"det\":%d,\"oct\":%d,\"lfo\":%d,\"fx\":%d,\"mix\":%d,"
-                       "\"rel\":%d,\"voices\":%d,\"card\":%d,\"loaded\":%d,\"samples\":%d,"
+                       "\"rel\":%d,\"drv\":%d,\"dec\":%d,\"sus\":%d,\"hpf\":%d,\"fatk\":%d,"
+                       "\"fdec\":%d,\"fsus\":%d,\"glide\":%d,\"mono\":%d,"
+                       "\"voices\":%d,\"card\":%d,\"loaded\":%d,\"samples\":%d,"
                        "\"skipped\":%d,\"kb\":%lu,\"loadms\":%lu,",
                        panel::Preset(), name, layers[(int)params.layer],
                        synth::ShapeName(params.shape), params.sound, s.sounds,
@@ -226,7 +228,13 @@ uint32_t StateLine(bool send)
                        (int)lroundf(params.env_amount * 100.f), (int)(params.attack * 1000.f),
                        (int)lroundf(params.detune * 100.f), params.octave, params.lfo ? 1 : 0,
                        (int)params.fx, (int)lroundf(params.fx_mix * 100.f),
-                       (int)(params.release * 1000.f), synth::Active(), card, s.loaded,
+                       (int)(params.release * 1000.f), (int)lroundf(params.drive * 100.f),
+                       (int)lroundf(params.decay * 1000.f), (int)lroundf(params.sustain * 100.f),
+                       (int)lroundf(params.hpf),
+                       params.fattack < 0.f ? 0 : (int)lroundf(params.fattack * 1000.f),
+                       (int)lroundf(params.fdecay * 1000.f), (int)lroundf(params.fsustain * 100.f),
+                       (int)lroundf(params.glide * 1000.f), params.mono ? 1 : 0,
+                       synth::Active(), card, s.loaded,
                        s.samples, s.skipped, (unsigned long)(s.bytes_used / 1024),
                        (unsigned long)s.load_ms);
     size_t c = state_line::Chain(chain, panel::Found(), buf + len, sizeof buf - len - 96);

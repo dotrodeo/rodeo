@@ -7,6 +7,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
 
 import {
   KIT_FIRST_NOTE,
@@ -200,14 +201,34 @@ test('what we write, we can read back', () => {
 
 test('every key in KEYS round-trips through the parser', () => {
   const sample = {
-    layer: 'synth', shape: 'pulse', sound: 'thing', lfo: 'on', fx: 'reverb',
+    layer: 'synth', shape: 'fm', sound: 'thing', lfo: 'on', fx: 'reverb',
     detune: 12, octave: -1, attack: 50, release: 200,
     cutoff: 30, resonance: 40, env: 50, mix: 60,
+    drive: 30, decay: 600, sustain: 80, hpf: 120, fattack: 5, fdecay: 900,
+    fsustain: 10, glide: 80, mono: 'on', filter: 'ladder12', keytrack: 50,
   };
   assert.deepEqual(Object.keys(sample).sort(), Object.keys(KEYS).sort(), 'a key was added without a test');
   const { values, problems } = parsePreset(formatPreset(sample));
   assert.deepEqual(problems, []);
   assert.deepEqual(values, sample);
+});
+
+test('the pots in KEYS are the panel\'s, one key each', () => {
+  // panel.h: pot bank 1 is the filter, pot bank 2 the amp envelope. A key with
+  // a pot is one a preset can leave to the knob.
+  const pots = Object.entries(KEYS).filter(([, s]) => s.pot).sort((a, b) => a[1].pot - b[1].pot);
+  assert.deepEqual(pots.map(([k]) => k),
+                   ['cutoff', 'resonance', 'env', 'drive', 'attack', 'decay', 'sustain', 'release']);
+  assert.deepEqual(pots.map(([, s]) => s.pot), [1, 2, 3, 4, 5, 6, 7, 8]);
+});
+
+test('the presets on the card parse without a problem', () => {
+  // They use the engine's keys that the editor once did not know.
+  const dir = new URL('../../instruments/rodeo-demo/sd-card/presets/', import.meta.url);
+  for (const f of readdirSync(dir).filter((n) => n.endsWith('.txt'))) {
+    const { problems } = parsePreset(readFileSync(new URL(f, dir), 'utf8'), f);
+    assert.deepEqual(problems, [], f);
+  }
 });
 
 // ------------------------------------------------------------------- library
@@ -847,13 +868,15 @@ test('scan health says nothing before any scans have run', () => {
   assert.equal(scanHealth({ good: 3, bad: 1 }), 75);
 });
 
-test('the panel takes the first bank of each kind, as Find() does', () => {
-  // panel.cpp:73-76 keeps the first pot bank and the first encoder bank it
-  // meets; a second of either is on the chain but drives nothing.
+test('the panel takes the first two banks of each kind, as Find() does', () => {
+  // panel.cpp keeps the first two pot banks and encoder banks it meets, in
+  // ring order: the first is bank 1. A third of either drives nothing.
   const two = { s: [{ kind: 7 }, { kind: 5 }, { kind: 6 }, { kind: 5 }] };
-  assert.deepEqual(panelBanks(two), { pot: 1, enc: 2 });
-  assert.deepEqual(panelBanks({ s: [{ kind: 7 }] }), { pot: null, enc: null });
-  assert.deepEqual(panelBanks({}), { pot: null, enc: null });
+  assert.deepEqual(panelBanks(two), { pots: [1, 3], encs: [2], pot: 1, enc: 2 });
+  const three = { s: [{ kind: 6 }, { kind: 6 }, { kind: 5 }, { kind: 6 }] };
+  assert.deepEqual(panelBanks(three).encs, [0, 1], 'the third encoder bank drives nothing');
+  assert.deepEqual(panelBanks({ s: [{ kind: 7 }] }), { pots: [], encs: [], pot: null, enc: null });
+  assert.deepEqual(panelBanks({}), { pots: [], encs: [], pot: null, enc: null });
 });
 
 test('release is the pot curve from panel.cpp, both ways', () => {
@@ -868,7 +891,7 @@ test('release is the pot curve from panel.cpp, both ways', () => {
 });
 
 test('a knob that disagrees with its parameter is the preset still holding it', () => {
-  const [cutoff, , , release] = PANEL_POTS;
+  const [cutoff, , , , attack, , , release] = PANEL_POTS;
   // Agreeing: the knob is what you hear.
   assert.equal(potHeld(410, 41, cutoff.toPot), false);
   assert.equal(potHeld(410, 42, cutoff.toPot), false, 'within the 2% takeover band');
@@ -880,20 +903,26 @@ test('a knob that disagrees with its parameter is the preset still holding it', 
   // knob at 66% agrees even though 420 and 66 look nothing alike.
   assert.equal(potHeld(663, 420, release.toPot), false);
   assert.equal(potHeld(200, 420, release.toPot), true);
+  // Attack is 0.001 * 4000^pot s: 63 ms is half way.
+  assert.equal(potHeld(500, 63, attack.toPot), false);
+  assert.equal(potHeld(900, 63, attack.toPot), true);
   // Nothing to compare is not a disagreement.
   assert.equal(potHeld(500, undefined, cutoff.toPot), false);
   assert.equal(potHeld(undefined, 41, cutoff.toPot), false);
 });
 
 test('every panel control names the parameter it drives', () => {
-  assert.equal(PANEL_POTS.length, 4);
-  assert.equal(PANEL_ENCODERS.length, 4);
-  assert.deepEqual(PANEL_POTS.map((p) => p.key), ['cut', 'res', 'env', 'rel']);
+  // Two banks of each: the filter and the amp envelope on the pots, and the
+  // filter envelope on the second encoder bank (panel.h).
+  assert.equal(PANEL_POTS.length, 8);
+  assert.equal(PANEL_ENCODERS.length, 8);
+  assert.deepEqual(PANEL_POTS.map((p) => p.key), ['cut', 'res', 'env', 'drv', 'atk', 'dec', 'sus', 'rel']);
   assert.equal(PANEL_ENCODERS[0].sampler, 'sound', 'E1 picks the sound in sampler layer');
   // E2's detune and E4's effects mix used to be missing from the line; the
   // firmware added det/oct/lfo/fx/mix in 807d9b8, so every control now
   // reports. This test asserted the opposite until then.
-  assert.deepEqual(PANEL_ENCODERS.map((e) => e.key), ['shape', 'det', 'atk', 'mix']);
+  assert.deepEqual(PANEL_ENCODERS.map((e) => e.key),
+                   ['shape', 'det', 'hpf', 'mix', 'fatk', 'fdec', 'fsus', 'glide']);
   assert.ok(PANEL_ENCODERS.every((e) => e.tap), 'and each says what a tap does');
   // The index in `fx` is the enum's own order (synth.h:28), the same order
   // presets.cpp parses the words in — which is where preset.js's FX came from.
@@ -901,13 +930,18 @@ test('every panel control names the parameter it drives', () => {
 });
 
 test('an encoder row reads out what it turns and what its tap set', () => {
-  const st = { shape: 'saw', layer: 'both', det: 8, oct: -1, atk: 5, lfo: 1, mix: 25, fx: 2,
-               sound: 1, nsounds: 4 };
-  const [e1, e2, e3, e4] = PANEL_ENCODERS.map((spec) => encoderReadout(spec, st));
+  const st = { shape: 'saw', layer: 'both', det: 8, oct: -1, hpf: 120, lfo: 1, mix: 25, fx: 2,
+               sound: 1, nsounds: 4, fatk: 0, fdec: 400, fsus: 25, glide: 80, mono: 1 };
+  const [e1, e2, e3, e4, e5, e6, e7, e8] = PANEL_ENCODERS.map((spec) => encoderReadout(spec, st));
   assert.deepEqual([e1.name, e1.value, e1.extra], ['shape', 'saw', 'both']);
   assert.deepEqual([e2.name, e2.value, e2.extra], ['detune', '8 cents', 'octave -1']);
-  assert.deepEqual([e3.name, e3.value, e3.extra], ['attack', '5 ms', 'LFO on']);
+  assert.deepEqual([e3.name, e3.value, e3.extra], ['high-pass', '120 Hz', 'LFO on']);
   assert.deepEqual([e4.name, e4.value, e4.extra], ['effects mix', '25%', 'both']);
+  assert.deepEqual([e5.name, e5.value], ['filter attack', 'follows attack'], '0 is following attack');
+  assert.deepEqual([e6.value, e7.value], ['400 ms', '25%']);
+  assert.deepEqual([e8.name, e8.value, e8.extra], ['glide', '80 ms', 'mono']);
+  assert.equal(encoderReadout(PANEL_ENCODERS[2], { hpf: 0 }).value, 'off');
+  assert.equal(encoderReadout(PANEL_ENCODERS[7], { glide: 0, mono: 0 }).extra, 'poly');
   assert.equal(encoderReadout(PANEL_ENCODERS[2], { ...st, lfo: 0 }).extra, 'LFO off');
   assert.equal(encoderReadout(PANEL_ENCODERS[3], { ...st, fx: 0 }).extra, 'chorus');
   assert.equal(encoderReadout(PANEL_ENCODERS[1], { ...st, oct: 2 }).extra, 'octave +2');
@@ -919,12 +953,12 @@ test('an encoder row reads out what it turns and what its tap set', () => {
 test('a value the line does not carry reads as absent, never as zero', () => {
   // An older firmware, or a field dropped from the line later: the row must
   // not print a blank, which looks exactly like a parameter set to nothing.
-  const old = { shape: 'saw', layer: 'both', atk: 5 };
+  const old = { shape: 'saw', layer: 'both', hpf: 5 };
   const [, e2, e3, e4] = PANEL_ENCODERS.map((spec) => encoderReadout(spec, old));
   assert.equal(e2.value, 'not reported');
   assert.equal(e2.reported, false);
   assert.equal(e2.extra, '', 'and no octave either');
-  assert.equal(e3.value, '5 ms', 'what it does have still reads');
+  assert.equal(e3.value, '5 Hz', 'what it does have still reads');
   assert.equal(e3.extra, '', 'but its LFO does not');
   assert.equal(e4.value, 'not reported');
   assert.equal(encoderReadout(PANEL_ENCODERS[1], {}).value, 'not reported');

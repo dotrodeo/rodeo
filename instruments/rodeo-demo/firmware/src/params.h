@@ -16,7 +16,7 @@ struct Info
     int         min, max;
     const char* unit; // "" for none; JSON-escaped (‰ for per mille)
     const char* const* names; // for a choice: max - min + 1 names, or null
-    int         pot;  // 1..4 for a pot's parameter, else 0
+    int         pot;  // 1..8 for a pot's parameter (panel.h), else 0
 };
 
 /** The table, in id order. */

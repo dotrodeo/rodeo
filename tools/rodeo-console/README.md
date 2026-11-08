@@ -150,9 +150,11 @@ moving. System figures sit at the top; below them the satellites in ring
 order, with a break drawn after the satellite it follows. Each card is one
 grid, so its columns line up down the card.
 
-**The panel's two banks get a paired view**, which is the useful part: each
+**The panel's banks get a paired view**, which is the useful part: each
 knob and encoder sits beside the number it is driving — pot 1 next to cutoff,
-pot 4 next to release, E3 next to attack — from the table in `panel.h`.
+pot 8 next to release, E3 next to the high-pass — from the table in `panel.h`.
+The panel uses the first two pot banks and the first two encoder banks on the
+chain, bank 1 first; any others are drawn as plain slots.
 
 That pairing exists to show one thing. Loading a preset sets the parameters,
 and each pot keeps its hands off until it is moved about 2% from where it was
@@ -168,7 +170,7 @@ firmware keeps streaming for a second after everything stops, and those last
 lines carry a delta of zero.
 
 Each encoder row also shows what its tap or hold last set: E1's layer, E2's
-octave, E3's LFO, E4's chorus/reverb/both. Those were missing from `#S` until
+octave, E3's LFO, E4's chorus/reverb/both, E8's mono. Those were missing from `#S` until
 the firmware added `det`, `oct`, `lfo`, `fx` and `mix`; a value the line does
 not carry still reads *not reported* rather than a blank, which would look
 exactly like a parameter set to zero.

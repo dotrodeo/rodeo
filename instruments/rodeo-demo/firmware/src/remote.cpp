@@ -363,9 +363,9 @@ bool Cc(int cc, int v, synth::Params& p)
         case 74: id = 0, value = (int)lroundf(x * 1000.f); break;
         case 71: id = 1, value = (int)lroundf(x * 1000.f); break;
         case 79: id = 2, value = (int)lroundf(x * 1000.f); break;
-        case 72: id = 3, value = (int)lroundf(5.f * powf(800.f, x)); break; // as pot 4
-        case 73: id = 4, value = (int)lroundf(powf(4000.f, x)); break;      // as E3
-        case 75: id = 16, value = (int)lroundf(powf(10000.f, x)); break;
+        case 72: id = 3, value = (int)lroundf(5.f * powf(800.f, x)); break; // as pot 8
+        case 73: id = 4, value = (int)lroundf(powf(4000.f, x)); break;      // as pot 5
+        case 75: id = 16, value = (int)lroundf(powf(10000.f, x)); break; // as pot 6
         case 94: id = 5, value = (int)lroundf(x * 50.f); break;
         case 91: id = 7, value = (int)lroundf(x * 100.f); break;
         case 102: id = 6, value = pick(5) - 2; break;

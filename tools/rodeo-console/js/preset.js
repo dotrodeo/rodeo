@@ -19,26 +19,42 @@
 
 import { MAX_NAME, MAX_PRESET_BYTES } from './card.js';
 
-/** synth.cpp:267 — the order is the enum's, and E1 steps through it. */
-export const SHAPES = ['saw', 'square', 'pulse', 'triangle', 'saw + sub', 'square + sub'];
+/** synth.cpp's ShapeName — the order is the enum's, and E1 steps through it. */
+export const SHAPES = ['saw', 'square', 'pulse', 'triangle', 'saw + sub', 'square + sub', 'fm'];
+export const FILTERS = ['svf', 'ladder', 'ladder12'];
 export const LAYERS = ['synth', 'sampler', 'both'];
 export const FX = ['chorus', 'reverb', 'both'];
 
-/** Every key, with what presets.cpp will do with it. */
+/**
+ * Every key, with what presets.cpp will do with it, in panel order: pots 1-8,
+ * then the encoders (panel.h). `pot` is the pot that drives it, which is what
+ * a key left out means: the pot keeps it. `enc` is the encoder that turns it.
+ */
 export const KEYS = {
-  layer: { kind: 'enum', values: LAYERS },
-  shape: { kind: 'enum', values: SHAPES },
-  sound: { kind: 'name' },
-  lfo: { kind: 'enum', values: ['on', 'off'] },
-  fx: { kind: 'enum', values: FX },
-  detune: { kind: 'number', lo: 0, hi: 50, unit: 'cents' },
-  octave: { kind: 'number', lo: -2, hi: 2, unit: '', round: true },
-  attack: { kind: 'number', lo: 1, hi: 4000, unit: 'ms' },
-  release: { kind: 'number', lo: 5, hi: 4000, unit: 'ms', pot: 4 },
+  layer: { kind: 'enum', values: LAYERS, enc: 'E1 tap' },
+  shape: { kind: 'enum', values: SHAPES, enc: 'E1' },
+  sound: { kind: 'name', enc: 'E1' },
   cutoff: { kind: 'number', lo: 0, hi: 100, unit: '%', pot: 1 },
   resonance: { kind: 'number', lo: 0, hi: 100, unit: '%', pot: 2 },
   env: { kind: 'number', lo: 0, hi: 100, unit: '%', pot: 3 },
-  mix: { kind: 'number', lo: 0, hi: 100, unit: '%' },
+  drive: { kind: 'number', lo: 0, hi: 100, unit: '%', pot: 4 },
+  attack: { kind: 'number', lo: 1, hi: 4000, unit: 'ms', pot: 5 },
+  decay: { kind: 'number', lo: 1, hi: 10000, unit: 'ms', pot: 6 },
+  sustain: { kind: 'number', lo: 0, hi: 100, unit: '%', pot: 7 },
+  release: { kind: 'number', lo: 5, hi: 4000, unit: 'ms', pot: 8 },
+  detune: { kind: 'number', lo: 0, hi: 50, unit: 'cents', enc: 'E2' },
+  octave: { kind: 'number', lo: -2, hi: 2, unit: '', round: true, enc: 'E2 held' },
+  hpf: { kind: 'number', lo: 0, hi: 2000, unit: 'Hz', enc: 'E3' },
+  lfo: { kind: 'enum', values: ['on', 'off'], enc: 'E3 tap' },
+  mix: { kind: 'number', lo: 0, hi: 100, unit: '%', enc: 'E4' },
+  fx: { kind: 'enum', values: FX, enc: 'E4 tap' },
+  fattack: { kind: 'number', lo: 1, hi: 4000, unit: 'ms', enc: 'E5' },
+  fdecay: { kind: 'number', lo: 1, hi: 10000, unit: 'ms', enc: 'E6' },
+  fsustain: { kind: 'number', lo: 0, hi: 100, unit: '%', enc: 'E7' },
+  glide: { kind: 'number', lo: 0, hi: 2000, unit: 'ms', enc: 'E8' },
+  mono: { kind: 'enum', values: ['on', 'off'], enc: 'E8 tap' },
+  filter: { kind: 'enum', values: FILTERS },
+  keytrack: { kind: 'number', lo: 0, hi: 100, unit: '%' },
 };
 
 /** `Squash`: drop whitespace, lowercase (presets.cpp:46). */

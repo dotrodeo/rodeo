@@ -12,7 +12,10 @@ namespace panel
 {
 namespace
 {
-int  pot_bank = -1, enc_bank = -1; // where on the chain, or -1
+// Where each bank is on the chain, or -1: the first of its kind after the Seed is
+// bank 1, the next bank 2
+constexpr int kBanks = 2;
+int  pot_bank[kBanks] = {-1, -1}, enc_bank[kBanks] = {-1, -1};
 char said[128];
 
 struct Encoder
@@ -20,38 +23,23 @@ struct Encoder
     bool was_down = false;
     bool turned   = false; // while held
 };
-Encoder enc[4];
+Encoder enc[4 * kBanks];
 
 // E1 + E4 held: disk mode. While both are down neither taps when let go.
 constexpr uint32_t kHoldMs = 1000;
 bool               both_down = false, both_fired = false, disk_requested = false;
 uint32_t           both_since = 0;
 
-constexpr int kAttackSteps = 24;
-int           attack_step  = 4; // 0.001 * 4000^(4/24): about 4 ms
-
-float AttackFor(int step)
-{
-    return 0.001f * powf(4000.f, step / (float)kAttackSteps);
-}
-
 // After a preset: which pots' parameters it holds, and where each pot was when it
 // did (-1 until the pot bank is read). A pot moved further than kTakeover from
 // there takes its parameter back. The anchors come from a scan made after the
 // preset loaded: at power-up the preset is in before the first real readings.
+constexpr int   kPots       = 4 * kBanks;
 constexpr float kTakeover   = 0.02f;
 unsigned        pot_held    = 0;
-float           anchor[4]   = {-1.f, -1.f, -1.f, -1.f};
+float           anchor[kPots] = {-1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f};
 uint32_t        anchor_scan = 0; // the good scan to take them from, or 0: not chosen yet
-int             preset    = -1;
-
-// E3 steps through attack times: carry on from the nearest to wherever attack was
-// put (a preset, MIDI)
-void FollowAttack(const synth::Params& p)
-{
-    attack_step = (int)lroundf(kAttackSteps * logf(p.attack / 0.001f) / logf(4000.f));
-    attack_step = attack_step < 0 ? 0 : attack_step > kAttackSteps ? kAttackSteps : attack_step;
-}
+int             preset      = -1;
 
 int Wrap(int x, int n)
 {
@@ -61,6 +49,20 @@ int Wrap(int x, int n)
 float Clamp(float x, float lo, float hi)
 {
     return x < lo ? lo : (x > hi ? hi : x);
+}
+
+// An encoder stepping through n values from lo to hi, evenly in ratio, and with
+// off (0) below them if it has one. It carries on from the step nearest wherever
+// the value was put (a preset, MIDI), so there's nothing to keep in step.
+float Step(float v, float lo, float hi, int n, bool off, int steps)
+{
+    int s;
+    if(off && v <= 0.f)
+        s = -1;
+    else
+        s = (int)lroundf((n - 1) * logf(Clamp(v, lo, hi) / lo) / logf(hi / lo));
+    s = (int)Clamp(s + steps, off ? -1 : 0, n - 1);
+    return s < 0 ? 0.f : lo * powf(hi / lo, s / (float)(n - 1));
 }
 
 const char* LayerName(synth::Layer l)
@@ -75,15 +77,44 @@ const char* FxName(synth::Fx f)
 
 void Find(rodeo::SatChain& chain)
 {
-    pot_bank = enc_bank = -1;
+    int pots = 0, encs = 0;
+    for(int b = 0; b < kBanks; b++)
+        pot_bank[b] = enc_bank[b] = -1;
     for(int i = 0; i < chain.Satellites(); i++)
     {
         uint8_t kind = chain.Satellite(i).kind;
-        if(kind == SAT_KIND_POT_BANK_4 && pot_bank < 0)
-            pot_bank = i;
-        if(kind == SAT_KIND_ENC_BANK_4 && enc_bank < 0)
-            enc_bank = i;
+        if(kind == SAT_KIND_POT_BANK_4 && pots < kBanks)
+            pot_bank[pots++] = i;
+        if(kind == SAT_KIND_ENC_BANK_4 && encs < kBanks)
+            enc_bank[encs++] = i;
     }
+}
+
+// The pots on the chain, as PotBits
+unsigned Live()
+{
+    return (pot_bank[0] >= 0 ? 0x0Fu : 0u) | (pot_bank[1] >= 0 ? 0xF0u : 0u);
+}
+
+// Pot k (0-7) at x (0..1) into its parameter
+void Pot(int k, float x, synth::Params& p)
+{
+    switch(k)
+    {
+        case 0: p.cutoff = x; break;
+        case 1: p.resonance = x; break;
+        case 2: p.env_amount = x; break;
+        case 3: p.drive = x; break;
+        case 4: p.attack = 0.001f * powf(4000.f, x); break;  // 1 ms .. 4 s
+        case 5: p.decay = 0.001f * powf(10000.f, x); break;  // 1 ms .. 10 s
+        case 6: p.sustain = x; break;
+        case 7: p.release = 0.005f * powf(800.f, x); break;  // 5 ms .. 4 s
+    }
+}
+
+int Ms(float s)
+{
+    return (int)lroundf(s * 1000.f);
 }
 
 void Turn(int e, int steps, bool held, synth::Params& p)
@@ -124,13 +155,40 @@ void Turn(int e, int steps, bool held, synth::Params& p)
             }
             break;
         case 2:
-            attack_step = (int)Clamp(attack_step + steps, 0, kAttackSteps);
-            p.attack    = AttackFor(attack_step);
-            snprintf(said, sizeof said, "attack: %d ms", (int)lroundf(p.attack * 1000.f));
+            p.hpf = Step(p.hpf, 20.f, 2000.f, 21, true, steps);
+            if(p.hpf > 0.f)
+                snprintf(said, sizeof said, "high-pass: %d Hz", (int)lroundf(p.hpf));
+            else
+                snprintf(said, sizeof said, "high-pass: off");
             break;
         case 3:
             p.fx_mix = Clamp(p.fx_mix + 0.05f * steps, 0.f, 1.f);
             snprintf(said, sizeof said, "effects mix: %d %%", (int)lroundf(p.fx_mix * 100.f));
+            break;
+        case 4:
+            p.fattack = Step(p.fattack, 0.001f, 4.f, 25, true, steps);
+            if(p.fattack > 0.f)
+                snprintf(said, sizeof said, "filter attack: %d ms", Ms(p.fattack));
+            else
+            {
+                p.fattack = -1.f;
+                snprintf(said, sizeof said, "filter attack: follows attack");
+            }
+            break;
+        case 5:
+            p.fdecay = Step(p.fdecay, 0.001f, 10.f, 25, false, steps);
+            snprintf(said, sizeof said, "filter decay: %d ms", Ms(p.fdecay));
+            break;
+        case 6:
+            p.fsustain = Clamp(p.fsustain + 0.05f * steps, 0.f, 1.f);
+            snprintf(said, sizeof said, "filter sustain: %d %%", (int)lroundf(p.fsustain * 100.f));
+            break;
+        case 7:
+            p.glide = Step(p.glide, 0.005f, 2.f, 19, true, steps);
+            if(p.glide > 0.f)
+                snprintf(said, sizeof said, "glide: %d ms%s", Ms(p.glide), p.mono ? "" : " (in mono)");
+            else
+                snprintf(said, sizeof said, "glide: off");
             break;
     }
 }
@@ -166,6 +224,22 @@ void Tap(int e, synth::Params& p)
                                                : synth::Fx::Chorus;
             snprintf(said, sizeof said, "effects: %s", FxName(p.fx));
             break;
+        case 4:
+            p.fattack = -1.f;
+            snprintf(said, sizeof said, "filter attack: follows attack");
+            break;
+        case 5:
+            p.fdecay = synth::Params().fdecay;
+            snprintf(said, sizeof said, "filter decay: %d ms", Ms(p.fdecay));
+            break;
+        case 6:
+            p.fsustain = synth::Params().fsustain;
+            snprintf(said, sizeof said, "filter sustain: %d %%", (int)lroundf(p.fsustain * 100.f));
+            break;
+        case 7:
+            p.mono = !p.mono;
+            snprintf(said, sizeof said, "mono: %s", p.mono ? "on" : "off");
+            break;
     }
 }
 } // namespace
@@ -177,40 +251,40 @@ const char* Update(rodeo::SatChain& chain, synth::Params& p, Status status)
     if(chain.Changed())
         Find(chain);
 
-    if(pot_bank >= 0)
-    {
-        if(pot_held && anchor_scan == 0)
-            anchor_scan = chain.GoodScans() + 2;
-        bool  read = chain.GoodScans() >= anchor_scan;
-        float pot[4];
-        for(int i = 0; i < 4; i++)
-        {
-            pot[i] = chain.Pot(pot_bank, i);
-            if(!(pot_held & (1u << i)) || !read)
-                continue;
-            if(anchor[i] < 0.f)
-                anchor[i] = pot[i];
-            else if(fabsf(pot[i] - anchor[i]) > kTakeover)
-                pot_held &= ~(1u << i); // moved: the pot has it again
-        }
-        if(!(pot_held & presets::kCutoff))
-            p.cutoff = pot[0];
-        if(!(pot_held & presets::kResonance))
-            p.resonance = pot[1];
-        if(!(pot_held & presets::kEnv))
-            p.env_amount = pot[2];
-        if(!(pot_held & presets::kRelease))
-            p.release = 0.005f * powf(800.f, pot[3]); // 5 ms .. 4 s
-        uint8_t mode = status == Status::Disk ? SAT_LED_SLOW_BLINK
+    if(pot_held && anchor_scan == 0 && Live())
+        anchor_scan = chain.GoodScans() + 2;
+    bool    read = anchor_scan && chain.GoodScans() >= anchor_scan;
+    uint8_t pot_mode = status == Status::Disk ? SAT_LED_SLOW_BLINK
                        : loading              ? SAT_LED_FAST_BLINK
                                               : SAT_LED_STEADY;
-        chain.SetLed(pot_bank, synth::Active() > 0 || status != Status::Playing ? 255 : 20,
-                     mode);
+    uint8_t pot_level = synth::Active() > 0 || status != Status::Playing ? 255 : 20;
+    for(int b = 0; b < kBanks; b++)
+    {
+        if(pot_bank[b] < 0)
+            continue;
+        for(int i = 0; i < 4; i++)
+        {
+            int      k   = 4 * b + i;
+            unsigned bit = 1u << k;
+            float    x   = chain.Pot(pot_bank[b], i);
+            if(pot_held & bit)
+            {
+                if(!read)
+                    continue;
+                if(anchor[k] < 0.f)
+                    anchor[k] = x;
+                if(fabsf(x - anchor[k]) <= kTakeover)
+                    continue;
+                pot_held &= ~bit; // moved: the pot has it again
+            }
+            Pot(k, x, p);
+        }
+        chain.SetLed(pot_bank[b], pot_level, pot_mode);
     }
 
-    if(enc_bank >= 0)
+    if(enc_bank[0] >= 0)
     {
-        bool first = chain.Pressed(enc_bank, 0), last = chain.Pressed(enc_bank, 3);
+        bool first = chain.Pressed(enc_bank[0], 0), last = chain.Pressed(enc_bank[0], 3);
         if(first && last && !both_down)
         {
             both_down  = true;
@@ -226,29 +300,41 @@ const char* Update(rodeo::SatChain& chain, synth::Params& p, Status status)
             enc[0].turned = enc[3].turned = true;
         if(!first && !last)
             both_down = false;
+    }
 
-        for(int e = 0; e < 4; e++)
+    for(int b = 0; b < kBanks; b++)
+    {
+        if(enc_bank[b] < 0)
+            continue;
+        for(int i = 0; i < 4; i++)
         {
-            bool down    = chain.Pressed(enc_bank, e);
-            int  steps   = chain.EncoderSteps(enc_bank, e);
-            int  presses = chain.Presses(enc_bank, e); // catches a press too quick to see
+            int      e       = 4 * b + i;
+            Encoder& n       = enc[e];
+            bool     down    = chain.Pressed(enc_bank[b], i);
+            int      steps   = chain.EncoderSteps(enc_bank[b], i);
+            int      presses = chain.Presses(enc_bank[b], i); // catches a press too quick to see
             if(steps)
             {
                 Turn(e, steps, down, p);
                 if(down)
-                    enc[e].turned = true;
+                    n.turned = true;
             }
-            if(!down && (enc[e].was_down || presses > 0) && !enc[e].turned)
+            if(!down && (n.was_down || presses > 0) && !n.turned)
                 Tap(e, p);
-            if(!down && !both_down)
-                enc[e].turned = false;
-            enc[e].was_down = down;
+            if(!down && !(b == 0 && both_down))
+                n.turned = false;
+            n.was_down = down;
         }
+    }
+    if(enc_bank[0] >= 0)
+    {
         uint8_t mode = p.layer == synth::Layer::Synth     ? SAT_LED_STEADY
                        : p.layer == synth::Layer::Sampler ? SAT_LED_SLOW_BLINK
                                                           : SAT_LED_FAST_BLINK;
-        chain.SetLed(enc_bank, 255, mode);
+        chain.SetLed(enc_bank[0], 255, mode);
     }
+    if(enc_bank[1] >= 0) // bright in mono
+        chain.SetLed(enc_bank[1], p.mono ? 255 : 20, SAT_LED_STEADY);
     return said[0] ? said : nullptr;
 }
 
@@ -257,11 +343,10 @@ const char* LoadPreset(int i, synth::Params& p)
     if(i < 0 || i >= presets::Count())
         return nullptr;
     preset   = i;
-    pot_held = presets::Apply(i, p);
+    pot_held = presets::Apply(i, p, Live());
     for(auto& a : anchor)
         a = -1.f;
     anchor_scan = 0;
-    FollowAttack(p);
     if(const char* m = presets::MissingSound())
         snprintf(said, sizeof said, "preset %d: %s (no sound \"%.24s\" on the card)", i + 1,
                  presets::Name(i), m);
@@ -283,8 +368,6 @@ const char* Set(int id, int v, synth::Params& p)
         pot_held |= bit;
         anchor[info->pot - 1] = -1.f;
     }
-    if(id == 4)
-        FollowAttack(p);
     params::Describe(*info, p, said, sizeof said);
     return said;
 }
@@ -308,6 +391,16 @@ bool DiskRequested()
 
 bool Found()
 {
-    return pot_bank >= 0 && enc_bank >= 0;
+    return pot_bank[0] >= 0 && enc_bank[0] >= 0;
+}
+
+int PotBanks()
+{
+    return (pot_bank[0] >= 0) + (pot_bank[1] >= 0);
+}
+
+int EncoderBanks()
+{
+    return (enc_bank[0] >= 0) + (enc_bank[1] >= 0);
 }
 } // namespace panel

@@ -749,8 +749,12 @@ function onLine(line) {
  */
 function trackEncoders(st) {
   const banks = chain.panelBanks(st?.chain);
-  const sat = banks.enc === null ? null : st.chain.s[banks.enc];
-  const now = Array.isArray(sat?.in) ? sat.in : [];
+  // Encoder 4b + n is bank b's slot n, as the panel numbers them
+  const now = [];
+  banks.encs.forEach((at, b) => {
+    const totals = st.chain.s[at]?.in;
+    if (Array.isArray(totals)) totals.forEach((v, n) => (now[4 * b + n] = v));
+  });
   state.wire.turn = now.map((v, i) => {
     const was = state.wire.enc[i];
     return Number.isFinite(was) ? v - was : 0;
@@ -850,13 +854,15 @@ function renderSats() {
   if (!c) return box.replaceChildren();
   if (c.error) return box.replaceChildren(el('p', { className: 'bad', textContent: c.error }));
   const list = Array.isArray(c.s) ? c.s : [];
-  // The two banks the panel is actually listening to get the paired view; any
+  // The banks the panel is actually listening to get the paired view; any
   // other satellite is drawn as plain slots, because nothing on the Rodeo is
   // wired to it.
   const banks = chain.panelBanks(c);
-  const kids = list.map((sat, i) =>
-    i === banks.pot ? potBankCard(sat, i, st) : i === banks.enc ? encBankCard(sat, i, st) : satCard(sat, i)
-  );
+  const kids = list.map((sat, i) => {
+    const pot = banks.pots.indexOf(i);
+    const enc = banks.encs.indexOf(i);
+    return pot >= 0 ? potBankCard(sat, i, pot, st) : enc >= 0 ? encBankCard(sat, i, enc, st) : satCard(sat, i);
+  });
   const broken = chain.breakAfter(c);
   if (broken !== null)
     kids.push(
@@ -884,11 +890,12 @@ function renderSats() {
  *
  * The card is the grid, not each row, so the columns line up down the card.
  */
-function potBankCard(sat, i, st) {
-  const card = el('div', { className: 'sat panel pots' }, [bankHead(i, 'pot bank', sat)]);
+function potBankCard(sat, i, bank, st) {
+  const card = el('div', { className: 'sat panel pots' }, [bankHead(i, `pot bank ${bank + 1}`, sat)]);
   chain.slots(sat).forEach((slot, n) => {
-    const spec = chain.PANEL_POTS[n];
-    if (slot.type === 'fault' || !spec) return card.append(faultRow(slot, `pot ${n + 1}`));
+    const k = 4 * bank + n;
+    const spec = chain.PANEL_POTS[k];
+    if (slot.type === 'fault' || !spec) return card.append(faultRow(slot, `pot ${k + 1}`));
     const pct = chain.potPercent(slot.value);
     const value = st?.[spec.key];
     const held = chain.potHeld(slot.value, value, spec.toPot);
@@ -926,16 +933,17 @@ function potBankCard(sat, i, st) {
  * streaming for a second after everything stops, and those last lines carry a
  * delta of zero.
  */
-function encBankCard(sat, i, st) {
-  const card = el('div', { className: 'sat panel encs' }, [bankHead(i, 'encoder bank', sat)]);
+function encBankCard(sat, i, bank, st) {
+  const card = el('div', { className: 'sat panel encs' }, [bankHead(i, `encoder bank ${bank + 1}`, sat)]);
   chain.slots(sat).forEach((slot, n) => {
-    const spec = chain.PANEL_ENCODERS[n];
-    if (slot.type === 'fault' || !spec) return card.append(faultRow(slot, `E${n + 1}`));
+    const k = 4 * bank + n;
+    const spec = chain.PANEL_ENCODERS[k];
+    if (slot.type === 'fault' || !spec) return card.append(faultRow(slot, `E${k + 1}`));
     // E1 turns the shape in synth layer and picks the sound in sampler.
     const read = chain.encoderReadout(spec, st, st?.layer === 'sampler');
-    const turn = state.wire.turn[n] ?? 0;
+    const turn = state.wire.turn[k] ?? 0;
     card.append(
-      el('span', { className: 'cell-name', textContent: `E${n + 1} ${read.name}` }),
+      el('span', { className: 'cell-name', textContent: `E${k + 1} ${read.name}` }),
       el('span', { className: read.reported ? 'cell-value' : 'cell-value absent' }, [
         el('span', { textContent: read.value }),
         read.extra ? el('span', { className: 'cell-extra', textContent: read.extra }) : '',

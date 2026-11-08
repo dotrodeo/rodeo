@@ -142,9 +142,9 @@ bool Set(Preset& pr, const char* key, const char* value)
         return true;
     }
     if(!strcmp(k, "decay") && Number(v, 1.f, 10000.f, &x))
-        return p.decay = x / 1000.f, true;
+        return p.decay = x / 1000.f, pr.pots |= kDecay, true;
     if(!strcmp(k, "sustain") && Number(v, 0.f, 100.f, &x))
-        return p.sustain = x / 100.f, true;
+        return p.sustain = x / 100.f, pr.pots |= kSustain, true;
     if(!strcmp(k, "fattack") && Number(v, 1.f, 4000.f, &x))
         return p.fattack = x / 1000.f, true;
     if(!strcmp(k, "fdecay") && Number(v, 1.f, 10000.f, &x))
@@ -152,7 +152,7 @@ bool Set(Preset& pr, const char* key, const char* value)
     if(!strcmp(k, "fsustain") && Number(v, 0.f, 100.f, &x))
         return p.fsustain = x / 100.f, true;
     if(!strcmp(k, "drive") && Number(v, 0.f, 100.f, &x))
-        return p.drive = x / 100.f, true;
+        return p.drive = x / 100.f, pr.pots |= kDrive, true;
     if(!strcmp(k, "hpf") && Number(v, 0.f, 2000.f, &x))
         return p.hpf = x, true;
     if(!strcmp(k, "keytrack") && Number(v, 0.f, 100.f, &x))
@@ -164,7 +164,7 @@ bool Set(Preset& pr, const char* key, const char* value)
     if(!strcmp(k, "octave") && Number(v, -2.f, 2.f, &x))
         return p.octave = (int)lroundf(x), true;
     if(!strcmp(k, "attack") && Number(v, 1.f, 4000.f, &x))
-        return p.attack = x / 1000.f, true;
+        return p.attack = x / 1000.f, pr.pots |= kAttack, true;
     if(!strcmp(k, "release") && Number(v, 5.f, 4000.f, &x))
         return p.release = x / 1000.f, pr.pots |= kRelease, true;
     if(!strcmp(k, "cutoff") && Number(v, 0.f, 100.f, &x))
@@ -276,7 +276,7 @@ const char* Name(int i)
     return i >= 0 && i < n_presets ? presets[i].name : "";
 }
 
-unsigned Apply(int i, synth::Params& p)
+unsigned Apply(int i, synth::Params& p, unsigned live)
 {
     if(i < 0 || i >= n_presets)
         return 0;
@@ -284,13 +284,22 @@ unsigned Apply(int i, synth::Params& p)
     synth::Params was = p;
     p                 = pr.p;
     // The pots' parameters the preset leaves out stay where the pots have them
-    if(!(pr.pots & kCutoff))
+    unsigned keep = live & ~pr.pots;
+    if(keep & kCutoff)
         p.cutoff = was.cutoff;
-    if(!(pr.pots & kResonance))
+    if(keep & kResonance)
         p.resonance = was.resonance;
-    if(!(pr.pots & kEnv))
+    if(keep & kEnv)
         p.env_amount = was.env_amount;
-    if(!(pr.pots & kRelease))
+    if(keep & kDrive)
+        p.drive = was.drive;
+    if(keep & kAttack)
+        p.attack = was.attack;
+    if(keep & kDecay)
+        p.decay = was.decay;
+    if(keep & kSustain)
+        p.sustain = was.sustain;
+    if(keep & kRelease)
         p.release = was.release;
     p.sound = was.sound;
     missing = pr.sound[0] ? pr.sound : nullptr;

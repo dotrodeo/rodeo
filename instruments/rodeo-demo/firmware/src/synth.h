@@ -70,7 +70,7 @@ struct Params
     float env_amount = 0.3f;  // 0..1: up to 5 octaves of filter envelope
     bool  lfo       = false;  // a slow filter sweep and a touch of vibrato
 
-    // Set by presets only; no control on the panel
+    // Set by presets, MIDI, and the second pot and encoder banks (panel.h)
     float decay      = 0.2f;  // amp envelope, seconds
     float sustain    = 0.85f; // 0..1
     float fattack    = -1.f;  // filter envelope, seconds; below 0 it follows attack

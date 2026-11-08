@@ -3,7 +3,7 @@ title: "rodeo-demo — Concept (brainstorm)"
 tags: [rodeo, rodeo-demo, instrument, concept, rev-b, synth, sampler, usb-audio, usb-midi, sd]
 status: brainstorm
 created: 2026-11-02
-updated: 2026-11-02
+updated: 2026-11-08
 ---
 
 # rodeo-demo — Concept (brainstorm)
@@ -19,7 +19,7 @@ Decisions so far are in the table below; anything marked **Open** still needs De
 
 | | |
 |---|---|
-| Controls | **1 pot bank (4 pots) + 1 encoder bank (4 encoders, each with a press)**, on the satellite chain |
+| Controls | **2 pot banks (8 pots) + 2 encoder banks (8 encoders, each with a press)**, on the satellite chain (was one of each until 2026-11-08; the second banks are optional) |
 | Played by | **USB-MIDI** (and TRS MIDI comes free: test 03 passed) |
 | Audio | Line outs, and **USB audio** to the computer |
 | Sound | A relatively basic **synth**; **sample playback from the SD card** if it fits |
@@ -61,7 +61,7 @@ USB-MIDI ─┐
 TRS MIDI ─┴► voice alloc ─► 8 × [ synth voice | sample voice ] ─► stereo mix ─► FX ─┬─► OUT 1/2
                                                                                   └─► USB in 1/2 (record it)
 computer playback (USB out 1/2) ────────────────────────────────────────────────────► OUT 3/4
-pot bank, encoder bank ─► chain (250 Hz) ─► params; LEDs ◄─ state
+2 pot banks, 2 encoder banks ─► chain (250 Hz) ─► params; LEDs ◄─ state
 ```
 
 * **Synth voice**: two oscillators (saw / pulse with width / triangle, PolyBLEP from
@@ -110,7 +110,15 @@ at 48 kHz, before any seeking), but the Seed has **64 MB of SDRAM**. So samples 
 "Squeezing it in" is about this decision, not memory: the app runs from 512 KB of SRAM
 (BOOT_SRAM), and FatFS plus a WAV loader is a few KB.
 
-## The panel: 4 pots, 4 encoders, 2 LEDs, no screen
+## The panel: 8 pots, 8 encoders, 4 LEDs, no screen
+
+**Two banks of each since 2026-11-08 (Derek): "two full synth pages".** The first
+pot bank is the filter (cutoff, resonance, filter envelope amount, drive), the
+second the amp envelope (attack, decay, sustain, release). The first encoder bank
+is as below except that E3 turns the high-pass (attack moved to pot 5); the second
+is the filter envelope (attack, decay, sustain) and glide, with a tap on E8 for
+mono. Of each kind, the first bank after the Seed on the chain is bank 1. The full
+map is in `firmware/src/panel.h`. What follows is the original one-bank design.
 
 There is **no screen** yet (test 06 waits on the OLED from rodeo-002), so the panel has to
 make sense without one. **Decided: C.**
