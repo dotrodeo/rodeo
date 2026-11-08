@@ -80,6 +80,10 @@ pot bank, encoder bank ─► chain (250 Hz) ─► params; LEDs ◄─ state
 * **USB audio**: Rodeo shows as an audio interface. The demo's output is recorded on USB
   inputs 1/2, and whatever the computer plays comes out of 3/4. One cable for MIDI in and
   audio out.
+* **Over MIDI**: CCs and Program Change for any controller, and SysEx for the phone app
+  (the parameter table, 14-bit sets, the state as a stream, the preset and sound lists):
+  [the protocol](../../../planning/RODEO_DEMO_MIDI_PROTOCOL.md). Built and tested on a Rodeo
+  2026-11-07.
 
 ## SD card: how samples get in
 

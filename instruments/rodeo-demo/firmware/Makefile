@@ -8,6 +8,7 @@
 #   make AUDIO_BITS=24    24-bit USB audio: direct ports only, not behind a hub
 TARGET       = rodeo-demo
 CPP_SOURCES  = src/main.cpp src/synth.cpp src/samples.cpp src/panel.cpp src/usb_audio.cpp src/disk.cpp src/presets.cpp src/state_line.cpp \
+               src/params.cpp src/remote.cpp \
                $(RODEO_ROOT)/common/audio_4x4.cpp \
                $(RODEO_ROOT)/common/sat_chain.cpp $(RODEO_ROOT)/common/sat_chain_port.cpp
 C_SOURCES    = src/usb_descriptors.c
@@ -27,6 +28,8 @@ ifeq ($(filter 16 24,$(AUDIO_BITS)),)
 $(error AUDIO_BITS must be 16 or 24, not '$(AUDIO_BITS)')
 endif
 C_DEFS += -DAUDIO_BITS=$(AUDIO_BITS)
+# The commit, for the MIDI protocol's hello (remote.cpp)
+C_DEFS += -DBUILD_ID=\"$(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)\"
 # As tinyusb.mk does for the port: a stamp says which depth build/ holds, and
 # changing it rebuilds from scratch.
 ifeq ($(wildcard build/.bits-$(AUDIO_BITS)),)

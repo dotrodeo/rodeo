@@ -30,7 +30,7 @@
 //   fattack   = ms       filter envelope; without it, the same as attack
 //   fdecay    = ms       (400)
 //   fsustain  = 0..100   % (25)
-//   filter    = svf | ladder | ladder 12   12 dB state-variable (the default), a
+//   filter    = svf | ladder | ladder12   12 dB state-variable (the default), a
 //                        24 dB ladder, or the ladder's 12 dB tap
 //   drive     = 0..100   % into the filter
 //   hpf       = Hz       a high-pass before the filter; 0 for none

@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdio.h>
 #include "daisy_seed.h"
+#include "params.h"
 #include "presets.h"
 #include "samples.h"
 
@@ -43,6 +44,14 @@ unsigned        pot_held    = 0;
 float           anchor[4]   = {-1.f, -1.f, -1.f, -1.f};
 uint32_t        anchor_scan = 0; // the good scan to take them from, or 0: not chosen yet
 int             preset    = -1;
+
+// E3 steps through attack times: carry on from the nearest to wherever attack was
+// put (a preset, MIDI)
+void FollowAttack(const synth::Params& p)
+{
+    attack_step = (int)lroundf(kAttackSteps * logf(p.attack / 0.001f) / logf(4000.f));
+    attack_step = attack_step < 0 ? 0 : attack_step > kAttackSteps ? kAttackSteps : attack_step;
+}
 
 int Wrap(int x, int n)
 {
@@ -252,15 +261,37 @@ const char* LoadPreset(int i, synth::Params& p)
     for(auto& a : anchor)
         a = -1.f;
     anchor_scan = 0;
-    // E3 steps through attack times: start from the nearest to the preset's
-    attack_step = (int)lroundf(kAttackSteps * logf(p.attack / 0.001f) / logf(4000.f));
-    attack_step = (int)Clamp(attack_step, 0, kAttackSteps);
+    FollowAttack(p);
     if(const char* m = presets::MissingSound())
         snprintf(said, sizeof said, "preset %d: %s (no sound \"%.24s\" on the card)", i + 1,
                  presets::Name(i), m);
     else
         snprintf(said, sizeof said, "preset %d: %s", i + 1, presets::Name(i));
     return said;
+}
+
+const char* Set(int id, int v, synth::Params& p)
+{
+    const params::Info* info = params::Find(id);
+    if(!info)
+        return nullptr;
+    params::Put(*info, v, p);
+    if(info->pot)
+    {
+        // Held from where the pot is on the next good scan, as after a preset
+        unsigned bit = 1u << (info->pot - 1);
+        pot_held |= bit;
+        anchor[info->pot - 1] = -1.f;
+    }
+    if(id == 4)
+        FollowAttack(p);
+    params::Describe(*info, p, said, sizeof said);
+    return said;
+}
+
+unsigned Held()
+{
+    return pot_held;
 }
 
 int Preset()

@@ -42,6 +42,15 @@ const char* Update(rodeo::SatChain& chain, synth::Params& p, Status status);
  *  moves. Returns a description for the serial port. */
 const char* LoadPreset(int i, synth::Params& p);
 
+/** Set parameter id (params.h) to v in its units, from MIDI: as if its control
+ *  had moved there. A pot's parameter is held, as a preset holds it, until the pot
+ *  moves. Returns a description for the serial port, or null for an unknown id. */
+const char* Set(int id, int v, synth::Params& p);
+
+/** The pots' parameters a preset or Set() holds, one bit a pot, pot 1 first
+ *  (presets::PotBits). */
+unsigned Held();
+
 /** The preset loaded last, or -1. */
 int Preset();
 

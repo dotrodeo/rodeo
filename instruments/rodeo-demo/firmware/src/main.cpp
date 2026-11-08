@@ -30,6 +30,7 @@
 #include "disk.h"
 #include "panel.h"
 #include "presets.h"
+#include "remote.h"
 #include "samples.h"
 #include "state_line.h"
 #include "synth.h"
@@ -73,6 +74,16 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     cpu.OnBlockEnd();
 }
 
+void Print(const char* s);
+
+// What a control (or MIDI) just did: to the serial port, and to the app
+void Say(const char* s)
+{
+    Print(s);
+    Print("\r\n");
+    remote::Said(s);
+}
+
 //------------- MIDI, from USB and the TRS jack alike -------------//
 
 void Midi(uint8_t status, uint8_t d1, uint8_t d2)
@@ -87,6 +98,12 @@ void Midi(uint8_t status, uint8_t d1, uint8_t d2)
                 synth::Sustain(d2 >= 64);
             else if(d1 == 120 || d1 == 123) // all sound off, all notes off
                 synth::AllNotesOff();
+            else
+                remote::Cc(d1, d2, params); // the panel's parameters (remote.h)
+            break;
+        case 0xC0: // Program Change: preset n, from 0
+            if(const char* said = panel::LoadPreset(d1, params))
+                Say(said);
             break;
         default: break;
     }
@@ -96,7 +113,8 @@ void MidiTask()
 {
     uint8_t packet[4];
     while(tud_midi_available() && tud_midi_packet_read(packet))
-        Midi(packet[1], packet[2], packet[3]);
+        if(!remote::Packet(packet, params)) // SysEx is the protocol's
+            Midi(packet[1], packet[2], packet[3]);
 
     trs_midi.Listen();
     while(trs_midi.HasEvents())
@@ -108,6 +126,7 @@ void MidiTask()
             case NoteOff: Midi(0x80, e.data[0], e.data[1]); break;
             case ControlChange: Midi(0xB0, e.data[0], e.data[1]); break;
             case PitchBend: Midi(0xE0, e.data[0], e.data[1]); break;
+            case ProgramChange: Midi(0xC0, e.data[0], 0); break;
             default: break;
         }
     }
@@ -287,10 +306,7 @@ void SerialTask()
         if(c == 's')
             PrintState();
         else if(c == 'p' && presets::Count() > 0)
-        {
-            Print(panel::LoadPreset((panel::Preset() + 1) % presets::Count(), params));
-            Print("\r\n");
-        }
+            Say(panel::LoadPreset((panel::Preset() + 1) % presets::Count(), params));
         else if(c == 'j')
             StateLine(true);
         else if(c == 'J')
@@ -335,6 +351,7 @@ int main(void)
     chain.Init(rodeo::SatChain::Config(), System::GetUs());
     chain_port.Init();
 
+    remote::Init(Say);
     rodeo::UsbPortInit();
     tusb_rhport_init_t dev_init = {TUSB_ROLE_DEVICE, TUSB_SPEED_AUTO};
     tusb_init(BOARD_TUD_RHPORT, &dev_init);
@@ -349,16 +366,14 @@ int main(void)
         SerialTask();
         StreamTask();
         MidiTask();
+        remote::Task(params, (int)(cpu.GetAvgCpuLoad() * 100.f));
         chain_port.Process(chain);
         state_line::Track(chain);
         panel::Status status = disk::Active() ? panel::Status::Disk
                                : loading      ? panel::Status::Loading
                                               : panel::Status::Playing;
         if(const char* said = panel::Update(chain, params, status))
-        {
-            Print(said);
-            Print("\r\n");
-        }
+            Say(said);
         if((panel::DiskRequested() || disk_wanted) && !disk::Active() && EnterDisk())
             loading = false;
         disk_wanted = false;
