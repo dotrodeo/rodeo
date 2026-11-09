@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>rodeo-demo editor</title>
+  </head>
+  <body>
+    <!--
+      The console (tools/rodeo-console) fills #console, and the card's controls
+      below move into its bar. The Rodeo cannot have the card and the serial
+      port open at the same time — entering disk mode closes CDC and takes
+      USB-MIDI with it — but that is the hardware's business, and the dots say
+      which connections are up rather than the page pretending to be two places.
+    -->
+    <div id="console"></div>
+
+    <div id="card-bar" hidden>
+      <span class="mode" id="mode" hidden>demo card</span>
+      <span class="sep"></span>
+      <div class="conn">
+        <button id="open">Open card…</button>
+        <button id="reload" hidden>Re-read</button>
+        <span class="st" id="st-card" role="status" aria-label="SD card"></span>
+      </div>
+      <span class="sep"></span>
+      <div class="pool" id="pool" hidden>
+        <div class="pool-bar"><span id="pool-fill"></span></div>
+        <span class="pool-text" id="pool-text"></span>
+      </div>
+    </div>
+
+    <dialog id="card-modal" class="card-modal">
+      <header class="modal-bar">
+        <h2>The SD card</h2>
+        <span class="mode" id="modal-mode">card</span>
+        <div class="grow"></div>
+        <button id="modal-reload">Re-read</button>
+        <button id="modal-close">Done</button>
+      </header>
+
+      <div class="modal-body">
+        <section class="intro" id="intro">
+          <p>
+            Put the Rodeo in disk mode — hold encoders 1 and 4 for a second, or press
+            <code>d</code> on its serial port — and the card mounts like any other drive. Open
+            it here and this page will read the library the way the firmware will, convert
+            whatever you drop in, and tell you what the Rodeo would quietly skip.
+          </p>
+          <p class="warn" id="unsupported" hidden>
+            This browser has no File System Access API, so the card cannot be opened in place.
+            Chrome or Edge can. Everything still works; changes come back as a zip to copy
+            across.
+          </p>
+          <p class="small">
+            Eject the drive when you are done. The Rodeo re-reads the card on the way back,
+            and the serial port and USB-MIDI come back with it.
+          </p>
+          <button id="modal-open" class="primary">Open a card…</button>
+        </section>
+
+        <div class="cols" id="cols" hidden>
+          <nav class="sidebar">
+            <div class="side-head">
+              <span>Sounds</span><span id="sound-count" class="count"></span>
+            </div>
+            <ul id="sounds" class="list"></ul>
+            <div class="side-head">
+              <span>Presets</span><span id="preset-count" class="count"></span>
+            </div>
+            <ul id="presets" class="list"></ul>
+            <div class="side-actions">
+              <button id="add-sample">+ sample</button>
+              <button id="add-kit">+ kit</button>
+              <button id="add-preset">+ preset</button>
+            </div>
+          </nav>
+
+          <section class="detail" id="detail">
+            <p class="empty">Pick something on the left.</p>
+          </section>
+        </div>
+
+        <section class="issues" id="issues" hidden>
+          <h3>Before you eject <span class="count" id="issue-count"></span></h3>
+          <ul id="issue-list"></ul>
+        </section>
+      </div>
+    </dialog>
+
+    <div class="drop" id="drop" hidden><span>Drop audio to add it</span></div>
+    <div class="toast" id="toast" hidden></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

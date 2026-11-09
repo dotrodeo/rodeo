@@ -135,6 +135,11 @@ Unasked, Rodeo sends `43` (what just changed, in words, while streaming) and
 `unit`, `pot` and `names` appear only when there is one. The firmware's own
 fields follow `params`.
 
+A `pot` counts pot slots along the chain in ring order: pot 1 is the first pot
+slot on the first satellite that has pots, pot 5 the first on the next. The
+console draws each knob beside the parameter that names it, so number them that
+way.
+
 **State** (`42`): `{"p":{"cutoff":600,"shape":2},"hold":0,"cpu":14}`. `hold` has a
 bit per pot, pot 1 in bit 0, set while a preset holds that pot's parameter.
 

@@ -44,7 +44,7 @@ Every piece this build needs has passed on Rev B, separately:
 | Piece | Bring-up | What it gives the demo |
 |---|---|---|
 | Satellite chain | 05, 2026-11-02 | Pot bank + encoder bank as a ring, 0 bad scans at 250 scans/s; each bank has one LED the Seed drives |
-| USB audio + MIDI + serial | 10 and 08 | One composite device on the USB-C: UAC1 4×4 at 16-bit (24-bit on a direct port), USB-MIDI, and a serial port for 'B' (reflash), status (`s`) and the `#S` JSON state line for tools/rodeo-console (`j`, `J` to stream) |
+| USB audio + MIDI + serial | 10 and 08 | One composite device on the USB-C: UAC1 4×4 at 16-bit (24-bit on a direct port), USB-MIDI, and a serial port for 'B' (reflash), status (`s`) and the `#S` JSON state line (`j`, `J` to stream; the console and editor now read the host protocol over MIDI instead) |
 | Both codecs | 02 | Four outs, four ins, in one callback (`audio_4x4`) |
 | SD card | 07, 09 | FatFS in 1-bit mode, 1.24 MB/s read on a 2 GB card; disk mode over USB works |
 | TRS MIDI | 03 | In and out |

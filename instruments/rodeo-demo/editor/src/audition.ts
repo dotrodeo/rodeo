@@ -4,8 +4,8 @@
 // pots' first three parameters are ‰ on the wire and % in the file, and a
 // choice or a sound goes by its number, not its name.
 
-import { KEYS, squash } from '../preset.ts';
-import type { PresetValues } from '../preset.ts';
+import { KEYS, squash } from './preset.ts';
+import type { PresetValues } from './preset.ts';
 import type { Param } from '@dotrodeo/rodeo-host';
 import type { Sound } from '@dotrodeo/rodeo-host/rodeo-demo';
 
@@ -71,17 +71,6 @@ export function presetToParams(
     else skipped.push(r.why);
   }
   return { sets, skipped };
-}
-
-/** A parameter's value as the panel says it: "41 %", "saw + sub", "420 ms". */
-export function describe(p: Param, v: number, sounds: Sound[] = []): string {
-  if (p.key === 'sound') return sounds[v]?.name ?? `sound ${v + 1}`;
-  if (p.key === 'fattack' && v === 0) return 'follows attack';
-  if (p.key === 'hpf' && v === 0) return 'off';
-  if (p.names) return p.names[v - p.min] ?? String(v);
-  if (p.unit === '‰') return `${Math.round(v / 10)} %`;
-  if (p.unit) return `${v} ${p.unit}`;
-  return v > 0 ? `+${v}` : String(v);
 }
 
 /**

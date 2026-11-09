@@ -1,27 +1,25 @@
-// Live mode: play the Rodeo from the page over USB-MIDI.
+// The console: play a Rodeo from the page over USB-MIDI, see its parameters
+// and its satellite chain, and reboot it for flashing. Any firmware built on
+// the SDK, through the host protocol (rodeo-sdk/docs/guides/host.mdx); a page
+// for one firmware embeds this with a Profile (profile.ts) to add what only
+// that firmware knows. The rodeo-demo editor does (instruments/rodeo-demo/editor).
 //
-// Phase 2 of planning/RODEO_CONSOLE_PLAN.md, first half. Needs no firmware
-// change — Rodeo already enumerates as USB-MIDI (bring-up test 08).
-//
-// What the firmware acts on is in src/midi.ts, which is a copy of `Midi()` and
-// `Allocate()`; the clock, the sequencer and the arp are in src/seq.ts, which is
-// a copy of nothing, because Rodeo has neither. The README says what the page
-// can and cannot do and why; this file does not repeat it on screen.
-//
-// The chain monitor is the other half, and it waits on the `#S` state line
-// (planning/RODEO_CONSOLE_STATE_LINE.md).
+// The clock, the sequencer and the arp are in seq.ts, and are the page's own:
+// the Rodeo just hears notes. The serial port is a log, and the profile's
+// commands; everything the panel shows comes over MIDI.
 
-import { noteName } from './card.ts';
-import { LAYERS } from './preset.ts';
 import * as midi from './midi.ts';
 import * as seq from './seq.ts';
 import * as chain from './chain.ts';
 import * as serial from './serial.ts';
-import * as link from './rodeo/link.ts';
+import * as link from './link.ts';
 import { mountSound } from './sound.ts';
+import { describe } from './describe.ts';
+import type { Profile } from './profile.ts';
+import type { Snapshot } from '@dotrodeo/rodeo-host';
 
-// Typed as present: every id is this file's own markup or index.html's, and
-// the few that can be missing before mount() are checked where they are used.
+const noteName = midi.noteName;
+
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
 type Kid = Node | string;
@@ -43,8 +41,6 @@ const el = <K extends keyof HTMLElementTagNameMap>(
 };
 
 const BLACK = new Set([1, 3, 6, 8, 10]);
-/** Asking `allocate` about a note nothing can be holding. */
-const NO_NOTE = -99;
 /** Two rows of the computer keyboard, chromatic from the leftmost white key. */
 const TYPING = ['a', 'w', 's', 'e', 'd', 'f', 't', 'g', 'y', 'h', 'u', 'j', 'k', 'o', 'l', 'p', ';'];
 
@@ -53,18 +49,6 @@ const LOOKAHEAD = 140;
 const TICK = 25;
 
 let sizer: ResizeObserver | null = null; // keeps the keyboard filling the width it is given
-
-/** The selected kit's keys, from the card read in the dialog. */
-export interface KitSpan {
-  name: string;
-  from: number;
-  files: number;
-}
-
-/** What the card dialog tells the keyboard. */
-export interface LiveLibrary {
-  kitSpan: KitSpan | null;
-}
 
 export type Toast = (message: string, bad?: boolean) => void;
 
@@ -95,17 +79,10 @@ interface Arp {
   newChord?: boolean;
 }
 
-/** The serial side: the port, and the last `#S` line it gave us. */
+/** The serial side: a log, and the profile's commands. */
 interface Wire {
   port: serial.Port | null;
-  state: chain.StateLine | null;
-  streaming: boolean;
   lines: number;
-  skipped: number;
-  /** Detents per encoder since the last line. */
-  turn: number[];
-  /** Detent totals per encoder, as of the last line. */
-  enc: number[];
 }
 
 interface LiveState {
@@ -115,40 +92,41 @@ interface LiveState {
   octaves: number;
   velocity: number;
   sustain: boolean;
-  layer: string;
-  voices: midi.Voices;
+  profile: Profile;
   down: Set<number>;
   timers: Set<TimerId>;
   tick: IntervalId | null;
-  library: LiveLibrary | null;
   toast: Toast;
   t: Transport;
   arp: Arp;
   pattern: seq.Pattern;
   root: number;
   wire: Wire;
+  /** Detent totals per encoder, from the last chain report, and the turn since. */
+  enc: number[];
+  turn: number[];
 }
 
 const state: LiveState = {
   access: null,
   out: null,
-  base: midi.KIT_FIRST_NOTE, // leftmost key, C2 so a kit's range is on screen
+  base: 36, // leftmost key: C2, where rodeo-demo's kits start
   octaves: 4,
   velocity: 100,
   sustain: false,
-  layer: 'synth', // what the Rodeo is set to; the page cannot read it
-  voices: new midi.Voices({ release: 300 }),
+  profile: {},
   down: new Set(), // notes the page is holding, so we can always lift them
   timers: new Set(),
   tick: null,
-  library: null,
   toast: () => {},
 
   t: { running: false, bpm: 120, div: 3, swing: 0, gate: 0.5, step: 0, next: 0, clock: null, cursor: -1 },
   arp: { mode: 'off', octaves: 1, latch: false, held: [] },
   pattern: seq.emptyPattern(),
-  root: midi.KIT_FIRST_NOTE,
-  wire: { port: null, state: null, streaming: false, lines: 0, skipped: 0, turn: [], enc: [] },
+  root: 36,
+  wire: { port: null, lines: 0 },
+  enc: [],
+  turn: [],
 
 };
 
@@ -188,7 +166,7 @@ function play(note: number, velocity = state.velocity) {
   // With the arp running the keyboard feeds it instead of sounding directly.
   if (arpLive()) return paint();
   send(midi.noteOn(note, velocity));
-  state.voices.noteOn(note, velocity, performance.now(), sampleOn(note));
+  state.profile.voices?.noteOn(note, velocity, performance.now());
   paint();
 }
 
@@ -198,7 +176,7 @@ function lift(note: number) {
   if (!state.arp.latch) state.arp.held = state.arp.held.filter((n) => n !== note);
   if (!arpLive()) {
     send(midi.noteOff(note));
-    state.voices.noteOff(note, performance.now());
+    state.profile.voices?.noteOff(note, performance.now());
   }
   paint();
 }
@@ -227,7 +205,7 @@ function panic() {
   state.down.clear();
   state.arp.held = [];
   send(midi.allNotesOff());
-  state.voices.allOff(performance.now());
+  state.profile.voices?.allOff(performance.now());
   paint();
 }
 
@@ -235,23 +213,9 @@ function setSustain(down: boolean) {
   if (state.sustain === down) return;
   state.sustain = down;
   send(midi.sustain(down));
-  state.voices.setSustain(down, performance.now());
+  state.profile.voices?.setSustain(down, performance.now());
   $('live-sustain')?.classList.toggle('on', down);
   paint();
-}
-
-/**
- * Whether a key has a sample under it, in the one case where that decides
- * whether the note does anything: `Start` returns before `Allocate` only when
- * the layer is Sampler and the key has nothing on it (synth.cpp:158-161).
- * Null means "do not claim", which is the answer whenever the layer or the
- * selected sound is unknown — and the sound always is.
- */
-function sampleOn(note: number): boolean | null {
-  if (state.layer !== 'sampler') return null;
-  const kit = state.library?.kitSpan;
-  if (!kit) return null;
-  return note >= kit.from && note < kit.from + kit.files;
 }
 
 // ----------------------------------------------------------- the transport
@@ -278,7 +242,7 @@ function stop() {
   clearTimers();
   // Whatever the scheduler had already put on the wire is still coming.
   send(midi.allNotesOff());
-  state.voices.allOff(performance.now());
+  state.profile.voices?.allOff(performance.now());
   for (const n of state.down) send(midi.noteOff(n));
   paintTransport();
   paint();
@@ -311,12 +275,12 @@ function fire(index: number, at: number, ms: number) {
   const now = performance.now();
   later(() => {
     state.t.cursor = index % seq.STEPS;
-    for (const n of notes) state.voices.noteOn(n, state.velocity, performance.now(), sampleOn(n));
+    for (const n of notes) state.profile.voices?.noteOn(n, state.velocity, performance.now());
     paint();
   }, at - now);
   if (notes.length)
     later(() => {
-      for (const n of notes) state.voices.noteOff(n, performance.now());
+      for (const n of notes) state.profile.voices?.noteOff(n, performance.now());
       paint();
     }, at + hold - now);
 }
@@ -398,17 +362,21 @@ function renderPorts() {
   if (!supported()) return setDot('st-midi', 'bad', 'this browser has no Web MIDI — Chrome or Edge');
   if (!state.access) return setDot('st-midi', 'off', 'not connected');
   if (!list.length)
-    return setDot('st-midi', 'bad', 'nothing plugged in — the Rodeo shows up as “Rodeo Demo”');
+    return setDot('st-midi', 'bad', 'nothing plugged in — a Rodeo’s port has “Rodeo” in its name');
   if (!state.out) return setDot('st-midi', 'off', 'pick a port');
   if (midi.isRodeoPort(state.out.name)) {
     const s = link.rodeo.snapshot;
     if (s.status === 'ready')
       return setDot('st-midi', 'live', `${state.out.name} — ${s.hello?.fw ?? 'a Rodeo'}, talking both ways`);
     if (!link.sysexAllowed())
-      return setDot('st-midi', 'on', `${state.out.name} — notes only: SysEx was not allowed, so no sound panel`);
+      return setDot('st-midi', 'on', `${state.out.name} — notes only: SysEx was not allowed, so no panel`);
     if (s.status === 'connecting') return setDot('st-midi', 'on', `${state.out.name} — saying hello…`);
     if (s.status === 'not-rodeo')
-      return setDot('st-midi', 'on', `${state.out.name} — plays notes, but did not answer hello: older firmware?`);
+      return setDot(
+        'st-midi',
+        'on',
+        `${state.out.name} — plays notes, but did not answer hello: built with RODEO_HOST=0, or older firmware?`
+      );
     return setDot('st-midi', 'on', `${state.out.name} — looks like a Rodeo`);
   }
   setDot('st-midi', 'bad', `${state.out.name} — not a Rodeo by name, sending anyway`);
@@ -439,26 +407,22 @@ function renderKeyboard() {
   }
   row.style.setProperty('--pk-count', String(whites.length));
 
-  // A kit's range is always contiguous from C2, so it draws as a bar rather
-  // than by recolouring two thirds of the keys.
-  const kit = state.library?.kitSpan;
-  if (kit?.files) {
-    const last = kit.from + kit.files - 1;
+  // A span (a kit's keys) draws as a bar rather than by recolouring the keys.
+  const span = state.profile.keySpan?.();
+  if (span && span.to >= span.from) {
     const at = (n: number): number | null => {
       for (let m = n; m >= from; m--) if (index.has(m)) return index.get(m)!; // has() said so
       return null;
     };
-    const a = at(Math.max(kit.from, from));
-    const b = at(Math.min(last, to));
-    if (a !== null && b !== null && last >= from && kit.from <= to) {
+    const a = at(Math.max(span.from, from));
+    const b = at(Math.min(span.to, to));
+    if (a !== null && b !== null && span.to >= from && span.from <= to) {
       row.append(
         el('div', {
           className: 'pk-span',
           style: `left: calc(${a} * var(--pk-w)); width: calc(${b - a + 1} * var(--pk-w))`,
-          textContent: `${kit.name} · ${noteName(kit.from)}–${noteName(last)}`,
-          title:
-            `${kit.files} files, from the card read here. In sampler layer a key ` +
-            'outside the bar allocates no voice at all.',
+          textContent: span.label,
+          title: span.title ?? '',
         })
       );
     }
@@ -483,13 +447,14 @@ function fitKeyboard() {
 }
 
 function key(note: number, className: string) {
-  const quiet = sampleOn(note) === false;
+  const quiet = state.profile.silent?.(note) ?? false;
   const k = el('button', {
     className: `pk ${className}`,
     data: { note: String(note) },
-    title: `${noteName(note)} · note ${note}${quiet ? ' · no file on this key' : ''}`,
+    title: `${noteName(note)} · note ${note}${quiet ? ' · nothing on this key' : ''}`,
   });
-  if (note === midi.ROOT_NOTE) k.append(el('span', { className: 'pk-mark', textContent: 'root' }));
+  const mark = state.profile.marks?.find(([n]) => n === note);
+  if (mark) k.append(el('span', { className: 'pk-mark', textContent: mark[1] }));
   if (note % 12 === 0) k.append(el('span', { className: 'pk-c', textContent: noteName(note) }));
   return k;
 }
@@ -529,36 +494,14 @@ function paintTransport() {
   b.classList.toggle('on', state.t.running);
 }
 
-/**
- * The Rodeo reports `voices` in the state line; the model only predicts it.
- * Where both exist the Rodeo wins, and the chips stay a prediction of *which*
- * notes are where — the part nothing reports. Separate from paint() because a
- * state line arrives 20 times a second and only this depends on it.
- */
-function paintCount() {
-  const next = $('live-next');
-  if (!next) return;
-  const now = performance.now();
-  const real = state.wire.state?.voices;
-  const predicted = state.voices.sounding(now);
-  const steal =
-    predicted >= midi.VOICE_COUNT
-      ? ` — next steals ${noteName(state.voices.slots[state.voices.allocate(NO_NOTE, now).index].note)}`
-      : '';
-  next.textContent = Number.isFinite(real)
-    ? `${real}/${midi.VOICE_COUNT}${steal}`
-    : `${predicted}/${midi.VOICE_COUNT} predicted${steal}`;
-}
-
 function paint() {
   const now = performance.now();
+  const voices = state.profile.voices;
+  const slots = voices?.slots(now) ?? [];
   for (const k of document.querySelectorAll<HTMLElement>('.pk')) {
     const n = Number(k.dataset.note);
     k.classList.toggle('held', state.down.has(n));
-    k.classList.toggle(
-      'ringing',
-      !state.down.has(n) && state.voices.slots.some((v) => v.note === n && state.voices.active(v, now))
-    );
+    k.classList.toggle('ringing', !state.down.has(n) && slots.some((v) => v.note === n && v.state !== 'free'));
     // Latched notes are being arpeggiated with nothing held down, so the
     // keyboard is the only place that can show what the arp is chewing on.
     k.classList.toggle(
@@ -567,35 +510,60 @@ function paint() {
     );
   }
   const panel = $('live-voices');
-  if (panel) {
+  if (panel && voices) {
     panel.replaceChildren(
-      ...state.voices.slots.map((v) => {
-        const live = state.voices.active(v, now);
-        return el(
-          'div',
-          { className: !live ? 'vc free' : v.gate ? 'vc held' : 'vc ringing' },
-          [el('span', { textContent: live ? noteName(v.note) : '·' })]
-        );
-      })
+      ...slots.map((v) =>
+        el('div', { className: `vc ${v.state}` }, [
+          el('span', { textContent: v.state === 'free' ? '·' : noteName(v.note) }),
+        ])
+      )
     );
   }
-  paintCount();
+  paintCount(now);
   paintGrid();
+}
+
+/** The line beside the voices, which the Rodeo's reports change as well. */
+function paintCount(now = performance.now()) {
+  const next = $('live-next');
+  if (next && state.profile.voices) next.textContent = state.profile.voices.summary(now, link.rodeo.snapshot);
 }
 
 // A released voice goes quiet on its own, so the panel needs a clock as well
 // as events. 10 Hz while anything is up, nothing when the board is silent.
 function clock() {
   state.tick = setInterval(() => {
-    if (state.down.size || state.voices.sounding(performance.now()) || state.t.running) paint();
+    const now = performance.now();
+    if (state.down.size || (state.profile.voices?.sounding(now) ?? 0) || state.t.running) paint();
   }, 100);
 }
 
 // ------------------------------------------------------------------- the DOM
 
-function markup() {
+function markup(title: string, toolbar: Node[]) {
+  const bar = el('header', { className: 'bar' });
+  bar.innerHTML = `
+    <h1></h1>
+    <div class="conn">
+      <button id="live-connect" class="primary">Connect MIDI</button>
+      <select id="live-port" disabled aria-label="MIDI output"></select>
+      <span class="st" id="st-midi" role="status" aria-label="MIDI"></span>
+    </div>
+    <span class="sep"></span>
+    <div class="conn">
+      <button id="live-serial">Connect serial</button>
+      <span class="st" id="st-serial" role="status" aria-label="serial"></span>
+    </div>
+  `;
+  bar.querySelector('h1')!.textContent = title; // the markup above has one
+  bar.append(...toolbar);
+
   const panel = el('section', { className: 'live', id: 'live' });
   panel.innerHTML = `
+    <p class="warn" id="live-unsupported" hidden>
+      This browser has no Web MIDI API, so the keyboard cannot send anything. Chrome,
+      Edge, or Safari 17.4 and later can.
+    </p>
     <div class="pk-wrap" id="live-keys"></div>
 
     <div class="row live-controls">
@@ -605,11 +573,9 @@ function markup() {
       <input type="range" id="live-vel" min="1" max="127" value="100" />
       <output id="live-vel-out">100</output>
       <label for="live-bend">bend</label>
-      <input type="range" id="live-bend" min="-200" max="200" value="0" title="±2 semitones, all Rodeo has" />
-      <label for="live-layer">layer</label>
-      <select id="live-layer" title="what the Rodeo is set to — the page cannot read it"></select>
+      <input type="range" id="live-bend" min="-200" max="200" value="0" title="±2 semitones on rodeo-demo" />
       <button id="live-sustain" title="CC 64 — or hold Shift">sus</button>
-      <button id="live-panic" title="CC 123 — releases the notes, so a long release still rings">panic</button>
+      <button id="live-panic" title="CC 123, and a note off for every key the page holds">panic</button>
     </div>
 
     <div class="row live-controls">
@@ -634,32 +600,25 @@ function markup() {
         <button id="live-root-up" title="pattern up an octave">+</button>
         <button id="live-clear">clear</button>
         <span class="grow"></span>
-        <span class="small dim">voices</span>
+        <span class="small dim" id="live-voices-label">voices</span>
         <div class="voices" id="live-voices"></div>
         <span class="small dim" id="live-next"></span>
-        <label for="live-rel" class="small dim" title="how long a released voice keeps sounding; the only guess in the voice panel">rel</label>
-        <input type="number" id="live-rel" min="5" max="4000" value="300" />
       </div>
     </div>
 
     <div class="sound" id="live-sound"></div>
 
     <div class="chain">
-      <div class="row">
-        <button class="cmd" data-cmd="J" id="live-stream" title="sends J">Stream readings</button>
-        <button class="cmd" data-cmd="j" title="sends j">Read once</button>
-        <button class="cmd" data-cmd="s" title="sends s">Log full state</button>
-        <span class="sep"></span>
-        <button class="cmd" data-cmd="d" title="sends d">Hand the card to this computer</button>
-        <button class="cmd" data-cmd="n" title="sends n">Take the card back</button>
-        <button class="cmd" data-cmd="B" title="sends B">Reboot for flashing</button>
+      <div class="row" id="live-cmds">
+        <button id="live-dfu" title="the protocol's dfu: the Rodeo answers, then reboots into its bootloader">Reboot for flashing</button>
       </div>
       <p class="small dim said" id="live-said"></p>
       <div class="readout" id="live-readout"></div>
       <div class="sats" id="live-sats"></div>
     </div>
   `;
-  return panel;
+  const main = el('main', { id: 'main' }, [panel]);
+  return [bar, main];
 }
 
 function wire() {
@@ -669,6 +628,7 @@ function wire() {
     link.attach(state.access, state.out);
     renderPorts();
   };
+  $('live-unsupported').hidden = supported();
   $('live-oct-down').onclick = () => shift(-12);
   $('live-oct-up').onclick = () => shift(12);
   $('live-vel').oninput = (e) => {
@@ -685,15 +645,6 @@ function wire() {
   bend.onchange = centre; // a wheel springs back; a slider does not
   bend.onpointerup = centre;
 
-  const layer = $('live-layer');
-  layer.replaceChildren(
-    ...LAYERS.map((l) => el('option', { value: l, textContent: l, selected: l === state.layer }))
-  );
-  layer.onchange = (e) => {
-    state.layer = (e.target as HTMLSelectElement).value;
-    renderKeyboard();
-    paint();
-  };
   $('live-sustain').onclick = () => setSustain(!state.sustain);
   $('live-panic').onclick = panic;
 
@@ -734,10 +685,7 @@ function wire() {
     state.pattern = seq.emptyPattern();
     paintGrid();
   };
-  $('live-rel').oninput = (e) => {
-    state.voices.release = Math.max(5, Math.min(4000, Number((e.target as HTMLInputElement).value) || 300));
-    paint();
-  };
+  for (const id of ['live-voices-label', 'live-voices', 'live-next']) $(id).hidden = !state.profile.voices;
 
   const grid = $('live-grid');
   let painting: number | null = null; // drag across the grid to draw a line of steps
@@ -760,11 +708,26 @@ function wire() {
   });
   addEventListener('pointerup', () => (painting = null));
 
+  // --- the chain row: dfu over MIDI, the profile's commands over serial ---
+  $('live-dfu').onclick = () => {
+    if (!confirm('Reboot the Rodeo into its bootloader? It leaves USB until it is flashed or power-cycled.'))
+      return;
+    link.rodeo.dfu();
+    state.toast('rebooting for flashing — the MIDI port will go');
+  };
+  const cmds = $('live-cmds');
+  if (state.profile.commands?.length) cmds.append(el('span', { className: 'sep' }));
+  for (const c of state.profile.commands ?? [])
+    cmds.append(
+      el('button', {
+        className: 'cmd',
+        textContent: c.label,
+        title: `${c.title ? `${c.title} · ` : ''}sends ${c.send} on the serial port`,
+        onclick: () => cmd(c.send, c.say),
+      })
+    );
   $('live-serial').onclick = connectSerial;
   $<HTMLButtonElement>('live-serial').disabled = !serial.supported();
-  // Every .cmd button in markup() carries a data-cmd.
-  for (const b of document.querySelectorAll<HTMLButtonElement>('.cmd'))
-    b.onclick = () => cmd(b.dataset.cmd as string);
   renderSerial();
 
   // Pointer: press, and glide across the keys with the button down.
@@ -806,12 +769,11 @@ function shift(by: number) {
   paint();
 }
 
-// --------------------------------------------------------------- the chain
+// ---------------------------------------------------------------- serial
 //
-// Web Serial, reading the `#S` line the firmware emits (main.cpp's
-// StateLine()). The line also carries two things the page was previously
-// guessing at — the layer and the release time — so once the port is open
-// those controls stop being inputs and start being readouts.
+// Web Serial, as a log: whatever the firmware prints, the last line shown. A
+// line starting `#` is for machines (rodeo-demo's `#S` state line) and is not
+// shown. The profile's commands go out here.
 
 async function connectSerial() {
   if (state.wire.port) return state.wire.port.close();
@@ -825,91 +787,32 @@ async function connectSerial() {
   }
   state.wire.port = port;
   state.wire.lines = 0;
-  state.wire.skipped = 0;
-  state.wire.enc = [];
-  state.wire.turn = [];
-  // `J` toggles, and the firmware clears it when the port closes, so a freshly
-  // opened port is never streaming.
-  state.wire.streaming = false;
-  cmd('J');
   renderSerial();
 }
 
-function cmd(c: string) {
+function cmd(c: string, say?: string) {
   if (!state.wire.port) return;
-  if (c === 'J') state.wire.streaming = !state.wire.streaming;
-  if (c === 'd') state.toast('disk mode — the serial port will close as the Rodeo re-enumerates');
+  if (say) state.toast(say);
   state.wire.port.write(c);
-  renderSerial();
+}
+
+function said(text: string) {
+  const box = $('live-said');
+  if (box) box.textContent = text;
 }
 
 function onLine(line: string) {
-  const next = chain.parseStateLine(line);
-  if (!next) {
-    // Prose, the greeting, or a line the firmware gave up on halfway. All
-    // three are normal; none of them is state. The prose is worth showing
-    // though — "no SD card to hand over" and the skipped preset lines used to
-    // go nowhere, because this page was the only thing reading the port.
-    if (line.startsWith(chain.PREFIX)) state.wire.skipped++;
-    else if (line.trim()) {
-      const said = $('live-said');
-      if (said) said.textContent = line.trim();
-    }
-    return;
-  }
+  const text = line.trim();
+  if (!text || text.startsWith('#')) return;
   state.wire.lines++;
-  trackEncoders(next);
-  state.wire.state = next;
-  adoptFromRodeo(next);
-  renderSerial(); // the line count, and the controls the Rodeo has taken over
-  renderReadout();
-  renderSats();
-  paintCount();
-}
-
-/**
- * The detent totals are cumulative from power-up, so the difference between
- * two lines is the only part that means anything on screen.
- */
-function trackEncoders(st: chain.StateLine) {
-  const banks = chain.panelBanks(st?.chain);
-  // Encoder 4b + n is bank b's slot n, as the panel numbers them
-  const now: number[] = [];
-  banks.encs.forEach((at, b) => {
-    // panelBanks found an encoder bank at `at`, so chain.s is there.
-    const totals = st.chain!.s![at]?.in;
-    if (Array.isArray(totals)) totals.forEach((v, n) => (now[4 * b + n] = v));
-  });
-  state.wire.turn = now.map((v, i) => {
-    const was = state.wire.enc[i];
-    return Number.isFinite(was) ? v - was : 0;
-  });
-  state.wire.enc = now;
-}
-
-/** What the Rodeo tells us beats what the page was told to assume. */
-function adoptFromRodeo(st: chain.StateLine) {
-  if (typeof st.layer === 'string' && LAYERS.includes(st.layer) && st.layer !== state.layer) {
-    state.layer = st.layer;
-    const sel = $<HTMLSelectElement>('live-layer');
-    if (sel) sel.value = st.layer;
-    renderKeyboard();
-  }
-  if (Number.isFinite(st.rel) && st.rel !== state.voices.release) {
-    state.voices.release = st.rel as number; // finite, just checked
-    const rel = $<HTMLInputElement>('live-rel');
-    if (rel) rel.value = String(st.rel);
-  }
+  said(text);
+  renderSerial();
 }
 
 function onSerialClose(why: string | null | undefined) {
   state.wire.port = null;
-  state.wire.streaming = false;
-  state.wire.state = null;
   if (why) state.toast(why);
   renderSerial();
-  renderReadout();
-  renderSats();
 }
 
 function renderSerial() {
@@ -917,82 +820,69 @@ function renderSerial() {
   if (!b) return;
   const on = !!state.wire.port;
   b.textContent = on ? 'Disconnect' : 'Connect serial';
-  b.classList.toggle('on', false);
-  $('live-stream')?.classList.toggle('on', state.wire.streaming);
   for (const c of document.querySelectorAll<HTMLButtonElement>('.cmd')) c.disabled = !on;
-  // The Rodeo is the authority on these two once it is talking, either way.
-  const owned = (on && !!state.wire.state) || !!link.rodeo.snapshot.state;
-  for (const [id, own] of [
-    ['live-layer', 'what the Rodeo is set to — the page cannot read it'],
-    ['live-rel', 'how long a released voice keeps sounding; the only guess in the voice panel'],
-  ]) {
-    const e = $<HTMLInputElement | HTMLSelectElement>(id);
-    if (!e) continue;
-    e.disabled = owned;
-    e.title = owned ? 'read from the Rodeo' : own;
-  }
+  const dfu = $<HTMLButtonElement>('live-dfu');
+  if (dfu) dfu.disabled = link.rodeo.snapshot.status !== 'ready';
   if (!serial.supported())
     return setDot('st-serial', 'bad', 'this browser has no Web Serial — Chrome or Edge');
-  if (!on) return setDot('st-serial', 'off', 'not connected — the chain, live');
+  if (!on) return setDot('st-serial', 'off', 'not connected — the firmware’s log');
   const lines = `${state.wire.lines} line${state.wire.lines === 1 ? '' : 's'}`;
-  const cut = state.wire.skipped ? `, ${state.wire.skipped} truncated` : '';
-  if (!state.wire.lines) return setDot('st-serial', 'on', 'open — press Read once or Stream');
-  setDot(
-    'st-serial',
-    state.wire.streaming ? 'live' : 'on',
-    `${state.wire.streaming ? 'streaming' : 'open'} · ${lines}${cut}`
-  );
+  setDot('st-serial', state.wire.lines ? 'live' : 'on', `open · ${lines}`);
 }
 
-function renderReadout() {
+// --------------------------------------------------------------- the chain
+//
+// The chain report, streamed over MIDI with the state (host.cpp). Pot k is the
+// k-th pot slot on the chain, in ring order, which is what a parameter's `pot`
+// in the hello names: so a knob can be drawn beside the number it drives.
+
+/**
+ * The detent totals are cumulative from power-up, so the difference between
+ * two reports is the only part that means anything on screen.
+ */
+function trackEncoders(c: chain.ChainState) {
+  const now: number[] = [];
+  for (const at of chain.places(c).encs) now[at.n] = c.s![at.sat].in[at.slot]; // places() found it there
+  state.turn = now.map((v, i) => {
+    const was = state.enc[i];
+    return Number.isFinite(was) ? v - was : 0;
+  });
+  state.enc = now;
+}
+
+function renderReadout(s: Snapshot) {
   const box = $('live-readout');
   if (!box) return;
-  const st = state.wire.state;
-  if (!st) return box.replaceChildren();
-  // The line's numbers are read as they come: a missing one indexes as
-  // undefined and compares false, as it always has, so these casts only
-  // tell TypeScript what is already happening.
-  const card =
-    ({ 0: 'no card', 1: 'card mounted', 2: 'card is the computer\u2019s' } as Record<number, string>)[
-      st.card as number
-    ] ?? '?';
-  const c: chain.ChainState = st.chain ?? {};
+  if (s.status !== 'ready' || !s.hello) return box.replaceChildren();
+  const c: chain.ChainState = s.chain ?? {};
   const health = chain.scanHealth(c);
-  const chips: [string, unknown][] = [
-    [(st.preset as number) >= 0 ? `preset ${(st.preset as number) + 1}` : 'no preset', st.name || ''],
-    ['layer', st.layer],
-    ['cpu', `${st.cpu}% (peak ${st.peak}%)`],
-    ['card', card],
-    ['loaded', `${st.loaded} of ${st.samples}${st.skipped ? `, ${st.skipped} skipped` : ''}`],
-    ['chain', chain.CHAIN_STATES[c.state as string] ?? c.state],
-    ['scans', health === null ? 'none yet' : `${health.toFixed(health > 99.9 ? 2 : 1)}% good`],
-  ];
+  const chips: [string, string][] = [[s.hello.fw, s.hello.build ?? '']];
+  if (s.state) chips.push(['cpu', `${s.state.cpu}%`]);
+  chips.push(...(state.profile.readout?.(s) ?? []));
+  if (s.hello.chain) {
+    chips.push(['chain', c.state ? (chain.CHAIN_STATES[c.state] ?? c.state) : 'waiting for a report']);
+    chips.push(['scans', health === null ? 'none yet' : `${health.toFixed(health > 99.9 ? 2 : 1)}% good`]);
+  }
   box.replaceChildren(
     ...chips.map(([k, v]) =>
-      el('span', { className: 'chip' }, [
-        el('b', { textContent: k }),
-        el('span', { textContent: String(v) }),
-      ])
+      el('span', { className: 'chip' }, [el('b', { textContent: k }), el('span', { textContent: v })])
     )
   );
 }
 
-function renderSats() {
+function renderSats(s: Snapshot) {
   const box = $('live-sats');
   if (!box) return;
-  const st = state.wire.state;
-  const c = st?.chain;
+  const c = s.status === 'ready' ? s.chain : null;
   if (!c) return box.replaceChildren();
-  if (c.error) return box.replaceChildren(el('p', { className: 'bad', textContent: c.error }));
   const list = Array.isArray(c.s) ? c.s : [];
-  // The banks the panel is actually listening to get the paired view; any
-  // other satellite is drawn as plain slots, because nothing on the Rodeo is
-  // wired to it.
-  const banks = chain.panelBanks(c);
+  const at = chain.places(c);
   const kids = list.map((sat, i) => {
-    const pot = banks.pots.indexOf(i);
-    const enc = banks.encs.indexOf(i);
-    return pot >= 0 ? potBankCard(sat, i, pot, st) : enc >= 0 ? encBankCard(sat, i, enc, st) : satCard(sat, i);
+    const pots = at.pots.filter((p) => p.sat === i);
+    const encs = at.encs.filter((p) => p.sat === i);
+    if (pots.length && pots.some((p) => potParam(s, p.n))) return potCard(sat, i, pots, s);
+    if (encs.length) return encCard(sat, i, encs, s);
+    return satCard(sat, i);
   });
   const broken = chain.breakAfter(c);
   if (broken !== null)
@@ -1010,89 +900,101 @@ function renderSats() {
   box.replaceChildren(...kids);
 }
 
+/** The parameter on pot n (from 0), if the firmware put one there. */
+function potParam(s: Snapshot, n: number) {
+  return Object.values(s.params).find((p) => p.pot === n + 1) ?? null;
+}
+
 /**
- * Pot bank: each knob beside the number it is driving.
+ * Pots: each knob beside the number it is driving.
  *
  * The pair is the point. Loading a preset sets the parameters and the pots
- * keep their hands off until moved (panel.cpp:178-186), so a knob can sit at
- * 70% while cutoff is 41% — the panel is not broken, the preset still has it.
- * Nothing on the Rodeo itself can tell you that; this is the only place it
- * shows.
+ * keep their hands off until moved, so a knob can sit at 70% while cutoff is
+ * 41%: the panel is not broken, the preset still has it. The state's hold bit
+ * says so, and this is the only place it shows.
  *
  * The card is the grid, not each row, so the columns line up down the card.
  */
-function potBankCard(sat: chain.Satellite, i: number, bank: number, st: chain.StateLine) {
-  const card = el('div', { className: 'sat panel pots' }, [bankHead(i, `pot bank ${bank + 1}`, sat)]);
-  chain.slots(sat).forEach((slot, n) => {
-    const k = 4 * bank + n;
-    const spec = chain.PANEL_POTS[k];
-    if (slot.type === 'fault') return card.append(faultRow(slot, `pot ${k + 1}`));
-    if (!spec) return card.append(slotRow(slot)); // a fifth slot: nothing on the panel reads it
+function potCard(sat: chain.Satellite, i: number, at: chain.Place[], s: Snapshot) {
+  const first = at[0].n + 1;
+  const card = el('div', { className: 'sat panel pots' }, [
+    bankHead(i, `pots ${first}–${first + at.length - 1}`, sat),
+  ]);
+  const slots = chain.slots(sat);
+  for (const place of at) {
+    const slot = slots[place.slot];
+    const k = place.n + 1;
+    if (slot.type === 'fault') {
+      card.append(faultRow(slot, `pot ${k}`));
+      continue;
+    }
+    const p = potParam(s, place.n);
     const pct = chain.potPercent(slot.value);
-    const value = st?.[spec.key];
-    const held = chain.potHeld(slot.value, value, spec.toPot);
+    const v = p ? s.state?.p[p.key] : undefined;
+    const held = !!p && !!s.state && !!(s.state.hold & (1 << (k - 1)));
     card.append(
-      el('span', { className: 'cell-name', textContent: spec.name }),
+      el('span', { className: 'cell-name', textContent: p ? p.key : `pot ${k}` }),
       el('span', {
         className: `cell-value${held ? ' stale' : ''}`,
-        textContent: Number.isFinite(value) ? `${value}${spec.unit === '%' ? '%' : ' ms'}` : '—',
+        textContent: p && v !== undefined ? describe(p, v, s, state.profile) : '—',
       }),
-      el('div', { className: `meter${held ? ' stale' : ''}` }, [
-        el('span', { style: `width:${pct}%` }),
-      ]),
+      el('div', { className: `meter${held ? ' stale' : ''}` }, [el('span', { style: `width:${pct}%` })]),
       el('span', { className: 'cell-knob', textContent: `${pct.toFixed(0)}%` }),
       el('span', {
         className: held ? 'cell-note stale' : 'cell-note',
         textContent: held ? 'preset holds this' : '',
         title: held
           ? 'The preset set this parameter and the knob has not moved since, so the knob is ' +
-            'not what you are hearing. Turn it about 2% to take it back.'
+            'not what you are hearing. Turn it to take it back.'
           : '',
       })
     );
-  });
+  }
   return card;
 }
 
 /**
- * Encoder bank: no position to compare, so the pairing is the parameter each
- * one turns and where that parameter now is.
+ * Encoders: no position to compare, so the row is what each one turns (when
+ * the profile knows) and whether it is turning now.
  *
- * The line carries a detent total counted from power-up, which on its own
- * says nothing — "+14" is not a state. What is worth seeing is whether the
- * encoder is moving right now, so the total is differenced between lines and
- * shown as the turn that just happened. It clears itself: the firmware keeps
- * streaming for a second after everything stops, and those last lines carry a
- * delta of zero.
+ * The report carries a detent total counted from power-up, which on its own
+ * says nothing: "+14" is not a state. What is worth seeing is whether the
+ * encoder is moving right now, so the total is differenced between reports and
+ * shown as the turn that just happened.
  */
-function encBankCard(sat: chain.Satellite, i: number, bank: number, st: chain.StateLine) {
-  const card = el('div', { className: 'sat panel encs' }, [bankHead(i, `encoder bank ${bank + 1}`, sat)]);
-  chain.slots(sat).forEach((slot, n) => {
-    const k = 4 * bank + n;
-    const spec = chain.PANEL_ENCODERS[k];
-    if (slot.type === 'fault') return card.append(faultRow(slot, `E${k + 1}`));
-    if (!spec) return card.append(slotRow(slot)); // a fifth slot: nothing on the panel reads it
-    // E1 turns the shape in synth layer and picks the sound in sampler.
-    const read = chain.encoderReadout(spec, st, st?.layer === 'sampler');
-    const turn = state.wire.turn[k] ?? 0;
+function encCard(sat: chain.Satellite, i: number, at: chain.Place[], s: Snapshot) {
+  const first = at[0].n + 1;
+  const card = el('div', { className: 'sat panel encs' }, [
+    bankHead(i, `encoders ${first}–${first + at.length - 1}`, sat),
+  ]);
+  const slots = chain.slots(sat);
+  for (const place of at) {
+    const slot = slots[place.slot];
+    const k = place.n + 1;
+    if (slot.type === 'fault') {
+      card.append(faultRow(slot, `E${k}`));
+      continue;
+    }
+    const label = state.profile.encoder?.(place.n, s) ?? null;
+    const turn = state.turn[place.n] ?? 0;
     card.append(
-      el('span', { className: 'cell-name', textContent: `E${k + 1} ${read.name}` }),
-      el('span', { className: read.reported ? 'cell-value' : 'cell-value absent' }, [
-        el('span', { textContent: read.value }),
-        read.extra ? el('span', { className: 'cell-extra', textContent: read.extra }) : '',
+      el('span', { className: 'cell-name', textContent: `E${k}${label ? ` ${label.name}` : ''}` }),
+      el('span', { className: label ? 'cell-value' : 'cell-value absent' }, [
+        el('span', { textContent: label ? label.value : `${slot.value > 0 ? '+' : ''}${slot.value}` }),
+        label?.extra ? el('span', { className: 'cell-extra', textContent: label.extra }) : '',
       ]),
       el('span', {
         className: `cell-turn${turn ? ' on' : ''}`,
         textContent: turn ? `${turn > 0 ? '▲' : '▼'} ${Math.abs(turn)}` : '',
-        title: 'detents in the last reading',
+        title: 'detents in the last report',
       }),
       el('span', {
         className: `cell-press${slot.pressed ? ' on' : ''}`,
         textContent: 'press',
-        title: `tap: ${spec.tap}${spec.held ? ` · held: ${spec.held}` : ''}`,
+        title: label?.tap ? `tap: ${label.tap}` : 'its push switch',
       })
     );
-  });
+  }
   return card;
 }
 
@@ -1104,8 +1006,7 @@ function bankHead(i: number, what: string, sat: chain.Satellite) {
 }
 
 function faultRow(slot: chain.Slot, label: string) {
-  // Only for a slot whose fault is set (chain.slots); a slot past the panel's
-  // controls is drawn by slotRow instead.
+  // Only for a slot whose fault is set (chain.slots).
   return el('div', { className: 'cell-fault bad' }, [
     el('span', { textContent: `${label}: ${chain.faultText(slot.fault as chain.Fault)}` }),
   ]);
@@ -1157,7 +1058,7 @@ function slotRow(slot: chain.Slot) {
       label,
       el('span', { className: 'slot-v', textContent: `position ${slot.value}` }),
     ]);
-  // An unknown or custom board: the line cannot say what its slots are, so
+  // An unknown or custom board: the report cannot say what its slots are, so
   // show the number rather than draw it as something it might not be.
   return el('div', { className: 'slot' }, [label, el('span', { className: 'slot-v', textContent: String(slot.value) })]);
 }
@@ -1190,46 +1091,62 @@ function onKeyUp(e: KeyboardEvent) {
 
 /**
  * The page is holding notes down on real hardware. Anything that takes the
- * keyboard away — switching modes, hiding the tab, closing it — has to lift
- * them, or the Rodeo drones until someone power-cycles it.
+ * keyboard away — hiding the tab, closing it — has to lift them, or the Rodeo
+ * drones until someone power-cycles it.
  */
 function onHide() {
   if (document.visibilityState === 'hidden') panic();
 }
 
-/** The card dialog can change the selection at any time now. */
-export function setLibrary(library: LiveLibrary | null): void {
-  state.library = library;
-  if (!$('live-keys')) return;
-  renderKeyboard();
-  paint();
-}
-
 let unsound: (() => void) | null = null;
 let unrodeo: (() => void) | null = null;
-
 let rodeoWas: string | null = null;
+let chainWas: unknown = null;
+let saidWas: unknown = null;
 
-/** The MIDI side's state, for the parts the serial line also feeds. It comes
- *  many times a second, so the port list is redrawn only when that changes. */
-function onRodeo(s: link.RodeoSnapshot) {
+/** The MIDI side, many times a second: the port list only when it changes. */
+function onRodeo(s: Snapshot) {
   const now = `${s.status}:${!!s.state}`;
   if (now !== rodeoWas) {
     rodeoWas = now;
     renderPorts();
     renderSerial();
   }
-  const p = s.state?.p;
-  if (p) adoptFromRodeo({ layer: LAYERS[p.layer ?? -1], rel: p.release });
+  if (s.said && s.said !== saidWas) {
+    saidWas = s.said;
+    said(s.said.text);
+  }
+  if (s.chain !== chainWas) {
+    chainWas = s.chain;
+    if (s.chain) trackEncoders(s.chain);
+  }
+  renderReadout(s);
+  renderSats(s);
+  paintCount();
 }
 
+export interface Console {
+  /** Redraw what the profile decides: the key span, the marks, the voices. */
+  refresh(): void;
+  unmount(): void;
+}
+
+/**
+ * Draws the console into `container`: the bar with its connections (and
+ * `toolbar` after them), the keyboard, the sequencer, the parameter panel and
+ * the chain.
+ */
 export function mount(
   container: HTMLElement,
-  { library = null, toast = () => {} }: { library?: LiveLibrary | null; toast?: Toast } = {}
-): void {
-  state.library = library;
+  {
+    profile = {},
+    toast = () => {},
+    toolbar = [],
+  }: { profile?: Profile; toast?: Toast; toolbar?: Node[] } = {}
+): Console {
+  state.profile = profile;
   state.toast = toast;
-  container.replaceChildren(markup());
+  container.replaceChildren(...markup(profile.title ?? 'rodeo-console', toolbar));
   wire();
   renderPorts();
   renderKeyboard();
@@ -1238,15 +1155,24 @@ export function mount(
   clock();
   sizer = new ResizeObserver(fitKeyboard);
   sizer.observe($('live-keys'));
-  unsound = mountSound($('live-sound'));
+  link.rodeo.streamChain(true);
+  unsound = mountSound($('live-sound'), profile);
   unrodeo = link.rodeo.subscribe(onRodeo);
+  onRodeo(link.rodeo.snapshot);
   addEventListener('keydown', onKeyDown);
   addEventListener('keyup', onKeyUp);
   addEventListener('pagehide', panic);
   document.addEventListener('visibilitychange', onHide);
+  return {
+    refresh() {
+      renderKeyboard();
+      paint();
+    },
+    unmount,
+  };
 }
 
-export function unmount(): void {
+function unmount(): void {
   panic();
   sizer?.disconnect();
   sizer = null;

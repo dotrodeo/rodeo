@@ -1,23 +1,14 @@
-// The sound: every parameter the Rodeo has, set from the page over MIDI and
-// following the panel as it moves (the protocol's state stream). Grouped the
-// way the panel is (panel.h), with what drives each one beside it.
+// The parameter panel: every parameter the Rodeo has, set from the page over
+// MIDI and following the Rodeo as it moves (the protocol's state stream).
 //
-// The table comes from the Rodeo (hello), not from here: a parameter the page
-// has never heard of still gets a control, under "other".
+// The table comes from the Rodeo (hello), not from here, so any firmware on
+// the SDK gets a panel. A profile (profile.ts) can group it the way the
+// firmware's own panel is, and put the firmware's own controls above it.
 
-import { KEYS } from './preset.ts';
-import { rodeo } from './rodeo/link.ts';
-import { describe } from './rodeo/audition.ts';
+import { rodeo } from './link.ts';
+import { describe } from './describe.ts';
 import type { Param, Snapshot } from '@dotrodeo/rodeo-host';
-import { demoState, loadPreset, presets as presetNames, sounds, type Sound } from '@dotrodeo/rodeo-host/rodeo-demo';
-
-const GROUPS: [string, string[]][] = [
-  ['pot bank 1 · filter', ['cutoff', 'resonance', 'env', 'drive']],
-  ['pot bank 2 · amp envelope', ['attack', 'decay', 'sustain', 'release']],
-  ['encoder bank 1', ['layer', 'shape', 'sound', 'detune', 'octave', 'hpf', 'lfo', 'mix', 'fx']],
-  ['encoder bank 2 · filter envelope', ['fattack', 'fdecay', 'fsustain', 'glide', 'mono']],
-  ['preset only', ['filter', 'keytrack']],
-];
+import type { Profile } from './profile.ts';
 
 /** After the page sets a parameter, the stream still carries the old value
  *  for a moment; leave the control alone for this long. */
@@ -33,9 +24,12 @@ interface Row {
 }
 
 let box: HTMLElement | null = null;
+let groupsBox: HTMLElement | null = null;
+let who: HTMLElement | null = null;
+let profile: Profile = {};
 let rows = new Map<string, Row>();
 let built: Snapshot['hello'] = null; // the hello the controls were built from
-let soundCount = -1;
+let shape = ''; // and the menus' lengths, which a firmware's Max() can change
 const touched = new Map<string, number>(); // key -> when the page last set it
 
 function el<K extends keyof HTMLElementTagNameMap>(
@@ -48,19 +42,22 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return n;
 }
 
-function where(key: string): string {
-  const spec = KEYS[key];
-  return spec?.pot ? `pot ${spec.pot}` : spec?.enc ?? '';
+function where(p: Param): string {
+  if (profile.where) return profile.where(p);
+  return p.pot ? `pot ${p.pot}` : '';
+}
+
+/** A menu for a parameter with names, or one the firmware lists itself. */
+function menu(p: Param, s: Snapshot): string[] | null {
+  return profile.menu?.(p, s) ?? p.names ?? null;
 }
 
 function control(p: Param, s: Snapshot): Control {
-  if (p.key === 'sound' || p.names) {
-    const names = p.key === 'sound' ? sounds(s).map((x) => x.name) : (p.names ?? []);
+  const names = menu(p, s);
+  if (names) {
     const sel = el('select', { disabled: !names.length });
-    names.forEach((n, i) =>
-      sel.append(el('option', { value: String(p.key === 'sound' ? i : p.min + i), textContent: n }))
-    );
-    if (!names.length) sel.append(el('option', { textContent: 'no sounds on the card' }));
+    names.forEach((n, i) => sel.append(el('option', { value: String(p.min + i), textContent: n })));
+    if (!names.length) sel.append(el('option', { textContent: 'nothing to pick' }));
     sel.onchange = () => set(p.key, Number(sel.value));
     return sel;
   }
@@ -73,23 +70,30 @@ function set(key: string, v: number) {
   touched.set(key, performance.now());
   rodeo.set(key, v);
   const r = rows.get(key);
-  if (r) show(r, v, sounds(rodeo.snapshot));
+  if (r) show(r, v, rodeo.snapshot);
 }
 
 /** The value beside a slider; a menu already says its own. */
-function show(r: Row, v: number, list: Sound[]) {
-  r.value.textContent = r.control instanceof HTMLSelectElement ? '' : describe(r.param, v, list);
+function show(r: Row, v: number, s: Snapshot) {
+  r.value.textContent = r.control instanceof HTMLSelectElement ? '' : describe(r.param, v, s, profile);
+}
+
+function groups(params: Param[]): [string, string[]][] {
+  if (profile.groups) return profile.groups;
+  const pots = params.filter((p) => p.pot).sort((a, b) => (a.pot ?? 0) - (b.pot ?? 0));
+  return pots.length ? [['pots', pots.map((p) => p.key)]] : [];
 }
 
 function build(s: Snapshot) {
-  if (!box) return;
+  if (!groupsBox) return;
   rows = new Map();
   const params = Object.values(s.params);
-  const placed = new Set(GROUPS.flatMap(([, keys]) => keys));
+  const named = groups(params);
+  const placed = new Set(named.flatMap(([, keys]) => keys));
   const other = params.filter((p) => !placed.has(p.key)).map((p) => p.key);
-  const groups = other.length ? [...GROUPS, ['other', other] as [string, string[]]] : GROUPS;
+  const all = other.length ? [...named, [named.length ? 'other' : 'parameters', other] as [string, string[]]] : named;
 
-  const cards = groups.map(([title, keys]) => {
+  const cards = all.map(([title, keys]) => {
     const card = el('div', { className: 'sound-group' }, [el('div', { className: 'sat-head', textContent: title })]);
     for (const key of keys) {
       const p = s.params[key];
@@ -97,9 +101,9 @@ function build(s: Snapshot) {
       const c = control(p, s);
       const value = el('output');
       // A menu says its own value, so it takes the value's column too
-      const menu = c instanceof HTMLSelectElement;
-      const row = el('div', { className: menu ? 'sound-row menu' : 'sound-row' }, [
-        el('span', { className: 'sound-name' }, [key, el('span', { className: 'small dim', textContent: ` ${where(key)}` })]),
+      const isMenu = c instanceof HTMLSelectElement;
+      const row = el('div', { className: isMenu ? 'sound-row menu' : 'sound-row' }, [
+        el('span', { className: 'sound-name' }, [key, el('span', { className: 'small dim', textContent: ` ${where(p)}` })]),
         c,
         value,
       ]);
@@ -108,45 +112,29 @@ function build(s: Snapshot) {
     }
     return card;
   });
-
-  const presets = el('select', { id: 'sound-preset', title: 'loads it on the Rodeo (Program Change does the same)' });
-  presets.onchange = () => loadPreset(rodeo, Number(presets.value));
-  box.replaceChildren(
-    el('div', { className: 'row' }, [
-      el('span', { className: 'small dim', textContent: 'preset' }),
-      presets,
-      el('span', { className: 'grow' }),
-      el('span', { className: 'small dim', id: 'sound-who' }),
-    ]),
-    el('div', { className: 'sound-groups' }, cards)
-  );
+  groupsBox.replaceChildren(...cards);
   built = s.hello;
-  soundCount = sounds(s).length;
+  shape = menus(s);
+}
+
+/** The menus' contents, so a list that grows (a card with more sounds) rebuilds. */
+function menus(s: Snapshot): string {
+  return Object.values(s.params)
+    .map((p) => `${p.max}:${menu(p, s)?.join('|') ?? ''}`)
+    .join(',');
 }
 
 function paint(s: Snapshot) {
   if (!box) return;
   if (s.status !== 'ready' || !s.hello) {
     built = null;
-    box.replaceChildren();
+    groupsBox?.replaceChildren();
     box.hidden = true;
     return;
   }
   box.hidden = false;
-  if (built !== s.hello || soundCount !== sounds(s).length) build(s);
-
-  const presets = document.getElementById('sound-preset') as HTMLSelectElement | null;
-  const names = presetNames(s);
-  if (presets && presets.options.length !== names.length) {
-    presets.replaceChildren(
-      ...names.map((name, i) => el('option', { value: String(i), textContent: name }))
-    );
-    if (!names.length) presets.append(el('option', { textContent: 'no presets on the card' }));
-  }
-  const demo = demoState(s);
-  if (presets && demo && document.activeElement !== presets) presets.value = String(demo.preset);
-  const who = document.getElementById('sound-who');
-  if (who) who.textContent = `${s.hello.fw} · protocol ${s.hello.proto}`;
+  if (built !== s.hello || shape !== menus(s)) build(s);
+  if (who) who.textContent = `${s.hello.fw} ${s.hello.build ?? ''} · protocol ${s.hello.proto}`;
 
   const st = s.state;
   if (!st) return;
@@ -161,19 +149,29 @@ function paint(s: Snapshot) {
     r.row.title = held ? 'held: the knob is not what you hear until it is turned' : '';
     if (now - (touched.get(key) ?? -Infinity) < QUIET_MS) continue;
     r.control.value = String(v);
-    show(r, v, sounds(s));
+    show(r, v, s);
   }
 }
 
 /** Draws into `container` from now on; it stays empty until a Rodeo answers. */
-export function mountSound(container: HTMLElement): () => void {
+export function mountSound(container: HTMLElement, p: Profile = {}): () => void {
   box = container;
+  profile = p;
   box.hidden = true;
+  const extras = el('div', { className: 'sound-extras' });
+  who = el('span', { className: 'small dim' });
+  groupsBox = el('div', { className: 'sound-groups' });
+  box.replaceChildren(
+    el('div', { className: 'row' }, [extras, el('span', { className: 'grow' }), who]),
+    groupsBox
+  );
+  const unextras = profile.mountSound?.(extras);
   const off = rodeo.subscribe(paint);
   paint(rodeo.snapshot);
   return () => {
     off();
-    box = null;
+    unextras?.();
+    box = groupsBox = who = null;
     built = null;
   };
 }

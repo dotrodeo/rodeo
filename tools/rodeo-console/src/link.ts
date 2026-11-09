@@ -1,37 +1,18 @@
 // The page's one conversation with a Rodeo over MIDI, through the SDK's host
-// client (rodeo-sdk/host-js; planning/RODEO_DEMO_MIDI_PROTOCOL.md). live.ts
-// opens the ports and hands them here; the sound panel and the preset editor
-// read and set through `rodeo`.
+// client (rodeo-sdk/host-js; the wire format is rodeo-sdk/docs/guides/host.mdx).
+// console.ts opens the ports and hands them here; the sound panel, and anything
+// embedding the console, read and set through `rodeo`.
 //
 // SysEx needs its own permission in Chrome ("control and reprogram MIDI
 // devices"). Without it the keyboard still plays, and this stays quiet.
 
 import { RodeoClient } from '@dotrodeo/rodeo-host';
-import type { Param, State } from '@dotrodeo/rodeo-host';
-import { followRodeoDemo, sounds, type Sound } from '@dotrodeo/rodeo-host/rodeo-demo';
 
 export type { Snapshot as RodeoSnapshot } from '@dotrodeo/rodeo-host';
 
+/** The one client: a page that embeds the console (the rodeo-demo editor)
+ *  talks to the Rodeo through this same one. */
 export const rodeo = new RodeoClient();
-followRodeoDemo(rodeo);
-
-/** What the Rodeo last said it was playing, kept after the port goes away:
- *  disk mode takes MIDI with it, and that is when a preset gets written. */
-export interface Heard {
-  state: State;
-  params: Record<string, Param>;
-  sounds: Sound[];
-  at: number;
-}
-let heard: Heard | null = null;
-rodeo.subscribe((s) => {
-  if (s.status === 'ready' && s.state)
-    heard = { state: s.state, params: s.params, sounds: sounds(s), at: Date.now() };
-});
-
-export function lastHeard(): Heard | null {
-  return heard;
-}
 
 let input: MIDIInput | null = null;
 let sysex = false;

@@ -28,7 +28,7 @@ pattern for another firmware's module.
 
 The package ships TypeScript source (`.ts` imports, erasable syntax only), so
 Node runs it directly and Vite and Metro compile it; there is no build step.
-Used by `tools/rodeo-console` through a `file:` dependency.
+Used by `tools/rodeo-console` and `instruments/rodeo-demo/editor` through `file:` dependencies.
 
 ```sh
 npm install

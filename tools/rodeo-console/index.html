@@ -4,123 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>rodeo-console</title>
-    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="console.css" />
   </head>
   <body>
-    <!--
-      One screen. The Rodeo cannot have the card and the serial port open at
-      the same time — entering disk mode closes CDC and takes USB-MIDI with it
-      — but that is the hardware's business, and the three dots below say which
-      connections are up rather than the page pretending to be two places.
-    -->
-    <header class="bar">
-      <h1>rodeo-console</h1>
-      <span class="mode" id="mode" hidden>demo card</span>
-
-      <div class="conn">
-        <button id="live-connect" class="primary">Connect MIDI</button>
-        <select id="live-port" disabled aria-label="MIDI output"></select>
-        <span class="st" id="st-midi" role="status" aria-label="MIDI"></span>
-      </div>
-
-      <span class="sep"></span>
-
-      <div class="conn">
-        <button id="live-serial">Connect serial</button>
-        <span class="st" id="st-serial" role="status" aria-label="serial"></span>
-      </div>
-
-      <span class="sep"></span>
-
-      <div class="conn">
-        <button id="open">Open card…</button>
-        <button id="reload" hidden>Re-read</button>
-        <span class="st" id="st-card" role="status" aria-label="SD card"></span>
-      </div>
-
-      <span class="sep"></span>
-
-      <div class="pool" id="pool" hidden>
-        <div class="pool-bar"><span id="pool-fill"></span></div>
-        <span class="pool-text" id="pool-text"></span>
-      </div>
-    </header>
-
-    <main id="main">
-      <section id="live-mount"></section>
-
-      <section class="intro" id="live-intro" hidden>
-        <h2>Play it from here</h2>
-        <p class="warn" id="live-unsupported">
-          This browser has no Web MIDI API, so the keyboard cannot send anything. Chrome,
-          Edge, or Safari 17.4 and later can.
-        </p>
-      </section>
-    </main>
-
-    <!-- The card is a job you go and do, not a thing to watch, so it lives in
-         a dialog instead of competing with the keyboard for the screen. -->
-    <dialog id="card-modal" class="card-modal">
-      <header class="modal-bar">
-        <h2>The SD card</h2>
-        <span class="mode" id="modal-mode">card</span>
-        <div class="grow"></div>
-        <button id="modal-reload">Re-read</button>
-        <button id="modal-close">Done</button>
-      </header>
-
-      <div class="modal-body">
-        <section class="intro" id="intro">
-          <p>
-            Put the Rodeo in disk mode — hold encoders 1 and 4 for a second, or press
-            <code>d</code> on its serial port — and the card mounts like any other drive. Open
-            it here and this page will read the library the way the firmware will, convert
-            whatever you drop in, and tell you what the Rodeo would quietly skip.
-          </p>
-          <p class="warn" id="unsupported" hidden>
-            This browser has no File System Access API, so the card cannot be opened in place.
-            Chrome or Edge can. Everything still works; changes come back as a zip to copy
-            across.
-          </p>
-          <p class="small">
-            Eject the drive when you are done. The Rodeo re-reads the card on the way back,
-            and the serial port and USB-MIDI come back with it.
-          </p>
-          <button id="modal-open" class="primary">Open a card…</button>
-        </section>
-
-        <div class="cols" id="cols" hidden>
-          <nav class="sidebar">
-            <div class="side-head">
-              <span>Sounds</span><span id="sound-count" class="count"></span>
-            </div>
-            <ul id="sounds" class="list"></ul>
-            <div class="side-head">
-              <span>Presets</span><span id="preset-count" class="count"></span>
-            </div>
-            <ul id="presets" class="list"></ul>
-            <div class="side-actions">
-              <button id="add-sample">+ sample</button>
-              <button id="add-kit">+ kit</button>
-              <button id="add-preset">+ preset</button>
-            </div>
-          </nav>
-
-          <section class="detail" id="detail">
-            <p class="empty">Pick something on the left.</p>
-          </section>
-        </div>
-
-        <section class="issues" id="issues" hidden>
-          <h3>Before you eject <span class="count" id="issue-count"></span></h3>
-          <ul id="issue-list"></ul>
-        </section>
-      </div>
-    </dialog>
-
-    <div class="drop" id="drop" hidden><span>Drop audio to add it</span></div>
+    <!-- Any Rodeo whose firmware speaks the SDK's host protocol: the keyboard,
+         the sequencer, its parameters and its chain. src/console.ts draws it
+         all; a firmware's own page (instruments/rodeo-demo/editor) embeds the
+         same thing with more to say. -->
+    <div id="app"></div>
     <div class="toast" id="toast" hidden></div>
-
-    <script type="module" src="/src/ui.ts"></script>
+    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

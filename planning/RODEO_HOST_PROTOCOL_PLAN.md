@@ -1,6 +1,6 @@
 # The host protocol in rodeo-sdk — plan
 
-Status: 2026-11-09. Steps 1 and 2 are built and run on a Rodeo: the SDK's `rodeo::Host` (`rodeo-sdk/common/host.h`, `examples/host`), and rodeo-demo on it with the console following. Steps 3–5 are to do.
+Status: 2026-11-09. Steps 1–4 are done: the SDK's `rodeo::Host` (`rodeo-sdk/common/host.h`, `examples/host`), rodeo-demo on it, the shared client (`rodeo-sdk/host-js`), and the console split into a generic `tools/rodeo-console` and the rodeo-demo editor (`instruments/rodeo-demo/editor`). Step 5, the phone app, is not planned: Derek isn't sure the app goes ahead.
 
 ## Why
 
@@ -128,8 +128,25 @@ bit per control.
    `audition.ts`, the card half of `ui.ts`) moves to
    `instruments/rodeo-demo/editor/`, next to the firmware it edits, and embeds
    the generic panel so a player still sees the chain and the sound.
-5. **The phone app** (branch `rodeo-mobile-app`) moves onto the shared client
-   when it's picked up again.
 
-Each step is usable on its own: after step 2 the current console still works
-against rodeo-demo, on protocol 2.
+   Done 2026-11-09. The console reads everything over MIDI now: the chain
+   view is the protocol's chain report, not the serial `#S` line, and each pot
+   is paired with the parameter whose `pot` names it (pot *k* is the *k*-th pot
+   slot on the chain), with the held mark from the state's `hold` bits. Serial
+   is the firmware's log plus a profile's commands; flashing is the protocol's
+   `dfu`. What only rodeo-demo knows went to the editor as a `Profile`
+   (`tools/rodeo-console/src/profile.ts`): the panel's groups, the encoders'
+   jobs, the preset picker, the readout chips, the voice model (`voices.ts`,
+   which now takes layer and release from the state, so those two inputs are
+   gone), the kit bar, and the serial buttons for disk mode. The editor
+   depends on the console with `file:` and mounts it. Checked on the Rodeo in
+   Chrome: the generic console and the editor both show rodeo-demo's
+   parameters, its four satellites and the held pots.
+
+   Left in the firmware: rodeo-demo still writes the `#S` state line
+   (`state_line.cpp`, ~1.4 KB), which nothing reads any more.
+5. **The phone app** (branch `rodeo-mobile-app`): not planned. Derek isn't sure
+   the app goes ahead (2026-11-09). If it does, it moves onto
+   `@dotrodeo/rodeo-host` (Metro needs the folder in `watchFolders`).
+
+Each step was usable on its own.

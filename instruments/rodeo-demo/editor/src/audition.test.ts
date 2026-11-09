@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { Param } from '@dotrodeo/rodeo-host';
-import { describe, paramsToPreset, presetDefaults, presetToParams, toParam } from './audition.ts';
+import { paramsToPreset, presetDefaults, presetToParams, toParam } from './audition.ts';
 
 const P = (key: string, min: number, max: number, unit = '', names?: string[], def = min, pot?: number): Param =>
   ({ id: 0, key, min, max, def, unit, ...(names ? { names } : {}), ...(pot ? { pot } : {}) });
@@ -40,15 +40,6 @@ test('audition: a whole preset, with what cannot be sent said rather than droppe
   );
   assert.deepEqual(sets, [['cutoff', 500], ['shape', 6]]);
   assert.equal(skipped.length, 2);
-});
-
-test('audition: values read the way the panel says them', () => {
-  assert.equal(describe(params.cutoff!, 412), '41 %');
-  assert.equal(describe(params.release!, 420), '420 ms');
-  assert.equal(describe(params.shape!, 4), 'saw + sub');
-  assert.equal(describe(params.octave!, 1), '+1');
-  assert.equal(describe(params.sound!, 1, sounds), 'Grand Piano');
-  assert.equal(describe(P('fattack', 0, 4000, 'ms'), 0), 'follows attack');
 });
 
 test('audition: what the Rodeo plays comes back as a preset, and round-trips', () => {

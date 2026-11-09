@@ -1,20 +1,26 @@
-// The page. Everything decided lives in card.ts / model.ts / preset.ts; this
-// file only renders it and wires the events.
+// The rodeo-demo editor: the console (tools/rodeo-console) with rodeo-demo's
+// profile, and the SD card in a dialog over it. Everything decided lives in
+// card.ts / model.ts / preset.ts; this file only renders it and wires the
+// events.
 
 import { KIT_FIRST_NOTE, MAX_NAME, noteName, playbackSpeed, soundName } from './card.ts';
 import { buildLibrary, formatBytes, poolStats, validate } from './model.ts';
 import { KEYS, SHAPES, formatPreset, parsePreset } from './preset.ts';
 import * as fs from './fs.ts';
 import { demoCard } from './demo.ts';
-import * as live from './live.ts';
-import { lastHeard, rodeo } from './rodeo/link.ts';
-import { sounds as rodeoSounds } from '@dotrodeo/rodeo-host/rodeo-demo';
-import { paramsToPreset, presetDefaults, presetToParams, toParam } from './rodeo/audition.ts';
+import 'rodeo-console/console.css';
+import '../editor.css';
+import { mount, type Console } from 'rodeo-console/console';
+import { rodeo } from 'rodeo-console/link';
+import type { KeySpan } from 'rodeo-console/profile';
+import type { Param, State } from '@dotrodeo/rodeo-host';
+import { followRodeoDemo, sounds as rodeoSounds, type Sound as RodeoSound } from '@dotrodeo/rodeo-host/rodeo-demo';
+import { rodeoDemo } from './profile.ts';
+import { paramsToPreset, presetDefaults, presetToParams, toParam } from './audition.ts';
 import { decodeAudio, encodeWav, firstTwo, peak, scale, toMono, trimSilence } from './wav.ts';
 import type { Card } from './card.ts';
 import type { Library, Sound } from './model.ts';
 import type { NumberSpec, Preset, PresetValues } from './preset.ts';
-import type { KitSpan } from './live.ts';
 
 // Typed as present: every id here is one index.html declares.
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -63,6 +69,27 @@ const state: UiState = {
   presets: [],
   selected: null, // { type: 'sound' | 'preset', name }
 };
+
+// ------------------------------------------------------------- the Rodeo
+
+followRodeoDemo(rodeo); // its preset and sound lists, each time it says hello
+
+/** What the Rodeo last said it was playing, kept after the port goes away:
+ *  disk mode takes MIDI with it, and that is when a preset gets written. */
+interface Heard {
+  state: State;
+  params: Record<string, Param>;
+  sounds: RodeoSound[];
+  at: number;
+}
+let heard: Heard | null = null;
+rodeo.subscribe((s) => {
+  if (s.status === 'ready' && s.state)
+    heard = { state: s.state, params: s.params, sounds: rodeoSounds(s), at: Date.now() };
+});
+const lastHeard = () => heard;
+
+let console_: Console | null = null;
 
 // ------------------------------------------------------------------ toast
 
@@ -126,7 +153,7 @@ function render() {
   renderIssues();
   paintCardStatus();
   // The keyboard marks the selected kit's range, so it follows the selection.
-  live.setLibrary({ kitSpan: kitSpan() });
+  console_?.refresh();
 }
 
 function renderPool() {
@@ -191,6 +218,7 @@ function select(type: Selection['type'], name: string) {
   state.selected = { type, name };
   renderSidebar();
   renderDetail();
+  console_?.refresh(); // a kit's keys go on the keyboard
 }
 
 function renderDetail() {
@@ -617,11 +645,19 @@ function readOnly() {
  * when a kit is what is selected. Rodeo's own selection is not knowable from
  * this page, so this is offered as "from the card you read", not as truth.
  */
-function kitSpan(): KitSpan | null {
+function kitSpan(): KeySpan | null {
   if (state.selected?.type !== 'sound') return null;
   const sound = state.library?.sounds.find((s) => s.name === state.selected!.name);
   if (!sound?.kit) return null;
-  return { name: sound.name, from: KIT_FIRST_NOTE, files: sound.files.filter((f) => f.loaded).length };
+  const files = sound.files.filter((f) => f.loaded).length;
+  if (!files) return null;
+  const to = KIT_FIRST_NOTE + files - 1;
+  return {
+    label: `${sound.name} · ${noteName(KIT_FIRST_NOTE)}–${noteName(to)}`,
+    from: KIT_FIRST_NOTE,
+    to,
+    title: `${files} files, from the card read here. In sampler layer a key outside the bar allocates no voice at all.`,
+  };
 }
 
 /**
@@ -680,12 +716,13 @@ if (DEMO) {
 }
 paintCardStatus();
 
-// Live mode is the screen now, so it mounts once and stays.
-if (live.supported()) {
-  live.mount($('live-mount'), { library: { kitSpan: kitSpan() }, toast });
-} else {
-  $('live-intro').hidden = false;
-}
+// The console is the screen, so it mounts once and stays. The card's controls
+// join its bar.
+console_ = mount($('console'), {
+  profile: rodeoDemo(kitSpan),
+  toast,
+  toolbar: [...$('card-bar').children],
+});
 
 // Drag audio anywhere on the page.
 let dragDepth = 0;
