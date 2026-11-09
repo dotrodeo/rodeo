@@ -94,6 +94,11 @@
 //     examples/usb_storage (the SD card as a USB drive, in a disk mode) and
 //     examples/usb_audio (UAC1 4x4, 24-bit, both codecs) build for Rev B but
 //     wait for the motherboard.
+//   * host.h / host_usb.h: the host protocol (2026-11-09), from rodeo-demo's
+//     MIDI protocol: a firmware's parameter table, state, chain and dfu over
+//     USB-MIDI SysEx, so the console shows any firmware. Protocol 2. Pure and
+//     host-tested; about 6 KB of code; RODEO_HOST=0 compiles it out.
+//     examples/host builds for Rev B, not yet run on it. 117 host tests.
 
 #pragma once
 

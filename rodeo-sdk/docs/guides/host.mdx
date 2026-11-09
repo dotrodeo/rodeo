@@ -1,0 +1,159 @@
+---
+title: Talking to a computer
+description: The host protocol — any firmware's parameters and satellite chain, seen and set from a computer over USB-MIDI, with no code on the computer's side for that firmware.
+sidebar:
+  order: 8
+---
+
+:::note[Host-tested; not yet run on a Rodeo]
+The protocol is pure logic, tested on the host against requests and replies
+checked byte for byte (`common/tests/host_gtest.cpp`), and `examples/host` builds
+for Rev B. It grew out of rodeo-demo's MIDI protocol, which has run on hardware
+since November 2026. API: [`host.h`](/sdk/reference/api/host/).
+:::
+
+Plug a Rodeo into a computer and the computer should be able to see what it is:
+its parameters, its satellites, every control's reading. The host protocol is
+how. A firmware describes its parameters in a table; the SDK's `Host` answers a
+computer's questions about them over USB-MIDI, and sets them when asked.
+`tools/rodeo-console` builds its panel from that description, so it works with a
+firmware it has never heard of.
+
+## In a firmware
+
+The table says what each parameter is. The `HostApp` reads and sets them:
+
+```cpp
+const rodeo::HostParam kParams[] = {
+    // id, key, min, max, default, unit, names, pot
+    {0, "cutoff", 0, 1000, 600, "\\u2030", nullptr, 1},
+    {1, "shape", 0, 3, 2, "", kShapes, 0},
+};
+
+struct App : rodeo::HostApp
+{
+    int  Get(const rodeo::HostParam& p) override { return value[p.id]; }
+    void Set(const rodeo::HostParam& p, int v) override { value[p.id] = v; }
+} app;
+```
+
+Then give the `Host` the table, the app, the chain and some memory, and pump it
+from the main loop. Offer it every USB-MIDI packet first; whatever it doesn't
+take is the firmware's own MIDI:
+
+```cpp
+uint8_t host_memory[rodeo::Host::kMemory] DSY_SDRAM_BSS;
+
+rodeo::Host::Config cfg;
+cfg.firmware = "my-synth";
+cfg.params   = kParams;
+cfg.count    = 2;
+cfg.app      = &app;
+cfg.chain    = &chain;
+cfg.memory   = host_memory;
+cfg.memory_size = sizeof host_memory;
+host.Init(cfg);
+
+for(;;)
+{
+    tud_task();
+    uint8_t pk[4];
+    while(tud_midi_packet_read(pk))
+        if(!host.Receive(pk, System::GetNow()))
+            MyMidi(pk);
+    chain_port.Process(chain);
+    rodeo::HostUsbTask(host, System::GetNow(), cpu_percent);
+    if(host.DfuRequested())
+        ResetToDfu();
+}
+```
+
+`examples/host` is a whole firmware built this way: a drone with six
+parameters, four of them on the first pot bank, that the console shows and sets
+and MIDI notes play.
+
+Values are whole numbers in the parameter's own units: milliseconds, per mille,
+a choice's index. A parameter's `max - min` is at most 16383, the 14 bits a set
+carries. Ids are the firmware's to choose, 0 to 127, and should stay put from one
+build to the next.
+
+Optional hooks add to what's said: `Max()` for a range that changes (the sounds
+on a card), `Held()` for pots a preset is holding, `Hello()` and `State()` for
+fields of the firmware's own, and `Command()` for whole commands of its own.
+
+## What it costs, and turning it off
+
+About 6 KB of code, the memory it's given (`Host::kMemory`, 24 KB, best in SDRAM),
+and no CPU while no computer is asking. While one streams, the state and the
+chain are formatted in the main loop, never the audio callback, about 20 times a
+second while they change and not at all while they don't.
+
+It never sends or takes a note, a CC or a program change. A firmware's MIDI map is
+its own.
+
+`make RODEO_HOST=0` compiles it out: the calls stay in the firmware and do
+nothing, and `Host::kMemory` shrinks to 4 bytes. Switching rebuilds from scratch.
+
+## On the wire
+
+Every message, both ways, is SysEx under the MIDI spec's non-commercial ID:
+
+```
+F0 7D 52 44 <version> <command> <payload> F7
+```
+
+`52 44` is "RD". The version is 2. A reply's command is the request's plus `0x40`,
+and its payload is JSON, ASCII only (`‰` for ‰). A request with another
+version gets one error and is otherwise ignored.
+
+| Command | Request payload | Reply |
+|---|---|---|
+| `01` hello | none | `41`: the firmware and its parameters |
+| `02` state | none | `42`: every parameter's value |
+| `03` stream | one byte: 1 state, 2 chain, 3 both, 0 stop | `42` and `48` as they change |
+| `04` set | id, then value − min as two 7-bit bytes, low first; repeated | none |
+| `08` chain | none | `48`: the satellites and their controls |
+| `09` dfu | none | `49`, then the bootloader |
+| `20`–`3E` | the firmware's own | the firmware's own, `60`–`7E` |
+
+Unasked, Rodeo sends `43` (what just changed, in words, while streaming) and
+`7F` (an error: `{"error":"no parameter 99"}`).
+
+**Hello** (`41`):
+
+```json
+{"fw":"host-example","build":"f9c456d","proto":2,"sdk":"0.2.0","chain":1,
+ "params":[{"id":0,"key":"cutoff","min":0,"max":1000,"def":600,"unit":"‰","pot":1},
+           {"id":1,"key":"shape","min":0,"max":3,"def":2,"names":["sine","triangle","saw","square"]}]}
+```
+
+`unit`, `pot` and `names` appear only when there is one. The firmware's own
+fields follow `params`.
+
+**State** (`42`): `{"p":{"cutoff":600,"shape":2},"hold":0,"cpu":14}`. `hold` has a
+bit per pot, pot 1 in bit 0, set while a preset holds that pot's parameter.
+
+**Chain** (`48`):
+
+```json
+{"state":"scan","sats":2,"broken":-1,
+ "s":[{"kind":5,"fw":"1.0","in":[484,491,481,491]},
+      {"kind":6,"fw":"1.0","in":[3,0,-1,0],"btn":[0,0,1,0]}],
+ "good":9971,"bad":0}
+```
+
+One entry per satellite in chain order. `in` is each slot's reading: a pot in per
+mille, an encoder's running total of detents since the chain last changed shape,
+a button 0 or 1, a switch's position. `btn` is an encoder's push switch, and
+`fault` a slot's fault code and detail, when there are any. `broken` is how many
+satellites answer before a break, or -1.
+
+**Streaming.** A stream lasts five seconds from the last `03`, so a computer that
+wants it keeps asking every couple of seconds; one that goes away stops it. Each
+part is sent straight away, then at most every 50 ms while it changes. The state
+stops a second after it last changed. The chain is sent at least once a second,
+for its scan counts, and a pot moves in it only once it has moved 3 in 1000.
+
+Replies are queued whole and sent as the computer takes them, so the main loop
+never waits on USB and a computer never sees half a message. If the queue is
+full, a message is dropped whole.

@@ -31,7 +31,7 @@ DSP_OBJECTS = $(patsubst $(DAISYSP_DIR)/%.cpp,$(BUILD_PATH)/daisysp/%.o,$(DSP_SO
 
 # Host-safe .cpp files from common/ that the tests link (the rest of common/
 # needs libDaisy and the target).
-COMMON_SOURCES = ../sat_chain.cpp
+COMMON_SOURCES = ../sat_chain.cpp ../host.cpp
 COMMON_OBJECTS = $(patsubst ../%.cpp,$(BUILD_PATH)/common/%.o,$(COMMON_SOURCES))
 
 SRC_EXT = cpp

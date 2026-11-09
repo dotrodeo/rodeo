@@ -42,6 +42,7 @@ rodeo-sdk/
     battery.{h,cpp}      # the battery, through the MAX17048 fuel gauge (target only)
     max17048.h           # the gauge's registers and their decoding (host-safe)
     tinyusb.mk, usb_port.{h,cpp} # TinyUSB on either port: RODEO_USB=fs (micro-USB) or hs (Rev B)
+    host.{h,cpp}, host_usb.h # the host protocol: parameters and chain to a computer over USB-MIDI
     version.h            # SDK version + RODEO_SDK_AT_LEAST(); the real changelog
     rodeo.mk             # shared build rules; every app/example includes this
     ads114s08.{h,cpp}    # per-chip ADS114S08 SPI ADC driver
@@ -67,6 +68,7 @@ rodeo-sdk/
     usb_audio/         # Rev B 10: UAC1 4x4, 24-bit, both codecs, + MIDI and serial
     spi_header/        # Rev B 11: the expansion header's SPI as a loop-back
     usb_device/        # TinyUSB on a bare Seed: stereo audio, MIDI, serial, RAM-disk mode
+    host/              # the host protocol: a drone the console shows and sets over USB-MIDI
   tools/
     screens/           # render an instrument's real OLED screens on your laptop
     docs/              # gen_reference.py: the API reference from the headers

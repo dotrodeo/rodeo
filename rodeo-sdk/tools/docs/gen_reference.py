@@ -38,6 +38,7 @@ HEADERS = [
     ('sat_frame.h', 3),
     ('sat_chain.h', 4),
     ('sat_chain_port.h', 5),
+    ('host.h', 16),
     ('io_plan.h', 6),
     ('io.h', 7),
     ('audio_4x4.h', 8),

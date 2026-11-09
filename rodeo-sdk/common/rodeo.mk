@@ -20,6 +20,20 @@ RODEO_ROOT ?= ../..
 # Rodeo shared headers. board.h is the single source of truth for the pin map.
 C_INCLUDES += -I$(RODEO_ROOT)/common
 
+# The host protocol (common/host.h) is on wherever an app uses it; RODEO_HOST=0
+# compiles it to nothing, leaving the calls in place. As tinyusb.mk does for the
+# port, a stamp in build/ says which it was built with, and switching rebuilds
+# from scratch (keeping the other stamps, so they don't rebuild it again).
+RODEO_HOST ?= 1
+C_DEFS     += -DRODEO_HOST=$(RODEO_HOST)
+RODEO_HOST_STAMP := build/.host-$(RODEO_HOST)
+ifneq ($(filter-out $(RODEO_HOST_STAMP),$(wildcard build/.host-*)),)
+$(info build/ is not for RODEO_HOST=$(RODEO_HOST): rebuilding)
+RODEO_KEEP_STAMPS := $(filter-out build/.host-%,$(wildcard build/.[a-z]*-*))
+$(shell rm -rf build && mkdir build $(if $(RODEO_KEEP_STAMPS),&& touch $(RODEO_KEEP_STAMPS)))
+endif
+$(shell mkdir -p build && touch $(RODEO_HOST_STAMP))
+
 LIBDAISY_DIR = $(RODEO_ROOT)/libDaisy
 DAISYSP_DIR  = $(RODEO_ROOT)/DaisySP
 

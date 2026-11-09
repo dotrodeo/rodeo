@@ -1,6 +1,6 @@
 # The host protocol in rodeo-sdk — plan
 
-Status: plan, 2026-11-09. Nothing here is built yet.
+Status: 2026-11-09. Step 1 is built and host-tested (`rodeo-sdk/common/host.h`, `examples/host`), not yet run on a Rodeo. Steps 2–5 are to do.
 
 ## Why
 
@@ -84,14 +84,21 @@ bit per control.
 - **USB descriptors.** rodeo-demo builds its own TinyUSB configuration (audio,
   MIDI, CDC, mass storage). The SDK's `usb_port` needs a MIDI interface for the
   host to ride on, in every configuration a firmware might choose.
-- **The name**: `Host`, `Remote`, `Link`.
+- **The name**: `rodeo::Host` (`common/host.h`), chosen in step 1.
 
 ## Steps
 
-1. **SDK: the host module**, built from remote.cpp and state_line.cpp, with the
-   parameter table and defaults. An SDK example (`examples/host`) with a handful
-   of parameters on one pot bank. SDK docs: a design draft in `docs/guides/`,
-   then the reference once the header exists (`make docs`).
+1. **SDK: the host module** (built 2026-11-09), from remote.cpp and
+   state_line.cpp, with the parameter table and defaults: `common/host.h`,
+   `host.cpp`, `host_usb.h`; `examples/host`; the guide `docs/guides/host.mdx`
+   (the wire format) and the generated reference. 12 host tests. About 6 KB of
+   code on ARM; `RODEO_HOST=0` compiles it out. Differences from rodeo-demo's
+   protocol 1: hello carries each parameter's `def`, the firmware's `sdk`
+   version and whether it has a `chain`; stream takes bits (1 state, 2 chain);
+   the chain report (`08`, reply `48`) replaces the serial `#S` line's chain
+   half; `09` reboots for flashing; `20`–`3E` are the firmware's own commands,
+   so rodeo-demo's presets, load and sounds (`05`–`07` today) move there in
+   step 2.
 2. **rodeo-demo moves onto it**, keeping its own commands. Protocol version 2.
    This proves the module: if rodeo-demo can't be expressed with it, the API is
    wrong.

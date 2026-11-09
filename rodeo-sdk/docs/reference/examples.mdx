@@ -16,6 +16,7 @@ setup, plus a jumper wire or two.
 | `usb_midi_cdc` | TinyUSB on the Seed's micro-USB: composite USB-MIDI and a serial port. Echoes every MIDI message, plays middle C once a second, and echoes what you type. |
 | `sat_chain` | The satellite chain driver, with the Seed's pin 3 wired to pin 2: a ring with no satellites. It discovers an empty chain and scans it at 250 a second; pull the wire and it finds the break within a second, put it back and it recovers on the next retry. Status over the Seed's USB serial. |
 | `io_connectors` | The I/O connectors checking themselves: jumper pin 30 (CV1) to pin 29 (CV2) and pin 23 (A2) to pin 8 (D1), and it sweeps the DAC and reads it back on the ADC, then toggles a digital output and reads it back. Then it reports a pot on A1. |
+| `host` | The host protocol (Rev B, USB-C): a drone whose six parameters the console shows and sets over USB-MIDI, four of them on the first pot bank, played by MIDI notes beside it. `make RODEO_HOST=0` builds it with the protocol compiled out. |
 | `usb_device` | The full device: stereo audio in and out at 48 kHz / 24-bit, USB-MIDI, serial and a RAM disk, simultaneously. The serial port switches what the computer records — the Seed's inputs, a digital loopback, or a test tone. |
 
 ```sh
