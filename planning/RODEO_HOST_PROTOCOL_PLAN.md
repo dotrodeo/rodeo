@@ -143,8 +143,8 @@ bit per control.
    Chrome: the generic console and the editor both show rodeo-demo's
    parameters, its four satellites and the held pots.
 
-   Left in the firmware: rodeo-demo still writes the `#S` state line
-   (`state_line.cpp`, ~1.4 KB), which nothing reads any more.
+   The `#S` state line went from rodeo-demo the same day (`state_line.cpp`,
+   `j` and `J`): nothing read it any more.
 5. **The phone app** (branch `rodeo-mobile-app`): not planned. Derek isn't sure
    the app goes ahead (2026-11-09). If it does, it moves onto
    `@dotrodeo/rodeo-host` (Metro needs the folder in `watchFolders`).

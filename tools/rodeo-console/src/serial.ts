@@ -1,8 +1,8 @@
 // Web Serial, which is how the console reaches the Rodeo's CDC port.
 //
 // Chrome and Edge only, and only over a secure context. The port is the same
-// one a terminal would open: `s` prints prose for a human, `j` and `J` emit the
-// `#S` line this page reads (main.cpp's SerialTask).
+// one a terminal would open: the firmware's log, and the commands a profile adds
+// (rodeo-demo's `s`, `d`, `n`).
 //
 // Disk mode closes this port — the Rodeo re-enumerates without CDC — so losing
 // the port is a normal thing that happens, not an error to shout about.
@@ -14,7 +14,7 @@ export function supported(): boolean {
 }
 
 export interface PortEvents {
-  /** Every whole line, `#S` or not. */
+  /** Every whole line. */
   onLine?: (line: string) => void;
   /** The port closed: `why` is null for a close we asked for. */
   onClose?: (why: string | null | undefined) => void;

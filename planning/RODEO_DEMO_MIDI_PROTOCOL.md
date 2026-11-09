@@ -29,8 +29,8 @@ This adds two layers:
    14-bit parameter sets, the state as a stream, and the preset and sound lists.
 
 Both end up in one function that sets a parameter, so a knob, a CC and the app
-all behave the same way. **Nothing on the serial port changes**: `s`, `j`, `J`
-and the rest stay as they are for rodeo-console.
+all behave the same way. The serial port's `#S` state line (`j`, `J`)
+was removed on 2026-11-09, once the console read everything over MIDI.
 
 ## Parameters
 
@@ -182,7 +182,7 @@ The SDK's (`p`, `hold`, `cpu`), plus rodeo-demo's:
 
 * `hold`: one bit a pot, bit 0 pot 1 (cutoff) … bit 7 pot 8 (release), set while a
   preset or the computer holds the parameter and its pot hasn't taken it back.
-* `card` is 0 none, 1 mounted, 2 disk mode, as on `#S`. `panel` is 1 when the first
+* `card` is 0 none, 1 mounted, 2 disk mode, as the panel shows it. `panel` is 1 when the first
   pot bank and the first encoder bank are on the chain.
 
 #### `0x60` preset list, `0x62` sound list

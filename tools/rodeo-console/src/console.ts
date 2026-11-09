@@ -772,8 +772,8 @@ function shift(by: number) {
 // ---------------------------------------------------------------- serial
 //
 // Web Serial, as a log: whatever the firmware prints, the last line shown. A
-// line starting `#` is for machines (rodeo-demo's `#S` state line) and is not
-// shown. The profile's commands go out here.
+// line starting `#` is for machines and is not shown. The profile's commands
+// go out here.
 
 async function connectSerial() {
   if (state.wire.port) return state.wire.port.close();

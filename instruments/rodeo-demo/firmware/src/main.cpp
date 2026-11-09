@@ -32,7 +32,6 @@
 #include "presets.h"
 #include "remote.h"
 #include "samples.h"
-#include "state_line.h"
 #include "synth.h"
 #include "usb_audio.h"
 
@@ -177,105 +176,6 @@ void PrintState()
     cpu.Reset();
 }
 
-// Writes all of s, a piece at a time: the CDC buffer is 512 bytes and a state line
-// with a long chain is more. Gives up (the rest unsent) if the computer stops
-// reading for 50 ms.
-void Send(const char* s, size_t n)
-{
-    uint32_t start = System::GetNow();
-    while(n && tud_cdc_connected() && System::GetNow() - start < 50)
-    {
-        uint32_t w = tud_cdc_write(s, n);
-        s += w;
-        n -= w;
-        tud_cdc_write_flush();
-        if(n)
-            tud_task();
-    }
-}
-
-// The `#S` state line for tools/rodeo-console: the state as one line of JSON
-// (planning/RODEO_CONSOLE_STATE_LINE.md). Unlike PrintState() it leaves the CPU
-// peak alone, so polling doesn't wipe it. Returns a hash of everything but the
-// CPU figures and scan counts, which change all the time: the stream sends while
-// that changes.
-uint32_t StateLine(bool send)
-{
-    static char       buf[4096];
-    samples::Stats    s        = samples::GetStats();
-    const char* const layers[] = {"synth", "sampler", "both"};
-    int               card     = disk::Active() ? 2 : s.card ? 1 : 0;
-    // The preset's name, made safe for a JSON string
-    char        name[64];
-    const char* from = panel::Preset() >= 0 ? presets::Name(panel::Preset()) : "";
-    size_t      m    = 0;
-    for(; *from && m < sizeof name - 1; from++)
-        if(*from != '"' && *from != '\\' && (unsigned char)*from >= 0x20)
-            name[m++] = *from;
-    name[m] = 0;
-
-    int len = snprintf(buf, sizeof buf,
-                       "#S {\"preset\":%d,\"name\":\"%s\",\"layer\":\"%s\",\"shape\":\"%s\","
-                       "\"sound\":%d,\"nsounds\":%d,\"cut\":%d,\"res\":%d,\"env\":%d,\"atk\":%d,"
-                       "\"det\":%d,\"oct\":%d,\"lfo\":%d,\"fx\":%d,\"mix\":%d,"
-                       "\"rel\":%d,\"drv\":%d,\"dec\":%d,\"sus\":%d,\"hpf\":%d,\"fatk\":%d,"
-                       "\"fdec\":%d,\"fsus\":%d,\"glide\":%d,\"mono\":%d,"
-                       "\"voices\":%d,\"card\":%d,\"loaded\":%d,\"samples\":%d,"
-                       "\"skipped\":%d,\"kb\":%lu,\"loadms\":%lu,",
-                       panel::Preset(), name, layers[(int)params.layer],
-                       synth::ShapeName(params.shape), params.sound, s.sounds,
-                       (int)lroundf(params.cutoff * 100.f), (int)lroundf(params.resonance * 100.f),
-                       (int)lroundf(params.env_amount * 100.f), (int)(params.attack * 1000.f),
-                       (int)lroundf(params.detune * 100.f), params.octave, params.lfo ? 1 : 0,
-                       (int)params.fx, (int)lroundf(params.fx_mix * 100.f),
-                       (int)(params.release * 1000.f), (int)lroundf(params.drive * 100.f),
-                       (int)lroundf(params.decay * 1000.f), (int)lroundf(params.sustain * 100.f),
-                       (int)lroundf(params.hpf),
-                       params.fattack < 0.f ? 0 : (int)lroundf(params.fattack * 1000.f),
-                       (int)lroundf(params.fdecay * 1000.f), (int)lroundf(params.fsustain * 100.f),
-                       (int)lroundf(params.glide * 1000.f), params.mono ? 1 : 0,
-                       synth::Active(), card, s.loaded,
-                       s.samples, s.skipped, (unsigned long)(s.bytes_used / 1024),
-                       (unsigned long)s.load_ms);
-    size_t c = state_line::Chain(chain, panel::Found(), buf + len, sizeof buf - len - 96);
-    if(c == 0)
-        c = snprintf(buf + len, sizeof buf - len - 96, "\"chain\":{\"error\":\"too long\"");
-    len += c;
-
-    uint32_t hash = 2166136261u; // FNV-1a
-    for(int i = 0; i < len; i++)
-        hash = (hash ^ (uint8_t)buf[i]) * 16777619u;
-
-    len += snprintf(buf + len, sizeof buf - len,
-                    ",\"good\":%lu,\"bad\":%lu},\"cpu\":%d,\"peak\":%d}\r\n",
-                    (unsigned long)chain.GoodScans(), (unsigned long)chain.BadScans(),
-                    (int)(cpu.GetAvgCpuLoad() * 100.f), (int)(cpu.GetMaxCpuLoad() * 100.f));
-    if(send)
-        Send(buf, len);
-    return hash;
-}
-
-// J: the state line about 20 times a second while anything changes, quiet once
-// nothing has for a second
-bool     streaming = false;
-uint32_t last_hash = 0, last_change = 0, last_sent = 0;
-
-void StreamTask()
-{
-    uint32_t now = System::GetNow();
-    if(!streaming || now - last_sent < 50)
-        return;
-    last_sent     = now;
-    uint32_t hash = StateLine(false);
-    if(hash != last_hash)
-    {
-        last_hash   = hash;
-        last_change = now;
-    }
-    if(now - last_change < 1000)
-        StateLine(true);
-}
-
 bool disk_wanted = false; // asked for on the serial port
 
 // Hand the card to the computer, saying so first: the serial port closes as the
@@ -301,11 +201,9 @@ void SerialTask()
                   "to hand it back. s = state, n = leave now (without the eject)\r\n");
         else
             Print("\r\nrodeo-demo. s = state, d = disk mode (the SD card as a USB drive),\r\n"
-                  "p = next preset, j = state as JSON, J = stream it, B = reboot into the bootloader\r\n");
+                  "p = next preset, B = reboot into the bootloader\r\n");
         PrintState();
     }
-    if(!connected)
-        streaming = false;
     was_connected = connected;
 
     while(tud_cdc_available())
@@ -315,13 +213,6 @@ void SerialTask()
             PrintState();
         else if(c == 'p' && presets::Count() > 0)
             Say(panel::LoadPreset((panel::Preset() + 1) % presets::Count(), params));
-        else if(c == 'j')
-            StateLine(true);
-        else if(c == 'J')
-        {
-            streaming   = !streaming;
-            last_change = System::GetNow(); // send straight away
-        }
         else if(c == 'd' && !disk::Active())
             disk_wanted = true;
         else if(c == 'n' && disk::Active())
@@ -372,7 +263,6 @@ int main(void)
     {
         tud_task();
         SerialTask();
-        StreamTask();
         MidiTask();
         remote::Task((int)(cpu.GetAvgCpuLoad() * 100.f));
         if(remote::DfuRequested()) // the computer's dfu, as 'B' on the serial port
@@ -381,7 +271,6 @@ int main(void)
             ResetToDfu();
         }
         chain_port.Process(chain);
-        state_line::Track(chain);
         panel::Status status = disk::Active() ? panel::Status::Disk
                                : loading      ? panel::Status::Loading
                                               : panel::Status::Playing;

@@ -1,12 +1,16 @@
 ---
 title: "The `#S` state line — what rodeo-console needs from the firmware"
 tags: [rodeo, firmware, serial, tooling, console]
-status: implemented in rodeo-demo (j and J), 2026-11-02
+status: retired 2026-11-09 — removed from rodeo-demo; the SDK's host protocol (chain report and state, over MIDI) replaced it
 created: 2026-11-02
 updated: 2026-11-03
 ---
 
 # The `#S` state line
+
+> **Retired 2026-11-09.** rodeo-demo no longer has `j`, `J` or the line; the
+> console reads the same things over MIDI through the SDK's host protocol
+> (`rodeo-sdk/docs/guides/host.mdx`). Kept for the history.
 
 One serial command, so `tools/rodeo-console`'s chain view can read the Rodeo's
 state instead of screen-scraping it. Everything else in the console is built and

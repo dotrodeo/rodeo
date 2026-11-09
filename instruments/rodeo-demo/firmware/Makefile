@@ -7,7 +7,7 @@
 #                         2-second window at power-up)
 #   make AUDIO_BITS=24    24-bit USB audio: direct ports only, not behind a hub
 TARGET       = rodeo-demo
-CPP_SOURCES  = src/main.cpp src/synth.cpp src/samples.cpp src/panel.cpp src/usb_audio.cpp src/disk.cpp src/presets.cpp src/state_line.cpp \
+CPP_SOURCES  = src/main.cpp src/synth.cpp src/samples.cpp src/panel.cpp src/usb_audio.cpp src/disk.cpp src/presets.cpp \
                src/params.cpp src/remote.cpp \
                $(RODEO_ROOT)/common/audio_4x4.cpp \
                $(RODEO_ROOT)/common/sat_chain.cpp $(RODEO_ROOT)/common/sat_chain_port.cpp \
