@@ -16,31 +16,32 @@ const char* const kFilter[]  = {"svf", "ladder", "ladder12"};
 static_assert(sizeof kShape / sizeof kShape[0] == synth::kShapes, "a name for every shape");
 
 #define PERMILLE "\\u2030"
-const Info kTable[] = {
-    {0, "cutoff", 0, 1000, PERMILLE, nullptr, 1},
-    {1, "resonance", 0, 1000, PERMILLE, nullptr, 2},
-    {2, "env", 0, 1000, PERMILLE, nullptr, 3},
-    {3, "release", 5, 4000, "ms", nullptr, 8},
-    {4, "attack", 1, 4000, "ms", nullptr, 5},
-    {5, "detune", 0, 50, "cents", nullptr, 0},
-    {6, "octave", -2, 2, "", nullptr, 0},
-    {7, "mix", 0, 100, "%", nullptr, 0},
-    {8, "lfo", 0, 1, "", kOffOn, 0},
-    {9, "fx", 0, 2, "", kFx, 0},
-    {10, "layer", 0, 2, "", kLayer, 0},
-    {11, "shape", 0, synth::kShapes - 1, "", kShape, 0},
-    {12, "sound", 0, 0, "", nullptr, 0}, // max: the card's sounds, less one
-    {16, "decay", 1, 10000, "ms", nullptr, 6},
-    {17, "sustain", 0, 100, "%", nullptr, 7},
-    {18, "fattack", 0, 4000, "ms", nullptr, 0}, // 0: follows attack
-    {19, "fdecay", 1, 10000, "ms", nullptr, 0},
-    {20, "fsustain", 0, 100, "%", nullptr, 0},
-    {21, "filter", 0, 2, "", kFilter, 0},
-    {22, "drive", 0, 100, "%", nullptr, 4},
-    {23, "hpf", 0, 2000, "Hz", nullptr, 0},
-    {24, "keytrack", 0, 100, "%", nullptr, 0},
-    {25, "mono", 0, 1, "", kOffOn, 0},
-    {26, "glide", 0, 2000, "ms", nullptr, 0},
+// id, key, min, max, default (Init() fills it in), unit, names, pot
+Info kTable[] = {
+    {0, "cutoff", 0, 1000, 0, PERMILLE, nullptr, 1},
+    {1, "resonance", 0, 1000, 0, PERMILLE, nullptr, 2},
+    {2, "env", 0, 1000, 0, PERMILLE, nullptr, 3},
+    {3, "release", 5, 4000, 0, "ms", nullptr, 8},
+    {4, "attack", 1, 4000, 0, "ms", nullptr, 5},
+    {5, "detune", 0, 50, 0, "cents", nullptr, 0},
+    {6, "octave", -2, 2, 0, "", nullptr, 0},
+    {7, "mix", 0, 100, 0, "%", nullptr, 0},
+    {8, "lfo", 0, 1, 0, "", kOffOn, 0},
+    {9, "fx", 0, 2, 0, "", kFx, 0},
+    {10, "layer", 0, 2, 0, "", kLayer, 0},
+    {11, "shape", 0, synth::kShapes - 1, 0, "", kShape, 0},
+    {12, "sound", 0, 0, 0, "", nullptr, 0}, // max: the card's sounds, less one
+    {16, "decay", 1, 10000, 0, "ms", nullptr, 6},
+    {17, "sustain", 0, 100, 0, "%", nullptr, 7},
+    {18, "fattack", 0, 4000, 0, "ms", nullptr, 0}, // 0: follows attack
+    {19, "fdecay", 1, 10000, 0, "ms", nullptr, 0},
+    {20, "fsustain", 0, 100, 0, "%", nullptr, 0},
+    {21, "filter", 0, 2, 0, "", kFilter, 0},
+    {22, "drive", 0, 100, 0, "%", nullptr, 4},
+    {23, "hpf", 0, 2000, 0, "Hz", nullptr, 0},
+    {24, "keytrack", 0, 100, 0, "%", nullptr, 0},
+    {25, "mono", 0, 1, 0, "", kOffOn, 0},
+    {26, "glide", 0, 2000, 0, "ms", nullptr, 0},
 };
 constexpr int kCount = sizeof kTable / sizeof kTable[0];
 
@@ -50,6 +51,13 @@ int R(float x)
 }
 } // namespace
 
+void Init()
+{
+    const synth::Params defaults;
+    for(Info& info : kTable)
+        info.def = (int16_t)Get(info, defaults);
+}
+
 int Count()
 {
     return kCount;
@@ -58,6 +66,11 @@ int Count()
 const Info& At(int i)
 {
     return kTable[i];
+}
+
+const Info* Table()
+{
+    return kTable;
 }
 
 const Info* Find(int id)

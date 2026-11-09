@@ -1,6 +1,6 @@
 # The host protocol in rodeo-sdk — plan
 
-Status: 2026-11-09. Step 1 is built, host-tested and run on a Rodeo (`rodeo-sdk/common/host.h`, `examples/host`). Steps 2–5 are to do.
+Status: 2026-11-09. Steps 1 and 2 are built and run on a Rodeo: the SDK's `rodeo::Host` (`rodeo-sdk/common/host.h`, `examples/host`), and rodeo-demo on it with the console following. Steps 3–5 are to do.
 
 ## Why
 
@@ -101,9 +101,18 @@ bit per control.
    step 2. Ran on Rev B with four satellites the same day: every command, a
    stream through full pot sweeps, and dfu, which needs `HostUsbFinish()`
    before the reboot or its reply is lost in TinyUSB's buffer.
-2. **rodeo-demo moves onto it**, keeping its own commands. Protocol version 2.
-   This proves the module: if rodeo-demo can't be expressed with it, the API is
-   wrong.
+2. **rodeo-demo moves onto it** (done 2026-11-09), keeping its own commands.
+   Protocol version 2. This proves the module: if rodeo-demo can't be expressed
+   with it, the API is wrong. It could, unchanged: `remote.cpp` is now the
+   `HostApp` (get and set through `params.cpp` and `panel::Set()`, the hold
+   bits, `voices` and the state's card fields), its CC map, and presets, load
+   and sounds at `0x20`–`0x22`. Each parameter's default is computed at start-up
+   from a default `synth::Params`. The console moved with it: protocol 2, the
+   defaults from hello (its copy is gone), and rodeo-demo's lists asked for only
+   when `fw` is `rodeo-demo`. `midi_protocol_test.py` passed on the Rodeo, dfu
+   included. The serial `#S` line still carries the chain for the console's
+   chain view until step 4 moves that to MIDI. The phone app's copy of the
+   client (branch `rodeo-mobile-app`) still speaks protocol 1: step 5.
 3. **The shared client**: `src/rodeo/` (parser, protocol, client) becomes one
    package that the console, the editor and the phone app all import. This ends
    the two copies (console and the `rodeo-mobile-app` branch).

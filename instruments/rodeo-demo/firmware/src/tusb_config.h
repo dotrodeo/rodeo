@@ -64,4 +64,4 @@
 #define CFG_TUD_CDC_EP_BUFSIZE 64
 
 #define CFG_TUD_MIDI_RX_BUFSIZE 64
-#define CFG_TUD_MIDI_TX_BUFSIZE 256 // remote.cpp queues whole SysEx messages ahead of this
+#define CFG_TUD_MIDI_TX_BUFSIZE 256 // the Host (remote.cpp) queues whole SysEx messages ahead of this

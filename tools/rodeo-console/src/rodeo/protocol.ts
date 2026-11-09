@@ -1,23 +1,30 @@
-// rodeo-demo's MIDI protocol, the app's half: planning/RODEO_DEMO_MIDI_PROTOCOL.md.
-// Messages are F0 7D 52 44 01 <cmd> <payload> F7. Rodeo answers in JSON.
+// The host protocol, the computer's half: rodeo-sdk/docs/guides/host.mdx, which
+// any firmware on the SDK speaks, and rodeo-demo's own commands on top
+// (planning/RODEO_DEMO_MIDI_PROTOCOL.md). Messages are F0 7D 52 44 02 <cmd>
+// <payload> F7. Rodeo answers in JSON.
 
 export const HEADER = [0xf0, 0x7d, 0x52, 0x44] as const;
-export const VERSION = 1;
+export const VERSION = 2;
 
 export const Cmd = {
   hello: 0x01,
   state: 0x02,
-  stream: 0x03,
+  stream: 0x03, // payload: 1 state, 2 chain, 3 both, 0 stop
   set: 0x04,
-  presets: 0x05,
-  load: 0x06,
-  sounds: 0x07,
+  chain: 0x08,
+  dfu: 0x09,
+  // rodeo-demo's own (0x20..0x3E are a firmware's)
+  presets: 0x20,
+  load: 0x21,
+  sounds: 0x22,
   // from Rodeo
   helloReply: 0x41,
   stateReply: 0x42,
   said: 0x43,
-  presetsReply: 0x45,
-  soundsReply: 0x47,
+  chainReply: 0x48,
+  dfuReply: 0x49,
+  presetsReply: 0x60,
+  soundsReply: 0x62,
   error: 0x7f,
 } as const;
 
@@ -26,31 +33,44 @@ export type Param = {
   key: string;
   min: number;
   max: number;
+  def: number; // what the firmware starts with, and a preset leaving it out goes back to
   unit?: string;
-  pot?: number; // 1..8 for a pot's parameter
+  pot?: number; // the pot it's on, from 1
   names?: string[]; // a choice
 };
 
 export type Hello = {
-  fw: string;
+  fw: string; // "rodeo-demo"
   proto: number;
   build: string;
-  voices: number;
+  sdk: string;
+  chain: number; // 1 if it has a satellite chain to report
   params: Param[];
+  voices?: number; // rodeo-demo's
 };
 
 export type State = {
-  preset: number;
-  name: string;
   p: Record<string, number>;
   hold: number; // bit per pot (bit 0 pot 1) whose parameter a preset or the app holds
-  voices: number;
-  card: number; // 0 none, 1 mounted, 2 disk mode
-  sounds: number;
-  loaded: number;
-  samples: number;
-  panel: number; // 1 when pot bank 1 and encoder bank 1 are on the chain
   cpu: number;
+  // rodeo-demo's
+  preset?: number;
+  name?: string;
+  voices?: number;
+  card?: number; // 0 none, 1 mounted, 2 disk mode
+  sounds?: number;
+  loaded?: number;
+  samples?: number;
+  panel?: number; // 1 when pot bank 1 and encoder bank 1 are on the chain
+};
+
+export type ChainReport = {
+  state: string; // "scan", "partial", ...
+  sats: number;
+  broken: number; // satellites before a break, or -1
+  s: { kind: number; fw: string; in: number[]; btn?: number[]; fault?: ([number, number] | null)[] }[];
+  good: number;
+  bad: number;
 };
 
 export type Sound = { name: string; kit: number; ready: number };
@@ -59,6 +79,8 @@ export type Reply =
   | { cmd: typeof Cmd.helloReply; body: Hello }
   | { cmd: typeof Cmd.stateReply; body: State }
   | { cmd: typeof Cmd.said; body: { said: string } }
+  | { cmd: typeof Cmd.chainReply; body: ChainReport }
+  | { cmd: typeof Cmd.dfuReply; body: { dfu: number } }
   | { cmd: typeof Cmd.presetsReply; body: { presets: string[]; current: number } }
   | { cmd: typeof Cmd.soundsReply; body: { sounds: Sound[] } }
   | { cmd: typeof Cmd.error; body: { error: string } };

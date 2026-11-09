@@ -99,7 +99,7 @@ void Midi(uint8_t status, uint8_t d1, uint8_t d2)
             else if(d1 == 120 || d1 == 123) // all sound off, all notes off
                 synth::AllNotesOff();
             else
-                remote::Cc(d1, d2, params); // the panel's parameters (remote.h)
+                remote::Cc(d1, d2); // the panel's parameters (remote.h)
             break;
         case 0xC0: // Program Change: preset n, from 0
             if(const char* said = panel::LoadPreset(d1, params))
@@ -113,7 +113,7 @@ void MidiTask()
 {
     uint8_t packet[4];
     while(tud_midi_available() && tud_midi_packet_read(packet))
-        if(!remote::Packet(packet, params)) // SysEx is the protocol's
+        if(!remote::Packet(packet)) // SysEx is the protocol's
             Midi(packet[1], packet[2], packet[3]);
 
     trs_midi.Listen();
@@ -340,6 +340,7 @@ void SerialTask()
 int main(void)
 {
     hw.Init();
+    remote::Init(Say, params, chain); // and the parameter table, which presets use
     rodeo::InitAudio4x4(hw, kBlock);
     float rate = hw.AudioSampleRate();
     synth::Init(rate);
@@ -359,7 +360,6 @@ int main(void)
     chain.Init(rodeo::SatChain::Config(), System::GetUs());
     chain_port.Init();
 
-    remote::Init(Say);
     rodeo::UsbPortInit();
     tusb_rhport_init_t dev_init = {TUSB_ROLE_DEVICE, TUSB_SPEED_AUTO};
     tusb_init(BOARD_TUD_RHPORT, &dev_init);
@@ -374,7 +374,12 @@ int main(void)
         SerialTask();
         StreamTask();
         MidiTask();
-        remote::Task(params, (int)(cpu.GetAvgCpuLoad() * 100.f));
+        remote::Task((int)(cpu.GetAvgCpuLoad() * 100.f));
+        if(remote::DfuRequested()) // the computer's dfu, as 'B' on the serial port
+        {
+            rodeo::StopAudio4x4(hw);
+            ResetToDfu();
+        }
         chain_port.Process(chain);
         state_line::Track(chain);
         panel::Status status = disk::Active() ? panel::Status::Disk

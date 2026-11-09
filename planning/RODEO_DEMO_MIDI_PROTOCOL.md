@@ -1,12 +1,19 @@
 ---
 title: "rodeo-demo over MIDI — the protocol the phone app needs"
 tags: [rodeo, rodeo-demo, firmware, midi, sysex, mobile, app]
-status: built in rodeo-demo (params.cpp, remote.cpp) and tested on a Rodeo, 2026-11-07
+status: built in rodeo-demo (params.cpp, remote.cpp) and tested on a Rodeo, 2026-11-07; protocol 2 (the SDK's host protocol) 2026-11-09
 created: 2026-11-07
-updated: 2026-11-08
+updated: 2026-11-09
 ---
 
 # rodeo-demo over MIDI
+
+> **Protocol 2, since 2026-11-09.** The SysEx layer is now the SDK's host
+> protocol (`rodeo-sdk/common/host.h`; the wire format is
+> `rodeo-sdk/docs/guides/host.mdx`), which any firmware on the SDK speaks.
+> rodeo-demo adds its own commands and state fields on top. Below, Layer 2 says
+> what's rodeo-demo's; the rest is in the guide. Protocol 1, which this page
+> first described, was rodeo-demo's alone.
 
 Phase 1 of [the mobile plan](RODEO_MOBILE_PLAN.md). The app talks to Rodeo over
 USB-MIDI only (an iOS app can't open the serial port), so everything it needs has to
@@ -124,102 +131,77 @@ if a DAW should record it). The app follows the knobs through the state stream.
 ### Framing
 
 ```
-F0 7D 52 44 01 <cmd> <payload…> F7
+F0 7D 52 44 02 <cmd> <payload…> F7
 ```
 
-* `7D`: the MIDI Association's ID for non-commercial and educational use, which is
-  what this is until Rodeo has a manufacturer ID of its own. `52 44` ("RD") follow
-  it so another 7D device's messages aren't taken for ours.
-* `01`: the protocol version. A Rodeo ignores messages of a version it doesn't
-  speak and answers `0x7F` (error) once.
-* Commands from the app are `0x01`–`0x3F`; Rodeo's replies and events are
-  `0x40`–`0x7F`. A reply is the command plus `0x40`.
-* **Numbers** are 14-bit, two bytes, **LSB first** (`v & 0x7F`, `v >> 7`), with
-  the parameter's minimum subtracted first, so every wire value is 0–16383
-  (`octave` −2 goes as 0).
-* **Text** payloads are JSON, ASCII only: the firmware replaces any byte ≥ 0x80 in a
-  name with `?`, so the payload is valid SysEx as it stands. Rodeo is the only
-  sender of JSON; what the app sends is all bytes.
-* SysEx is read **from USB only** in v1. The TRS jack keeps to notes, CCs and
-  Program Change.
+The SDK's host protocol: the framing, the version, 14-bit numbers above the
+minimum, JSON replies (a reply is the command plus `0x40`), whole messages only,
+and streaming are all in `rodeo-sdk/docs/guides/host.mdx`. SysEx is read **from
+USB only**; the TRS jack keeps to notes, CCs and Program Change.
 
 ### Commands
 
-| cmd | From the app | Payload | Rodeo replies |
-|---|---|---|---|
-| `0x01` | Hello | none | `0x41`: who it is and the parameter table |
-| `0x02` | State, once | none | `0x42`: the state |
-| `0x03` | Stream the state | 1 byte: 1 on, 0 off | `0x42` while anything changes |
-| `0x04` | Set parameters | (id, value LSB, value MSB) × n | nothing, then the change shows in the stream; `0x43` with the description |
-| `0x05` | Preset list | none | `0x45` |
-| `0x06` | Load a preset | index, 14-bit | `0x43`, then the stream |
-| `0x07` | Sound list | none | `0x47` |
+The SDK's, which every firmware on it answers:
 
-Rodeo also sends, unasked:
-
-| cmd | Event | Payload |
+| cmd | | Reply |
 |---|---|---|
-| `0x43` | Said | `{"said":"cutoff: 40 %"}`: the line the serial port prints when anything changes, from the panel or the app. The app can show it as a toast. |
-| `0x7F` | Error | `{"error":"unknown command 0x09"}` and the like |
+| `0x01` | Hello: the parameter table, each with its default | `0x41` |
+| `0x02` | State, once | `0x42` |
+| `0x03` | Stream: 1 state, 2 chain, 3 both, 0 stop | `0x42`, `0x48` as they change |
+| `0x04` | Set parameters: (id, value LSB, value MSB) × n | none; the change shows in the stream, with `0x43` |
+| `0x08` | The satellite chain | `0x48` |
+| `0x09` | Reboot into the bootloader | `0x49`, then DFU |
 
-#### `0x41` hello
+rodeo-demo's own, in the range the SDK leaves to a firmware:
 
-Answers the app's first question ("is this a Rodeo, and what does it speak?") and
-describes the parameters, so adding one means changing the firmware only:
+| cmd | | Payload | Reply |
+|---|---|---|---|
+| `0x20` | Preset list | none | `0x60` |
+| `0x21` | Load a preset | index, 14-bit | `0x43`, then the stream |
+| `0x22` | Sound list | none | `0x62` |
+
+Unasked, `0x43` (said: the serial port's line for each change, from the panel or
+the computer) and `0x7F` (error).
+
+#### Hello
+
+The SDK's (`fw`, `build`, `proto`, `sdk`, `chain`, `params`), plus `voices`: 8.
+Every parameter carries its `def`, filled in at start-up from a default
+`synth::Params`, so it is what `synth.h` says and what a preset that leaves the
+parameter out goes back to. `sound`'s `max` is the card's count at the time of
+asking; the sound list has the names.
+
+#### State
+
+The SDK's (`p`, `hold`, `cpu`), plus rodeo-demo's:
 
 ```json
-{"fw":"rodeo-demo","proto":1,"build":"555fb5f","voices":8,
- "params":[{"id":0,"key":"cutoff","min":0,"max":1000,"unit":"‰","pot":1},
-           {"id":4,"key":"attack","min":1,"max":4000,"unit":"ms"},
-           {"id":11,"key":"shape","min":0,"max":6,
-            "names":["saw","square","pulse","triangle","saw + sub","square + sub","fm"]},
-           …]}
+{"p":{"cutoff":412,…},"hold":5,"preset":2,"name":"bass","voices":3,"card":1,
+ "sounds":4,"loaded":18,"samples":18,"panel":1,"cpu":34}
 ```
 
-`sound`'s `max` is the card's count at the time of asking; the sound list has the
-names. (The `‰` here is written `‰`, keeping the payload ASCII.)
-
-#### `0x42` state
-
-The state the app mirrors, keyed by the parameter table:
-
-```json
-{"preset":2,"name":"bass","p":{"cutoff":412,"resonance":120,"env":600,
- "release":220,"attack":8,"detune":8,"octave":0,"mix":25,"lfo":0,"fx":2,
- "layer":0,"shape":0,"sound":0,"decay":200,…},
- "hold":5,"voices":3,"card":1,"loaded":18,"samples":18,"panel":1,"cpu":34}
-```
-
-* `p` holds every parameter in the table, in its units.
 * `hold`: one bit a pot, bit 0 pot 1 (cutoff) … bit 7 pot 8 (release), set while a
-  preset or the app holds the parameter and its pot hasn't taken it back.
+  preset or the computer holds the parameter and its pot hasn't taken it back.
 * `card` is 0 none, 1 mounted, 2 disk mode, as on `#S`. `panel` is 1 when the first
-  pot bank and the first encoder bank are on the chain. The chain's per-satellite detail stays on `#S` only.
-* About 500 bytes.
+  pot bank and the first encoder bank are on the chain.
 
-**Streaming** works like `J`: about 20 times a second while anything but `cpu`
-changed in the last second, quiet after that. Unlike the serial port, MIDI has no
-"someone is listening" signal: the Rodeo is a MIDI device as soon as it's plugged
-into anything. So **a stream lasts 5 s from the last `0x03 01`**, and the app resends
-it every 2 s while it's in the foreground. If the app is killed or the phone locks,
-the stream stops by itself.
-
-#### `0x45` preset list, `0x47` sound list
+#### `0x60` preset list, `0x62` sound list
 
 ```json
 {"presets":["bass","lead","organ","pad"],"current":0}
 {"sounds":[{"name":"basic","kit":1,"ready":1},{"name":"pluck","kit":0,"ready":0}]}
 ```
 
-Index order is the firmware's (name order on the card), which is what `0x06` and
+Index order is the firmware's (name order on the card), which is what `0x21` and
 Program Change take.
 
-## The app's side
+## The computer's side
 
 * **On connect:**
   1. Send `0x01`. If no `0x41` comes within 500 ms, the device is not a Rodeo
      speaking this protocol; say so.
-  2. Then send `0x05` and `0x07`, and `0x03 01`.
+  2. If `fw` is `rodeo-demo`, send `0x20` and `0x22`. Then `0x03 01`, again every
+     2 s while it's wanted.
 * **Knob drags** send `0x04` at most every 20 ms per parameter, the latest value
   only.
 * **When it goes to the background**, send CC 123 (all notes off): the sequencer
@@ -227,20 +209,15 @@ Program Change take.
 
 ## Firmware notes
 
-* **Never send part of a SysEx.** A half-sent message followed by the next one's
-  `F0` corrupts both on the app's side. As built: everything Rodeo sends goes into a
-  16 KB queue of USB-MIDI packets, a whole message or none of it (counted as
-  dropped), and the main loop hands packets to TinyUSB as it takes them. The main
-  loop never waits on a host that isn't reading. `CFG_TUD_MIDI_TX_BUFSIZE` went
-  from 64 to 256 bytes.
-* Reading SysEx needs the USB packets reassembled (CIN 0x4–0x7): `MidiTask()` reads
-  packets and takes bytes 1–3 as one message today. Up to 256 bytes per incoming
-  message is plenty; longer is dropped.
-* `panel::Set()` is new, in `panel.cpp` beside `LoadPreset()`, which already does
-  the hold, anchor and `attack_step` bookkeeping that `Set()` needs. The table and
-  the unit conversions are `params.cpp`; the protocol is `remote.cpp`.
-* `filter`'s preset value is `ladder12` (the parser); `presets.h`'s comment says
-  `ladder 12`. Fix the comment.
+* The SDK's `rodeo::Host` does the protocol: reassembling incoming SysEx, the queue
+  of whole outgoing messages (24 KB in SDRAM, a message or none of it), the stream,
+  the chain report. `remote.cpp` is rodeo-demo's side: the `HostApp` (get and set
+  through `params.cpp` and `panel::Set()`, the hold bits, the extra fields), its
+  three commands, and the CC map. `CFG_TUD_MIDI_TX_BUFSIZE` is 256.
+* `panel::Set()` is the one way in for a set, so a knob, a CC and the computer
+  behave the same way. The table and the unit conversions are `params.cpp`.
+* The computer's dfu (`0x09`) does what `B` on the serial port does: stops the
+  audio and reboots into the bootloader for `make program-dfu`.
 
 ## Testing without the app
 
@@ -248,9 +225,8 @@ Program Change take.
 `pip3 install mido python-rtmidi`) runs every command against a Rodeo on the Mac,
 and `--watch` prints the stream while the panel is played.
 
-## Not in v1
+## Not yet
 
 * Saving presets, or anything else, to the card: the card is read-only to Rodeo.
 * CCs out of Rodeo when the panel moves.
 * SysEx on the TRS jack.
-* The satellite chain's detail over MIDI.

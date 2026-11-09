@@ -6,8 +6,7 @@ import { test } from 'node:test';
 import { RodeoClient, type Timers } from './client.ts';
 import { MidiParser } from './parser.ts';
 import { Cmd, type Param, message, parseReply, pitchBend, setMessage } from './protocol.ts';
-import { DEFAULTS, describe, paramsToPreset, presetDefaults, presetToParams, toParam } from './audition.ts';
-import { KEYS } from '../preset.ts';
+import { describe, paramsToPreset, presetDefaults, presetToParams, toParam } from './audition.ts';
 
 test('parser: messages split across packets, running status, real time inside SysEx', () => {
   const got: number[][] = [];
@@ -33,12 +32,12 @@ test('parser: an unfinished SysEx is dropped when a status byte arrives', () => 
   assert.deepEqual(got, [[0x80, 60, 0]]);
 });
 
-const cutoff = { id: 0, key: 'cutoff', min: 0, max: 1000, unit: '‰', pot: 1 };
-const octave = { id: 6, key: 'octave', min: -2, max: 2 };
+const cutoff = { id: 0, key: 'cutoff', min: 0, max: 1000, def: 600, unit: '‰', pot: 1 };
+const octave = { id: 6, key: 'octave', min: -2, max: 2, def: 0 };
 
 test('protocol: set messages subtract the minimum, 14-bit LSB first, clamped', () => {
   assert.deepEqual(setMessage([[cutoff, 1000], [octave, -1]]), [
-    0xf0, 0x7d, 0x52, 0x44, 1, Cmd.set, 0, 1000 & 0x7f, 1000 >> 7, 6, 1, 0, 0xf7,
+    0xf0, 0x7d, 0x52, 0x44, 2, Cmd.set, 0, 1000 & 0x7f, 1000 >> 7, 6, 1, 0, 0xf7,
   ]);
   assert.deepEqual(setMessage([[octave, 9]]).slice(6, 9), [6, 4, 0]);
 });
@@ -57,9 +56,9 @@ function reply(cmd: number, body: unknown): number[] {
 test('protocol: replies parse; other SysEx and versions do not', () => {
   assert.deepEqual(parseReply(reply(Cmd.said, { said: 'hi' })), { cmd: Cmd.said, body: { said: 'hi' } });
   assert.equal(parseReply([0xf0, 0x7e, 0x7f, 6, 2, 0, 0xf7]), null);
-  const v2 = reply(Cmd.said, {});
-  v2[4] = 2;
-  assert.equal(parseReply(v2), null);
+  const v1 = reply(Cmd.said, {});
+  v1[4] = 1; // rodeo-demo before the SDK's protocol
+  assert.equal(parseReply(v1), null);
 });
 
 // A clock the tests move by hand
@@ -110,8 +109,10 @@ function rig() {
 
 const hello = {
   fw: 'rodeo-demo',
-  proto: 1,
+  proto: 2,
   build: 'test',
+  sdk: '0.2.0',
+  chain: 1,
   voices: 8,
   params: [cutoff, octave],
 };
@@ -126,6 +127,13 @@ test('client: hello until answered, then the lists and the stream', () => {
   assert.deepEqual(cmds().slice(3), [Cmd.presets, Cmd.sounds, Cmd.stream]);
   timers.advance(4000); // keepalive every 2 s, no more hellos
   assert.deepEqual(cmds().slice(6), [Cmd.stream, Cmd.stream]);
+});
+
+test('client: another firmware is asked for nothing of rodeo-demo\'s', () => {
+  const { client, cmds } = rig();
+  client.receive(reply(Cmd.helloReply, { ...hello, fw: 'host-example', voices: undefined }));
+  assert.equal(client.snapshot.status, 'ready');
+  assert.deepEqual(cmds().slice(1), [Cmd.stream]);
 });
 
 test('client: no answer means not a Rodeo', () => {
@@ -176,14 +184,15 @@ test('client: state and said update the snapshot', () => {
 
 // ------------------------------------------------- hearing the preset editor
 
-const P = (key: string, min: number, max: number, unit = '', names?: string[]): Param =>
-  ({ id: 0, key, min, max, unit, ...(names ? { names } : {}) });
+const P = (key: string, min: number, max: number, unit = '', names?: string[], def = min, pot?: number): Param =>
+  ({ id: 0, key, min, max, def, unit, ...(names ? { names } : {}), ...(pot ? { pot } : {}) });
 const params: Record<string, Param> = {
-  cutoff: P('cutoff', 0, 1000, '‰'),
+  cutoff: P('cutoff', 0, 1000, '‰', undefined, 600, 1),
   release: P('release', 5, 4000, 'ms'),
   shape: P('shape', 0, 6, '', ['saw', 'square', 'pulse', 'triangle', 'saw + sub', 'square + sub', 'fm']),
   lfo: P('lfo', 0, 1, '', ['off', 'on']),
   octave: P('octave', -2, 2),
+  mix: P('mix', 0, 100, '%', undefined, 25),
   sound: P('sound', 0, 2),
 };
 const sounds = [
@@ -240,6 +249,6 @@ test('audition: what a preset leaves out goes back to the default, but not a pot
   assert.equal(got.cutoff, undefined, 'a pot parameter stays on its pot');
   assert.equal(got.sound, undefined, 'the sound stays');
   for (const key of Object.keys(got)) assert.ok(params[key], `${key} is one the Rodeo has`);
-  if (params.mix) assert.equal(got.mix, DEFAULTS.mix, 'blank counts as left out');
-  for (const key of Object.keys(DEFAULTS)) assert.ok(!KEYS[key]?.pot, `${key} is not a pot's`);
+  assert.equal(got.mix, 25, 'its default from hello; blank counts as left out');
+  assert.equal(got.octave, -2, 'the default is the parameter\'s def, not 0');
 });

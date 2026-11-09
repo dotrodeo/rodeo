@@ -41,28 +41,18 @@ export function toParam(
 }
 
 /**
- * What the Rodeo gives a key a preset leaves out, in the protocol's units: the
- * defaults in synth::Params (instruments/rodeo-demo/firmware/src/synth.h).
- * Keep the two together. The pots' parameters aren't here: one a preset leaves
- * out stays where its pot is. Nor is sound, which stays as it is.
- */
-export const DEFAULTS: Record<string, number> = {
-  layer: 0, shape: 0, detune: 8, octave: 0, lfo: 0, fattack: 0, fdecay: 400,
-  fsustain: 25, filter: 0, hpf: 0, keytrack: 0, mono: 0, glide: 0, fx: 2, mix: 25,
-};
-
-/**
  * The sets that put back what loading the preset would: the default of every
- * key it leaves out, so a sound left over from the last one isn't heard as
- * this one's. Only parameters the Rodeo has.
+ * parameter it leaves out (each parameter's `def`, from the Rodeo's hello), so
+ * a sound left over from the last one isn't heard as this one's. Not a pot's
+ * parameter, which stays where its pot is, nor the sound, which stays as it is.
  */
 export function presetDefaults(
   values: Record<string, PresetValue | undefined>,
   params: Record<string, Param>
 ): [string, number][] {
-  return Object.entries(DEFAULTS).filter(
-    ([key]) => params[key] && (values[key] === undefined || values[key] === '')
-  );
+  return Object.values(params)
+    .filter((p) => !p.pot && p.key !== 'sound' && (values[p.key] === undefined || values[p.key] === ''))
+    .map((p) => [p.key, p.def]);
 }
 
 /** Every key a preset sets, as parameter values, and the ones that can't be sent. */

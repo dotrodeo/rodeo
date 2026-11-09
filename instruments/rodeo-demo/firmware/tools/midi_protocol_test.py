@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Checks rodeo-demo's MIDI protocol (planning/RODEO_DEMO_MIDI_PROTOCOL.md) against
-a Rodeo plugged into this computer, the way the phone app will use it.
+"""Checks rodeo-demo's MIDI protocol (planning/RODEO_DEMO_MIDI_PROTOCOL.md: the
+SDK's host protocol, version 2, and rodeo-demo's own commands) against a Rodeo
+plugged into this computer, the way the console and the phone app use it.
 
     pip3 install mido python-rtmidi
     python3 instruments/rodeo-demo/firmware/tools/midi_protocol_test.py          # the checks
@@ -16,7 +17,10 @@ import time
 
 import mido
 
-HEADER = [0x7D, 0x52, 0x44, 0x01]  # mido leaves out F0 and F7
+HEADER = [0x7D, 0x52, 0x44, 0x02]  # mido leaves out F0 and F7
+
+# rodeo-demo's own commands; a reply is the command plus 0x40
+PRESETS, LOAD, SOUNDS = 0x20, 0x21, 0x22
 
 
 def port_name(names):
@@ -72,7 +76,10 @@ def main():
     hello = one(inp, 0x41)
     params = {p['key']: p for p in hello['params']}
     print(f"hello: {hello['fw']} protocol {hello['proto']} build {hello['build']}, "
-          f"{len(params)} parameters")
+          f"sdk {hello['sdk']}, {len(params)} parameters")
+    assert hello['proto'] == 2 and hello['fw'] == 'rodeo-demo', hello
+    assert all('def' in p for p in params.values()), 'a parameter without a default'
+    assert params['cutoff']['def'] == 600 and params['fx']['def'] == 2, 'defaults: synth.h'
 
     if '--watch' in sys.argv:
         print('streaming; turn things on the Rodeo (ctrl-C to stop)')
@@ -98,12 +105,18 @@ def main():
           f"card {state['card']}, {state['sounds']} sounds")
     assert set(before) == set(params), 'the state and the table disagree'
 
-    send(out, 0x05)
-    presets = one(inp, 0x45)
+    send(out, PRESETS)
+    presets = one(inp, PRESETS + 0x40)
     print(f"presets: {presets['presets']} (current {presets['current']})")
-    send(out, 0x07)
-    sounds = one(inp, 0x47)
+    send(out, SOUNDS)
+    sounds = one(inp, SOUNDS + 0x40)
     print(f"sounds: {[s['name'] for s in sounds['sounds']]}")
+
+    send(out, 0x08)
+    chain = one(inp, 0x48)
+    print(f"chain: {chain['state']}, {chain['sats']} satellites, kinds "
+          f"{[s['kind'] for s in chain['s']]}, {chain['good']} good scans, {chain['bad']} bad")
+    assert chain['sats'] == len(chain['s'])
 
     # Set a pot's parameter and a choice in one message, over the stream
     send(out, 0x03, [1])
@@ -153,15 +166,16 @@ def main():
         assert got == other, got
     print('note on/off, Program Change: ok')
 
-    # Errors
-    send(out, 0x09)
-    assert any(c == 0x7F for c, _ in replies(inp, 0x7F)), 'no error for an unknown command'
-    print('unknown command -> error: ok')
+    # Errors (not 0x09: that's dfu, which reboots into the bootloader)
+    for cmd in (0x10, 0x30):
+        send(out, cmd)
+        assert any(c == 0x7F for c, _ in replies(inp, 0x7F)), f'no error for 0x{cmd:02X}'
+    print('unknown commands, the SDK\'s and the firmware\'s -> errors: ok')
 
     # Put it all back. Reloading the preset hands cutoff back to pot 1 (or to the
     # preset's value): setting it again would hold it from the pot.
     if state['preset'] >= 0:
-        send(out, 0x06, u14(state['preset']))
+        send(out, LOAD, u14(state['preset']))
         time.sleep(0.2)
     restore = []
     for key in ('shape', 'detune'):

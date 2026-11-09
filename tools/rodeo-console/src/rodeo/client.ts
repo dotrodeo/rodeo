@@ -203,8 +203,11 @@ export class RodeoClient {
         const params: Record<string, Param> = {};
         for (const p of reply.body.params) params[p.key] = p;
         this.update({ status: 'ready', hello: reply.body, params });
-        this.send(message(Cmd.presets));
-        this.send(message(Cmd.sounds));
+        // rodeo-demo's own lists; another firmware has none, and would say so
+        if (reply.body.fw === 'rodeo-demo') {
+          this.send(message(Cmd.presets));
+          this.send(message(Cmd.sounds));
+        }
         if (this.active) this.startStream();
         else this.send(message(Cmd.state));
         break;
