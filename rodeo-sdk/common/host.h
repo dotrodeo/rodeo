@@ -41,7 +41,10 @@
 //           MyMidi(pk);                    // everything that isn't the protocol
 //   rodeo::HostUsbTask(host, System::GetNow(), cpu_percent);
 //   if(host.DfuRequested())
+//   {
+//       rodeo::HostUsbFinish();            // the reply leaves
 //       ResetToDfu();                      // dfu.h, after stopping the audio
+//   }
 //
 #include <stddef.h>
 #include <stdint.h>

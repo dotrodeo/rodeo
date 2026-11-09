@@ -365,7 +365,7 @@ void Host::Task(uint32_t now, int cpu)
         state_wanted_  = false;
         state_hash_    = StateBody();
         state_sent_    = now;
-        state_changed_ = now;
+        state_changed_ = now - kQuietMs; // sent: nothing new until it changes
         w_.Add(",\"cpu\":%d}", cpu);
         End();
     }

@@ -228,9 +228,6 @@ TEST(Host, StateOnceAndStreamedWhileItChanges)
     b.Run(10);
     EXPECT_EQ(b.Take().size(), 1u) << "straight away";
     b.Run(2000);
-    auto quiet = b.Take();
-    EXPECT_LE(quiet.size(), 20u);
-    b.Run(500);
     EXPECT_TRUE(b.Take().empty()) << "nothing changes, nothing is sent";
 
     b.app.v[0] = 800;

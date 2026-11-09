@@ -5,11 +5,13 @@ sidebar:
   order: 8
 ---
 
-:::note[Host-tested; not yet run on a Rodeo]
-The protocol is pure logic, tested on the host against requests and replies
-checked byte for byte (`common/tests/host_gtest.cpp`), and `examples/host` builds
-for Rev B. It grew out of rodeo-demo's MIDI protocol, which has run on hardware
-since November 2026. API: [`host.h`](/sdk/reference/api/host/).
+:::note[Running on a Rodeo since 9 November 2026]
+`examples/host` on a Rev B motherboard with four satellites answered hello,
+state, set and chain within 7 ms, streamed while all four pots of the first
+bank were swept end to end, said nothing while nothing changed, and rebooted
+into the bootloader on `dfu` for the next flash. The protocol is also tested on
+the host, requests and replies checked byte for byte
+(`common/tests/host_gtest.cpp`). API: [`host.h`](/sdk/reference/api/host/).
 :::
 
 Plug a Rodeo into a computer and the computer should be able to see what it is:
@@ -64,7 +66,10 @@ for(;;)
     chain_port.Process(chain);
     rodeo::HostUsbTask(host, System::GetNow(), cpu_percent);
     if(host.DfuRequested())
+    {
+        rodeo::HostUsbFinish(); // let the reply leave
         ResetToDfu();
+    }
 }
 ```
 

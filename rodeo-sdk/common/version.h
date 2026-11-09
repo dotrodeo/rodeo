@@ -98,7 +98,8 @@
 //     MIDI protocol: a firmware's parameter table, state, chain and dfu over
 //     USB-MIDI SysEx, so the console shows any firmware. Protocol 2. Pure and
 //     host-tested; about 6 KB of code; RODEO_HOST=0 compiles it out.
-//     examples/host builds for Rev B, not yet run on it. 117 host tests.
+//     examples/host ran on Rev B with four satellites (2026-11-09): every
+//     command, a stream through full pot sweeps, dfu. 117 host tests.
 
 #pragma once
 

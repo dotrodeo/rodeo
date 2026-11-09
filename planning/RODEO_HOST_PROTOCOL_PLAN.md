@@ -1,6 +1,6 @@
 # The host protocol in rodeo-sdk — plan
 
-Status: 2026-11-09. Step 1 is built and host-tested (`rodeo-sdk/common/host.h`, `examples/host`), not yet run on a Rodeo. Steps 2–5 are to do.
+Status: 2026-11-09. Step 1 is built, host-tested and run on a Rodeo (`rodeo-sdk/common/host.h`, `examples/host`). Steps 2–5 are to do.
 
 ## Why
 
@@ -98,7 +98,9 @@ bit per control.
    the chain report (`08`, reply `48`) replaces the serial `#S` line's chain
    half; `09` reboots for flashing; `20`–`3E` are the firmware's own commands,
    so rodeo-demo's presets, load and sounds (`05`–`07` today) move there in
-   step 2.
+   step 2. Ran on Rev B with four satellites the same day: every command, a
+   stream through full pot sweeps, and dfu, which needs `HostUsbFinish()`
+   before the reboot or its reply is lost in TinyUSB's buffer.
 2. **rodeo-demo moves onto it**, keeping its own commands. Protocol version 2.
    This proves the module: if rodeo-demo can't be expressed with it, the API is
    wrong.

@@ -104,8 +104,10 @@ void Audio(AudioHandle::InputBuffer, AudioHandle::OutputBuffer out, size_t size)
 // The first pot bank: a pot takes over its parameter once it moves 1 %
 void Pots()
 {
-    static int  bank = -1;
-    static int  last[4];
+    static int      bank = -1;
+    static bool     read = false; // where the pots are, from a scan since it was found
+    static uint32_t found_at;
+    static int      last[4];
     if(chain.Changed())
         bank = -1;
     if(bank < 0)
@@ -115,8 +117,18 @@ void Pots()
                 bank = i;
         if(bank < 0)
             return;
+        read     = false;
+        found_at = chain.GoodScans();
+    }
+    // A satellite reads 0 until its first scan comes back: wait for one, or
+    // every pot would seem to have moved
+    if(!read)
+    {
+        if(chain.GoodScans() == found_at)
+            return;
         for(int s = 0; s < 4; s++)
             last[s] = (int)(chain.Pot(bank, s) * 1000.f);
+        read = true;
     }
     for(const rodeo::HostParam& p : kParams)
     {
@@ -126,8 +138,11 @@ void Pots()
         int x = (int)(chain.Pot(bank, s) * 1000.f);
         if(x > last[s] - 10 && x < last[s] + 10)
             continue;
-        last[s]     = x;
-        value[p.id] = p.min + (x * (p.max - p.min) + 500) / 1000;
+        last[s] = x;
+        int v   = p.min + (x * (p.max - p.min) + 500) / 1000;
+        if(v == value[p.id])
+            continue;
+        value[p.id] = v;
         char said[32];
         snprintf(said, sizeof said, "%s: %d", p.key, value[p.id]);
         host.Say(said);
@@ -195,6 +210,7 @@ int main(void)
         rodeo::HostUsbTask(host, System::GetNow(), (int)(cpu.GetAvgCpuLoad() * 100.f));
         if(host.DfuRequested())
         {
+            rodeo::HostUsbFinish(); // the reply leaves before the reboot
             rodeo::StopAudio4x4(hw);
             ResetToDfu();
         }
