@@ -54,6 +54,7 @@ rodeo-sdk/
     rodeo_scope.h        # triggered, normalised waveform for a small display
     rodeo_screen.h       # 128x64 screen primitives: title bar, list rows, scroll bar
     tests/               # host-side GoogleTest: the pure-logic headers and board.h
+  host-js/           # the host protocol's computer side in TypeScript (@dotrodeo/rodeo-host)
   template/          # copy-to-start skeleton for a new Rodeo app (blinks the Seed's LED)
   examples/
     blink_power/       # Rev B 01: boots on the motherboard; the cell from the fuel gauge

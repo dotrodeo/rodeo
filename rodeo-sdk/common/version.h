@@ -98,6 +98,9 @@
 //     MIDI protocol: a firmware's parameter table, state, chain and dfu over
 //     USB-MIDI SysEx, so the console shows any firmware. Protocol 2. Pure and
 //     host-tested; about 6 KB of code; RODEO_HOST=0 compiles it out.
+//     host-js/ is the computer's side in TypeScript (@dotrodeo/rodeo-host):
+//     parser, messages, a client, and rodeo-demo's commands; the console
+//     uses it.
 //     examples/host ran on Rev B with four satellites (2026-11-09): every
 //     command, a stream through full pot sweeps, dfu. 117 host tests.
 

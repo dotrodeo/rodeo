@@ -6,7 +6,8 @@
 
 import { KEYS, squash } from '../preset.ts';
 import type { PresetValues } from '../preset.ts';
-import type { Param, Sound } from './protocol.ts';
+import type { Param } from '@dotrodeo/rodeo-host';
+import type { Sound } from '@dotrodeo/rodeo-host/rodeo-demo';
 
 /** Keys whose file value is % but whose parameter is ‰ (params.cpp). */
 const PER_MILLE = new Set(['cutoff', 'resonance', 'env']);

@@ -8,8 +8,8 @@
 import { KEYS } from './preset.ts';
 import { rodeo } from './rodeo/link.ts';
 import { describe } from './rodeo/audition.ts';
-import type { Snapshot } from './rodeo/client.ts';
-import type { Param } from './rodeo/protocol.ts';
+import type { Param, Snapshot } from '@dotrodeo/rodeo-host';
+import { demoState, loadPreset, presets as presetNames, sounds, type Sound } from '@dotrodeo/rodeo-host/rodeo-demo';
 
 const GROUPS: [string, string[]][] = [
   ['pot bank 1 · filter', ['cutoff', 'resonance', 'env', 'drive']],
@@ -55,7 +55,7 @@ function where(key: string): string {
 
 function control(p: Param, s: Snapshot): Control {
   if (p.key === 'sound' || p.names) {
-    const names = p.key === 'sound' ? s.sounds.map((x) => x.name) : (p.names ?? []);
+    const names = p.key === 'sound' ? sounds(s).map((x) => x.name) : (p.names ?? []);
     const sel = el('select', { disabled: !names.length });
     names.forEach((n, i) =>
       sel.append(el('option', { value: String(p.key === 'sound' ? i : p.min + i), textContent: n }))
@@ -73,12 +73,12 @@ function set(key: string, v: number) {
   touched.set(key, performance.now());
   rodeo.set(key, v);
   const r = rows.get(key);
-  if (r) show(r, v, rodeo.snapshot.sounds);
+  if (r) show(r, v, sounds(rodeo.snapshot));
 }
 
 /** The value beside a slider; a menu already says its own. */
-function show(r: Row, v: number, sounds: Snapshot['sounds']) {
-  r.value.textContent = r.control instanceof HTMLSelectElement ? '' : describe(r.param, v, sounds);
+function show(r: Row, v: number, list: Sound[]) {
+  r.value.textContent = r.control instanceof HTMLSelectElement ? '' : describe(r.param, v, list);
 }
 
 function build(s: Snapshot) {
@@ -110,7 +110,7 @@ function build(s: Snapshot) {
   });
 
   const presets = el('select', { id: 'sound-preset', title: 'loads it on the Rodeo (Program Change does the same)' });
-  presets.onchange = () => rodeo.loadPreset(Number(presets.value));
+  presets.onchange = () => loadPreset(rodeo, Number(presets.value));
   box.replaceChildren(
     el('div', { className: 'row' }, [
       el('span', { className: 'small dim', textContent: 'preset' }),
@@ -121,7 +121,7 @@ function build(s: Snapshot) {
     el('div', { className: 'sound-groups' }, cards)
   );
   built = s.hello;
-  soundCount = s.sounds.length;
+  soundCount = sounds(s).length;
 }
 
 function paint(s: Snapshot) {
@@ -133,16 +133,18 @@ function paint(s: Snapshot) {
     return;
   }
   box.hidden = false;
-  if (built !== s.hello || soundCount !== s.sounds.length) build(s);
+  if (built !== s.hello || soundCount !== sounds(s).length) build(s);
 
   const presets = document.getElementById('sound-preset') as HTMLSelectElement | null;
-  if (presets && presets.options.length !== s.presets.length) {
+  const names = presetNames(s);
+  if (presets && presets.options.length !== names.length) {
     presets.replaceChildren(
-      ...s.presets.map((name, i) => el('option', { value: String(i), textContent: name }))
+      ...names.map((name, i) => el('option', { value: String(i), textContent: name }))
     );
-    if (!s.presets.length) presets.append(el('option', { textContent: 'no presets on the card' }));
+    if (!names.length) presets.append(el('option', { textContent: 'no presets on the card' }));
   }
-  if (presets && s.state && document.activeElement !== presets) presets.value = String(s.state.preset);
+  const demo = demoState(s);
+  if (presets && demo && document.activeElement !== presets) presets.value = String(demo.preset);
   const who = document.getElementById('sound-who');
   if (who) who.textContent = `${s.hello.fw} · protocol ${s.hello.proto}`;
 
@@ -159,7 +161,7 @@ function paint(s: Snapshot) {
     r.row.title = held ? 'held: the knob is not what you hear until it is turned' : '';
     if (now - (touched.get(key) ?? -Infinity) < QUIET_MS) continue;
     r.control.value = String(v);
-    show(r, v, s.sounds);
+    show(r, v, sounds(s));
   }
 }
 

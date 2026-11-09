@@ -1,12 +1,12 @@
-// The MIDI client, ported from the phone app (instruments/rodeo-demo/app, on
-// the rodeo-mobile-app branch). npm test runs it with the rest.
+// The host protocol's computer side: the parser, the messages, the client, and
+// rodeo-demo's part, against a fake Rodeo and a clock moved by hand.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { RodeoClient, type Timers } from './client.ts';
 import { MidiParser } from './parser.ts';
-import { Cmd, type Param, message, parseReply, pitchBend, setMessage } from './protocol.ts';
-import { describe, paramsToPreset, presetDefaults, presetToParams, toParam } from './audition.ts';
+import { Cmd, message, parseReply, pitchBend, setMessage } from './protocol.ts';
+import { DemoCmd, demoState, followRodeoDemo, loadPreset, presets, sounds } from './rodeo-demo.ts';
 
 test('parser: messages split across packets, running status, real time inside SysEx', () => {
   const got: number[][] = [];
@@ -98,10 +98,11 @@ class FakeTimers implements Timers {
   }
 }
 
-function rig() {
+function rig(demo = false) {
   const timers = new FakeTimers();
   const sent: number[][] = [];
   const client = new RodeoClient(timers);
+  if (demo) followRodeoDemo(client);
   client.attach({ send: (b) => (sent.push(b), true), now: () => timers.t });
   const cmds = () => sent.filter((m) => m[0] === 0xf0).map((m) => m[5]);
   return { timers, sent, client, cmds };
@@ -117,20 +118,20 @@ const hello = {
   params: [cutoff, octave],
 };
 
-test('client: hello until answered, then the lists and the stream', () => {
-  const { timers, client, cmds } = rig();
+test('client: hello until answered, then rodeo-demo\'s lists and the stream', () => {
+  const { timers, client, cmds } = rig(true);
   assert.equal(client.snapshot.status, 'connecting');
   timers.advance(1100);
   assert.deepEqual(cmds(), [Cmd.hello, Cmd.hello, Cmd.hello]);
   client.receive(reply(Cmd.helloReply, hello));
   assert.equal(client.snapshot.status, 'ready');
-  assert.deepEqual(cmds().slice(3), [Cmd.presets, Cmd.sounds, Cmd.stream]);
+  assert.deepEqual(cmds().slice(3), [DemoCmd.presets, DemoCmd.sounds, Cmd.stream]);
   timers.advance(4000); // keepalive every 2 s, no more hellos
   assert.deepEqual(cmds().slice(6), [Cmd.stream, Cmd.stream]);
 });
 
 test('client: another firmware is asked for nothing of rodeo-demo\'s', () => {
-  const { client, cmds } = rig();
+  const { client, cmds } = rig(true);
   client.receive(reply(Cmd.helloReply, { ...hello, fw: 'host-example', voices: undefined }));
   assert.equal(client.snapshot.status, 'ready');
   assert.deepEqual(cmds().slice(1), [Cmd.stream]);
@@ -182,73 +183,40 @@ test('client: state and said update the snapshot', () => {
   assert.equal(seen, 3);
 });
 
-// ------------------------------------------------- hearing the preset editor
+test('client: a firmware\'s own replies, and rodeo-demo\'s reading of them', () => {
+  const { client, sent } = rig(true);
+  client.receive(reply(Cmd.helloReply, hello));
+  client.receive(reply(DemoCmd.presets + 0x40, { presets: ['bass', 'lead'], current: 1 }));
+  client.receive(reply(DemoCmd.sounds + 0x40, { sounds: [{ name: 'basic', kit: 1, ready: 1 }] }));
+  client.receive(reply(Cmd.stateReply, { p: {}, hold: 0, cpu: 3, preset: 1, name: 'lead' }));
+  const s = client.snapshot;
+  assert.deepEqual(presets(s), ['bass', 'lead']);
+  assert.deepEqual(sounds(s).map((x) => x.name), ['basic']);
+  assert.equal(demoState(s)?.name, 'lead');
+  sent.length = 0;
+  loadPreset(client, 130);
+  assert.deepEqual(sent[0], message(DemoCmd.load, [130 & 0x7f, 130 >> 7]));
+  assert.throws(() => client.request(Cmd.dfu), RangeError, 'the SDK\'s commands have their own methods');
 
-const P = (key: string, min: number, max: number, unit = '', names?: string[], def = min, pot?: number): Param =>
-  ({ id: 0, key, min, max, def, unit, ...(names ? { names } : {}), ...(pot ? { pot } : {}) });
-const params: Record<string, Param> = {
-  cutoff: P('cutoff', 0, 1000, '‰', undefined, 600, 1),
-  release: P('release', 5, 4000, 'ms'),
-  shape: P('shape', 0, 6, '', ['saw', 'square', 'pulse', 'triangle', 'saw + sub', 'square + sub', 'fm']),
-  lfo: P('lfo', 0, 1, '', ['off', 'on']),
-  octave: P('octave', -2, 2),
-  mix: P('mix', 0, 100, '%', undefined, 25),
-  sound: P('sound', 0, 2),
-};
-const sounds = [
-  { name: 'bass', kit: 0, ready: 1 },
-  { name: 'Grand Piano', kit: 0, ready: 1 },
-];
-
-test('audition: a preset file value becomes the parameter the protocol takes', () => {
-  assert.deepEqual(toParam('cutoff', 41, params, sounds), { value: 410 }, '% in the file, ‰ on the wire');
-  assert.deepEqual(toParam('release', 420, params, sounds), { value: 420 });
-  assert.deepEqual(toParam('shape', 'Saw + Sub', params, sounds), { value: 4 }, 'squashed, as presets.cpp does');
-  assert.deepEqual(toParam('lfo', 'on', params, sounds), { value: 1 }, 'by the Rodeo\'s own names, not the file\'s order');
-  assert.deepEqual(toParam('octave', -1, params, sounds), { value: -1 });
-  assert.deepEqual(toParam('sound', 'grandpiano', params, sounds), { value: 1 });
-  assert.ok('why' in toParam('sound', 'cello', params, sounds));
-  assert.ok('why' in toParam('wobble', 3, params, sounds));
+  client.receive(reply(Cmd.helloReply, { ...hello, fw: 'host-example' }));
+  assert.deepEqual(presets(client.snapshot), [], 'a new hello forgets the last firmware\'s replies');
+  assert.equal(demoState(client.snapshot), null);
 });
 
-test('audition: a whole preset, with what cannot be sent said rather than dropped', () => {
-  const { sets, skipped } = presetToParams(
-    { cutoff: 50, shape: 'fm', sound: 'cello', mix: undefined, keytrack: 20 },
-    params,
-    sounds
-  );
-  assert.deepEqual(sets, [['cutoff', 500], ['shape', 6]]);
-  assert.equal(skipped.length, 2);
-});
-
-test('audition: values read the way the panel says them', () => {
-  assert.equal(describe(params.cutoff!, 412), '41 %');
-  assert.equal(describe(params.release!, 420), '420 ms');
-  assert.equal(describe(params.shape!, 4), 'saw + sub');
-  assert.equal(describe(params.octave!, 1), '+1');
-  assert.equal(describe(params.sound!, 1, sounds), 'Grand Piano');
-  assert.equal(describe(P('fattack', 0, 4000, 'ms'), 0), 'follows attack');
-});
-
-test('audition: what the Rodeo plays comes back as a preset, and round-trips', () => {
-  const p = { cutoff: 412, release: 420, shape: 4, lfo: 1, octave: -1, sound: 1 };
-  const values = paramsToPreset(p, params, sounds);
-  assert.deepEqual(values, {
-    cutoff: 41, release: 420, shape: 'saw + sub', lfo: 'on', octave: -1, sound: 'Grand Piano',
-  });
-  const { sets, skipped } = presetToParams(values, params, sounds);
-  assert.deepEqual(skipped, []);
-  assert.deepEqual(Object.fromEntries(sets), { ...p, cutoff: 410 }, 'cutoff to the nearest %');
-  const fa = { ...params, fattack: P('fattack', 0, 4000, 'ms') };
-  assert.equal(paramsToPreset({ fattack: 0 }, fa, sounds).fattack, undefined, 'following attack is left out');
-});
-
-test('audition: what a preset leaves out goes back to the default, but not a pot or the sound', () => {
-  const got = Object.fromEntries(presetDefaults({ shape: 'fm', mix: '' }, params));
-  assert.equal(got.shape, undefined, 'the preset sets it');
-  assert.equal(got.cutoff, undefined, 'a pot parameter stays on its pot');
-  assert.equal(got.sound, undefined, 'the sound stays');
-  for (const key of Object.keys(got)) assert.ok(params[key], `${key} is one the Rodeo has`);
-  assert.equal(got.mix, 25, 'its default from hello; blank counts as left out');
-  assert.equal(got.octave, -2, 'the default is the parameter\'s def, not 0');
+test('client: the chain streams when asked, and dfu is one message', () => {
+  const { timers, client, cmds, sent } = rig();
+  client.receive(reply(Cmd.helloReply, hello));
+  sent.length = 0;
+  client.streamChain(true);
+  assert.deepEqual(sent[0], message(Cmd.stream, [3]), 'state and chain, straight away');
+  timers.advance(2000);
+  assert.deepEqual(sent[1], message(Cmd.stream, [3]), 'and in the keepalive');
+  const chain = { state: 'scan', sats: 1, broken: -1, s: [{ kind: 5, fw: '1.0', in: [1, 2, 3, 4] }], good: 9, bad: 0 };
+  client.receive(reply(Cmd.chainReply, chain));
+  assert.deepEqual(client.snapshot.chain, chain);
+  client.streamChain(false);
+  assert.equal(client.snapshot.chain, null);
+  assert.deepEqual(sent.at(-1), message(Cmd.stream, [1]));
+  client.dfu();
+  assert.equal(cmds().at(-1), Cmd.dfu);
 });

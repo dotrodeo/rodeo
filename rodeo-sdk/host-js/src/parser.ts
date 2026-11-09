@@ -1,6 +1,6 @@
-// MIDI bytes to whole messages. The iOS module hands over bytes packet by packet
-// (a SysEx message can span several); Web MIDI hands over whole messages. Both go
-// through this, so the rest of the app only ever sees whole messages.
+// MIDI bytes to whole messages. CoreMIDI (the phone app's module) hands over bytes
+// packet by packet, and a SysEx message can span several; Web MIDI hands over
+// whole messages. Both go through this, so the client only ever sees whole ones.
 
 const MAX_SYSEX = 64 * 1024;
 

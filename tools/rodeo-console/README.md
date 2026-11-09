@@ -115,8 +115,9 @@ The **preset editor** uses the same connection two ways:
   way round disk mode is: dial the sound in on the panel or the sound panel,
   enter disk mode, open the card, take the sound.
 
-The protocol's client (`src/rodeo/`) is the phone app's, copied from the
-`rodeo-mobile-app` branch until that branch is merged and the two can share it.
+The protocol's client is the SDK's, `@dotrodeo/rodeo-host` in
+[`rodeo-sdk/host-js`](../../rodeo-sdk/host-js), a `file:` dependency;
+`src/rodeo/` keeps only the page's link to it and the preset audition.
 
 **The voice panel is a prediction, not a reading.** `src/midi.ts` re-implements
 `Allocate()`, so the page can say what Rodeo *should* have done with the notes

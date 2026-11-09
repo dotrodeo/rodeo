@@ -1,17 +1,19 @@
-// The phone app's MIDI client (instruments/rodeo-demo/app/src/midi on the
-// rodeo-mobile-app branch), copied here until the app is merged and they share it.
-// A conversation with one Rodeo: hello, the lists, the state stream and its
-// keepalive, parameter sets, notes. It knows nothing of CoreMIDI or React; it is
-// handed a way to send and is fed whole messages (useRodeo.ts does both), so it
-// can be tested with a fake.
+// A conversation with one Rodeo, whatever its firmware: hello, the state (and
+// the chain) streamed with a keepalive, parameter sets, notes, the firmware's own
+// commands. It knows nothing of Web MIDI, CoreMIDI or any UI: it is handed a way
+// to send and is fed bytes, so it can be tested with a fake. A firmware's own
+// commands go through request(), and their replies land in snapshot.replies;
+// rodeo-demo.ts is rodeo-demo's.
 
 import { MidiParser } from './parser.ts';
 import {
+  type ChainReport,
   Cmd,
   type Hello,
   type Param,
-  type Sound,
+  REPLY,
   type State,
+  Stream,
   allNotesOff,
   message,
   noteOff,
@@ -20,7 +22,6 @@ import {
   pitchBend,
   setMessage,
   sustain,
-  u14,
 } from './protocol.ts';
 
 export type Status =
@@ -34,9 +35,10 @@ export type Snapshot = {
   hello: Hello | null;
   params: Record<string, Param>;
   state: State | null;
-  presets: string[];
-  sounds: Sound[];
+  chain: ChainReport | null; // while the chain is streamed (streamChain)
   said: { text: string; at: number } | null; // the last thing Rodeo said changed
+  /** The latest reply to each of the firmware's own commands, by reply number. */
+  replies: Record<number, unknown>;
 };
 
 export type Transport = {
@@ -69,9 +71,9 @@ export class RodeoClient {
     hello: null,
     params: {},
     state: null,
-    presets: [],
-    sounds: [],
+    chain: null,
     said: null,
+    replies: {},
   };
   private listeners = new Set<(s: Snapshot) => void>();
   private parser = new MidiParser((m) => this.message(m));
@@ -83,6 +85,8 @@ export class RodeoClient {
   private lastSet = new Map<number, number>(); // param id -> when it was last sent
   private flushTimer: unknown = null;
   private held = new Set<number>(); // notes we've sent on and not off
+  private ready = new Set<(hello: Hello) => void>();
+  private streamBits: number = Stream.state;
   private readonly timers: Timers;
 
   constructor(timers: Timers = realTimers) {
@@ -108,8 +112,33 @@ export class RodeoClient {
     this.flush();
   }
 
-  loadPreset(i: number) {
-    this.send(message(Cmd.load, u14(i)));
+  /** One of the firmware's own commands (0x20..0x3E). Its reply, if any, lands in
+   *  snapshot.replies under the command plus 0x40. */
+  request(cmd: number, payload: number[] = []) {
+    if (cmd < Cmd.firmwareFirst || cmd > Cmd.firmwareLast) throw new RangeError(`0x${cmd.toString(16)} is not a firmware's command`);
+    this.send(message(cmd, payload));
+  }
+
+  /** Called with the hello each time a Rodeo is ready: where a firmware's own
+   *  lists get asked for. Returns a function that stops it. */
+  whenReady(f: (hello: Hello) => void): () => void {
+    this.ready.add(f);
+    if (this.snap.hello && this.snap.status === 'ready') f(this.snap.hello);
+    return () => this.ready.delete(f);
+  }
+
+  /** Stream the chain too (true), or only the state. */
+  streamChain(on: boolean) {
+    const bits = on ? Stream.state | Stream.chain : Stream.state;
+    if (bits === this.streamBits) return;
+    this.streamBits = bits;
+    if (!on) this.update({ chain: null });
+    if (this.keepalive !== null) this.startStream();
+  }
+
+  /** Reboot it into the bootloader for flashing. It answers, then leaves USB. */
+  dfu() {
+    this.send(message(Cmd.dfu));
   }
 
   noteOn(note: number, velocity: number) {
@@ -138,7 +167,7 @@ export class RodeoClient {
     this.transport = transport;
     this.held.clear();
     if (!transport) {
-      this.update({ status: 'no-device', state: null });
+      this.update({ status: 'no-device', state: null, chain: null, replies: {} });
       return;
     }
     this.update({ status: 'connecting' });
@@ -180,6 +209,7 @@ export class RodeoClient {
   dispose() {
     this.stopTimers();
     this.listeners.clear();
+    this.ready.clear();
   }
 
   // ---- inside
@@ -196,43 +226,42 @@ export class RodeoClient {
   private message(m: number[]) {
     const reply = parseReply(m);
     if (!reply) return;
+    const body = reply.body as never;
     switch (reply.cmd) {
       case Cmd.helloReply: {
         if (this.helloTimer !== null) this.timers.clearInterval(this.helloTimer);
         this.helloTimer = null;
+        const hello = body as Hello;
         const params: Record<string, Param> = {};
-        for (const p of reply.body.params) params[p.key] = p;
-        this.update({ status: 'ready', hello: reply.body, params });
-        // rodeo-demo's own lists; another firmware has none, and would say so
-        if (reply.body.fw === 'rodeo-demo') {
-          this.send(message(Cmd.presets));
-          this.send(message(Cmd.sounds));
-        }
+        for (const p of hello.params) params[p.key] = p;
+        this.update({ status: 'ready', hello, params, replies: {} });
+        for (const f of this.ready) f(hello);
         if (this.active) this.startStream();
         else this.send(message(Cmd.state));
         break;
       }
       case Cmd.stateReply:
-        this.update({ state: reply.body });
+        this.update({ state: body as State });
+        break;
+      case Cmd.chainReply:
+        this.update({ chain: body as ChainReport });
         break;
       case Cmd.said:
-        this.update({ said: { text: reply.body.said, at: Date.now() } });
-        break;
-      case Cmd.presetsReply:
-        this.update({ presets: reply.body.presets });
-        break;
-      case Cmd.soundsReply:
-        this.update({ sounds: reply.body.sounds });
+        this.update({ said: { text: (body as { said: string }).said, at: Date.now() } });
         break;
       case Cmd.error:
-        this.update({ said: { text: `Rodeo: ${reply.body.error}`, at: Date.now() } });
+        this.update({ said: { text: `Rodeo: ${(body as { error: string }).error}`, at: Date.now() } });
+        break;
+      default:
+        if (reply.cmd >= Cmd.firmwareFirst + REPLY && reply.cmd <= Cmd.firmwareLast + REPLY)
+          this.update({ replies: { ...this.snap.replies, [reply.cmd]: reply.body } });
         break;
     }
   }
 
   private startStream() {
     this.stopKeepalive();
-    const ask = () => this.send(message(Cmd.stream, [1]));
+    const ask = () => this.send(message(Cmd.stream, [this.streamBits]));
     ask();
     this.keepalive = this.timers.setInterval(ask, KEEPALIVE_MS);
   }

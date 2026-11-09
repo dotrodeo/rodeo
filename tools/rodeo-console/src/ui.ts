@@ -8,6 +8,7 @@ import * as fs from './fs.ts';
 import { demoCard } from './demo.ts';
 import * as live from './live.ts';
 import { lastHeard, rodeo } from './rodeo/link.ts';
+import { sounds as rodeoSounds } from '@dotrodeo/rodeo-host/rodeo-demo';
 import { paramsToPreset, presetDefaults, presetToParams, toParam } from './rodeo/audition.ts';
 import { decodeAudio, encodeWav, firstTwo, peak, scale, toMono, trimSilence } from './wav.ts';
 import type { Card } from './card.ts';
@@ -443,7 +444,7 @@ function renderPreset(box: HTMLElement) {
 function audition(key: string, value: string | number | undefined) {
   const s = rodeo.snapshot;
   if (s.status !== 'ready' || value === undefined) return;
-  const r = toParam(key, value, s.params, s.sounds);
+  const r = toParam(key, value, s.params, rodeoSounds(s));
   if ('value' in r) rodeo.set(key, r.value);
 }
 
@@ -451,7 +452,7 @@ function sendPreset(preset: Preset) {
   const s = rodeo.snapshot;
   if (s.status !== 'ready')
     return toast('no Rodeo on MIDI — connect it (not in disk mode), and allow SysEx', true);
-  const { sets, skipped } = presetToParams(preset.values, s.params, s.sounds);
+  const { sets, skipped } = presetToParams(preset.values, s.params, rodeoSounds(s));
   // As the Rodeo loads it: what the preset leaves out goes back to its default
   const defaults = presetDefaults(preset.values, s.params);
   for (const [key, v] of [...defaults, ...sets]) rodeo.set(key, v);

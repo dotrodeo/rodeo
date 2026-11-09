@@ -1,0 +1,19 @@
+{
+  "name": "@dotrodeo/rodeo-host",
+  "version": "0.1.0",
+  "description": "The host protocol's computer side: talk to any Rodeo firmware over MIDI",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./rodeo-demo": "./src/rodeo-demo.ts"
+  },
+  "scripts": {
+    "test": "node --test src/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}

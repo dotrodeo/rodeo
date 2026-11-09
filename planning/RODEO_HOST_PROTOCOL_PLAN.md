@@ -113,9 +113,15 @@ bit per control.
    included. The serial `#S` line still carries the chain for the console's
    chain view until step 4 moves that to MIDI. The phone app's copy of the
    client (branch `rodeo-mobile-app`) still speaks protocol 1: step 5.
-3. **The shared client**: `src/rodeo/` (parser, protocol, client) becomes one
-   package that the console, the editor and the phone app all import. This ends
-   the two copies (console and the `rodeo-mobile-app` branch).
+3. **The shared client** (done 2026-11-09): `rodeo-sdk/host-js`, the package
+   `@dotrodeo/rodeo-host`. TypeScript source with no build step (Node, Vite and
+   Metro all take it): the parser, the protocol, and a client that knows no
+   firmware: a firmware's commands go out with `request()` and their replies
+   are kept by command, and `whenReady()` runs after each hello. rodeo-demo's
+   part is its own module, `@dotrodeo/rodeo-host/rodeo-demo` (lists, load, the
+   state's extra fields). The console depends on it with `file:` and its copies
+   are gone; 13 tests in the package, the console's 78 still pass. The phone
+   app takes it in step 5 (Metro will need the folder in `watchFolders`).
 4. **The split.** `tools/rodeo-console` keeps the chain view, readings, keyboard,
    sequencer, the parameter panel and flashing, for any Rodeo. The card editor
    (`card.ts`, `preset.ts`, `wav.ts`, `fs.ts`, `model.ts`, `demo.ts`,

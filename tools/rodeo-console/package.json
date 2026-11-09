@@ -9,6 +9,9 @@
     "test": "node --test test.ts src/rodeo/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@dotrodeo/rodeo-host": "file:../../rodeo-sdk/host-js"
+  },
   "devDependencies": {
     "@types/node": "^26.6.6",
     "@types/w3c-web-serial": "^1.0.9",
