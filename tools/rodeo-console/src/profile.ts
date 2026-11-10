@@ -1,5 +1,5 @@
 // What a firmware can add to the console. The console knows the host protocol
-// and nothing else: any Rodeo gets its keyboard, sequencer, parameter panel and
+// and nothing else: any Rodeo gets its keyboard, piano roll, parameter panel and
 // chain view from the hello alone. A page made for one firmware (the rodeo-demo
 // editor, instruments/rodeo-demo/editor) embeds the console and hands it one
 // of these to say the rest: how its panel is grouped, what its encoders turn,

@@ -1,4 +1,4 @@
-// A clock, a step sequencer and an arpeggiator.
+// A clock, a piano roll and an arpeggiator.
 //
 // Unlike card.ts and midi.ts this is not a copy of anything in the firmware —
 // Rodeo has no sequencer and no arp, and is not getting one. This is the page
@@ -6,7 +6,7 @@
 // one in midi.ts: eight voices, and the ninth note steals.
 //
 // Everything here is arithmetic on numbers, which is the point: the scheduling
-// in live.ts is a dozen lines around these functions, and these are tested.
+// in console.ts is a few dozen lines around these functions, and these are tested.
 
 /** A step length, in beats. */
 export interface Division {
@@ -88,39 +88,121 @@ export function pickStep(
   return sequence[((i % sequence.length) + sequence.length) % sequence.length];
 }
 
-// ------------------------------------------------------------- the sequencer
+// ----------------------------------------------------------- the arp clock
 
-export const ROWS = 8;
-export const STEPS = 16;
-
-/** Rows are chromatic from `root` up, which is how a kit maps to keys. */
-/** Rows of steps, 1 for on; row 0 is the top. */
-export type Pattern = Uint8Array[];
-
-export function rowNote(root: number, row: number): number {
-  return root + (ROWS - 1 - row); // row 0 is the top one, as on a piano roll
+/**
+ * Where the arp's first note goes when it starts under a running transport: the
+ * next `beats` boundary after `beat`, so a 1/8 arp lands on the roll's 1/8s
+ * rather than wherever the key happened to go down. Free-running, it starts now.
+ */
+export function nextBoundary(beat: number, beats: number): number {
+  const k = Math.ceil(beat / beats - 1e-9);
+  return k * beats || 0; // not -0
 }
 
-export function emptyPattern(rows = ROWS, steps = STEPS): Pattern {
-  return Array.from({ length: rows }, () => new Uint8Array(steps));
+// ---------------------------------------------------------- the piano roll
+
+/** The roll covers C0 to C5, with C4 at 60 as midi.ts names them. */
+export const NOTE_LO = 12;
+export const NOTE_HI = 72;
+export const ROWS = NOTE_HI - NOTE_LO + 1;
+/** The roll's grid is sixteenths: 16 steps a bar, 2 to 8 bars. */
+export const STEP_BEATS = 0.25;
+export const STEPS_PER_BAR = 16;
+export const BARS_MIN = 2;
+export const BARS_MAX = 8;
+
+/** A note on the roll: a pitch, a first step, and a length in steps. */
+export interface Note {
+  note: number;
+  start: number;
+  len: number;
 }
 
 /**
- * What a step sounds: the notes switched on in that column, and how long each
- * should last. `gate` is a fraction of the step, floored so a note is never so
- * short that the Rodeo's envelope cannot open.
+ * Notes past the end are kept, not dropped, so going from 8 bars to 2 and back
+ * loses nothing; they just do not play while the roll is shorter than them.
  */
-export function stepNotes(pattern: Pattern, step: number, root: number): number[] {
-  const out: number[] = [];
-  for (let r = 0; r < pattern.length; r++) if (pattern[r][step % pattern[r].length]) out.push(rowNote(root, r));
-  return out;
+export interface Roll {
+  bars: number;
+  notes: Note[];
+}
+
+export const clampBars = (bars: number) => clamp(Math.round(bars) || BARS_MIN, BARS_MIN, BARS_MAX);
+
+export function emptyRoll(bars = 4): Roll {
+  return { bars: clampBars(bars), notes: [] };
+}
+
+export function rollSteps(roll: Roll): number {
+  return clampBars(roll.bars) * STEPS_PER_BAR;
+}
+
+/** Row 0 is the top, as on any piano roll. */
+export const rowNote = (row: number) => NOTE_HI - row;
+export const noteRow = (note: number) => NOTE_HI - note;
+export const onRoll = (note: number) => note >= NOTE_LO && note <= NOTE_HI;
+
+/** How many steps a note sounds this time round: cut where the loop ends. */
+export function playedLen(roll: Roll, n: Note): number {
+  return Math.max(0, Math.min(n.len, rollSteps(roll) - n.start));
+}
+
+/** The notes that start on step `index` of an endless run, highest first. */
+export function startsAt(roll: Roll, index: number): Note[] {
+  const step = index % rollSteps(roll);
+  return roll.notes.filter((n) => n.start === step && playedLen(roll, n) > 0).sort((a, b) => b.note - a.note);
+}
+
+/** The note under a cell; the last placed wins, as it is the one drawn on top. */
+export function noteAt(roll: Roll, note: number, step: number): Note | undefined {
+  for (let i = roll.notes.length - 1; i >= 0; i--) {
+    const n = roll.notes[i];
+    if (n.note === note && step >= n.start && step < n.start + n.len) return n;
+  }
+  return undefined;
+}
+
+/**
+ * Settle `n` on the roll: a note of the same pitch it overlaps is shortened to
+ * end where `n` starts, or removed if `n` covers its start. Two overlapping
+ * notes of one pitch would send on, on, off, off — and the first off would cut
+ * the second note short.
+ */
+export function place(roll: Roll, n: Note): void {
+  n.note = clamp(n.note, NOTE_LO, NOTE_HI);
+  n.start = Math.max(0, n.start);
+  n.len = Math.max(1, n.len);
+  const end = n.start + n.len;
+  roll.notes = roll.notes.filter((o) => {
+    if (o === n || o.note !== n.note) return true;
+    if (o.start + o.len <= n.start || o.start >= end) return true;
+    if (o.start < n.start) {
+      o.len = n.start - o.start;
+      return true;
+    }
+    return false;
+  });
+  if (!roll.notes.includes(n)) roll.notes.push(n);
+}
+
+/** A gap before every note off, so a note followed by its own pitch retriggers. */
+export const LEGATO_GAP = 4;
+
+/**
+ * How long a note starting on step `start` holds, in ms: its steps, with swing
+ * moving both of its ends, less the gap — and never so short the envelope
+ * cannot open.
+ */
+export function holdMs(start: number, len: number, ms: number, swing: number): number {
+  const span = len * ms + swingOffset(start + len, ms, swing) - swingOffset(start, ms, swing);
+  return Math.max(15, span - LEGATO_GAP);
 }
 
 export function gateMs(ms: number, gate: number): number {
   return Math.max(15, ms * clamp(gate, 0.05, 1));
 }
 
-/** True when any step is on, for deciding whether the transport has work. */
-export function hasSteps(pattern: Pattern): boolean {
-  return pattern.some((row) => row.some((v) => v));
+export function hasNotes(roll: Roll): boolean {
+  return roll.notes.some((n) => playedLen(roll, n) > 0);
 }

@@ -48,27 +48,38 @@ shift an octave, holding Shift is the sustain pedal. The keyboard sends notes,
 velocity, pitch bend (scaled to rodeo-demo's ±2 semitones), CC 64, and CC 123
 for panic. What a firmware does with them is its own business.
 
-### The sequencer and the arp
+### The arp and the piano roll
 
-Both run off one transport: play (or the space bar), a tempo, a step length
-down to 1/32 and up to triplets, swing, and a gate length. `src/seq.ts` holds the
-arithmetic and is tested; it is a copy of nothing: the
-Rodeo just hears notes. This is the page playing the instrument.
+`src/seq.ts` holds the arithmetic for both and is tested; it is a copy of
+nothing: the Rodeo just hears notes. This is the page playing the instrument.
 
-**The sequencer** is 8 rows × 16 steps, chromatic from C2 (rodeo-demo's kits
-start there). Click a cell, or drag across to draw a line.
-`−`/`+` move the whole pattern an octave.
+**The arp** belongs to the keyboard, and its controls sit beside the keyboard's.
+Whatever is held is played up, down, up-down, as played, or random, over one to
+four octaves, at a rate from 1/4 down to 1/32 (triplets too), with its own gate.
+Up-down plays its endpoints once, so a triad gives four steps rather than six.
+It has its own clock: it starts with the first key and stops with the last,
+whether the roll is playing or not. The only thing it takes from the roll is the
+tempo, and when the roll is running the arp's first note waits for the roll's
+next boundary at the arp's rate, so the two stay in time. **Latch** keeps it
+going after the keys are let go, and the latched notes stay marked on the
+keyboard so it is clear what it is chewing on; pressing a fresh key then starts
+a new chord. With the arp on, the keyboard feeds it instead of sounding directly.
 
-**The arp** takes whatever is held on the keyboard: up, down, up-down, as
-played, or random, over one to four octaves. Up-down plays its endpoints once,
-so a triad gives four steps rather than six. **Latch** keeps it going after the
-keys are let go, and the latched notes stay marked on the keyboard so it is
-clear what it is chewing on; pressing a fresh key then starts a new chord. With
-the arp running the keyboard feeds it instead of sounding directly.
+**The piano roll** covers C0 to C5, 2 to 8 bars of sixteenths, and opens on C2
+to C4 (drag its corner to see more). Click an empty cell to add a note as long
+as the last one drawn, and drag to set its length; drag a note to move it in
+time and pitch, drag its end to change its length, and click it (or right-click)
+to remove it. Clicking a key at the side plays that note. Two notes of one pitch
+never overlap: a new one shortens or replaces the one under it. Shortening the
+roll keeps the notes past the new end; they just don't play until it's long
+enough again. Play (or the space bar), the tempo and swing are the roll's
+transport. `src/roll.ts` draws it on a canvas.
 
 Notes go out with Web MIDI timestamps from a lookahead scheduler rather than
 straight off a `setTimeout`, which would jitter audibly. Swing shifts a step
-without the grid drifting: sixteen steps later is still exactly a bar.
+without the grid drifting: sixteen steps later is still exactly a bar. Each
+note off lands a few ms before its next step, so a note followed by its own
+pitch retriggers.
 
 Stopping or hiding the tab lifts every note and sends CC 123 — the page holds notes down on real hardware, and a dropped note-off
 means the Rodeo drones until it is power-cycled.

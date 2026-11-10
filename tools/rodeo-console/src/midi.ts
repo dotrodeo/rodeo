@@ -1,4 +1,4 @@
-// MIDI out: the messages the console's keyboard and sequencer send.
+// MIDI out: the messages the console's keyboard, arp and piano roll send.
 //
 // Channel voice messages, any firmware's business to act on or not. The pitch
 // bend range is the SDK examples' and rodeo-demo's ±2 semitones; a firmware

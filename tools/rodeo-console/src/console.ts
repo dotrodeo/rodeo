@@ -4,12 +4,14 @@
 // for one firmware embeds this with a Profile (profile.ts) to add what only
 // that firmware knows. The rodeo-demo editor does (instruments/rodeo-demo/editor).
 //
-// The clock, the sequencer and the arp are in seq.ts, and are the page's own:
-// the Rodeo just hears notes. The serial port is a log, and the profile's
+// The clock, the piano roll and the arp are in seq.ts (the roll is drawn by
+// roll.ts), and are the page's own: the Rodeo just hears notes. The arp
+// belongs to the keyboard, with its own clock; the roll has the transport. The serial port is a log, and the profile's
 // commands; everything the panel shows comes over MIDI.
 
 import * as midi from './midi.ts';
 import * as seq from './seq.ts';
+import { mountRoll, type RollView } from './roll.ts';
 import * as chain from './chain.ts';
 import * as serial from './serial.ts';
 import * as link from './link.ts';
@@ -49,19 +51,18 @@ const LOOKAHEAD = 140;
 const TICK = 25;
 
 let sizer: ResizeObserver | null = null; // keeps the keyboard filling the width it is given
+let rollView: RollView | null = null;
 
 export type Toast = (message: string, bad?: boolean) => void;
 
 type TimerId = ReturnType<typeof setTimeout>;
 type IntervalId = ReturnType<typeof setInterval>;
 
+/** The roll's clock. The arp reads its tempo, and lines up with it. */
 interface Transport {
   running: boolean;
   bpm: number;
-  /** Index into seq.DIVISIONS. */
-  div: number;
   swing: number;
-  gate: number;
   step: number;
   next: number;
   clock: IntervalId | null;
@@ -69,10 +70,18 @@ interface Transport {
   cursor: number;
 }
 
+/** The keyboard's arp: runs whenever it is on and has notes, transport or not. */
 interface Arp {
   mode: seq.ArpMode;
+  /** Index into seq.DIVISIONS. */
+  div: number;
+  gate: number;
   octaves: number;
   latch: boolean;
+  running: boolean;
+  step: number;
+  next: number;
+  clock: IntervalId | null;
   /** Held notes in the order played. */
   held: number[];
   /** Set once every key is up, so a latched arp starts a new chord. */
@@ -99,8 +108,7 @@ interface LiveState {
   toast: Toast;
   t: Transport;
   arp: Arp;
-  pattern: seq.Pattern;
-  root: number;
+  roll: seq.Roll;
   wire: Wire;
   /** Detent totals per encoder, from the last chain report, and the turn since. */
   enc: number[];
@@ -120,10 +128,12 @@ const state: LiveState = {
   tick: null,
   toast: () => {},
 
-  t: { running: false, bpm: 120, div: 3, swing: 0, gate: 0.5, step: 0, next: 0, clock: null, cursor: -1 },
-  arp: { mode: 'off', octaves: 1, latch: false, held: [] },
-  pattern: seq.emptyPattern(),
-  root: 36,
+  t: { running: false, bpm: 120, swing: 0, step: 0, next: 0, clock: null, cursor: -1 },
+  arp: {
+    mode: 'off', div: 3, gate: 0.5, octaves: 1, latch: false,
+    running: false, step: 0, next: 0, clock: null, held: [],
+  },
+  roll: seq.emptyRoll(4),
   wire: { port: null, lines: 0 },
   enc: [],
   turn: [],
@@ -163,8 +173,11 @@ function clearTimers() {
 function play(note: number, velocity = state.velocity) {
   if (!state.out) return;
   noteHeld(note);
-  // With the arp running the keyboard feeds it instead of sounding directly.
-  if (arpLive()) return paint();
+  // With the arp on the keyboard feeds it instead of sounding directly.
+  if (arpOn()) {
+    arpStart();
+    return paint();
+  }
   send(midi.noteOn(note, velocity));
   state.profile.voices?.noteOn(note, velocity, performance.now());
   paint();
@@ -174,7 +187,9 @@ function lift(note: number) {
   if (!state.down.has(note)) return;
   state.down.delete(note);
   if (!state.arp.latch) state.arp.held = state.arp.held.filter((n) => n !== note);
-  if (!arpLive()) {
+  if (arpOn()) {
+    if (!state.arp.held.length) arpStop();
+  } else {
     send(midi.noteOff(note));
     state.profile.voices?.noteOff(note, performance.now());
   }
@@ -190,8 +205,21 @@ function noteHeld(note: number) {
   if (!state.arp.held.includes(note)) state.arp.held.push(note);
 }
 
-function arpLive() {
-  return state.arp.mode !== 'off' && state.t.running;
+function arpOn() {
+  return state.arp.mode !== 'off';
+}
+
+/** A note to hear what a row of the roll is, while drawing on it. */
+function audition(note: number) {
+  if (!state.out) return;
+  send(midi.noteOn(note, state.velocity));
+  state.profile.voices?.noteOn(note, state.velocity, performance.now());
+  later(() => {
+    send(midi.noteOff(note));
+    state.profile.voices?.noteOff(note, performance.now());
+    paint();
+  }, 160);
+  paint();
 }
 
 /**
@@ -201,6 +229,7 @@ function arpLive() {
  */
 function panic() {
   stop();
+  arpStop();
   for (const n of [...state.down]) send(midi.noteOff(n));
   state.down.clear();
   state.arp.held = [];
@@ -249,7 +278,7 @@ function stop() {
 }
 
 function schedule() {
-  const ms = seq.stepMs(state.t.bpm, seq.DIVISIONS[state.t.div].beats);
+  const ms = seq.stepMs(state.t.bpm, seq.STEP_BEATS);
   const horizon = performance.now() + LOOKAHEAD;
   while (state.t.next < horizon) {
     fire(state.t.step, state.t.next + seq.swingOffset(state.t.step, ms, state.t.swing), ms);
@@ -259,30 +288,87 @@ function schedule() {
 }
 
 function fire(index: number, at: number, ms: number) {
-  const notes = seq.stepNotes(state.pattern, index, state.root);
-  if (arpLive()) {
-    const cycle = seq.arpSequence(state.arp.held, state.arp.mode, state.arp.octaves);
-    const n = seq.pickStep(cycle, index, state.arp.mode);
-    if (n !== null) notes.push(n);
-  }
-  const hold = seq.gateMs(ms, state.t.gate);
+  const step = index % seq.rollSteps(state.roll);
+  const notes = seq.startsAt(state.roll, index).map((n) => ({
+    note: n.note,
+    hold: seq.holdMs(step, seq.playedLen(state.roll, n), ms, state.t.swing),
+  }));
   for (const n of notes) {
-    send(midi.noteOn(n, state.velocity), at);
-    send(midi.noteOff(n), at + hold);
+    send(midi.noteOn(n.note, state.velocity), at);
+    send(midi.noteOff(n.note), at + n.hold);
   }
-  // The voice panel is a model, so step it at the same times, once per step
-  // rather than once per note.
+  // The voice panel is a model, so step it at the same times.
   const now = performance.now();
   later(() => {
-    state.t.cursor = index % seq.STEPS;
-    for (const n of notes) state.profile.voices?.noteOn(n, state.velocity, performance.now());
+    state.t.cursor = step;
+    for (const n of notes) state.profile.voices?.noteOn(n.note, state.velocity, performance.now());
     paint();
   }, at - now);
-  if (notes.length)
+  for (const n of notes)
     later(() => {
-      for (const n of notes) state.profile.voices?.noteOff(n, performance.now());
+      state.profile.voices?.noteOff(n.note, performance.now());
       paint();
-    }, at + hold - now);
+    }, at + n.hold - now);
+}
+
+// ------------------------------------------------------------------ the arp
+//
+// The same lookahead as the transport, on its own clock: it starts with the
+// first key and stops with the last (or never, latched). Under a running
+// transport its first note waits for the roll's next boundary of its rate, so
+// the two stay in time with each other.
+
+function arpStart() {
+  const a = state.arp;
+  if (a.running || !state.out || !a.held.length) return;
+  a.running = true;
+  a.step = 0;
+  const now = performance.now();
+  a.next = now;
+  if (state.t.running) {
+    const beatMs = seq.stepMs(state.t.bpm, 1);
+    const beat = state.t.step * seq.STEP_BEATS - (state.t.next - now) / beatMs;
+    a.next = now + (seq.nextBoundary(beat, seq.DIVISIONS[a.div].beats) - beat) * beatMs;
+  }
+  a.clock = setInterval(arpSchedule, TICK);
+  arpSchedule();
+}
+
+function arpStop() {
+  const a = state.arp;
+  if (!a.running) return;
+  a.running = false;
+  clearInterval(a.clock ?? undefined);
+  a.clock = null; // what it already sent ends on its own
+}
+
+function arpSchedule() {
+  const a = state.arp;
+  const ms = seq.stepMs(state.t.bpm, seq.DIVISIONS[a.div].beats);
+  const horizon = performance.now() + LOOKAHEAD;
+  while (a.next < horizon) {
+    arpFire(a.step, a.next, ms);
+    a.step++;
+    a.next += ms;
+  }
+}
+
+function arpFire(index: number, at: number, ms: number) {
+  const a = state.arp;
+  const n = seq.pickStep(seq.arpSequence(a.held, a.mode, a.octaves), index, a.mode);
+  if (n === null || n > 127) return;
+  const hold = seq.gateMs(ms, a.gate);
+  send(midi.noteOn(n, state.velocity), at);
+  send(midi.noteOff(n), at + hold);
+  const now = performance.now();
+  later(() => {
+    state.profile.voices?.noteOn(n, state.velocity, performance.now());
+    paint();
+  }, at - now);
+  later(() => {
+    state.profile.voices?.noteOff(n, performance.now());
+    paint();
+  }, at + hold - now);
 }
 
 // -------------------------------------------------------------------- ports
@@ -460,31 +546,17 @@ function key(note: number, className: string) {
 }
 
 function renderGrid() {
-  const grid = $('live-grid');
-  if (!grid) return;
-  grid.replaceChildren();
-  for (let r = 0; r < state.pattern.length; r++) {
-    grid.append(
-      el('div', { className: 'sq-label', textContent: noteName(seq.rowNote(state.root, r)) })
-    );
-    for (let s = 0; s < seq.STEPS; s++) {
-      grid.append(
-        el('button', {
-          className: `sq${state.pattern[r][s] ? ' on' : ''}${s % 4 === 0 ? ' beat' : ''}`,
-          data: { r: String(r), s: String(s) },
-          title: `${noteName(seq.rowNote(state.root, r))} · step ${s + 1}`,
-        })
-      );
-    }
-  }
+  rollView?.destroy();
+  rollView = mountRoll($('live-roll'), {
+    roll: () => state.roll,
+    cursor: () => state.t.cursor,
+    audition,
+    silent: state.profile.silent,
+  });
 }
 
 function paintGrid() {
-  for (const c of document.querySelectorAll<HTMLElement>('.sq')) {
-    // Every .sq cell is drawn by renderGrid() with data-r and data-s.
-    c.classList.toggle('on', !!state.pattern[+(c.dataset.r as string)][+(c.dataset.s as string)]);
-    c.classList.toggle('now', +(c.dataset.s as string) === state.t.cursor);
-  }
+  rollView?.paint();
 }
 
 function paintTransport() {
@@ -534,7 +606,8 @@ function paintCount(now = performance.now()) {
 function clock() {
   state.tick = setInterval(() => {
     const now = performance.now();
-    if (state.down.size || (state.profile.voices?.sounding(now) ?? 0) || state.t.running) paint();
+    if (state.down.size || (state.profile.voices?.sounding(now) ?? 0) || state.t.running || state.arp.running)
+      paint();
   }, 100);
 }
 
@@ -576,29 +649,32 @@ function markup(title: string, toolbar: Node[]) {
       <input type="range" id="live-bend" min="-200" max="200" value="0" title="±2 semitones on rodeo-demo" />
       <button id="live-sustain" title="CC 64 — or hold Shift">sus</button>
       <button id="live-panic" title="CC 123, and a note off for every key the page holds">panic</button>
-    </div>
-
-    <div class="row live-controls">
-      <button id="live-play" class="play" title="space">▶</button>
-      <label for="live-bpm">bpm</label>
-      <input type="number" id="live-bpm" min="40" max="240" value="120" />
-      <select id="live-div" title="step length"></select>
-      <label for="live-swing">swing</label>
-      <input type="range" id="live-swing" min="0" max="75" value="0" />
-      <label for="live-gate">gate</label>
-      <input type="range" id="live-gate" min="5" max="100" value="50" />
+      <span class="sep"></span>
       <label for="live-arp">arp</label>
-      <select id="live-arp"></select>
+      <select id="live-arp" title="the keyboard's arpeggiator"></select>
+      <select id="live-arp-rate" title="arp rate, at the roll's tempo"></select>
+      <label for="live-arp-oct">oct</label>
       <input type="number" id="live-arp-oct" min="1" max="4" value="1" title="arp octaves" />
+      <label for="live-arp-gate">gate</label>
+      <input type="range" id="live-arp-gate" min="5" max="100" value="50" />
       <button id="live-latch" title="keep arpeggiating after the keys are let go">latch</button>
     </div>
 
     <div class="sq-wrap">
-      <div class="sq-grid" id="live-grid"></div>
-      <div class="row sq-foot">
-        <button id="live-root-down" title="pattern down an octave">−</button>
-        <button id="live-root-up" title="pattern up an octave">+</button>
+      <div class="row live-controls">
+        <button id="live-play" class="play" title="space">▶</button>
+        <label for="live-bpm">bpm</label>
+        <input type="number" id="live-bpm" min="40" max="240" value="120" />
+        <label for="live-bars">bars</label>
+        <select id="live-bars"></select>
+        <label for="live-swing">swing</label>
+        <input type="range" id="live-swing" min="0" max="75" value="0" />
         <button id="live-clear">clear</button>
+        <span class="grow"></span>
+        <span class="small dim">click to add · drag to lengthen or move · click a note to remove</span>
+      </div>
+      <div class="roll" id="live-roll"></div>
+      <div class="row sq-foot">
         <span class="grow"></span>
         <span class="small dim" id="live-voices-label">voices</span>
         <div class="voices" id="live-voices"></div>
@@ -653,60 +729,61 @@ function wire() {
   $('live-bpm').oninput = (e) => {
     state.t.bpm = Math.max(seq.BPM_MIN, Math.min(seq.BPM_MAX, Number((e.target as HTMLInputElement).value) || 120));
   };
-  const div = $('live-div');
-  div.replaceChildren(
-    ...seq.DIVISIONS.map((d, i) =>
-      el('option', { value: String(i), textContent: d.id, selected: i === state.t.div })
-    )
+  const bars = $('live-bars');
+  bars.replaceChildren(
+    ...Array.from({ length: seq.BARS_MAX - seq.BARS_MIN + 1 }, (_, i) => {
+      const n = seq.BARS_MIN + i;
+      return el('option', { value: String(n), textContent: String(n), selected: n === state.roll.bars });
+    })
   );
-  div.onchange = (e) => (state.t.div = Number((e.target as HTMLSelectElement).value));
+  bars.onchange = (e) => {
+    state.roll.bars = seq.clampBars(Number((e.target as HTMLSelectElement).value));
+    rollView?.resize();
+  };
   $('live-swing').oninput = (e) => (state.t.swing = Number((e.target as HTMLInputElement).value) / 100);
-  $('live-gate').oninput = (e) => (state.t.gate = Number((e.target as HTMLInputElement).value) / 100);
+  $('live-clear').onclick = () => {
+    state.roll.notes = [];
+    paintGrid();
+  };
+  for (const id of ['live-voices-label', 'live-voices', 'live-next']) $(id).hidden = !state.profile.voices;
+
+  // --- the arp, on the keyboard ---
   const arp = $('live-arp');
   arp.replaceChildren(
     ...seq.ARP_MODES.map((m) => el('option', { value: m, textContent: m, selected: m === state.arp.mode }))
   );
   arp.onchange = (e) => {
+    const was = arpOn();
     // The options are ARP_MODES, so the value is one of them.
     state.arp.mode = (e.target as HTMLSelectElement).value as seq.ArpMode;
-    if (state.arp.mode === 'off') state.arp.held = [...state.down];
+    if (!arpOn()) {
+      arpStop();
+      state.arp.held = [...state.down];
+    } else if (!was) {
+      // Keys already down were sounding directly; the arp takes them over.
+      for (const n of state.down) send(midi.noteOff(n));
+      arpStart();
+    }
+    paint();
   };
+  const rate = $('live-arp-rate');
+  rate.replaceChildren(
+    ...seq.DIVISIONS.map((d, i) =>
+      el('option', { value: String(i), textContent: d.id, selected: i === state.arp.div })
+    )
+  );
+  rate.onchange = (e) => (state.arp.div = Number((e.target as HTMLSelectElement).value));
   $('live-arp-oct').oninput = (e) => (state.arp.octaves = Number((e.target as HTMLInputElement).value) || 1);
+  $('live-arp-gate').oninput = (e) => (state.arp.gate = Number((e.target as HTMLInputElement).value) / 100);
   $('live-latch').onclick = (e) => {
     state.arp.latch = !state.arp.latch;
     (e.target as HTMLElement).classList.toggle('on', state.arp.latch);
-    if (!state.arp.latch) state.arp.held = [...state.down];
+    if (!state.arp.latch) {
+      state.arp.held = state.arp.held.filter((n) => state.down.has(n));
+      if (!state.arp.held.length) arpStop();
+    }
+    paint();
   };
-
-  // --- sequencer ---
-  $('live-root-down').onclick = () => setRoot(state.root - 12);
-  $('live-root-up').onclick = () => setRoot(state.root + 12);
-  $('live-clear').onclick = () => {
-    state.pattern = seq.emptyPattern();
-    paintGrid();
-  };
-  for (const id of ['live-voices-label', 'live-voices', 'live-next']) $(id).hidden = !state.profile.voices;
-
-  const grid = $('live-grid');
-  let painting: number | null = null; // drag across the grid to draw a line of steps
-  const toggle = (cell: HTMLElement, to?: number) => {
-    const r = +(cell.dataset.r as string);
-    const s = +(cell.dataset.s as string);
-    state.pattern[r][s] = to ?? (state.pattern[r][s] ? 0 : 1);
-    cell.classList.toggle('on', !!state.pattern[r][s]);
-    return state.pattern[r][s];
-  };
-  grid.addEventListener('pointerdown', (e) => {
-    const cell = (e.target as Element).closest<HTMLElement>('.sq');
-    if (!cell) return;
-    e.preventDefault();
-    painting = toggle(cell);
-  });
-  grid.addEventListener('pointerover', (e) => {
-    const cell = (e.target as Element).closest<HTMLElement>('.sq');
-    if (cell && painting !== null && e.buttons) toggle(cell, painting);
-  });
-  addEventListener('pointerup', () => (painting = null));
 
   // --- the chain row: dfu over MIDI, the profile's commands over serial ---
   $('live-dfu').onclick = () => {
@@ -752,12 +829,6 @@ function wire() {
   };
   keys.addEventListener('pointerup', release);
   keys.addEventListener('pointercancel', release);
-}
-
-function setRoot(next: number) {
-  if (next < 0 || seq.rowNote(next, 0) > 127) return;
-  state.root = next;
-  renderGrid();
 }
 
 function shift(by: number) {
@@ -1133,7 +1204,7 @@ export interface Console {
 
 /**
  * Draws the console into `container`: the bar with its connections (and
- * `toolbar` after them), the keyboard, the sequencer, the parameter panel and
+ * `toolbar` after them), the keyboard and its arp, the piano roll, the parameter panel and
  * the chain.
  */
 export function mount(
@@ -1183,6 +1254,8 @@ function unmount(): void {
   link.attach(null, null);
   clearInterval(state.tick ?? undefined);
   state.tick = null;
+  rollView?.destroy();
+  rollView = null;
   removeEventListener('keydown', onKeyDown);
   removeEventListener('keyup', onKeyUp);
   removeEventListener('pagehide', panic);

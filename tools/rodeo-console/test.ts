@@ -69,12 +69,13 @@ test('notes are named with C4 at 60', () => {
 
 test('a sequencer step cannot overrun the firmware event queue', () => {
   // `Push` drops once 64 events are unread, and `Process` drains them every
-  // 1/3 ms (synth.cpp:40-47). Everything the page can send at one instant is
-  // one column of the grid plus one arp note, so the ceiling is the grid's
-  // own height — worth asserting, because widening the grid would raise it.
-  const full = emptyPattern();
-  for (const row of full) row.fill(1);
-  const worst = stepNotes(full, 0, 36).length + 1;
+  // 1/3 ms (synth.cpp:40-47). The most the page can start at one instant is a
+  // note on every row of the roll plus one arp note, so the ceiling is the
+  // roll's height — worth asserting, because widening the roll would raise it.
+  // (Note offs land LEGATO_GAP before the next step, never on it.)
+  const full = emptyRoll();
+  for (let r = 0; r < ROWS; r++) place(full, { note: rowNote(r), start: 0, len: 1 });
+  const worst = startsAt(full, 0).length + 1;
   assert.equal(worst, ROWS + 1);
   assert.ok(worst < 64, `${worst} notes could land in the same millisecond`);
 });
@@ -90,17 +91,30 @@ import {
   BPM_MAX,
   BPM_MIN,
   DIVISIONS,
+  BARS_MAX,
+  BARS_MIN,
+  LEGATO_GAP,
+  NOTE_HI,
+  NOTE_LO,
   ROWS,
-  STEPS,
+  STEPS_PER_BAR,
   SWING_MAX,
   arpSequence,
-  emptyPattern,
+  clampBars,
+  emptyRoll,
   gateMs,
-  hasSteps,
+  hasNotes,
+  holdMs,
+  nextBoundary,
+  noteAt,
+  noteRow,
   pickStep,
+  place,
+  playedLen,
+  rollSteps,
   rowNote,
+  startsAt,
   stepMs,
-  stepNotes,
   stepTime,
   swingOffset,
 } from './src/seq.ts';
@@ -183,25 +197,84 @@ test('the cycle wraps forever and random stays inside it', () => {
   assert.ok(ARP_MODES.includes('random') && ARP_MODES[0] === 'off');
 });
 
-test('the grid reads as a piano roll, top row highest', () => {
-  assert.equal(rowNote(36, 0), 43, 'the top row is the highest note');
-  assert.equal(rowNote(36, ROWS - 1), 36, 'the bottom row is the root');
-  for (let r = 1; r < ROWS; r++) assert.ok(rowNote(36, r) < rowNote(36, r - 1));
+test('the roll runs C0 to C5, top row highest', () => {
+  assert.equal(noteName(NOTE_LO), 'C0');
+  assert.equal(noteName(NOTE_HI), 'C5');
+  assert.equal(ROWS, 61);
+  assert.equal(rowNote(0), NOTE_HI, 'the top row is the highest note');
+  assert.equal(rowNote(ROWS - 1), NOTE_LO);
+  for (let r = 1; r < ROWS; r++) assert.ok(rowNote(r) < rowNote(r - 1));
+  for (let r = 0; r < ROWS; r++) assert.equal(noteRow(rowNote(r)), r);
 });
 
-test('a step sounds exactly the cells switched on in its column', () => {
-  const p = emptyPattern();
-  assert.equal(hasSteps(p), false);
-  assert.deepEqual(stepNotes(p, 0, 36), []);
-  p[ROWS - 1][0] = 1; // bottom row, first step
-  p[0][0] = 1; // top row, same step
-  p[3][5] = 1;
-  assert.equal(hasSteps(p), true);
-  assert.deepEqual(stepNotes(p, 0, 36), [43, 36], 'both notes in the column, top row first');
-  assert.deepEqual(stepNotes(p, 1, 36), []);
-  assert.deepEqual(stepNotes(p, 5, 36), [rowNote(36, 3)]);
-  assert.deepEqual(stepNotes(p, STEPS, 36), stepNotes(p, 0, 36), 'the pattern loops');
-  assert.deepEqual(stepNotes(p, 0, 48), [55, 48], 'the root transposes the lot');
+test('a roll is 2 to 8 bars of sixteenths', () => {
+  assert.equal(STEPS_PER_BAR, 16);
+  assert.equal(rollSteps(emptyRoll(2)), 32);
+  assert.equal(rollSteps(emptyRoll(8)), 128);
+  assert.equal(clampBars(1), BARS_MIN);
+  assert.equal(clampBars(12), BARS_MAX);
+  assert.equal(clampBars(Number.NaN), BARS_MIN);
+});
+
+test('a step starts exactly the notes that begin on it, and the roll loops', () => {
+  const r = emptyRoll(2);
+  assert.equal(hasNotes(r), false);
+  place(r, { note: 36, start: 0, len: 4 });
+  place(r, { note: 48, start: 0, len: 1 });
+  place(r, { note: 40, start: 5, len: 2 });
+  assert.equal(hasNotes(r), true);
+  assert.deepEqual(startsAt(r, 0).map((n) => n.note), [48, 36], 'highest first');
+  assert.deepEqual(startsAt(r, 1), [], 'a held note does not restart');
+  assert.deepEqual(startsAt(r, 5).map((n) => n.note), [40]);
+  assert.deepEqual(startsAt(r, 32 + 5).map((n) => n.note), [40], 'the second time round');
+});
+
+test('a shorter roll keeps the notes past its end, and does not play them', () => {
+  const r = emptyRoll(4);
+  const late = { note: 50, start: 40, len: 4 };
+  const over = { note: 52, start: 30, len: 8 };
+  place(r, late);
+  place(r, over);
+  r.bars = 2;
+  assert.deepEqual(startsAt(r, 40 - 32), [], 'step 40 is past a 2-bar end, and does not wrap');
+  assert.equal(playedLen(r, over), 2, 'a note over the end is cut at it');
+  assert.equal(r.notes.length, 2, 'nothing was dropped');
+  r.bars = 4;
+  assert.deepEqual(startsAt(r, 40).map((n) => n.note), [50]);
+  assert.equal(playedLen(r, over), 8);
+});
+
+test('two notes of one pitch never overlap', () => {
+  const r = emptyRoll();
+  const a = { note: 60, start: 0, len: 8 };
+  place(r, a);
+  place(r, { note: 60, start: 4, len: 2 });
+  assert.equal(a.len, 4, 'the earlier note ends where the later starts');
+  place(r, { note: 60, start: 0, len: 16 });
+  assert.equal(r.notes.length, 1, 'a note covering others replaces them');
+  place(r, { note: 62, start: 0, len: 16 });
+  assert.equal(r.notes.length, 2, 'other pitches are left alone');
+  assert.equal(noteAt(r, 62, 15)?.note, 62);
+  assert.equal(noteAt(r, 62, 16), undefined);
+  const odd = { note: 200, start: -3, len: 0 };
+  place(r, odd);
+  assert.deepEqual(odd, { note: NOTE_HI, start: 0, len: 1 }, 'placed notes are clamped onto the roll');
+});
+
+test('a note holds its length, less a gap, with swing moving both ends', () => {
+  assert.equal(holdMs(0, 4, 100, 0), 400 - LEGATO_GAP);
+  // start 0 is on the beat, end at step 1 is swung late by half a step
+  assert.equal(holdMs(0, 1, 100, 0.5), 150 - LEGATO_GAP);
+  // start 1 swung late, end at step 2 on the beat
+  assert.equal(holdMs(1, 1, 100, 0.5), 50 - LEGATO_GAP);
+  assert.equal(holdMs(0, 1, 10, 0), 15, 'never too short to sound');
+});
+
+test('an arp under a running transport starts on its next boundary', () => {
+  assert.equal(nextBoundary(0, 0.5), 0, 'on a boundary already');
+  assert.equal(nextBoundary(0.1, 0.5), 0.5);
+  assert.equal(nextBoundary(1.26, 0.25), 1.5);
+  assert.ok(Math.abs(nextBoundary(0.4, 1 / 3) - 2 / 3) < 1e-9, 'triplets too');
 });
 
 test('a gate is never longer than its step, nor too short to sound', () => {
