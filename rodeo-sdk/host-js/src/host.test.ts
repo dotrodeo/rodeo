@@ -5,7 +5,7 @@ import { test } from 'node:test';
 
 import { RodeoClient, type Timers } from './client.ts';
 import { MidiParser } from './parser.ts';
-import { Cmd, message, parseReply, pitchBend, setMessage } from './protocol.ts';
+import { Cmd, HEADER, message, parseReply, pitchBend, setMessage } from './protocol.ts';
 import { DemoCmd, demoState, followRodeoDemo, loadPreset, presets, sounds } from './rodeo-demo.ts';
 
 test('parser: messages split across packets, running status, real time inside SysEx', () => {
@@ -37,9 +37,10 @@ const octave = { id: 6, key: 'octave', min: -2, max: 2, def: 0 };
 
 test('protocol: set messages subtract the minimum, 14-bit LSB first, clamped', () => {
   assert.deepEqual(setMessage([[cutoff, 1000], [octave, -1]]), [
-    0xf0, 0x7d, 0x52, 0x44, 2, Cmd.set, 0, 1000 & 0x7f, 1000 >> 7, 6, 1, 0, 0xf7,
+    ...HEADER, 2, Cmd.set, 0, 1000 & 0x7f, 1000 >> 7, 6, 1, 0, 0xf7,
   ]);
-  assert.deepEqual(setMessage([[octave, 9]]).slice(6, 9), [6, 4, 0]);
+  const p = HEADER.length + 2; // past the header, the version, the command
+  assert.deepEqual(setMessage([[octave, 9]]).slice(p, p + 3), [6, 4, 0]);
 });
 
 test('protocol: pitch bend spans -2..+2 semitones', () => {
@@ -57,7 +58,7 @@ test('protocol: replies parse; other SysEx and versions do not', () => {
   assert.deepEqual(parseReply(reply(Cmd.said, { said: 'hi' })), { cmd: Cmd.said, body: { said: 'hi' } });
   assert.equal(parseReply([0xf0, 0x7e, 0x7f, 6, 2, 0, 0xf7]), null);
   const v1 = reply(Cmd.said, {});
-  v1[4] = 1; // rodeo-demo before the SDK's protocol
+  v1[HEADER.length] = 1; // rodeo-demo before the SDK's protocol
   assert.equal(parseReply(v1), null);
 });
 

@@ -1,7 +1,13 @@
 // The host protocol, the computer's half: rodeo-sdk/docs/guides/host.mdx (the
 // firmware's half is rodeo-sdk/common/host.h). Any firmware on the SDK speaks
-// it. Messages are F0 7D 52 44 02 <cmd> <payload> F7; Rodeo answers in JSON.
+// it. Messages are HEADER (F0 7D 52 44), 02, <cmd>, <payload>, F7; Rodeo
+// answers in JSON.
 
+/** F0, the SysEx manufacturer ID, then "RD": the one place the ID is set on
+ *  this side (common/host.h's Host::kHeader is the firmware's). 7D is the MIDI
+ *  spec's non-commercial ID, for development; DOT RODEO registers its own
+ *  before the Kickstarter, with a protocol version bump. Nothing below assumes
+ *  the ID is one byte. */
 export const HEADER = [0xf0, 0x7d, 0x52, 0x44] as const;
 export const VERSION = 2;
 /** A reply's command is the request's plus this. */
@@ -102,13 +108,14 @@ export function setMessage(values: [Param, number][]): number[] {
 /** One of Rodeo's replies, the protocol's or a firmware's own, or null for
  *  anything else (another device's SysEx, another version, a note). */
 export function parseReply(m: number[]): { cmd: number; body: unknown } | null {
-  if (m.length < 7 || m[0] !== 0xf0 || m[m.length - 1] !== 0xf7) return null;
-  for (let i = 1; i < HEADER.length; i++) if (m[i] !== HEADER[i]) return null;
-  if (m[4] !== VERSION) return null;
+  const h = HEADER.length; // then the version, the command, the JSON, F7
+  if (m.length < h + 3 || m[m.length - 1] !== 0xf7) return null;
+  for (let i = 0; i < h; i++) if (m[i] !== HEADER[i]) return null;
+  if (m[h] !== VERSION) return null;
   let text = '';
-  for (let i = 6; i < m.length - 1; i++) text += String.fromCharCode(m[i]!);
+  for (let i = h + 2; i < m.length - 1; i++) text += String.fromCharCode(m[i]!);
   try {
-    return { cmd: m[5]!, body: JSON.parse(text) };
+    return { cmd: m[h + 1]!, body: JSON.parse(text) };
   } catch {
     return null;
   }

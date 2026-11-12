@@ -19,7 +19,8 @@
 //
 //   F0 7D 52 44 <version> <command> <payload> F7
 //
-// under the MIDI spec's non-commercial ID (7D). The protocol is SysEx only: it
+// under the MIDI spec's non-commercial ID (7D) for now: Host::kHeader is the
+// one place it's set, and says when it changes. The protocol is SysEx only: it
 // never sends or claims a note, a CC or a program change, so a firmware's own
 // MIDI map is untouched. Replies are JSON, ASCII only.
 //
@@ -132,6 +133,13 @@ class Host
 {
   public:
     static constexpr uint8_t kProtocol = 2;
+    /** What every message starts with: F0, the SysEx manufacturer ID, then
+     *  "RD". The one place the ID is set (host-js's HEADER is the other side).
+     *  7D is the MIDI spec's non-commercial ID: for development, not for a
+     *  product released to the public. DOT RODEO registers its own before the
+     *  Kickstarter; swapping it in (one byte, or a three-byte 00 xx xx) changes
+     *  the wire format, so it comes with a protocol version bump. */
+    static constexpr uint8_t kHeader[] = {0xF0, 0x7D, 0x52, 0x44};
     /** A reply's command is the request's plus this. */
     static constexpr uint8_t kReply = 0x40;
     /** The memory to give it: a third for the message being written, the rest

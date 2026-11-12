@@ -78,7 +78,9 @@ struct Bench
     // A request, as the computer's USB-MIDI driver packs it
     void Send(int cmd, std::vector<uint8_t> payload = {}, uint8_t version = 2)
     {
-        std::vector<uint8_t> m = {0xF0, 0x7D, 0x52, 0x44, version, (uint8_t)cmd};
+        std::vector<uint8_t> m(std::begin(rodeo::Host::kHeader), std::end(rodeo::Host::kHeader));
+        m.push_back(version);
+        m.push_back((uint8_t)cmd);
         m.insert(m.end(), payload.begin(), payload.end());
         m.push_back(0xF7);
         for(size_t i = 0; i < m.size(); i += 3)
@@ -113,11 +115,14 @@ struct Bench
             if(cin != 0x4)
             {
                 EXPECT_EQ(m.back(), 0xF7);
-                EXPECT_EQ(std::vector<uint8_t>(m.begin(), m.begin() + 5),
-                          (std::vector<uint8_t>{0xF0, 0x7D, 0x52, 0x44, 2}));
+                const size_t h = sizeof rodeo::Host::kHeader;
+                std::vector<uint8_t> head(std::begin(rodeo::Host::kHeader),
+                                          std::end(rodeo::Host::kHeader));
+                head.push_back(2);
+                EXPECT_EQ(std::vector<uint8_t>(m.begin(), m.begin() + h + 1), head);
                 for(size_t j = 1; j + 1 < m.size(); j++)
                     EXPECT_LT(m[j], 0x80) << "SysEx data is 7-bit";
-                out.push_back({m[5], std::string(m.begin() + 6, m.end() - 1)});
+                out.push_back({m[h + 1], std::string(m.begin() + h + 2, m.end() - 1)});
                 m.clear();
             }
         }

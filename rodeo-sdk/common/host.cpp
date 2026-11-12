@@ -10,10 +10,12 @@
 
 namespace rodeo
 {
+constexpr uint8_t Host::kHeader[]; // C++14 wants the definition for memcpy and friends
+
 namespace
 {
-constexpr uint8_t  kHeader[]  = {0xF0, 0x7D, 0x52, 0x44}; // non-commercial ID, "RD"
-constexpr size_t   kPrefix    = sizeof kHeader + 2;      // and the version, the command
+constexpr auto&    kHeader    = Host::kHeader;
+constexpr size_t   kPrefix    = sizeof kHeader + 2; // and the version, the command
 constexpr uint32_t kStreamMs  = 5000; // a stream lasts this long after it was last asked for
 constexpr uint32_t kPeriodMs  = 50;   // about 20 a second while anything changes
 constexpr uint32_t kQuietMs   = 1000; // the state stops a second after it last changed

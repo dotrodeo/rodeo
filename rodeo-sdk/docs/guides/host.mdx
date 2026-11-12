@@ -111,6 +111,13 @@ F0 7D 52 44 <version> <command> <payload> F7
 and its payload is JSON, ASCII only (`‰` for ‰). A request with another
 version gets one error and is otherwise ignored.
 
+`7D` is for development: the MIDI spec reserves it for non-commercial use, never a
+product released to the public. DOT RODEO registers a manufacturer ID of its own
+before the Kickstarter, and the header changes with a version bump then. It is set
+in one place each side, `Host::kHeader` in `host.h` and `HEADER` in host-js, and
+neither side assumes the ID is a single byte. A firmware's own SysEx, outside this
+protocol, is under its maker's ID.
+
 | Command | Request payload | Reply |
 |---|---|---|
 | `01` hello | none | `41`: the firmware and its parameters |
