@@ -797,3 +797,14 @@ so they come first.
   Seed.
 * **The encoder hub doesn't carry over to Rev B** (decided 2026-10-18): encoder banks on
   the satellite chain replace it, and the hub stays a Rev A part.
+
+## DRC findings accepted
+
+* **Vias under the getting-started QR code (2026-11-12).** KiCad 10.0.8's DRC
+  reports 38 "barcode visual separation" errors that 10.0.3 didn't: GND stitching
+  vias under and near the QR code on the back silkscreen (the default rule wants
+  1 mm around a barcode). Accepted, not moved: KiCad's 3D render of the back, via
+  holes included, still decodes to `https://rodeooh.rodeo/getting-started`
+  (OpenCV, with the image inverted because the code is white on dark). Moving the
+  vias would change the copper of a board already at JLC for a code that already
+  scans. Recheck with a phone on the first boards.
