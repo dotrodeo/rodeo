@@ -26,6 +26,8 @@ export interface RollOptions {
   audition: (note: number) => void;
   /** Rows with nothing on them for this firmware, drawn dimmer. */
   silent?: (note: number) => boolean;
+  /** After a note is added, moved, resized or removed. */
+  changed?: () => void;
 }
 
 export interface RollView {
@@ -212,6 +214,7 @@ export function mountRoll(box: HTMLElement, o: RollOptions): RollView {
     }
     drag = null;
     paint();
+    o.changed?.();
   };
   canvas.addEventListener('pointerup', drop);
   canvas.addEventListener('pointercancel', drop);
@@ -223,6 +226,7 @@ export function mountRoll(box: HTMLElement, o: RollOptions): RollView {
     const roll = o.roll();
     roll.notes = roll.notes.filter((x) => x !== h.n);
     paint();
+    o.changed?.();
   });
 
   const sizer = new ResizeObserver(() => resize());

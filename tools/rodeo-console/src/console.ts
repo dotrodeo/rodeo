@@ -420,6 +420,22 @@ function pickRodeo() {
   link.attach(state.access, rodeo);
 }
 
+/**
+ * Connect without being asked when the browser already allows MIDI with SysEx
+ * on this page: an instrument should be ready when it opens. Never prompts: a
+ * first visit still waits for the button.
+ */
+async function autoConnect() {
+  if (!supported() || !navigator.permissions) return;
+  try {
+    // 'midi' with sysex is Chrome's descriptor; TypeScript only knows the names
+    const q = await navigator.permissions.query({ name: 'midi', sysex: true } as unknown as PermissionDescriptor);
+    if (q.state === 'granted' && !state.access) await connect();
+  } catch {
+    // a browser that cannot say: the button it is
+  }
+}
+
 function ports(): MIDIOutput[] {
   return state.access ? [...state.access.outputs.values()] : [];
 }
@@ -452,6 +468,9 @@ function renderPorts() {
       : [el('option', { value: '', textContent: 'no MIDI outputs' })])
   );
   sel.disabled = !list.length;
+  // Once MIDI is open there is nothing left to connect
+  const go = $('live-connect');
+  if (go) go.hidden = !!state.access;
   if (!supported()) return setDot('st-midi', 'bad', 'this browser has no Web MIDI — Chrome or Edge');
   if (!state.access) return setDot('st-midi', 'off', 'not connected');
   if (!list.length)
@@ -559,11 +578,15 @@ function renderGrid() {
     cursor: () => state.t.cursor,
     audition,
     silent: state.profile.silent,
+    changed: paintGrid,
   });
 }
 
 function paintGrid() {
   rollView?.paint();
+  // How to draw on it, until something is drawn
+  const hint = $('live-roll-hint');
+  if (hint) hint.hidden = state.roll.notes.length > 0;
 }
 
 function paintTransport() {
@@ -678,7 +701,7 @@ function markup(title: string, toolbar: Node[], debug: boolean) {
         <input type="range" id="live-swing" min="0" max="75" value="0" />
         <button id="live-clear">clear</button>
         <span class="grow"></span>
-        <span class="small dim">click to add · drag to lengthen or move · click a note to remove</span>
+        <span class="small dim" id="live-roll-hint">click to add · drag to lengthen or move · click a note to remove</span>
       </div>
       <div class="roll" id="live-roll"></div>
       <div class="row sq-foot">
@@ -1253,6 +1276,7 @@ export function mount(
   sizer = new ResizeObserver(fitKeyboard);
   sizer.observe($('live-keys'));
   link.rodeo.streamChain(debug); // nothing else draws it
+  void autoConnect();
   unsound = mountSound($('live-sound'), profile, { debug });
   unrodeo = link.rodeo.subscribe(onRodeo);
   onRodeo(link.rodeo.snapshot);

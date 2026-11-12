@@ -215,7 +215,7 @@ function voiceModel(span: () => KeySpan | null): VoiceModel {
       const predicted = v.sounding(now);
       const next = v.slots[v.allocate(NO_NOTE, now).index];
       const steal = predicted >= VOICE_COUNT ? ` — next steals ${noteName(next.note)}` : '';
-      return real !== undefined ? `${real}/${VOICE_COUNT}${steal}` : `${predicted}/${VOICE_COUNT} predicted${steal}`;
+      return `${real ?? predicted}/${VOICE_COUNT}${steal}`;
     },
   };
 }

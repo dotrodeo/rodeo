@@ -35,7 +35,9 @@ that.
 devices"), picks the first port with "Rodeo" in its name, and says hello. Allow
 SysEx and the dot turns cyan once the Rodeo answers; refuse it and the keyboard
 still plays, but nothing comes back. A Rodeo that plays notes but never answers
-was built with `RODEO_HOST=0`, or before the protocol.
+was built with `RODEO_HOST=0`, or before the protocol. Once Chrome has allowed
+it, the page connects by itself when it opens and the button goes away; it
+never prompts on its own, so a first visit still starts with the button.
 
 The dots: grey not connected, yellow connected, cyan carrying traffic, red
 open but wrong. The dot's tooltip says which, since a colour can say that
