@@ -69,15 +69,19 @@ test('notes are named with C4 at 60', () => {
 
 test('a sequencer step cannot overrun the firmware event queue', () => {
   // `Push` drops once 64 events are unread, and `Process` drains them every
-  // 1/3 ms (synth.cpp:40-47). The most the page can start at one instant is a
-  // note on every row of the roll plus one arp note, so the ceiling is the
-  // roll's height — worth asserting, because widening the roll would raise it.
-  // (Note offs land LEGATO_GAP before the next step, never on it.)
+  // 1/3 ms (synth.cpp:40-47). The worst the page can do is a note on every row
+  // of the roll at once, plus an arp note: 89, so a column goes out BURST notes
+  // a millisecond. The spread must also finish before LEGATO_GAP, or a chord's
+  // last note offs would land on the next step's note ons.
   const full = emptyRoll();
   for (let r = 0; r < ROWS; r++) place(full, { note: rowNote(r), start: 0, len: 1 });
-  const worst = startsAt(full, 0).length + 1;
-  assert.equal(worst, ROWS + 1);
+  const lates = startsAt(full, 0).map((_, k) => burstMs(k));
+  assert.equal(lates.length, ROWS);
+  const perMs = new Map<number, number>();
+  for (const l of lates) perMs.set(l, (perMs.get(l) ?? 0) + 1);
+  const worst = Math.max(...perMs.values()) + 1;
   assert.ok(worst < 64, `${worst} notes could land in the same millisecond`);
+  assert.ok(Math.max(...lates) < LEGATO_GAP, 'the spread ends before the gap does');
 });
 
 //
@@ -93,6 +97,7 @@ import {
   DIVISIONS,
   BARS_MAX,
   BARS_MIN,
+  BURST,
   LEGATO_GAP,
   NOTE_HI,
   NOTE_LO,
@@ -100,6 +105,7 @@ import {
   STEPS_PER_BAR,
   SWING_MAX,
   arpSequence,
+  burstMs,
   clampBars,
   emptyRoll,
   gateMs,
@@ -197,10 +203,12 @@ test('the cycle wraps forever and random stays inside it', () => {
   assert.ok(ARP_MODES.includes('random') && ARP_MODES[0] === 'off');
 });
 
-test('the roll runs C0 to C5, top row highest', () => {
-  assert.equal(noteName(NOTE_LO), 'C0');
-  assert.equal(noteName(NOTE_HI), 'C5');
-  assert.equal(ROWS, 61);
+test('the roll is a piano: 88 keys, A0 to C8, top row highest', () => {
+  assert.equal(noteName(NOTE_LO), 'A0');
+  assert.equal(noteName(NOTE_HI), 'C8');
+  assert.equal(ROWS, 88);
+  assert.equal(burstMs(BURST - 1), 0, 'a chord up to BURST notes goes out at once');
+  assert.equal(burstMs(BURST), 1);
   assert.equal(rowNote(0), NOTE_HI, 'the top row is the highest note');
   assert.equal(rowNote(ROWS - 1), NOTE_LO);
   for (let r = 1; r < ROWS; r++) assert.ok(rowNote(r) < rowNote(r - 1));

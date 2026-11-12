@@ -1,4 +1,4 @@
-// The piano roll: C0 to C5 down the side, 2 to 8 bars of sixteenths across.
+// The piano roll: a piano's 88 keys, A0 to C8, down the side, 2 to 8 bars of sixteenths across.
 //
 // A canvas, not a grid of buttons: 61 rows by up to 128 steps is nearly eight
 // thousand cells, and the play head moves across them eight times a second.

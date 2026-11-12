@@ -65,7 +65,7 @@ going after the keys are let go, and the latched notes stay marked on the
 keyboard so it is clear what it is chewing on; pressing a fresh key then starts
 a new chord. With the arp on, the keyboard feeds it instead of sounding directly.
 
-**The piano roll** covers C0 to C5, 2 to 8 bars of sixteenths, and opens on C2
+**The piano roll** covers a piano's 88 keys (A0 to C8), 2 to 8 bars of sixteenths, and opens on C2
 to C4 (drag its corner to see more). Click an empty cell to add a note as long
 as the last one drawn, and drag to set its length; drag a note to move it in
 time and pitch, drag its end to change its length, and click it (or right-click)
@@ -79,7 +79,11 @@ Notes go out with Web MIDI timestamps from a lookahead scheduler rather than
 straight off a `setTimeout`, which would jitter audibly. Swing shifts a step
 without the grid drifting: sixteen steps later is still exactly a bar. Each
 note off lands a few ms before its next step, so a note followed by its own
-pitch retriggers.
+pitch retriggers. A big chord goes out 32 notes a millisecond, since the
+firmware's queue drops past 64 unread events and a full column is 88 notes. The
+arp looks ahead only 60 ms, against the roll's 140, because it reads the held
+keys as it schedules: a chord played one key at a time would otherwise repeat
+its first key.
 
 Stopping or hiding the tab lifts every note and sends CC 123 — the page holds notes down on real hardware, and a dropped note-off
 means the Rodeo drones until it is power-cycled.

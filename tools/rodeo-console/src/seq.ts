@@ -102,9 +102,9 @@ export function nextBoundary(beat: number, beats: number): number {
 
 // ---------------------------------------------------------- the piano roll
 
-/** The roll covers C0 to C5, with C4 at 60 as midi.ts names them. */
-export const NOTE_LO = 12;
-export const NOTE_HI = 72;
+/** The roll is a piano's 88 keys, A0 to C8, with C4 at 60 as midi.ts names them. */
+export const NOTE_LO = 21;
+export const NOTE_HI = 108;
 export const ROWS = NOTE_HI - NOTE_LO + 1;
 /** The roll's grid is sixteenths: 16 steps a bar, 2 to 8 bars. */
 export const STEP_BEATS = 0.25;
@@ -198,6 +198,16 @@ export function holdMs(start: number, len: number, ms: number, swing: number): n
   const span = len * ms + swingOffset(start + len, ms, swing) - swingOffset(start, ms, swing);
   return Math.max(15, span - LEGATO_GAP);
 }
+
+/**
+ * Notes per millisecond the page sends at most. The firmware's queue drops past
+ * 64 unread events (synth.cpp:40-47), and a full column of the roll is 88 notes,
+ * so a big chord goes out BURST at a time, a millisecond apart: note `k` of a
+ * step is sent `burstMs(k)` late, and its note off the same amount late, so its
+ * length is unchanged.
+ */
+export const BURST = 32;
+export const burstMs = (k: number) => Math.floor(k / BURST);
 
 export function gateMs(ms: number, gate: number): number {
   return Math.max(15, ms * clamp(gate, 0.05, 1));

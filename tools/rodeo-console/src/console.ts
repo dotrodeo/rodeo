@@ -49,6 +49,12 @@ const TYPING = ['a', 'w', 's', 'e', 'd', 'f', 't', 'g', 'y', 'h', 'u', 'j', 'k',
 /** Schedule this far ahead, and wake up this often to do it. */
 const LOOKAHEAD = 140;
 const TICK = 25;
+/**
+ * The arp's own, shorter lookahead: it reads the held keys when it schedules,
+ * so a chord played one key at a time would otherwise repeat its first key for
+ * as long as a whole 1/16. Still two ticks, so a late tick cannot leave a gap.
+ */
+const ARP_LOOKAHEAD = 2 * TICK + 10;
 
 let sizer: ResizeObserver | null = null; // keeps the keyboard filling the width it is given
 let rollView: RollView | null = null;
@@ -289,13 +295,14 @@ function schedule() {
 
 function fire(index: number, at: number, ms: number) {
   const step = index % seq.rollSteps(state.roll);
-  const notes = seq.startsAt(state.roll, index).map((n) => ({
+  const notes = seq.startsAt(state.roll, index).map((n, k) => ({
     note: n.note,
+    late: seq.burstMs(k),
     hold: seq.holdMs(step, seq.playedLen(state.roll, n), ms, state.t.swing),
   }));
   for (const n of notes) {
-    send(midi.noteOn(n.note, state.velocity), at);
-    send(midi.noteOff(n.note), at + n.hold);
+    send(midi.noteOn(n.note, state.velocity), at + n.late);
+    send(midi.noteOff(n.note), at + n.late + n.hold);
   }
   // The voice panel is a model, so step it at the same times.
   const now = performance.now();
@@ -345,7 +352,7 @@ function arpStop() {
 function arpSchedule() {
   const a = state.arp;
   const ms = seq.stepMs(state.t.bpm, seq.DIVISIONS[a.div].beats);
-  const horizon = performance.now() + LOOKAHEAD;
+  const horizon = performance.now() + ARP_LOOKAHEAD;
   while (a.next < horizon) {
     arpFire(a.step, a.next, ms);
     a.step++;
