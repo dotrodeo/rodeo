@@ -25,9 +25,64 @@ npm install
 npm run dev
 ```
 
-Then open the `http://localhost:…` address Vite prints. `npm run build`
-type-checks and writes a static copy to `dist/`, and `npm run preview` serves
-that.
+Then open `http://localhost:5173`. `npm run build` type-checks and writes a
+static copy to `dist/`, and `npm run preview` serves that.
+
+### From another computer
+
+`npm run dev:lan` (or `npm run preview:lan`) also listens on the network, so the
+console can run on one machine and be opened in Chrome or Edge on another. The
+Rodeo plugs into **the computer with the browser**: Web MIDI and Web Serial
+reach only that machine's USB devices, never the server's. The rodeo-demo editor
+works the same way on port 5174; both servers share
+[`vite.serve.ts`](vite.serve.ts).
+
+The page has to come over HTTPS. Web MIDI, Web Serial and the File System Access
+API work only in a secure context, and `http://localhost` is one but
+`http://<server>.local` is not: over plain HTTP from another machine the console
+finds no MIDI at all. Give the servers a certificate the other computers trust:
+
+```sh
+export RODEO_TLS_CERT=~/.config/rodeo-tls/cert.pem RODEO_TLS_KEY=~/.config/rodeo-tls/key.pem
+npm run dev:lan        # https://<server>.local:5173
+```
+
+To make that certificate, once, on the server: a small certificate authority
+of your own, and a certificate it signs for the server's names and address.
+Keep `ca.key` on the server.
+
+```sh
+mkdir -p ~/.config/rodeo-tls && cd ~/.config/rodeo-tls && chmod 700 .
+openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 3650 \
+  -keyout ca.key -out ca.crt -subj "/CN=$(hostname) local dev CA" \
+  -addext "basicConstraints=critical,CA:TRUE,pathlen:0" -addext "keyUsage=critical,keyCertSign,cRLSign"
+openssl req -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -keyout key.pem -out server.csr -subj "/CN=$(hostname).lan"
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 825 -out cert.pem \
+  -extfile <(printf 'subjectAltName=DNS:%s.lan,DNS:%s.local,IP:%s\nextendedKeyUsage=serverAuth\n' \
+             "$(hostname)" "$(hostname)" "<the server's LAN address>")
+rm server.csr; chmod 600 ca.key key.pem
+```
+
+Then, on each computer that opens the page, trust `ca.crt` once (copy it over;
+it isn't secret):
+
+* **macOS:** open it in Keychain Access, in the System keychain; double-click
+  it, and under Trust set "When using this certificate" to Always Trust.
+* **Windows:** double-click it, Install Certificate, Local Machine, and place
+  it in "Trusted Root Certification Authorities".
+* **Linux:** Chrome reads its own store: Settings, Privacy and security,
+  Security, Manage certificates, Authorities, Import.
+
+The certificate lasts 825 days, the most macOS accepts. To renew it, rerun the
+last three commands; the authority (`ca.crt`) stays, so nothing changes on the
+other computers.
+
+Use the server's `.local` name: every computer resolves it on the local network
+by itself. A `.lan` name resolves only on computers that use the router for DNS,
+which a custom DNS server, a VPN or Chrome's secure DNS setting quietly prevents.
+Vite answers only host names it knows: `*.lan`, `*.local`, `*.home.arpa`, the
+server's own name and its IP addresses. `RODEO_ALLOWED_HOSTS` adds more,
+comma-separated.
 
 ## Using it
 

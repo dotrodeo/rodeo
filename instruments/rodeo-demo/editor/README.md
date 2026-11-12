@@ -15,8 +15,13 @@ npm install
 npm run dev
 ```
 
-Then open the `http://localhost:…` address Vite prints. It must be `localhost`:
-the File System Access API needs a secure context, and `file://` is not one.
+Then open `http://localhost:5174`. It must be `localhost` or HTTPS: the File
+System Access API needs a secure context, and `file://` is not one.
+
+To open it from another computer, run `npm run dev:lan` with a certificate, as
+in the console's ["From another computer"](../../../tools/rodeo-console/README.md#from-another-computer):
+`https://<server>.local:5174`. The Rodeo and its SD card plug into the computer
+with the browser.
 
 `?demo` loads a made-up card with every failure mode on it, so you can see what
 the page does without a Rodeo attached. Nothing in demo mode can be written.
