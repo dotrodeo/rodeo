@@ -3,7 +3,6 @@
 # See src/main.cpp.
 TARGET       = usb_storage
 CPP_SOURCES  = src/main.cpp
-C_SOURCES    = src/usb_descriptors.c
 RODEO_USB   ?= hs
 TUSB_CLASSES = cdc/cdc_device.c midi/midi_device.c msc/msc_device.c
 USE_FATFS    = 1

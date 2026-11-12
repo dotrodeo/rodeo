@@ -103,6 +103,18 @@
 //     uses it.
 //     examples/host ran on Rev B with four satellites (2026-11-09): every
 //     command, a stream through full pot sweeps, dfu. 117 host tests.
+//   * The host protocol's SysEx header is one constant each side
+//     (2026-11-12): Host::kHeader and host-js's HEADER; nothing assumes the
+//     manufacturer ID is one byte. Still 7D, the non-commercial ID, until
+//     DOT RODEO registers its own before the Kickstarter.
+//   * usb_desc.h / usb_desc.c: every firmware's USB descriptors (2026-11-12).
+//     A firmware's tusb_config.h names a layout (MIDI; CDC + MIDI; 4x4 audio
+//     + CDC + MIDI; or its own) and its identity (vendor and product IDs,
+//     names); tinyusb.mk builds the descriptors from them. Every layout has
+//     MIDI, so the host protocol reaches every firmware; a missing ID or
+//     MIDI stops the build. usb_uac1.h is the 4x4 audio function, once.
+//     The examples and rodeo-demo moved onto it with their descriptors
+//     byte-for-byte unchanged.
 
 #pragma once
 

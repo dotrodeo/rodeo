@@ -2,7 +2,6 @@
 # bring-up 08 on Rev B's USB-C with `make RODEO_USB=hs`. See src/main.cpp.
 TARGET       = usb_midi_cdc
 CPP_SOURCES  = src/main.cpp
-C_SOURCES    = src/usb_descriptors.c
 RODEO_USB   ?= fs
 TUSB_CLASSES = cdc/cdc_device.c midi/midi_device.c
 

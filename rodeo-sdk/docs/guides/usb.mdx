@@ -6,11 +6,11 @@ sidebar:
   order: 6
 ---
 
-:::caution[Design draft — the library is not written yet]
-What runs today is `examples/usb_device` on a bare Seed's micro-USB. This page is
-the design for turning it into `rodeo_usb`, the library an instrument uses on the
-panel USB-C. Unpublished until that runs on a Rev B board. The exploration and its
-measurements are in `planning/REV_B_PLAN.md`, "USB".
+:::caution[Part built, part design]
+Built: the port (`common/usb_port.h`, either USB port) and every firmware's
+descriptors (`common/usb_desc.h`), below. Still a design: the `rodeo::Usb` library
+under "Proposed shape", which would also own the main-loop work an app does itself
+today. The exploration and its measurements are in `planning/REV_B_PLAN.md`, "USB".
 :::
 
 Rodeo is always the USB device. The panel USB-C on the power board carries the
@@ -30,6 +30,48 @@ descriptor away.
 Audio is UAC1, asynchronous: the codec clock leads and a feedback endpoint keeps
 the computer in step, so there is no resampling. UAC1 rather than UAC2 because
 at full speed every OS accepts UAC1's feedback format.
+
+## Identity and layout
+
+A firmware doesn't write USB descriptors. Its `tusb_config.h` says who it is and
+which functions it has, and `common/usb_desc.c` (built by `tinyusb.mk`) does the
+rest:
+
+```c
+#include "usb_port.h"
+#include "usb_desc.h"
+
+#define RODEO_USB_LAYOUT       RODEO_USB_CDC_MIDI
+#define RODEO_USB_VID          0x1209   // pid.codes: development only
+#define RODEO_USB_PID          0x0001
+#define RODEO_USB_MANUFACTURER "DOT RODEO"
+#define RODEO_USB_PRODUCT      "Rodeo"  // the name the computer shows
+```
+
+| Layout | Functions | Example |
+|---|---|---|
+| `RODEO_USB_MIDI` | MIDI | `examples/host` |
+| `RODEO_USB_CDC_MIDI` | Serial, MIDI | `examples/usb_midi_cdc`, `usb_storage` |
+| `RODEO_USB_AUDIO_CDC_MIDI` | 4×4 audio (`usb_uac1.h`), serial, MIDI | `examples/usb_audio`, rodeo-demo |
+| `RODEO_USB_CUSTOM` | The firmware's own configuration descriptor | `examples/usb_device` (stereo) |
+
+Every layout has MIDI, so the [host protocol](/sdk/guides/host/) reaches every
+firmware. A firmware with a disk mode adds `RODEO_USB_PID_DISK` and
+`RODEO_USB_PRODUCT_DISK`, and presents serial and the SD card under that product
+ID while its `usb_disk_mode` is set. Leave out an ID, or turn MIDI off, and the
+build stops and says what to set.
+
+### Product IDs
+
+The examples use `0x1209`, [pid.codes](https://pid.codes/)' vendor ID for open
+source hardware, with product IDs from its test range: fine on the bench, not for
+a product released to the public. **The IDs belong to the finished product, not to
+Rodeo.** Before you ship, register your own: a pid.codes PID if the product is
+open source ([how](https://pid.codes/howto/)), or a USB-IF vendor ID otherwise.
+
+A computer caches a device's layout by its IDs, so give each distinct layout its
+own product ID, and let firmwares with the same layout share one. The examples'
+IDs are listed in `common/usb_desc.h`.
 
 ## Proposed shape
 

@@ -1,4 +1,5 @@
-// USB device test: interface numbers and the UAC1 audio function's descriptor.
+// USB device test: interface numbers and the stereo UAC1 audio function's descriptor.
+// Disk mode's interfaces are the SDK's (common/usb_desc.c).
 #pragma once
 
 #include <stdbool.h>
@@ -12,15 +13,6 @@ extern volatile bool usb_disk_mode;
 #ifdef __cplusplus
 }
 #endif
-
-// Disk mode's interfaces
-enum
-{
-    ITF_DISK_CDC = 0,
-    ITF_DISK_CDC_DATA,
-    ITF_DISK_MSC,
-    ITF_DISK_TOTAL
-};
 
 enum
 {

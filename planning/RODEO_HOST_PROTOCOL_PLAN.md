@@ -77,13 +77,23 @@ bit per control.
 
 ## Open questions
 
-- **The SysEx ID.** `0x7D` is the MIDI spec's non-commercial ID. It's fine for
-  development; a shipped platform should probably register a manufacturer ID
-  with the MMA. Changing it later is a protocol version bump, so decide before
-  builders depend on it.
-- **USB descriptors.** rodeo-demo builds its own TinyUSB configuration (audio,
-  MIDI, CDC, mass storage). The SDK's `usb_port` needs a MIDI interface for the
-  host to ride on, in every configuration a firmware might choose.
+- **The SysEx ID: decided 2026-11-12, buy before the Kickstarter.** `0x7D` is the
+  MIDI spec's non-commercial ID, and the MIDI Association's rules forbid it on a
+  product released to the public, so DOT RODEO registers its own (a one-time
+  $240 "SysEx Id Holder" since Oct 2025) before the Kickstarter launches. The ID
+  belongs to the platform, not to each product: it's what lets the stock console
+  recognise any firmware on the SDK, the way a builder's USB IDs (below) are
+  theirs. Until then `0x7D` stays, set in one place each side (`Host::kHeader`,
+  host-js's `HEADER`), and nothing assumes it is one byte. The switch is a
+  protocol version bump. Open: whether builders shipping their own products may
+  use DOT RODEO's ID for this protocol; ask the MIDI Association.
+- **USB descriptors: done 2026-11-12.** The SDK owns them (`common/usb_desc.h`):
+  a firmware names a layout and its identity in `tusb_config.h`, and every
+  layout has MIDI for the host to ride on; turning MIDI off stops the build. The
+  USB IDs belong to the finished product, as on Daisy (libDaisy borrows ST's),
+  so the SDK uses pid.codes test IDs for development and the docs tell a
+  builder to register their own before shipping. The SDK template has no USB
+  yet; `examples/host` is the starting point for a firmware with the protocol.
 - **The name**: `rodeo::Host` (`common/host.h`), chosen in step 1.
 
 ## Steps

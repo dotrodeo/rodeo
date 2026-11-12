@@ -40,4 +40,6 @@ C_SOURCES += $(TINYUSB)/tusb.c \
              $(TINYUSB)/portable/synopsys/dwc2/dcd_dwc2.c \
              $(TINYUSB)/portable/synopsys/dwc2/dwc2_common.c
 CPP_SOURCES += $(RODEO_ROOT)/common/usb_port.cpp
+# The descriptors, from the layout and identity in the app's tusb_config.h
+C_SOURCES   += $(RODEO_ROOT)/common/usb_desc.c
 C_INCLUDES  += -Isrc -I$(TINYUSB)

@@ -5,6 +5,15 @@
 #pragma once
 
 #include "usb_port.h"
+#include "usb_desc.h"
+
+// What the computer sees (common/usb_desc.h). pid.codes test IDs: for
+// development only; a product needs IDs of its own.
+#define RODEO_USB_LAYOUT       RODEO_USB_AUDIO_CDC_MIDI
+#define RODEO_USB_VID          0x1209
+#define RODEO_USB_PID          0x0004
+#define RODEO_USB_MANUFACTURER "DOT RODEO"
+#define RODEO_USB_PRODUCT      "Rodeo 4x4" // what the computer's sound settings show
 
 #define CFG_TUSB_MCU OPT_MCU_STM32H7
 #define CFG_TUSB_OS  OPT_OS_NONE

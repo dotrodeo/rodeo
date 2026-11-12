@@ -4,7 +4,6 @@
 # on a port wired straight to the computer, not behind a hub). See src/main.cpp.
 TARGET       = usb_audio
 CPP_SOURCES  = src/main.cpp ../../common/audio_4x4.cpp
-C_SOURCES    = src/usb_descriptors.c
 RODEO_USB   ?= hs
 TUSB_CLASSES = audio/audio_device.c cdc/cdc_device.c midi/midi_device.c
 

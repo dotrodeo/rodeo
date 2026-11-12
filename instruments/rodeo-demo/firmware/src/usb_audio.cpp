@@ -4,7 +4,7 @@
 
 #include <math.h>
 #include "tusb.h"
-#include "usb_descriptors.h"
+#include "usb_uac1.h"
 
 namespace
 {

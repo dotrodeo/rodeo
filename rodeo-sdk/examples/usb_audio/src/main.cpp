@@ -35,7 +35,7 @@
 #include "daisy_seed.h"
 #include "audio_4x4.h"
 #include "tusb.h"
-#include "usb_descriptors.h"
+#include "usb_uac1.h"
 #include "usb_port.h"
 #include "dfu.h"
 

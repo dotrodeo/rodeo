@@ -13,7 +13,7 @@ using namespace daisy;
 
 extern "C"
 {
-    volatile bool usb_disk_mode = false; // read by usb_descriptors.c
+    volatile bool usb_disk_mode = false; // read by the SDK's usb_desc.c
 }
 
 namespace

@@ -12,7 +12,6 @@ CPP_SOURCES  = src/main.cpp src/synth.cpp src/samples.cpp src/panel.cpp src/usb_
                $(RODEO_ROOT)/common/audio_4x4.cpp \
                $(RODEO_ROOT)/common/sat_chain.cpp $(RODEO_ROOT)/common/sat_chain_port.cpp \
                $(RODEO_ROOT)/common/host.cpp
-C_SOURCES    = src/usb_descriptors.c
 RODEO_ROOT   = ../../../rodeo-sdk
 RODEO_USB   ?= hs
 TUSB_CLASSES = audio/audio_device.c cdc/cdc_device.c midi/midi_device.c msc/msc_device.c

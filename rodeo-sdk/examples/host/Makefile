@@ -8,7 +8,6 @@ TARGET       = host
 CPP_SOURCES  = src/main.cpp \
                ../../common/host.cpp ../../common/audio_4x4.cpp \
                ../../common/sat_chain.cpp ../../common/sat_chain_port.cpp
-C_SOURCES    = src/usb_descriptors.c
 RODEO_USB   ?= hs
 TUSB_CLASSES = midi/midi_device.c
 # The commit, for hello
