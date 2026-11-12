@@ -22,6 +22,7 @@ import argparse
 import difflib
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -75,6 +76,15 @@ def clang_args():
     if sys.platform == 'darwin':
         sdk = subprocess.run(['xcrun', '--show-sdk-path'], capture_output=True, text=True).stdout.strip()
         args += ['-isysroot', sdk, '-I' + os.path.join(sdk, 'usr', 'include', 'c++', 'v1')]
+    elif shutil.which('clang'):
+        # The libclang wheel ships without clang's own headers (stddef.h and the
+        # like), and on macOS the SDK above supplies them. Elsewhere, borrow an
+        # installed clang's. Without them host.h stops parsing at <stddef.h>, and
+        # defaults that use its macros (kMemory = RODEO_HOST ? ...) drop out of
+        # the reference, so Linux (and CI) disagree with a Mac's output.
+        res = subprocess.run(['clang', '-print-resource-dir'], capture_output=True, text=True).stdout.strip()
+        if res:
+            args += ['-isystem', os.path.join(res, 'include')]
     return args
 
 
