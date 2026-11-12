@@ -717,11 +717,13 @@ if (DEMO) {
 paintCardStatus();
 
 // The console is the screen, so it mounts once and stays. The card's controls
-// join its bar.
+// join its bar. It is an instrument, so the console's firmware tools (serial
+// log, chain report, reboot for flashing) stay off unless the URL has ?debug.
 console_ = mount($('console'), {
   profile: rodeoDemo(kitSpan),
   toast,
   toolbar: [...$('card-bar').children],
+  debug: new URLSearchParams(location.search).has('debug'),
 });
 
 // Drag audio anywhere on the page.

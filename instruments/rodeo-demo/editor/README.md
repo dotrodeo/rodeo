@@ -25,19 +25,20 @@ the page does without a Rodeo attached. Nothing in demo mode can be written.
 
 Everything the console does, with rodeo-demo's profile ([`src/profile.ts`](src/profile.ts)):
 
-- **The parameters grouped as the panel is** (pot bank 1 the filter, pot bank 2
-  the amp envelope, the encoder banks, and the two only a preset reaches), each
-  with the control that drives it, and a **preset picker** that loads on the
-  Rodeo.
-- **The encoders' jobs** in the chain view: E3 next to the high-pass, with what
-  its tap last set (the LFO), and so on for all eight; E1 picks the sound in
-  sampler layer. A value the Rodeo does not send reads *not reported* rather
-  than a blank, which would look like zero.
+- **The panel as the instrument has it**: a column per bank (the filter, the amp
+  envelope, the two encoder banks), a knob per control, each encoder with what
+  its tap and held turn do and the values they set, and a row for the two
+  parameters only a preset reaches. A **preset picker** loads on the Rodeo.
 - **The voice panel**, below.
 - **The selected kit** marked on the keyboard, and the keys outside it
   silent in sampler layer.
-- **The card's controls** in the bar, and serial buttons to hand the card to
-  the computer and take it back.
+- **The card's controls** in the bar.
+
+**It is an instrument, so the console's firmware tools are off.** With `?debug`
+on the URL they come back: the serial log, the chain view (the encoders' jobs
+beside their detents, E1 picking the sound in sampler and both layers), the
+build, reboot for flashing, and serial buttons to hand the card to the computer
+and take it back.
 
 **The voice panel is a prediction, not a reading.** `src/voices.ts` re-implements
 `Allocate()`, so the page can say what Rodeo *should* have done with the notes
@@ -61,8 +62,8 @@ Two things the panel will tell you that are easy to get wrong by ear:
 The card is a job you go and do rather than something to watch, so it opens in
 a dialog over the keyboard instead of competing with it for the screen.
 
-1. Put the Rodeo in disk mode — hold encoders 1 and 4 for a second, or press
-   `d` on its serial port. The card mounts as an ordinary drive.
+1. Put the Rodeo in disk mode — hold encoders 1 and 4 for a second (or, with
+   `?debug`, the serial button for it). The card mounts as an ordinary drive.
 2. **Open card…** and pick that drive. The page reads it the way the firmware
    will.
 3. Add, arrange, edit. Everything is written straight onto the card.

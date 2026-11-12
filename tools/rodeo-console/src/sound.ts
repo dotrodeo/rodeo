@@ -310,12 +310,12 @@ function paint(snap: Snapshot) {
 }
 
 /** Draws into `container` from now on; it stays empty until a Rodeo answers. */
-export function mountSound(container: HTMLElement, p: Profile = {}): () => void {
+export function mountSound(container: HTMLElement, p: Profile = {}, { debug = true } = {}): () => void {
   box = container;
   profile = p;
   box.hidden = true;
   const extras = el('div', { className: 'sound-extras' });
-  who = el('span', { className: 'small dim' });
+  who = el('span', { className: 'small dim', hidden: !debug }); // the firmware's build
   banksBox = el('div', { className: 'sound-banks' });
   box.replaceChildren(
     el('div', { className: 'row' }, [extras, el('span', { className: 'grow' }), who]),

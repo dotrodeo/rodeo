@@ -620,7 +620,7 @@ function clock() {
 
 // ------------------------------------------------------------------- the DOM
 
-function markup(title: string, toolbar: Node[]) {
+function markup(title: string, toolbar: Node[], debug: boolean) {
   const bar = el('header', { className: 'bar' });
   bar.innerHTML = `
     <h1></h1>
@@ -630,7 +630,7 @@ function markup(title: string, toolbar: Node[]) {
       <span class="st" id="st-midi" role="status" aria-label="MIDI"></span>
     </div>
     <span class="sep"></span>
-    <div class="conn">
+    <div class="conn" data-debug>
       <button id="live-serial">Connect serial</button>
       <span class="st" id="st-serial" role="status" aria-label="serial"></span>
     </div>
@@ -691,7 +691,7 @@ function markup(title: string, toolbar: Node[]) {
 
     <div class="sound" id="live-sound"></div>
 
-    <div class="chain">
+    <div class="chain" data-debug>
       <div class="row" id="live-cmds">
         <button id="live-dfu" title="the protocol's dfu: the Rodeo answers, then reboots into its bootloader">Reboot for flashing</button>
       </div>
@@ -700,6 +700,12 @@ function markup(title: string, toolbar: Node[]) {
       <div class="sats" id="live-sats"></div>
     </div>
   `;
+  // An instrument has no serial log and no chain report: what is only for
+  // working on the firmware goes, with the separator before it.
+  if (!debug) for (const n of [...bar.querySelectorAll('[data-debug]'), ...panel.querySelectorAll('[data-debug]')]) {
+    if (n.previousElementSibling?.classList.contains('sep')) n.previousElementSibling.remove();
+    n.remove();
+  }
   const main = el('main', { id: 'main' }, [panel]);
   return [bar, main];
 }
@@ -793,26 +799,7 @@ function wire() {
   };
 
   // --- the chain row: dfu over MIDI, the profile's commands over serial ---
-  $('live-dfu').onclick = () => {
-    if (!confirm('Reboot the Rodeo into its bootloader? It leaves USB until it is flashed or power-cycled.'))
-      return;
-    link.rodeo.dfu();
-    state.toast('rebooting for flashing — the MIDI port will go');
-  };
-  const cmds = $('live-cmds');
-  if (state.profile.commands?.length) cmds.append(el('span', { className: 'sep' }));
-  for (const c of state.profile.commands ?? [])
-    cmds.append(
-      el('button', {
-        className: 'cmd',
-        textContent: c.label,
-        title: `${c.title ? `${c.title} · ` : ''}sends ${c.send} on the serial port`,
-        onclick: () => cmd(c.send, c.say),
-      })
-    );
-  $('live-serial').onclick = connectSerial;
-  $<HTMLButtonElement>('live-serial').disabled = !serial.supported();
-  renderSerial();
+  if ($('live-dfu')) wireDebug();
 
   // Pointer: press, and glide across the keys with the button down.
   const keys = $('live-keys');
@@ -836,6 +823,30 @@ function wire() {
   };
   keys.addEventListener('pointerup', release);
   keys.addEventListener('pointercancel', release);
+}
+
+/** The chain row: dfu over MIDI, the profile's commands over serial. */
+function wireDebug() {
+  $('live-dfu').onclick = () => {
+    if (!confirm('Reboot the Rodeo into its bootloader? It leaves USB until it is flashed or power-cycled.'))
+      return;
+    link.rodeo.dfu();
+    state.toast('rebooting for flashing — the MIDI port will go');
+  };
+  const cmds = $('live-cmds');
+  if (state.profile.commands?.length) cmds.append(el('span', { className: 'sep' }));
+  for (const c of state.profile.commands ?? [])
+    cmds.append(
+      el('button', {
+        className: 'cmd',
+        textContent: c.label,
+        title: `${c.title ? `${c.title} · ` : ''}sends ${c.send} on the serial port`,
+        onclick: () => cmd(c.send, c.say),
+      })
+    );
+  $('live-serial').onclick = connectSerial;
+  $<HTMLButtonElement>('live-serial').disabled = !serial.supported();
+  renderSerial();
 }
 
 function shift(by: number) {
@@ -1220,11 +1231,19 @@ export function mount(
     profile = {},
     toast = () => {},
     toolbar = [],
-  }: { profile?: Profile; toast?: Toast; toolbar?: Node[] } = {}
+    debug = true,
+  }: {
+    profile?: Profile;
+    toast?: Toast;
+    toolbar?: Node[];
+    /** The serial log, the firmware's commands, the chain report and the
+     *  build: for working on a firmware. Off, the page is just the instrument. */
+    debug?: boolean;
+  } = {}
 ): Console {
   state.profile = profile;
   state.toast = toast;
-  container.replaceChildren(...markup(profile.title ?? 'rodeo-console', toolbar));
+  container.replaceChildren(...markup(profile.title ?? 'rodeo-console', toolbar, debug));
   wire();
   renderPorts();
   renderKeyboard();
@@ -1233,8 +1252,8 @@ export function mount(
   clock();
   sizer = new ResizeObserver(fitKeyboard);
   sizer.observe($('live-keys'));
-  link.rodeo.streamChain(true);
-  unsound = mountSound($('live-sound'), profile);
+  link.rodeo.streamChain(debug); // nothing else draws it
+  unsound = mountSound($('live-sound'), profile, { debug });
   unrodeo = link.rodeo.subscribe(onRodeo);
   onRodeo(link.rodeo.snapshot);
   addEventListener('keydown', onKeyDown);
