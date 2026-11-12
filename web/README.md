@@ -52,7 +52,7 @@ cd web && npm run renders                        # WebP into src/assets/hardware
 A quick flat render straight from KiCad:
 
 ```bash
-/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli pcb render \
+../tools/kicad/bin/kicad-cli pcb render \
   -o mobo-top.png --width 2400 --height 1800 --side top \
   --quality high --background opaque \
   ../rev-a/rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb
@@ -61,7 +61,7 @@ A quick flat render straight from KiCad:
 Flat layer art for graphic use:
 
 ```bash
-/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli pcb export svg \
+../tools/kicad/bin/kicad-cli pcb export svg \
   -o mobo-silk.svg --layers 'F.Silkscreen,Edge.Cuts' \
   --page-size-mode 2 --exclude-drawing-sheet --black-and-white \
   ../rev-a/rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb

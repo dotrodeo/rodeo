@@ -18,7 +18,7 @@ opening table (positions from each board's KiCad layout, sizes from the mounting
 README). To change a panel, edit the table and rerun it with KiCad's Python:
 
 ```
-/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3 tools/kicad/rear_panels.py
+tools/kicad/bin/kicad-python tools/kicad/rear_panels.py
 tools/kicad/.venv/bin/python tools/kicad/jlc_fab.py hardware/panels/<panel>/<panel>.kicad_pro
 ```
 

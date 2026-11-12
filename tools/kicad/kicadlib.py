@@ -10,12 +10,20 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def kicad_cli():
-    """Path to kicad-cli: $KICAD_CLI, then PATH, then the macOS app bundle."""
+    """Path to kicad-cli: $KICAD_CLI, then PATH, then the macOS app bundle, then
+    bin/kicad-cli, which runs the Flatpak on Linux."""
     for c in (os.environ.get('KICAD_CLI'), shutil.which('kicad-cli'),
-              '/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli'):
+              '/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli',
+              os.path.join(HERE, 'bin', 'kicad-cli')):
         if c and os.path.exists(c):
             return c
     raise SystemExit('kicad-cli not found; set KICAD_CLI')
+
+
+def kicad_python():
+    """KiCad's own Python, the one with pcbnew: $KICAD_PYTHON, else bin/kicad-python,
+    which finds the macOS app's bundled Python or runs the Flatpak's."""
+    return os.environ.get('KICAD_PYTHON') or os.path.join(HERE, 'bin', 'kicad-python')
 
 
 def run(*args):

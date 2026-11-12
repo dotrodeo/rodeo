@@ -34,7 +34,7 @@ set), rerun it with KiCad's Python, then `jlc_fab.py` on each changed panel (Ger
 STEP only, no schematic):
 
 ```bash
-/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3 tools/kicad/rear_panels.py [board]
+tools/kicad/bin/kicad-python tools/kicad/rear_panels.py [board]
 ```
 
 Panels marked `hand_edited` are skipped unless `--force`; don't force without asking.

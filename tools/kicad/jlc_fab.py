@@ -56,7 +56,7 @@ import sys
 import time
 import zipfile
 
-from kicadlib import HERE, Netlist, pcb_footprint_list, pcb_footprints, pcb_outline, rotate, run
+from kicadlib import HERE, Netlist, kicad_python, pcb_footprint_list, pcb_footprints, pcb_outline, rotate, run
 
 # JLC's footprints, one JSON per LCSC number. Tracked in git: the EasyEDA API
 # rate-limits, and the files are small.
@@ -110,8 +110,7 @@ def refkey(r):
 
 
 # KiCad's own Python, which has pcbnew; KiKit runs on it from tools/kicad/.kikit
-KICAD_PYTHON = os.environ.get(
-    'KICAD_PYTHON', '/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3')
+KICAD_PYTHON = kicad_python()
 KIKIT_DIR = os.path.join(HERE, '.kikit')
 
 

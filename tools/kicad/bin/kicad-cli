@@ -1,0 +1,16 @@
+#!/bin/sh
+# kicad-cli from whichever KiCad this machine has: the macOS app, or the
+# Flathub Flatpak (org.kicad.KiCad) on Linux. The tools in tools/kicad/ and
+# tools/render/ fall back to this when kicad-cli isn't on PATH or in $KICAD_CLI.
+#
+# The Flatpak sandbox sees $HOME but has a private /tmp, and the tools hand
+# kicad-cli files in tempfile.mkdtemp() dirs, so /tmp is shared in.
+mac=/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli
+if [ -x "$mac" ]; then
+  exec "$mac" "$@"
+fi
+if command -v flatpak >/dev/null 2>&1 && flatpak info org.kicad.KiCad >/dev/null 2>&1; then
+  exec flatpak run --filesystem=/tmp --command=kicad-cli org.kicad.KiCad "$@"
+fi
+echo "kicad-cli: no KiCad found (the macOS app, or the Flatpak org.kicad.KiCad)" >&2
+exit 127

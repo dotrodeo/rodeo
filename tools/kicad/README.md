@@ -23,7 +23,33 @@ tools/kicad/.venv/bin/pip install -r tools/kicad/requirements.txt
 
 `netlist.py`, `lcsc_fill.py` and `jlc_parts.py` need only the standard library.
 `jlc_fab.py` needs the venv (easyeda2kicad, matplotlib). All of them find
-`kicad-cli` on `PATH`, in `$KICAD_CLI`, or in the macOS app bundle.
+`kicad-cli` in `$KICAD_CLI`, on `PATH`, in the macOS app bundle, or through
+`bin/kicad-cli`.
+
+### KiCad on macOS and Linux
+
+The tools run on both. Two wrappers in `bin/` find whichever KiCad the machine
+has, so commands in these docs are the same on both:
+
+* `bin/kicad-cli`: the macOS app's `kicad-cli`, else the Flatpak's.
+* `bin/kicad-python`: KiCad's own Python (the one with `pcbnew`), for
+  `rear_panels.py` and KiKit: the macOS app's bundled Python, else the Flatpak's.
+
+On macOS, install the KiCad 10 app; nothing else is needed. On Linux, KiCad 10
+comes from Flathub (Debian 13 packages 9, which can't open these boards):
+
+```bash
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak install --user flathub org.kicad.KiCad
+```
+
+**Install the boards' fonts on every machine.** The silkscreen is set in
+Barlow ExtraBold and IBM Plex Mono. KiCad substitutes another font for a missing
+one without any warning, and the Gerbers then carry the wrong text. Both are OFL
+fonts from [Google Fonts](https://github.com/google/fonts/tree/main/ofl): on
+Linux put the `.ttf` files in `~/.local/share/fonts/`, which the Flatpak also
+sees. A check: `bin/kicad-cli` output for `rodeo-midi` should match the
+committed `jlcpcb/gerber/rodeo-midi-B_Silkscreen.gbo` apart from its header.
 
 ## Panels
 
@@ -68,12 +94,12 @@ House rules:
   each edge of the source board (KiKit's own tabs spread evenly and land on
   parts), following each copy's rotation. Its docstring has the format.
 
-KiKit needs pcbnew, so it runs on KiCad's own Python (`$KICAD_PYTHON`, default the
-macOS bundle's) from its own folder:
+KiKit needs pcbnew, so it runs on KiCad's own Python (`$KICAD_PYTHON`, default
+`bin/kicad-python`) from its own folder. Each machine installs its own, since the
+macOS and Flatpak Pythons differ:
 
 ```bash
-/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3 \
-    -m pip install --target tools/kicad/.kikit kikit
+tools/kicad/bin/kicad-python -m pip install --target tools/kicad/.kikit kikit
 ```
 
 ## Examples

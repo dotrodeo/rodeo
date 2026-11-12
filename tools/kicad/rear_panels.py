@@ -5,8 +5,8 @@
   rear_panels.py rodeo-midi      # just one
   rear_panels.py --force rodeo-power-barrel   # also overwrite a hand-edited panel
 
-Run with KiCad's Python (it needs pcbnew):
-  /Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3
+Run with KiCad's Python (it needs pcbnew), on macOS or Linux:
+  tools/kicad/bin/kicad-python tools/kicad/rear_panels.py
 
 Each panel is a KiCad project with no parts: the outline and every opening on
 Edge.Cuts, four M3 mounting holes, labels on the front silkscreen. Panels marked
@@ -30,8 +30,20 @@ import pcbnew
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 OUT = os.path.join(ROOT, 'hardware', 'panels')
 PROJECT_TEMPLATE = os.path.join(ROOT, 'hardware', 'rodeo-power-switch', 'rodeo-power-switch.kicad_pro')
-MOUNTING_HOLE = ('/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints/MountingHole.pretty',
-                 'MountingHole_3.2mm_M3')
+def footprint_dir():
+    """KiCad's standard footprint libraries: $KICAD10_FOOTPRINT_DIR, else the first that
+    exists of the macOS app's, the Flatpak's (tools/kicad/bin/kicad-python on Linux)
+    and a distribution package's."""
+    for d in (os.environ.get('KICAD10_FOOTPRINT_DIR'),
+              '/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints',
+              '/app/extensions/Library/footprints',
+              '/usr/share/kicad/footprints'):
+        if d and os.path.isdir(os.path.join(d, 'MountingHole.pretty')):
+            return d
+    sys.exit("KiCad's footprint libraries not found; set KICAD10_FOOTPRINT_DIR")
+
+
+MOUNTING_HOLE = (os.path.join(footprint_dir(), 'MountingHole.pretty'), 'MountingHole_3.2mm_M3')
 
 PANEL_H = 40.0        # mounting/rodeo_mount_common.scad: panel_h
 HOLE_INSET = 5.0      # panel_hole_inset: from the top and bottom edges, and from each side
@@ -154,13 +166,14 @@ def make(name, spec):
     board.SetCopperLayerCount(2)
     rounded_rect(board, 0, 0, W, PANEL_H, CORNER_R)
 
-    for hx in (HOLE_INSET, W - HOLE_INSET):
-        for hy in (HOLE_INSET, PANEL_H - HOLE_INSET):
-            fp = pcbnew.FootprintLoad(*MOUNTING_HOLE)
-            fp.SetPosition(mm(hx, hy)); fp.Reference().SetVisible(False); fp.Value().SetVisible(False)
-            board.Add(fp)
-    for i, fp in enumerate(board.GetFootprints(), 1):
+    # Numbered as placed, not in board.GetFootprints() order, which differs between
+    # KiCad builds (the macOS app and the Linux Flatpak number them differently).
+    holes = [(hx, hy) for hx in (HOLE_INSET, W - HOLE_INSET) for hy in (HOLE_INSET, PANEL_H - HOLE_INSET)]
+    for i, (hx, hy) in enumerate(holes, 1):
+        fp = pcbnew.FootprintLoad(*MOUNTING_HOLE)
+        fp.SetPosition(mm(hx, hy)); fp.Reference().SetVisible(False); fp.Value().SetVisible(False)
         fp.SetReference(f'H{i}')
+        board.Add(fp)
 
     for kind, xb, z, size, label in spec['openings']:
         x = MARGIN + spec['width'] - xb

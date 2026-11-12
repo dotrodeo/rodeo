@@ -13,6 +13,11 @@ stood on its I/O edge, as it sits in the synth. KiCad does the geometry:
 kicad-cli exports the board (and panel) as GLB with silkscreen, mask and copper,
 and this script places them, replaces the materials and lights the scene.
 
+Use Blender from blender.org on macOS and Linux (made with 5.3 on Linux). Debian's
+package can't run this: it lacks numpy, which the glTF importer needs, and Cycles'
+OpenImageDenoise. kicad-cli is found as tools/kicad/kicadlib.py finds it, so the
+Linux Flatpak works through tools/kicad/bin/kicad-cli.
+
 Panel placement follows hardware/mounting/README.md: the I/O edge (the board's
 top edge in KiCad) on the panel's inner face, board top 15.6 mm above the
 floor, panel bottom on the floor, the panel 5 mm wider than the board each side.
@@ -20,6 +25,7 @@ floor, panel bottom on the floor, the panel 5 mm wider than the board each side.
 import glob
 import math
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -28,7 +34,21 @@ import bpy
 from mathutils import Matrix, Vector
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-KICAD_CLI = '/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli'
+
+
+def find_kicad_cli():
+    """$KICAD_CLI, then PATH, then the macOS app bundle, then tools/kicad/bin/kicad-cli,
+    which runs the Flatpak on Linux. The same order as tools/kicad/kicadlib.py; Blender's
+    Python can't import that, so it's repeated here."""
+    for c in (os.environ.get('KICAD_CLI'), shutil.which('kicad-cli'),
+              '/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli',
+              os.path.join(ROOT, 'tools', 'kicad', 'bin', 'kicad-cli')):
+        if c and os.path.exists(c):
+            return c
+    sys.exit('kicad-cli not found; set KICAD_CLI')
+
+
+KICAD_CLI = find_kicad_cli()
 MM = 0.001
 BOARD_UNDERSIDE = 14.0   # mm above the floor: boss 6 + standoff 8
 PANEL_MARGIN = 5.0

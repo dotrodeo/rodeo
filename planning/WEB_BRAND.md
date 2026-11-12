@@ -40,7 +40,7 @@ the KiCad file and check.
 result. Reproduce with:
 
 ```
-/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli pcb render \
+tools/kicad/bin/kicad-cli pcb render \
   -o mobo-top.png --width 2400 --height 1800 --side top \
   --quality high --background opaque \
   rev-a/rodeo-motherboard/kicad/rodeo-motherboard.kicad_pcb
