@@ -31,8 +31,8 @@ R15,22K,R_0603_1608Metric,145.9500,-109.2000,270.0,bottom
 R16,22K,R_0603_1608Metric,135.6000,-134.2000,90.0,bottom
 R17,80K6,R_0603_1608Metric,135.1750,-118.6500,180.0,bottom
 R18,22K,R_0603_1608Metric,146.0000,-134.2000,270.0,bottom
-SW1,RotaryEncoder_Switch_MP,RotaryEncoder_Bourns_PEC11R-S_Vertical,140.7872,-51.6768,0.0,top
-SW2,RotaryEncoder_Switch_MP,RotaryEncoder_Bourns_PEC11R-S_Vertical,140.7872,-76.6768,0.0,top
-SW3,RotaryEncoder_Switch_MP,RotaryEncoder_Bourns_PEC11R-S_Vertical,140.7872,-101.6768,0.0,top
-SW4,RotaryEncoder_Switch_MP,RotaryEncoder_Bourns_PEC11R-S_Vertical,140.7872,-126.6768,0.0,top
+SW1,RotaryEncoder_Switch_MP,RotaryEncoder_Bourns_PEC11R-S_Vertical,140.7705,-51.6768,0.0,top
+SW2,RotaryEncoder_Switch_MP,RotaryEncoder_Bourns_PEC11R-S_Vertical,140.7705,-76.6768,0.0,top
+SW3,RotaryEncoder_Switch_MP,RotaryEncoder_Bourns_PEC11R-S_Vertical,140.7705,-101.6768,0.0,top
+SW4,RotaryEncoder_Switch_MP,RotaryEncoder_Bourns_PEC11R-S_Vertical,140.7705,-126.6768,0.0,top
 U1,CH32V003FxPx,TSSOP-20_4.4x6.5mm_P0.65mm,140.8000,-89.1500,270.0,bottom
