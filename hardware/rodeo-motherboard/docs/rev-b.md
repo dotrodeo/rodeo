@@ -807,4 +807,4 @@ so they come first.
   holes included, still decodes to `https://rodeooh.rodeo/getting-started`
   (OpenCV, with the image inverted because the code is white on dark). Moving the
   vias would change the copper of a board already at JLC for a code that already
-  scans. Recheck with a phone on the first boards.
+  scans. **Confirmed on a real board, 2026-11-12:** a phone scans it.
