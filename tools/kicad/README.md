@@ -110,5 +110,10 @@ LCSC numbers come from the symbol field `LCSC Part` (or `LCSC`, `JLCPCB Part #`,
 `Supplier Part`), falling back to `jlcpcb/project.db` written by Bouni's KiCad
 JLCPCB plugin, which the satellite boards use.
 
-Limits: top-side parts only, rotations in 90° steps, and the board's zone fills
-are plotted as saved (refill and save in KiCad first).
+Bottom-side parts are solved against JLC's footprint flipped left-right, with the
+rotation written clockwise as seen from the top, which is how JLC reads it. Only a
+polarised part at 90° shows that this is right (0° and 180° parts look the same
+either way), so check one in JLC's preview.
+
+Limits: rotations in 90° steps, and the board's zone fills are plotted as saved
+(refill and save in KiCad first).
