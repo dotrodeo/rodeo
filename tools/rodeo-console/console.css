@@ -230,16 +230,69 @@ button.on { background: var(--yellow); color: var(--field); border-color: var(--
 /* the sound: every parameter, over MIDI (sound.ts) */
 .sound { border-top: 1px solid var(--rule); padding-top: 14px; margin-bottom: 18px; }
 .sound .row { max-width: 980px; margin-bottom: 10px; }
-.sound-groups { display: flex; flex-wrap: wrap; gap: 10px; }
-.sound-group { border: 1px solid var(--rule); background: var(--raised); padding: 9px 11px; min-width: 250px; flex: 1 1 250px; max-width: 360px; }
-.sound-row { display: grid; grid-template-columns: 124px 1fr 76px; gap: 8px; align-items: center; margin: 5px 0; font-size: 12px; }
-.sound-row input[type='range'] { width: 100%; padding: 0; }
-.sound-row select { width: 100%; min-width: 0; }
-.sound-row.menu { grid-template-columns: 124px 1fr; }
-.sound-row.menu output { display: none; }
-.sound-row output { text-align: right; color: var(--yellow); }
-.sound-row.held output { color: var(--red); }
-.sound-name { color: var(--gray); white-space: nowrap; }
+.sound-banks { display: flex; flex-direction: column; gap: 10px; }
+
+/* the banks, a column each, as on the instrument */
+.panel-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--banks), minmax(0, 1fr));
+  /* a head, then a row per control, shared by every bank so the rows line up */
+  grid-template-rows: auto repeat(var(--rows), auto);
+  column-gap: 10px;
+}
+@media (max-width: 720px) { .panel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 10px; } }
+.bank { border: 1px solid var(--rule); background: var(--raised); padding: 9px 8px 4px; min-width: 0; }
+.panel-grid > .bank { display: grid; grid-row: span calc(var(--rows) + 1); grid-template-rows: subgrid; row-gap: 0; }
+.bank .sat-head { margin-bottom: 2px; }
+.ctl {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 10px 2px 12px; text-align: center; font-size: 12px; min-width: 0;
+}
+.bank > .ctl + .ctl { border-top: 1px solid var(--rule); }
+.ctl-name { color: var(--paper); font-size: 13px; }
+.ctl-hint { color: var(--gray); font-size: 10px; line-height: 1.35; min-height: 14px; }
+.ctl-value { color: var(--yellow); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.ctl.held .ctl-value { color: var(--red); }
+.ctl-shows { display: flex; flex-direction: column; gap: 4px; align-items: center; margin-top: 2px; }
+.ctl-show { display: flex; gap: 6px; align-items: center; color: var(--gray); font-size: 11px; }
+.ctl-show select { width: auto; padding: 2px 4px; font-size: 11px; }
+
+/* the rest: whatever no control on the instrument turns */
+.panel-rest { display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: flex-start; }
+.panel-rest .ctl { padding: 6px 2px; }
+.ctl.rest { gap: 6px; }
+.ctl.rest select { width: auto; }
+
+/* knob */
+.knob { width: 54px; height: 54px; cursor: ns-resize; touch-action: none; outline: none; border-radius: 50%; }
+.knob svg { width: 100%; height: 100%; display: block; }
+.knob-track { fill: none; stroke: #333; stroke-width: 4; stroke-linecap: round; }
+.knob-fill { fill: none; stroke: var(--yellow); stroke-width: 4; stroke-linecap: round; }
+.knob-cap { fill: #2a2a2a; stroke: #444; stroke-width: 1; }
+.knob-needle { stroke: var(--legend); stroke-width: 2.5; stroke-linecap: round; }
+.knob.pressable .knob-cap { fill: #303030; stroke: var(--gray); }
+.knob.pressable.active .knob-cap { fill: #3d3d3d; }
+.knob:focus-visible { box-shadow: 0 0 0 2px var(--cyan); }
+.knob.disabled { opacity: 0.4; }
+.ctl.held .knob-fill { stroke: var(--red); }
+
+/* switch */
+.switch {
+  position: relative; width: 32px; height: 18px; padding: 0; border-radius: 9px;
+  border: 1px solid var(--rule); background: #2a2a2a; cursor: pointer;
+}
+.switch span {
+  position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--gray); transition: left 0.12s;
+}
+.switch[aria-checked='true'] { background: var(--yellow); border-color: var(--yellow); }
+.switch[aria-checked='true'] span { left: 16px; background: #111; }
+.switch:disabled { opacity: 0.4; cursor: default; }
+
+/* stepper */
+.stepper { display: inline-flex; align-items: center; gap: 4px; }
+.stepper button { padding: 0 6px; min-width: 0; line-height: 16px; }
+.stepper output { color: var(--yellow); min-width: 22px; text-align: center; }
 
 .chain { border-top: 1px solid var(--rule); padding-top: 14px; margin-bottom: 18px; }
 .chain .row { max-width: 980px; }

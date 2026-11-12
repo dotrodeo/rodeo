@@ -8,6 +8,7 @@
 // Every field is optional; leaving one out is the generic console's behaviour.
 
 import type { Param, Snapshot } from '@dotrodeo/rodeo-host';
+import type { Taper } from './knob.ts';
 
 /** A range of keys to mark on the keyboard, drawn as a bar under them. */
 export interface KeySpan {
@@ -49,6 +50,32 @@ export interface EncoderLabel {
   tap?: string;
 }
 
+/**
+ * One control on a bank of the firmware's panel, as the firmware uses it. The
+ * parameter panel draws it as a knob, with its tap and hold under its name.
+ */
+export interface PanelControl {
+  kind: 'pot' | 'encoder';
+  /** Every parameter it can turn; the first unless `which` says otherwise. */
+  turns: string[];
+  /** Which of `turns` it turns now (rodeo-demo's E1: the shape, or the sound). */
+  which?(s: Snapshot): string;
+  /** Its name on the panel. Without this, the key it turns. */
+  name?(s: Snapshot): string;
+  /** A press let go without turning: the parameters it sets. */
+  tap?: { label: string; act(s: Snapshot): [string, number][] };
+  /** Held, then turned: a parameter it steps, or what a step does. */
+  hold?: { label: string; key?: string; step?(dir: number, s: Snapshot): void };
+  /** Parameters its tap or hold set, drawn under it with their values. */
+  shows?: string[];
+}
+
+/** A bank of the panel: one column of the grid, as on the instrument. */
+export interface PanelBank {
+  title: string;
+  controls: PanelControl[];
+}
+
 /** A serial-port command, as a button beside the chain. */
 export interface SerialCommand {
   label: string;
@@ -61,11 +88,15 @@ export interface SerialCommand {
 export interface Profile {
   /** The page's title in the bar. */
   title?: string;
-  /** The parameter panel's groups, in order. A parameter in none of them goes
-   *  under "other". Without this: the pots, then everything else. */
-  groups?: [string, string[]][];
-  /** What drives a parameter, beside its name. Without this: "pot N". */
-  where?(p: Param): string;
+  /** The parameter panel as the instrument has it: a column per bank. Any
+   *  parameter no control turns or shows goes in a row under them, titled
+   *  `panelRest`. Without this: a column per four pots, by pot number, and
+   *  the rest. */
+  panel?: PanelBank[];
+  panelRest?: string;
+  /** How a knob for this parameter moves, where the console's guess is wrong:
+   *  a time or frequency from 0 ("off") needs its first value above 0. */
+  taper?(p: Param): Partial<Taper> | null;
   /** A value as the firmware's panel says it, or null for the console's way. */
   describe?(p: Param, v: number, s: Snapshot): string | null;
   /** A parameter's values as a menu, from p.min up, or null for the usual

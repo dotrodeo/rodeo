@@ -90,12 +90,21 @@ means the Rodeo drones until it is power-cycled.
 
 ### The parameters
 
-Every parameter in the hello gets a control: a menu where the firmware named
-its values, a slider otherwise, with the value in the firmware's units beside
-it. They follow the Rodeo live through the state stream, and setting one is the
-protocol's `set`. Without a profile they come in two groups, the pots in order
-and then the rest. A row turns red while a preset holds its pot (the state's
-`hold` bit).
+The parameter panel is drawn as the instrument is: a column per bank, a knob
+per control. A pot's knob shows where its parameter is; an encoder's has its
+tap and its held turn written under its name, and under the knob the values
+those set. Drag a knob up or down (Alt for fine), scroll it, or use the arrow
+keys; click a pressable encoder for its tap, and Shift-drag it (or Shift-scroll)
+for its held turn. Times and frequencies over a wide range turn in ratio, as
+the firmware's pots do. A value turns red while a preset or the page holds its
+pot (the state's `hold` bit).
+
+What the banks are comes from the profile (`panel` in `src/profile.ts`). Without
+one the pots make the columns, four to a bank by pot number. Any parameter no
+control turns goes in a row underneath: a switch for an off/on, a menu for a
+list, a − + stepper for a short range, a knob for the rest. Everything follows
+the Rodeo live through the state stream, and setting a value is the protocol's
+`set`.
 
 ### The chain
 

@@ -5,7 +5,7 @@ import { test } from 'node:test';
 
 import type { Param, Snapshot } from '@dotrodeo/rodeo-host';
 import { describe as say } from 'rodeo-console/describe';
-import { ENCODERS, GROUPS, describe, encoder, readout } from './profile.ts';
+import { ENCODERS, PANEL, PRESET_ONLY, describe, encoder, readout } from './profile.ts';
 
 const P = (id: number, key: string, min: number, max: number, unit?: string, names?: string[], pot?: number): Param =>
   ({ id, key, min, max, def: min, ...(unit ? { unit } : {}), ...(names ? { names } : {}), ...(pot ? { pot } : {}) });
@@ -50,10 +50,41 @@ function snap(p: Record<string, number>, extra: Record<string, unknown> = {}): S
   } as unknown as Snapshot;
 }
 
-test('every parameter in the table has a place on the panel', () => {
-  const placed = GROUPS.flatMap(([, keys]) => keys);
-  for (const p of TABLE) assert.ok(placed.includes(p.key), p.key);
-  assert.equal(new Set(placed).size, placed.length, 'and only one');
+test('the panel is the instrument: two pot banks, two encoder banks, four each', () => {
+  assert.deepEqual(PANEL.map((b) => b.controls.map((c) => c.kind)), [
+    ['pot', 'pot', 'pot', 'pot'],
+    ['pot', 'pot', 'pot', 'pot'],
+    ['encoder', 'encoder', 'encoder', 'encoder'],
+    ['encoder', 'encoder', 'encoder', 'encoder'],
+  ]);
+  // each pot drives the parameter the hello puts on it, in order
+  const pots = PANEL.slice(0, 2).flatMap((b) => b.controls.map((c) => c.turns[0]));
+  assert.deepEqual(pots.map((k) => params[k]!.pot), [1, 2, 3, 4, 5, 6, 7, 8]);
+});
+
+test('every parameter in the table has one place: a control, or preset only', () => {
+  const placed = PANEL.flatMap((b) =>
+    b.controls.flatMap((c) => [...c.turns, ...(c.shows ?? []), ...(c.hold?.key ? [c.hold.key] : [])])
+  );
+  const unique = new Set(placed);
+  for (const p of TABLE) assert.ok(unique.has(p.key) !== PRESET_ONLY.includes(p.key), p.key);
+  assert.equal(unique.size + PRESET_ONLY.length, TABLE.length);
+});
+
+test('a tap does what Tap() in panel.cpp does', () => {
+  const s = snap({ layer: 0, detune: 30, octave: 2, lfo: 0, fx: 2, fattack: 900, fdecay: 50, fsustain: 80, mono: 1 });
+  const tap = (n: number, st = s) => ENCODERS[n]!.tap!.act(st);
+  assert.deepEqual(tap(0), [['layer', 1]], 'synth to sampler');
+  assert.deepEqual(tap(0, snap({ layer: 2 })), [['layer', 0]], 'both round to synth');
+  const empty = { ...snap({ layer: 0 }), replies: {} } as unknown as Snapshot;
+  assert.deepEqual(tap(0, empty), [['layer', 0]], 'no sounds on the card: stays synth');
+  assert.deepEqual(tap(1), [['detune', params.detune!.def], ['octave', 0]], 'detune to its default, octave to 0');
+  assert.deepEqual(tap(2), [['lfo', 1]]);
+  assert.deepEqual(tap(3), [['fx', 0]], 'both round to chorus');
+  assert.deepEqual(tap(4), [['fattack', 0]], 'follows attack');
+  assert.deepEqual(tap(5), [['fdecay', params.fdecay!.def]], 'fdecay to its default');
+  assert.deepEqual(tap(7), [['mono', 0]]);
+  assert.equal(ENCODERS[1]!.hold?.key, 'octave', 'E2 held turns the octave');
 });
 
 test('values read the way the panel says them', () => {
@@ -73,7 +104,7 @@ test('an encoder row reads out what it turns and what its tap set', () => {
   const s = snap({ shape: 1, layer: 2, detune: 8, octave: -1, hpf: 120, lfo: 1, mix: 25, fx: 2,
                    sound: 1, fattack: 0, fdecay: 400, fsustain: 25, glide: 80, mono: 1 });
   const [e1, e2, e3, e4, e5, e6, e7, e8] = ENCODERS.map((_, n) => encoder(n, s)!);
-  assert.deepEqual([e1.name, e1.value, e1.extra], ['shape', 'square', 'both']);
+  assert.deepEqual([e1.name, e1.value, e1.extra], ['sound', 'Grand Piano', 'both'], 'both layers: E1 turns the sound');
   assert.deepEqual([e2.name, e2.value, e2.extra], ['detune', '8 cents', 'octave -1']);
   assert.deepEqual([e3.name, e3.value, e3.extra], ['high-pass', '120 Hz', 'LFO on']);
   assert.deepEqual([e4.name, e4.value, e4.extra], ['effects mix', '25 %', 'both']);
@@ -85,9 +116,11 @@ test('an encoder row reads out what it turns and what its tap set', () => {
   assert.equal(encoder(8, s), null, 'a third encoder bank drives nothing');
 });
 
-test('in sampler layer E1 picks the sound instead of the shape', () => {
+test('E1 turns the shape in synth layer only, the sound otherwise', () => {
   const e1 = encoder(0, snap({ layer: 1, shape: 0, sound: 1 }))!;
   assert.deepEqual([e1.name, e1.value], ['sound', 'Grand Piano']);
+  const synth = encoder(0, snap({ layer: 0, shape: 1, sound: 1 }))!;
+  assert.deepEqual([synth.name, synth.value], ['shape', 'square']);
 });
 
 test('a value the Rodeo does not send reads as absent, never as zero', () => {

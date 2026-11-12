@@ -10,46 +10,121 @@ import type { Param, Snapshot } from '@dotrodeo/rodeo-host';
 import { demoState, loadPreset, presets, sounds } from '@dotrodeo/rodeo-host/rodeo-demo';
 import { describe as plain } from 'rodeo-console/describe';
 import { rodeo } from 'rodeo-console/link';
-import type { EncoderLabel, KeySpan, Profile, VoiceModel } from 'rodeo-console/profile';
+import type { EncoderLabel, KeySpan, PanelBank, PanelControl, Profile, VoiceModel } from 'rodeo-console/profile';
 import { noteName } from './card.ts';
-import { KEYS } from './preset.ts';
 import { ROOT_NOTE, VOICE_COUNT, Voices } from './voices.ts';
 
-/** The panel's banks, as panel.h lays them out. */
-export const GROUPS: [string, string[]][] = [
-  ['pot bank 1 · filter', ['cutoff', 'resonance', 'env', 'drive']],
-  ['pot bank 2 · amp envelope', ['attack', 'decay', 'sustain', 'release']],
-  ['encoder bank 1', ['layer', 'shape', 'sound', 'detune', 'octave', 'hpf', 'lfo', 'mix', 'fx']],
-  ['encoder bank 2 · filter envelope', ['fattack', 'fdecay', 'fsustain', 'glide', 'mono']],
-  ['preset only', ['filter', 'keytrack']],
-];
+const named = (n: string) => () => n;
+const def = (s: Snapshot, key: string) => s.params[key]?.def ?? 0;
+const now = (s: Snapshot, key: string) => s.state?.p[key];
 
-/**
- * Encoders 1-8: bank 1's four, then bank 2's (panel.h). They send detents, not
- * positions, so there is nothing to compare: only the parameter each one
- * turns, what its tap does, and what its tap or hold last set.
- */
-export interface EncoderSpec {
-  name: string;
-  /** The parameter it turns. */
-  key: string;
-  /** What it turns instead in sampler layer (E1 picks the sound). */
-  sampler?: 'sound';
-  tap: string;
-  /** The parameters its tap and hold set, said beside its value. */
-  shows?: string[];
+/** The next of a list parameter's values, round to the first. */
+function cycle(s: Snapshot, key: string): number {
+  const p = s.params[key];
+  const v = now(s, key) ?? p?.min ?? 0;
+  return !p || v >= p.max ? (p?.min ?? 0) : v + 1;
 }
 
-export const ENCODERS: EncoderSpec[] = [
-  { name: 'shape', key: 'shape', sampler: 'sound', tap: 'layer', shows: ['layer'] },
-  { name: 'detune', key: 'detune', tap: 'detune and octave back; held: octave', shows: ['octave'] },
-  { name: 'high-pass', key: 'hpf', tap: 'LFO on/off', shows: ['lfo'] },
-  { name: 'effects mix', key: 'mix', tap: 'chorus / reverb / both', shows: ['fx'] },
-  { name: 'filter attack', key: 'fattack', tap: 'back to following attack' },
-  { name: 'filter decay', key: 'fdecay', tap: 'back to 400 ms' },
-  { name: 'filter sustain', key: 'fsustain', tap: 'back to 25%' },
-  { name: 'glide', key: 'glide', tap: 'mono on/off', shows: ['mono'] },
+const flip = (s: Snapshot, key: string) => (now(s, key) ? 0 : 1);
+
+/**
+ * Encoders 1-8: bank 1's four, then bank 2's, as panel.h has them (Turn and
+ * Tap in panel.cpp). They send detents, not positions: what the page draws is
+ * the parameter each one turns, what its tap and held turn do, and the values
+ * those set.
+ */
+export const ENCODERS: PanelControl[] = [
+  {
+    kind: 'encoder',
+    // Turn() turns the shape in synth layer only; sampler and both turn the sound
+    turns: ['shape', 'sound'],
+    which: (s) => (layer(s) === 'synth' || layer(s) === null ? 'shape' : 'sound'),
+    name: (s) => (layer(s) === 'synth' || layer(s) === null ? 'shape' : 'sound'),
+    tap: {
+      label: 'synth / sampler / both',
+      // Tap() keeps synth while the card has no sounds
+      act: (s) => [['layer', sounds(s).length ? cycle(s, 'layer') : 0]],
+    },
+    hold: {
+      label: 'preset',
+      step(dir, s) {
+        const count = presets(s).length;
+        const at = demoState(s)?.preset ?? -1;
+        if (count) loadPreset(rodeo, (((at + dir) % count) + count) % count);
+      },
+    },
+    shows: ['layer'],
+  },
+  {
+    kind: 'encoder',
+    turns: ['detune'],
+    name: named('detune'),
+    tap: { label: 'detune and octave back', act: (s) => [['detune', def(s, 'detune')], ['octave', 0]] },
+    hold: { label: 'octave', key: 'octave' },
+    shows: ['octave'],
+  },
+  {
+    kind: 'encoder',
+    turns: ['hpf'],
+    name: named('high-pass'),
+    tap: { label: 'LFO on / off', act: (s) => [['lfo', flip(s, 'lfo')]] },
+    shows: ['lfo'],
+  },
+  {
+    kind: 'encoder',
+    turns: ['mix'],
+    name: named('effects mix'),
+    tap: { label: 'chorus / reverb / both', act: (s) => [['fx', cycle(s, 'fx')]] },
+    shows: ['fx'],
+  },
+  {
+    kind: 'encoder',
+    turns: ['fattack'],
+    name: named('filter attack'),
+    tap: { label: 'follow the attack', act: () => [['fattack', 0]] },
+  },
+  {
+    kind: 'encoder',
+    turns: ['fdecay'],
+    name: named('filter decay'),
+    tap: { label: 'back to 400 ms', act: (s) => [['fdecay', def(s, 'fdecay')]] },
+  },
+  {
+    kind: 'encoder',
+    turns: ['fsustain'],
+    name: named('filter sustain'),
+    tap: { label: 'back to 25 %', act: (s) => [['fsustain', def(s, 'fsustain')]] },
+  },
+  {
+    kind: 'encoder',
+    turns: ['glide'],
+    name: named('glide'),
+    tap: { label: 'mono on / off', act: (s) => [['mono', flip(s, 'mono')]] },
+    shows: ['mono'],
+  },
 ];
+
+const pot = (key: string, name: string): PanelControl => ({ kind: 'pot', turns: [key], name: named(name) });
+
+/** The panel as panel.h lays it out: two pot banks, then two encoder banks. */
+export const PANEL: PanelBank[] = [
+  {
+    title: 'filter',
+    controls: [pot('cutoff', 'cutoff'), pot('resonance', 'resonance'), pot('env', 'filter env'), pot('drive', 'drive')],
+  },
+  {
+    title: 'amp envelope',
+    controls: [pot('attack', 'attack'), pot('decay', 'decay'), pot('sustain', 'sustain'), pot('release', 'release')],
+  },
+  { title: 'shape · tone · effects', controls: ENCODERS.slice(0, 4) },
+  { title: 'filter envelope · glide', controls: ENCODERS.slice(4) },
+];
+
+/** In a preset, but on no control: the panel's last row. */
+export const PRESET_ONLY = ['filter', 'keytrack'];
+
+/** Where an encoder's off sits below its first value (panel.cpp's Step()). */
+const FIRST: Record<string, number> = { hpf: 20, fattack: 1, glide: 5 };
 
 /** The words rodeo-demo's panel uses where the table's units would not do. */
 export function describe(p: Param, v: number, s: Snapshot): string | null {
@@ -68,16 +143,15 @@ function layer(s: Snapshot): string | null {
   return p?.names && v !== undefined ? (p.names[v - p.min] ?? null) : null;
 }
 
-/** One encoder row: what it turns, its value, and what its tap or hold set. */
+/** One encoder for the chain view: what it turns, its value, and what its tap or hold set. */
 export function encoder(n: number, s: Snapshot): EncoderLabel | null {
-  const spec = ENCODERS[n];
-  if (!spec) return null; // a third encoder bank: nothing on the panel reads it
-  const sampler = layer(s) === 'sampler' && spec.sampler;
-  const key = sampler ? spec.sampler! : spec.key; // set when sampler is
+  const c = ENCODERS[n];
+  if (!c) return null; // a third encoder bank: nothing on the panel reads it
+  const key = c.which?.(s) ?? c.turns[0];
   const p = s.params[key];
   const v = s.state?.p[key];
   const value = p && v !== undefined ? say(p, v, s) : 'not reported';
-  const extra = (spec.shows ?? [])
+  const extra = (c.shows ?? [])
     .map((k) => {
       const q = s.params[k];
       const w = s.state?.p[k];
@@ -89,7 +163,8 @@ export function encoder(n: number, s: Snapshot): EncoderLabel | null {
     })
     .filter(Boolean)
     .join(' · ');
-  return { name: sampler ? 'sound' : spec.name, value, extra, tap: spec.tap };
+  const tap = [c.tap?.label, c.hold && `held: ${c.hold.label}`].filter(Boolean).join('; ');
+  return { name: c.name?.(s) ?? key, value, extra, tap };
 }
 
 /** The readout's rodeo-demo chips: the preset, the layer, the card. */
@@ -180,11 +255,9 @@ function mountPresets(box: HTMLElement): () => void {
 export function rodeoDemo(span: () => KeySpan | null): Profile {
   return {
     title: 'rodeo-demo',
-    groups: GROUPS,
-    where: (p) => {
-      const spec = KEYS[p.key];
-      return spec?.pot ? `pot ${spec.pot}` : (spec?.enc ?? '');
-    },
+    panel: PANEL,
+    panelRest: 'preset only',
+    taper: (p) => (FIRST[p.key] ? { lo: FIRST[p.key] } : null),
     describe,
     menu: (p, s) => (p.key === 'sound' ? sounds(s).map((x) => x.name) : null),
     readout,

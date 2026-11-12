@@ -451,3 +451,42 @@ test("a firmware's own words come first", () => {
   assert.equal(say(P({ unit: 'Hz' }), 0, SNAP, profile), 'off');
   assert.equal(say(P({ unit: 'Hz' }), 80, SNAP, profile), '80 Hz', 'null falls back');
 });
+
+// ------------------------------------------------------------- the knobs
+
+import { fromPos, nudge, toPos, type Taper } from './src/knob.ts';
+
+test('a plain knob is linear, and lands on whole values', () => {
+  const t: Taper = { min: 0, max: 1000 };
+  assert.equal(toPos(0, t), 0);
+  assert.equal(toPos(500, t), 0.5);
+  assert.equal(fromPos(0.4123, t), 412);
+  assert.equal(fromPos(2, t), 1000, 'past the end is the end');
+  assert.equal(toPos(5, { min: 5, max: 5 }), 0, 'a knob with nowhere to go');
+});
+
+test('a time knob turns in ratio, as the pots do', () => {
+  const attack: Taper = { min: 1, max: 4000, log: true };
+  assert.equal(fromPos(0, attack), 1);
+  assert.equal(fromPos(1, attack), 4000);
+  assert.equal(fromPos(0.5, attack), 63, 'halfway is the geometric middle, not 2 s');
+  for (const v of [1, 10, 400, 4000]) assert.ok(Math.abs(fromPos(toPos(v, attack), attack) - v) <= 1, `${v} round trips`);
+});
+
+test('a time knob with an off keeps it at the bottom', () => {
+  const hpf: Taper = { min: 0, max: 2000, log: true, lo: 20 };
+  assert.equal(toPos(0, hpf), 0);
+  assert.equal(fromPos(0, hpf), 0, 'off');
+  assert.ok(toPos(20, hpf) > 0, 'the first value is above off');
+  assert.equal(fromPos(toPos(20, hpf), hpf), 20);
+  assert.equal(fromPos(1, hpf), 2000);
+});
+
+test('a wheel click moves a knob by a visible amount, and at least one', () => {
+  assert.equal(nudge(3, 1, { min: 0, max: 50 }), 4, 'small ranges go by one');
+  assert.equal(nudge(50, 1, { min: 0, max: 50 }), 50, 'and stop at the end');
+  const big = nudge(500, 1, { min: 0, max: 1000 });
+  assert.ok(big > 500 && big <= 515, `${big}`);
+  assert.equal(nudge(1, -1, { min: 1, max: 4000, log: true }), 1);
+  assert.ok(nudge(1, 1, { min: 1, max: 4000, log: true }) >= 2, 'a log knob still moves at its bottom');
+});
