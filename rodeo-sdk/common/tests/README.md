@@ -15,6 +15,14 @@ make clean
 
 You should see GoogleTest print each test and a final `[  PASSED  ]` line.
 
+```sh
+make usb-desc          # every firmware's USB descriptors against usb_desc/golden/
+make usb-desc-update   # rewrite golden/ when a change is meant; review the diff
+```
+
+`usb-desc` needs the tinyusb submodule, so it isn't part of `make test`; CI runs
+both.
+
 ## What lives here
 
 | File | Purpose |
@@ -24,6 +32,7 @@ You should see GoogleTest print each test and a final `[  PASSED  ]` line.
 | `adc_convert_gtest.cpp` | Tests the ADC value pipeline (`common/adc_convert.h`). |
 | `pot_ui_gtest.cpp` | Tests the panel logic (`common/pot_ui.h`): stepped-pot hysteresis and the knob-activity watcher that drives the OLED popup in `09_poly_synth_oled`. |
 | `svf_stability_gtest.cpp` | Regression guard for the DaisySP `Svf` blow-up that crashed 06/09/rodeo-001. Compiles the **real** vendored DaisySP (see `DSP_SOURCES` in the Makefile) because what it guards is DaisySP's numerical behaviour, not our arithmetic. |
+| `usb_desc/` | What every firmware tells a computer over USB (`common/usb_desc.c` with each firmware's `tusb_config.h`), byte for byte: `check.sh` calls TinyUSB's descriptor callbacks on the host, in normal and disk mode, and compares with `golden/`. The golden files began as the descriptors the firmwares had before the SDK took them over, which had run on hardware. |
 | `pot_span_gtest.cpp` | Tests the pot span calibration (`rodeo::PotSpan` in `common/adc_convert.h`) that stops every knob reading 91 % because of the satellite's 1 kΩ top-rail resistor. |
 
 ## The rule that makes firmware testable

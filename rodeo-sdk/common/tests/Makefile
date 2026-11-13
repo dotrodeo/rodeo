@@ -5,6 +5,8 @@
 # libDaisy/tests, so there is NO new dependency to fetch.
 #
 #   make test     # build + run all tests
+#   make usb-desc # every firmware's USB descriptors against usb_desc/golden/
+#                 # (needs the tinyusb submodule; usb-desc-update rewrites them)
 #   make clean
 #
 # Mirrors libDaisy/tests/Makefile (same clang++ / gnu++14 / gtest wiring).
@@ -79,6 +81,15 @@ all: $(BIN_PATH)/$(BIN_NAME)
 
 test: release c-headers
 	./$(BIN_NAME)
+
+# Every firmware's USB descriptors, byte for byte, against usb_desc/golden/
+# (usb_desc/check.sh). Apart from `test` because it needs the tinyusb submodule,
+# which the rest of these tests don't; CI runs both.
+.PHONY: usb-desc usb-desc-update
+usb-desc:
+	@CC=$(CC) ./usb_desc/check.sh
+usb-desc-update:
+	@CC=$(CC) ./usb_desc/check.sh --update
 
 # sat_frame.h is also built as C, by the satellites' toolchain. Compile it as
 # strict C99 here so a C++-only construct fails on the host, not on the bench.

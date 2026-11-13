@@ -73,6 +73,14 @@ A computer caches a device's layout by its IDs, so give each distinct layout its
 own product ID, and let firmwares with the same layout share one. The examples'
 IDs are listed in `common/usb_desc.h`.
 
+### Locked by a test
+
+What each example and rodeo-demo send a computer is checked byte for byte in CI
+(`make -C rodeo-sdk/common/tests usb-desc`, against `usb_desc/golden/`). A change
+to `usb_desc.c`, `usb_uac1.h`, a firmware's `tusb_config.h` or TinyUSB that alters
+a descriptor fails it. When the change is meant, give a changed layout its own
+product ID, run `make usb-desc-update`, and commit the new golden files with it.
+
 ## Proposed shape
 
 ```cpp
